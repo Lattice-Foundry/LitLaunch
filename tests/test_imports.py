@@ -1,3 +1,6 @@
+import re
+from importlib.metadata import version
+
 import litlaunch
 from litlaunch import (
     BrowserChoice,
@@ -6,6 +9,7 @@ from litlaunch import (
     LaunchMode,
     LitLaunchError,
     StreamlitLauncher,
+    __version__,
 )
 
 
@@ -24,4 +28,15 @@ def test_public_all_is_explicit():
         "LauncherConfig",
         "LitLaunchError",
         "StreamlitLauncher",
+        "__version__",
     ]
+
+
+def test_version_is_public_and_internal_baseline():
+    assert litlaunch.__version__ == "0.0.2"
+    assert __version__ == "0.0.2"
+    assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
+
+
+def test_package_metadata_version_matches_public_version():
+    assert version("litlaunch") == litlaunch.__version__

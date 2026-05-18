@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "litlaunch"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A lightweight launcher/runtime layer for Streamlit applications."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,6 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = []
@@ -39,6 +40,9 @@ Issues = "https://github.com/LatticeFoundry/litlaunch/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/litlaunch"]
+
+[tool.hatch.version]
+path = "src/litlaunch/version.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

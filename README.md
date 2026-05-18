@@ -47,6 +47,14 @@ designed and tested.
 Commands are built as argument tuples, not shell strings. Runtime dependencies
 are intentionally minimal.
 
+## Versioning
+
+LitLaunch uses `0.0.0` style internal versioning:
+
+- Patch bumps are for fixes, cleanup, and basic hardening passes.
+- Minor bumps are for larger internal milestones and feature work.
+- Major versions are controlled manually by the project owner.
+
 ## License
 
 MIT

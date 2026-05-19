@@ -3,6 +3,7 @@ from importlib.metadata import version
 
 import litlaunch
 from litlaunch import (
+    THEME_COLORS,
     Architecture,
     BrowserCapability,
     BrowserChoice,
@@ -45,6 +46,7 @@ from litlaunch import (
     StreamlitCommandBuilder,
     StreamlitLauncher,
     TextDiagnosticsRenderer,
+    ThemeColor,
     WindowInfo,
     WindowMonitor,
     WindowMonitorConfig,
@@ -56,7 +58,10 @@ from litlaunch import (
     WindowTarget,
     __version__,
     create_window_monitor,
+    get_theme_color,
     is_chromium_window,
+    is_hex_color,
+    is_theme_color_name,
 )
 
 
@@ -100,7 +105,9 @@ def test_public_imports_are_available():
     assert ShutdownResult
     assert StreamlitCommandBuilder
     assert StreamlitLauncher
+    assert THEME_COLORS["streamlit_blue"].hex == "#1c83e1"
     assert TextDiagnosticsRenderer
+    assert ThemeColor
     assert WindowsChromiumWindowMonitor
     assert WindowsWindowProvider
     assert WindowInfo
@@ -111,7 +118,10 @@ def test_public_imports_are_available():
     assert WindowMonitorStatus.WINDOW_CLOSED.value == "window_closed"
     assert WindowTarget
     assert create_window_monitor
+    assert get_theme_color("streamlit_blue")
     assert is_chromium_window
+    assert is_hex_color("#1c83e1")
+    assert is_theme_color_name("streamlit_blue")
 
 
 def test_public_all_is_explicit():
@@ -157,7 +167,9 @@ def test_public_all_is_explicit():
         "ShutdownResult",
         "StreamlitCommandBuilder",
         "StreamlitLauncher",
+        "THEME_COLORS",
         "TextDiagnosticsRenderer",
+        "ThemeColor",
         "WindowInfo",
         "WindowMonitor",
         "WindowMonitorConfig",
@@ -169,14 +181,17 @@ def test_public_all_is_explicit():
         "WindowsWindowProvider",
         "__version__",
         "create_window_monitor",
+        "get_theme_color",
         "is_chromium_window",
+        "is_hex_color",
+        "is_theme_color_name",
     ]
     assert not hasattr(litlaunch, "ConsoleColor")
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.16.2"
-    assert __version__ == "0.16.2"
+    assert litlaunch.__version__ == "0.17.0"
+    assert __version__ == "0.17.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

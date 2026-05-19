@@ -8,8 +8,17 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TextIO
+from typing import ClassVar, TextIO
 
+from litlaunch.colors import (
+    THEME_COLORS,
+    muted_amber,
+    muted_gray,
+    powershell_red,
+    streamlit_blue,
+    success_green,
+    terminal_green,
+)
 from litlaunch.lifecycle import LaunchEvent, LaunchState
 from litlaunch.shutdown import ShutdownHookResult
 
@@ -37,7 +46,7 @@ class ConsoleColor(str, Enum):
 
 
 ANSI_COLORS: Mapping[str, str] = {
-    "streamlit_blue": "\033[38;2;28;131;225m",
+    **{name: color.ansi for name, color in THEME_COLORS.items()},
     "indigo": "\033[38;2;99;102;241m",
     "cyan": "\033[38;2;6;182;212m",
     "green": "\033[32m",
@@ -52,12 +61,16 @@ ANSI_COLORS: Mapping[str, str] = {
 class ConsoleTheme:
     """Named color choices for LitLaunch console output."""
 
-    primary: str = "streamlit_blue"
-    accent: str = "indigo"
-    success: str = "green"
-    warning: str = "yellow"
-    error: str = "red"
-    muted: str = "gray"
+    prefix: ClassVar[str] = "[LitLaunch]"
+
+    primary: str = terminal_green
+    accent: str = streamlit_blue
+    brand: str = terminal_green
+    label: str = streamlit_blue
+    success: str = success_green
+    warning: str = muted_amber
+    error: str = powershell_red
+    muted: str = muted_gray
     use_color: bool = field(default_factory=lambda: "NO_COLOR" not in os.environ)
 
 

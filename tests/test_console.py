@@ -1,5 +1,16 @@
 from io import StringIO
 
+from litlaunch.colors import (
+    THEME_COLORS,
+    is_hex_color,
+    muted_amber,
+    muted_gray,
+    powershell_red,
+    streamlit_blue,
+    streamlit_blue_light,
+    success_green,
+    terminal_green,
+)
 from litlaunch.console import (
     ANSI_COLORS,
     ConsoleMode,
@@ -11,12 +22,35 @@ from litlaunch.lifecycle import LaunchEvent, LaunchState
 from litlaunch.shutdown import ShutdownHookResult
 
 
-def test_console_theme_defaults_include_streamlit_blue():
+def test_named_theme_colors_exist_and_are_hex():
+    expected_names = {
+        streamlit_blue,
+        streamlit_blue_light,
+        terminal_green,
+        powershell_red,
+        muted_amber,
+        muted_gray,
+        success_green,
+    }
+
+    assert expected_names <= set(THEME_COLORS)
+    for color in THEME_COLORS.values():
+        assert is_hex_color(color.hex)
+
+
+def test_console_theme_defaults_use_litlaunch_color_roles():
     theme = ConsoleTheme(use_color=False)
 
-    assert theme.primary == "streamlit_blue"
-    assert theme.accent == "indigo"
-    assert ANSI_COLORS["streamlit_blue"]
+    assert theme.prefix == "[LitLaunch]"
+    assert theme.primary == terminal_green
+    assert theme.brand == terminal_green
+    assert theme.accent == streamlit_blue
+    assert theme.label == streamlit_blue
+    assert theme.error == powershell_red
+    assert theme.warning == muted_amber
+    assert theme.muted == muted_gray
+    assert theme.success == success_green
+    assert ANSI_COLORS[streamlit_blue]
     assert theme.use_color is False
 
 
@@ -131,6 +165,19 @@ def test_console_renderer_can_emit_ansi_and_strip_it():
     output = stream.getvalue()
     assert "\033[" in output
     assert strip_ansi(output).strip() == "LitLaunch"
+
+
+def test_unknown_custom_color_is_unstyled_but_allowed():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(primary="custom_brand", use_color=True),
+        stream=stream,
+        env={},
+    )
+
+    renderer.header("LitLaunch")
+
+    assert stream.getvalue() == "LitLaunch\n"
 
 
 def test_console_renderer_lifecycle_event_rendering():

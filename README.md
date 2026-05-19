@@ -147,10 +147,17 @@ The `color` metadata is stored now for future console/theme rendering.
 ## Console UX
 
 LitLaunch includes a lightweight stdlib-only console renderer for launcher,
-runtime, diagnostics, and shutdown-hook messages. The default primary color is
-`streamlit_blue` with an indigo accent, and output can run in `quiet`, `normal`,
-or `verbose` modes. Plain/no-color output is supported, including `NO_COLOR`,
-without adding Rich, Textual, or Colorama.
+runtime, diagnostics, and shutdown-hook messages. Output can run in `quiet`,
+`normal`, or `verbose` modes. Plain/no-color output is supported, including
+`NO_COLOR`, without adding Rich, Textual, or Colorama.
+
+LitLaunch exposes stable developer-facing theme color names:
+`streamlit_blue`, `streamlit_blue_light`, `terminal_green`, `powershell_red`,
+`muted_amber`, `muted_gray`, and `success_green`. The console prefix text is
+fixed as `[LitLaunch]`; its color is themeable, but the product name is not.
+The default prefix/brand color is `terminal_green`, status labels use
+`streamlit_blue`, errors use `powershell_red`, and shutdown hooks can store
+these named colors in their `color` metadata for renderer support.
 
 ## CLI
 

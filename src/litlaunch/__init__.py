@@ -7,6 +7,13 @@ from litlaunch.browsers import (
     BrowserLaunchResult,
     BrowserResolution,
 )
+from litlaunch.colors import (
+    THEME_COLORS,
+    ThemeColor,
+    get_theme_color,
+    is_hex_color,
+    is_theme_color_name,
+)
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.console import (
     ConsoleMode,
@@ -73,6 +80,7 @@ __all__ = [
     "ConsoleMode",
     "ConsoleRenderer",
     "ConsoleTheme",
+    "get_theme_color",
     "HealthChecker",
     "DiagnosticCollector",
     "DiagnosticItem",
@@ -116,4 +124,8 @@ __all__ = [
     "__version__",
     "create_window_monitor",
     "is_chromium_window",
+    "is_hex_color",
+    "is_theme_color_name",
+    "THEME_COLORS",
+    "ThemeColor",
 ]

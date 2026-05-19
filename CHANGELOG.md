@@ -3,6 +3,14 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.17.0
+
+- Added stable developer-facing console theme color names and hex values.
+- Updated console theme defaults around `[LitLaunch]` prefix, Streamlit blue
+  labels, terminal green branding, PowerShell-style red errors, and muted
+  warning/detail colors.
+- Documented named shutdown-hook color metadata for future polished rendering.
+
 ## 0.16.2
 
 - Fixed Windows window-provider fake paths on non-Windows hosts by avoiding

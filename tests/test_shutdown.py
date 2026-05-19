@@ -5,6 +5,7 @@ import urllib.request
 
 import pytest
 
+from litlaunch.colors import streamlit_blue
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.shutdown import (
     LITLAUNCH_SHUTDOWN_ENABLED,
@@ -46,7 +47,7 @@ def test_shutdown_hook_stores_metadata():
         label="Cleanup",
         success_message="Done",
         failure_message="Failed",
-        color="streamlit_blue",
+        color=streamlit_blue,
         continue_on_error=False,
     )
 
@@ -54,8 +55,18 @@ def test_shutdown_hook_stores_metadata():
     assert hook.label == "Cleanup"
     assert hook.success_message == "Done"
     assert hook.failure_message == "Failed"
-    assert hook.color == "streamlit_blue"
+    assert hook.color == streamlit_blue
     assert hook.continue_on_error is False
+
+
+def test_shutdown_hook_accepts_unknown_custom_color_metadata():
+    hook = ShutdownHook(
+        func=lambda: None,
+        label="Cleanup",
+        color="project_custom_color",
+    )
+
+    assert hook.color == "project_custom_color"
 
 
 def test_shutdown_registry_registers_and_runs_hooks_in_order():

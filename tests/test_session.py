@@ -329,6 +329,32 @@ def test_runtime_session_stop_uses_fallback_when_graceful_request_fails():
     assert session.state == LaunchState.TERMINATED
 
 
+def test_runtime_session_stop_fallback_console_guidance():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process = make_process()
+    manager = FakeProcessManager()
+    shutdown_client = FakeShutdownClient(ok=False)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session.stop(timeout_seconds=2.0)
+
+    output = stream.getvalue()
+    assert "Graceful shutdown request failed." in output
+    assert "Using backend termination fallback." in output
+    assert "LitLaunch will stop only the backend process it started." in output
+
+
 def test_runtime_session_stop_uses_fallback_when_graceful_wait_times_out():
     process = make_process()
     manager = FakeProcessManager(wait_timeout=True)

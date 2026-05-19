@@ -164,6 +164,10 @@ health checks, browser launch, window monitoring, and shutdown. Where useful,
 LitLaunch includes elapsed timings like `ready in 1.2s` without changing
 runtime ownership or adding terminal UI dependencies.
 
+Failure output is intentionally calm and actionable. Normal mode summarizes the
+likely cause and next steps, quiet mode keeps only essential failures visible,
+and verbose mode adds sanitized details without exposing shutdown tokens.
+
 ## CLI
 
 LitLaunch includes a small argparse-based CLI with no external command-line

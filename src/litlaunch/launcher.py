@@ -202,6 +202,18 @@ class StreamlitLauncher:
                 render=False,
             )
             self._render_phase_error(ConsolePhase.BROWSER, browser_result.message)
+            self._render_failure_guidance(
+                "Browser launch failed; stopping the owned backend.",
+                likely_cause=browser_result.message,
+                next_steps=(
+                    "Check that the requested browser is installed and launchable.",
+                    (
+                        "Use --browser default or enable fallback if app-mode "
+                        "is not required."
+                    ),
+                ),
+                detail=browser_result.message,
+            )
             self.process_manager.stop(managed_process)
             self._record(
                 events,
@@ -374,7 +386,10 @@ class StreamlitLauncher:
                         "Health check failed; stopping owned backend.",
                         render=False,
                     )
-                    self._render_phase_error(ConsolePhase.HEALTH, failure_message)
+                    self._render_health_failure_guidance(
+                        managed_process,
+                        failure_message,
+                    )
                     self.process_manager.stop(managed_process)
                     self._record(
                         events,
@@ -443,7 +458,7 @@ class StreamlitLauncher:
             )
         except Exception as exc:
             self._record(events, LaunchState.FAILED, str(exc), render=False)
-            self._render_phase_error(ConsolePhase.BACKEND, str(exc))
+            self._render_backend_start_failure_guidance(str(exc))
             return _BackendStart(
                 LaunchResult(
                     ok=False,
@@ -557,6 +572,73 @@ class StreamlitLauncher:
     def _render_phase_error(self, phase: ConsolePhase, message: str) -> None:
         if self.console_renderer is not None:
             self.console_renderer.phase_error(phase, message)
+
+    def _render_failure_guidance(
+        self,
+        summary: str,
+        *,
+        likely_cause: str | None = None,
+        next_steps: tuple[str, ...] = (),
+        suggest_inspect: bool = True,
+        detail: str | None = None,
+    ) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.failure_guidance(
+                summary,
+                likely_cause=likely_cause,
+                next_steps=next_steps,
+                suggest_inspect=suggest_inspect,
+                detail=detail,
+            )
+
+    def _render_backend_start_failure_guidance(self, detail: str) -> None:
+        self._render_failure_guidance(
+            "Backend startup failed.",
+            likely_cause=detail,
+            next_steps=(
+                "Check the app path and Python environment.",
+                "Check Streamlit installation and CLI arguments.",
+                (
+                    "If using a fixed port, confirm it is available or choose "
+                    "another port."
+                ),
+            ),
+            detail=detail,
+        )
+
+    def _render_health_failure_guidance(
+        self,
+        process: ManagedProcess,
+        detail: str,
+    ) -> None:
+        if self.process_manager.is_running(process):
+            self._render_failure_guidance(
+                "Streamlit backend did not become healthy before timeout.",
+                likely_cause=(
+                    "The app may still be starting, Streamlit may have failed "
+                    "internally, or localhost health checks may be blocked."
+                ),
+                next_steps=(
+                    "Increase the health timeout if startup is expected to be slow.",
+                    "Run Streamlit directly to see any app traceback.",
+                ),
+                detail=detail,
+            )
+            return
+
+        self._render_failure_guidance(
+            "Streamlit backend exited before becoming healthy.",
+            likely_cause=(
+                "Streamlit may be missing, the app may have crashed during import, "
+                "or Streamlit CLI arguments may be invalid."
+            ),
+            next_steps=(
+                "Verify Streamlit is installed in this Python environment.",
+                "Run the app directly with streamlit run to see the traceback.",
+                "Check the app path and command arguments.",
+            ),
+            detail=detail,
+        )
 
     def _render_browser_resolution(
         self,

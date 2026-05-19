@@ -3,6 +3,13 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.19.0
+
+- Added calm, actionable failure guidance for backend startup, health timeout,
+  browser launch, window monitoring, shutdown fallback, and hook failures.
+- Standardized inspect and verbose-mode recovery hints across runtime failures.
+- Preserved quiet/normal/verbose console behavior and token redaction.
+
 ## 0.18.0
 
 - Added structured runtime console phase rendering for backend startup, health

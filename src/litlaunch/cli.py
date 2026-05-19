@@ -27,6 +27,7 @@ from litlaunch.platforms import PlatformDetector
 from litlaunch.version import __version__
 from litlaunch.windowing import (
     NoopWindowMonitor,
+    WindowMonitorResult,
     WindowMonitorStatus,
     WindowTarget,
     create_window_monitor,
@@ -268,7 +269,14 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
 
     session = launcher.run()
     if not session.ok:
-        renderer.error(session.result.message)
+        renderer.failure_guidance(
+            "Runtime launch failed.",
+            likely_cause=session.result.message,
+            next_steps=(
+                "Run the app directly with streamlit run to compare behavior.",
+            ),
+            suggest_inspect=True,
+        )
         return 1
 
     renderer.success(f"Runtime active at {session.url}")
@@ -467,16 +475,30 @@ def _prepare_window_monitor(
     platform_info = context.platform_detector_factory().detect()
     monitor = context.window_monitor_factory(platform_info)
     if isinstance(monitor, NoopWindowMonitor):
-        renderer.error(
-            "Window monitoring is not supported on this platform or monitor "
-            "implementation."
+        renderer.failure_guidance(
+            "Window monitoring is unavailable.",
+            likely_cause=(
+                "This platform or monitor implementation does not support "
+                "window monitoring."
+            ),
+            next_steps=(
+                "Omit --monitor-window to launch without close detection.",
+                "Use Chromium app-mode on Windows for the strongest supported path.",
+            ),
         )
         return _MONITOR_UNSUPPORTED
 
     try:
         baseline = monitor.capture(WindowTarget(config.title, app_mode=True))
     except Exception as exc:
-        renderer.error(f"Window monitoring baseline capture failed: {exc}")
+        renderer.failure_guidance(
+            "Window monitoring baseline capture failed.",
+            likely_cause=str(exc),
+            next_steps=(
+                "Omit --monitor-window to launch without close detection.",
+                "Use verbose mode for more monitor setup details.",
+            ),
+        )
         return _MONITOR_UNSUPPORTED
     return monitor, tuple(window.handle for window in baseline)
 
@@ -506,26 +528,35 @@ def _monitor_session_window(
         return 0
 
     if result.status == WindowMonitorStatus.UNSUPPORTED:
-        renderer.error(result.message)
+        _render_monitor_result_if_needed(session, renderer, result)
         session.stop()
         return 1
     if result.status == WindowMonitorStatus.TIMEOUT:
-        renderer.error(result.message)
+        _render_monitor_result_if_needed(session, renderer, result)
         session.stop()
         return 1
     if result.status == WindowMonitorStatus.ERROR:
-        renderer.error(result.message)
+        _render_monitor_result_if_needed(session, renderer, result)
         session.stop()
         return 1
     if result.closed:
-        renderer.success(result.message)
+        _render_monitor_result_if_needed(session, renderer, result)
         return 0
     if result.status == WindowMonitorStatus.BACKEND_EXITED:
-        renderer.info(result.message)
+        _render_monitor_result_if_needed(session, renderer, result)
         return 0
 
-    renderer.warning(result.message)
+    _render_monitor_result_if_needed(session, renderer, result)
     return 1
+
+
+def _render_monitor_result_if_needed(
+    session: Any,
+    renderer: ConsoleRenderer,
+    result: WindowMonitorResult,
+) -> None:
+    if getattr(session, "console_renderer", None) is None:
+        renderer.render_window_monitor_result(result)
 
 
 def _validate_inspect_output_args(args: argparse.Namespace) -> None:

@@ -387,7 +387,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.18.0"
+    assert data["litlaunch_version"] == "0.19.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -866,7 +866,8 @@ def test_cli_run_monitor_window_noop_monitor_fails_before_launch():
 
     assert code == 1
     assert FakeLauncher.instances[0].run_calls == 0
-    assert "Window monitoring is not supported" in stream.getvalue()
+    assert "Window monitoring is unavailable" in stream.getvalue()
+    assert "Omit --monitor-window" in stream.getvalue()
 
 
 def test_cli_run_monitor_window_backend_exit_returns_zero_without_extra_stop():

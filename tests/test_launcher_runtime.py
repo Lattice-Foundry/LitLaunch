@@ -229,6 +229,31 @@ def test_start_backend_stops_owned_process_when_health_fails():
     assert LaunchState.TERMINATING in {event.state for event in result.events}
 
 
+def test_health_timeout_console_guidance_is_actionable():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process_manager = FakeProcessManager()
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8601),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=False),
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend()
+
+    output = stream.getvalue()
+    assert session.ok is False
+    assert "Streamlit backend did not become healthy before timeout." in output
+    assert "Run Streamlit directly to see any app traceback." in output
+    assert 'Run "litlaunch inspect" for local diagnostics.' in output
+
+
 def test_start_backend_reports_process_exit_before_health_as_startup_failure():
     process_manager = FakeProcessManager(process_returncode=1)
     launcher = StreamlitLauncher(
@@ -247,6 +272,30 @@ def test_start_backend_reports_process_exit_before_health_as_startup_failure():
     assert "Streamlit is not installed" in result.message
     assert "app crashes during startup" in result.message
     assert len(process_manager.stopped) == 1
+
+
+def test_backend_early_exit_console_guidance_is_actionable():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8601),
+        process_manager=FakeProcessManager(process_returncode=1),
+        health_checker=FakeHealthChecker(healthy=False),
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend()
+
+    output = stream.getvalue()
+    assert session.ok is False
+    assert "Streamlit backend exited before becoming healthy." in output
+    assert "Verify Streamlit is installed in this Python environment." in output
+    assert "Run the app directly with streamlit run" in output
 
 
 def test_start_backend_can_skip_health_check():
@@ -381,6 +430,32 @@ def test_run_browser_failure_stops_only_backend():
     assert session.process is None
     assert len(process_manager.stopped) == 1
     assert LaunchState.TERMINATING in {event.state for event in session.events}
+
+
+def test_browser_failure_console_guidance_is_actionable():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", mode="webapp", browser="edge"),
+        port_manager=FakePortManager(8605),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser(BrowserKind.EDGE)),
+        browser_launcher=FakeBrowserLauncher(ok=False),
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session = launcher.run()
+
+    output = stream.getvalue()
+    assert session.ok is False
+    assert "Browser launch failed; stopping the owned backend." in output
+    assert "Check that the requested browser is installed and launchable." in output
+    assert "--browser default" in output
 
 
 def test_run_browser_mode_can_use_default_browser_path():

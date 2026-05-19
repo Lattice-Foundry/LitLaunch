@@ -205,6 +205,36 @@ class ConsoleRenderer:
 
         self.phase(phase, message, level="error")
 
+    def failure_guidance(
+        self,
+        summary: str,
+        *,
+        likely_cause: str | None = None,
+        next_steps: Sequence[str] = (),
+        suggest_inspect: bool = False,
+        docs_hint: str | None = None,
+        detail: str | None = None,
+    ) -> None:
+        """Render calm, actionable failure guidance."""
+
+        self.error(summary)
+        if self.mode == ConsoleMode.QUIET:
+            return
+        if likely_cause:
+            self._guidance_line("Likely cause", likely_cause)
+        for step in next_steps:
+            self._guidance_line("Next", step)
+        if suggest_inspect:
+            self._guidance_line(
+                "Next",
+                'Run "litlaunch inspect" for local diagnostics.',
+            )
+        self._guidance_line("Next", "Use verbose mode for more runtime details.")
+        if docs_hint:
+            self._guidance_line("Docs", docs_hint)
+        if detail:
+            self.detail(f"Failure detail: {detail}")
+
     def runtime_ready(self, url: str | None = None) -> None:
         """Render a concise runtime-ready message."""
 
@@ -234,8 +264,8 @@ class ConsoleRenderer:
                 ConsolePhase.BROWSER,
                 (
                     f"{first.name} unavailable; using {selected.name} "
-                    f"({mode_text}){downgrade}. Use --browser or install the "
-                    "preferred browser to change this."
+                    f"({mode_text}){downgrade}. Runtime will continue. "
+                    "Use --browser or install the preferred browser to change this."
                 ),
             )
             return
@@ -245,16 +275,51 @@ class ConsoleRenderer:
     def render_window_monitor_result(self, result: WindowMonitorResult) -> None:
         """Render a window monitor result without changing monitor behavior."""
 
-        if (
-            result.status == WindowMonitorStatus.UNSUPPORTED
-            or result.status == WindowMonitorStatus.TIMEOUT
-            or result.status == WindowMonitorStatus.ERROR
-        ):
-            self.phase_error(ConsolePhase.MONITOR, result.message)
-        elif result.closed or result.status == WindowMonitorStatus.WINDOW_OBSERVED:
+        if result.status in {
+            WindowMonitorStatus.UNSUPPORTED,
+            WindowMonitorStatus.UNAVAILABLE,
+        }:
+            self.failure_guidance(
+                "Window monitoring is unavailable.",
+                likely_cause=result.message,
+                next_steps=(
+                    "Omit --monitor-window to launch without close detection.",
+                    (
+                        "Use Chromium app-mode on Windows for the strongest "
+                        "supported path."
+                    ),
+                ),
+            )
+        elif result.status == WindowMonitorStatus.TIMEOUT:
+            self.failure_guidance(
+                "Window monitoring timed out before an app window was observed.",
+                likely_cause=result.message,
+                next_steps=(
+                    "Confirm the app-mode browser window opened and the title matches.",
+                    "Try --title if the window title differs from the app title.",
+                ),
+            )
+        elif result.status == WindowMonitorStatus.ERROR:
+            self.failure_guidance(
+                "Window monitoring failed.",
+                likely_cause=result.message,
+                next_steps=(
+                    "Omit --monitor-window to run without close detection.",
+                    "Use verbose mode to inspect monitor setup details.",
+                ),
+            )
+        elif result.closed:
+            self.phase_success(
+                ConsolePhase.MONITOR,
+                f"{result.message}; requesting shutdown",
+            )
+        elif result.status == WindowMonitorStatus.WINDOW_OBSERVED:
             self.phase_success(ConsolePhase.MONITOR, result.message)
         elif result.status == WindowMonitorStatus.BACKEND_EXITED:
-            self.phase_warning(ConsolePhase.MONITOR, result.message)
+            self.phase_warning(
+                ConsolePhase.MONITOR,
+                f"{result.message}; backend exited before the window close signal.",
+            )
         else:
             self.phase(ConsolePhase.MONITOR, result.message)
 
@@ -328,6 +393,14 @@ class ConsoleRenderer:
             self.phase_success(ConsolePhase.HOOK, message)
         else:
             self.phase_error(ConsolePhase.HOOK, message)
+            self.failure_guidance(
+                "Shutdown hook failed.",
+                likely_cause=result.message,
+                next_steps=(
+                    ("Review the hook implementation and rerun with verbose output."),
+                ),
+                detail=result.error,
+            )
 
     def _emit(self, text: str) -> None:
         safe_text = self._redact(str(text))
@@ -356,6 +429,10 @@ class ConsoleRenderer:
         for value in self._redacted_values:
             redacted = redacted.replace(value, "[redacted]")
         return redacted
+
+    def _guidance_line(self, label: str, message: str) -> None:
+        label_text = self._style(f"{label}:", self.theme.label)
+        self._emit(f"{self.theme.prefix}   {label_text} {message}")
 
 
 def strip_ansi(text: str) -> str:

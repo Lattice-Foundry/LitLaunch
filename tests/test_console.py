@@ -153,6 +153,58 @@ def test_console_renderer_quiet_suppresses_normal_output_but_not_errors():
     assert "error Failure" in output
 
 
+def test_failure_guidance_respects_quiet_normal_and_verbose_modes():
+    quiet_stream = StringIO()
+    ConsoleRenderer(
+        mode="quiet",
+        theme=ConsoleTheme(use_color=False),
+        stream=quiet_stream,
+    ).failure_guidance(
+        "Backend failed.",
+        likely_cause="secret-token cause",
+        next_steps=("Run a check.",),
+    )
+
+    assert "Backend failed." in quiet_stream.getvalue()
+    assert "Likely cause" not in quiet_stream.getvalue()
+
+    normal_stream = StringIO()
+    ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=normal_stream,
+    ).failure_guidance(
+        "Backend failed.",
+        likely_cause="Streamlit exited.",
+        next_steps=("Run Streamlit directly.",),
+        suggest_inspect=True,
+        detail="hidden in normal mode",
+    )
+
+    normal_output = normal_stream.getvalue()
+    assert "Likely cause: Streamlit exited." in normal_output
+    assert "Next: Run Streamlit directly." in normal_output
+    assert 'Run "litlaunch inspect" for local diagnostics.' in normal_output
+    assert "Use verbose mode for more runtime details." in normal_output
+    assert "hidden in normal mode" not in normal_output
+
+    verbose_stream = StringIO()
+    ConsoleRenderer(
+        mode="verbose",
+        theme=ConsoleTheme(use_color=False),
+        stream=verbose_stream,
+        redacted_values=("secret-token",),
+    ).failure_guidance(
+        "Backend failed.",
+        likely_cause="secret-token cause",
+        detail="detail includes secret-token",
+    )
+
+    verbose_output = verbose_stream.getvalue()
+    assert "Failure detail:" in verbose_output
+    assert "secret-token" not in verbose_output
+    assert "[redacted]" in verbose_output
+
+
 def test_console_renderer_verbose_includes_detail_messages():
     stream = StringIO()
     renderer = ConsoleRenderer(
@@ -255,6 +307,8 @@ def test_console_renderer_shutdown_hook_metadata_rendering_is_internal():
     assert "Hook: Closing resources" in output
     assert "Hook: Closing resources: Resources closed" in output
     assert "Hook: Closing resources: Resource close failed" in output
+    assert "Shutdown hook failed." in output
+    assert "Review the hook implementation" in output
 
 
 def test_console_renderer_browser_fallback_summary():
@@ -323,7 +377,8 @@ def test_console_renderer_monitor_status_rendering():
 
     output = stream.getvalue()
     assert "Monitor: Window closed." in output
-    assert "Monitor: Unsupported." in output
+    assert "Window monitoring is unavailable." in output
+    assert "Likely cause: Unsupported." in output
 
 
 def test_console_renderer_redacts_registered_values():

@@ -158,6 +158,17 @@ class RuntimeSession:
                         ConsolePhase.STOPPING_BACKEND,
                         "graceful stop timed out; using termination fallback",
                     )
+                    self._render_failure_guidance(
+                        "Graceful shutdown timed out.",
+                        likely_cause=(
+                            "The app accepted the shutdown request but did not exit "
+                            "before the graceful timeout."
+                        ),
+                        next_steps=(
+                            "Review shutdown hooks if the app needs cleanup time.",
+                            "Use verbose mode for more runtime details.",
+                        ),
+                    )
                 else:
                     self._stopped = True
                     self._state = LaunchState.TERMINATED
@@ -181,6 +192,19 @@ class RuntimeSession:
                 self._render_phase_warning(
                     ConsolePhase.STOPPING_BACKEND,
                     "graceful request failed; using termination fallback",
+                )
+                self._render_failure_guidance(
+                    "Graceful shutdown request failed.",
+                    likely_cause=(
+                        "The app-side shutdown endpoint did not accept the request."
+                    ),
+                    next_steps=(
+                        (
+                            "Confirm the app calls "
+                            "LauncherRuntime.enable_shutdown_endpoint()."
+                        ),
+                        "Use verbose mode for more runtime details.",
+                    ),
                 )
 
         if not self.is_running():
@@ -206,6 +230,12 @@ class RuntimeSession:
         self._render_phase_warning(
             ConsolePhase.STOPPING_BACKEND,
             "terminating owned backend process",
+        )
+        self._render_failure_guidance(
+            "Using backend termination fallback.",
+            likely_cause="The backend did not stop through graceful shutdown.",
+            next_steps=("LitLaunch will stop only the backend process it started.",),
+            suggest_inspect=False,
         )
         self.process_manager.stop(
             self.process,
@@ -327,6 +357,22 @@ class RuntimeSession:
     def _render_window_monitor_result(self, result: WindowMonitorResult) -> None:
         if self.console_renderer is not None:
             self.console_renderer.render_window_monitor_result(result)
+
+    def _render_failure_guidance(
+        self,
+        summary: str,
+        *,
+        likely_cause: str | None = None,
+        next_steps: tuple[str, ...] = (),
+        suggest_inspect: bool = False,
+    ) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.failure_guidance(
+                summary,
+                likely_cause=likely_cause,
+                next_steps=next_steps,
+                suggest_inspect=suggest_inspect,
+            )
 
     def __enter__(self) -> RuntimeSession:
         """Return this session for context manager ownership."""

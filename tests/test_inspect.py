@@ -1,0 +1,351 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
+from litlaunch.config import BrowserChoice
+from litlaunch.inspect import (
+    DiagnosticCollector,
+    DiagnosticItem,
+    DiagnosticSection,
+    DiagnosticsReport,
+    DiagnosticStatus,
+    StreamlitAvailability,
+    TextDiagnosticsRenderer,
+    redact_sensitive_args,
+)
+from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
+
+EXAMPLE_APP = Path("examples/minimal_app/app.py")
+MISSING_APP = Path("missing-inspect-app.py")
+
+
+def fake_platform_info() -> PlatformInfo:
+    return PlatformInfo(
+        os=OperatingSystem.WINDOWS,
+        architecture=Architecture.X64,
+        python_version="3.14.5",
+        python_executable="X:/Python/python.exe",
+        machine="AMD64",
+        system="Windows",
+        release="11",
+        is_windows=True,
+        is_macos=False,
+        is_linux=False,
+        supports_chromium_app_mode=True,
+        supports_window_monitoring=True,
+        supports_default_browser_open=True,
+        notes=("Window monitoring capability is currently Windows-first.",),
+    )
+
+
+class FakePlatformDetector:
+    def detect(self):
+        return fake_platform_info()
+
+
+class FakeBrowserRegistry:
+    def __init__(self, *, selected=True):
+        self.selected = selected
+        self.detect_calls = []
+        self.resolve_calls = []
+
+    def detect_all(self, platform_info=None):
+        self.detect_calls.append(platform_info)
+        return (
+            BrowserCapability(
+                kind=BrowserKind.EDGE,
+                name="Edge",
+                executable_path="C:/Edge/msedge.exe",
+                available=True,
+                supports_app_mode=True,
+                supports_full_browser=True,
+            ),
+            BrowserCapability(
+                kind=BrowserKind.CHROME,
+                name="Chrome",
+                executable_path=None,
+                available=False,
+                supports_app_mode=True,
+                supports_full_browser=True,
+                notes=("Chrome not found.",),
+            ),
+        )
+
+    def resolve(
+        self,
+        choice,
+        platform_info=None,
+        *,
+        prefer_app_mode=False,
+        allow_fallback=True,
+    ):
+        self.resolve_calls.append(
+            (choice, platform_info, prefer_app_mode, allow_fallback)
+        )
+        selected = None
+        if self.selected:
+            selected = BrowserCapability(
+                kind=BrowserKind.EDGE,
+                name="Edge",
+                executable_path="C:/Edge/msedge.exe",
+                available=True,
+                supports_app_mode=True,
+                supports_full_browser=True,
+            )
+        return BrowserResolution(
+            requested=BrowserChoice.AUTO,
+            selected=selected,
+            fallback_chain=(),
+            message="Selected Edge." if selected else "No browser available.",
+        )
+
+
+class FakeCommandBuilder:
+    def __init__(self, config):
+        self.config = config
+
+    def build(self, *, port=None):
+        command = (
+            "python",
+            "-m",
+            "streamlit",
+            "run",
+            str(self.config.app_path),
+            "--server.port",
+            str(port or 8501),
+            *self.config.streamlit_args,
+        )
+        if self.config.app_args:
+            return (*command, "--", *self.config.app_args)
+        return command
+
+
+class FakeLauncher:
+    instances = []
+
+    def __init__(self, config):
+        self.config = config
+        self.command_builder = FakeCommandBuilder(config)
+        self.run_calls = 0
+        FakeLauncher.instances.append(self)
+
+    def resolve_port(self):
+        return self.config.port or 8501
+
+    def resolve_browser(self, *, prefer_app_mode=None):
+        return BrowserResolution(
+            requested=self.config.browser,
+            selected=BrowserCapability(
+                kind=BrowserKind.EDGE,
+                name="Edge",
+                executable_path="C:/Edge/msedge.exe",
+                available=True,
+                supports_app_mode=True,
+                supports_full_browser=True,
+            ),
+            fallback_chain=(),
+            message="Selected Edge.",
+        )
+
+    def run(self):
+        self.run_calls += 1
+        raise AssertionError("inspect must not start the backend")
+
+
+def streamlit_available():
+    return StreamlitAvailability(
+        available=True,
+        version="1.50.0",
+        message="Streamlit 1.50.0 detected.",
+    )
+
+
+def streamlit_missing():
+    return StreamlitAvailability(
+        available=False,
+        version=None,
+        message="Streamlit is not installed.",
+    )
+
+
+def make_collector(*, streamlit_checker=streamlit_available, browser_selected=True):
+    return DiagnosticCollector(
+        platform_detector=FakePlatformDetector(),
+        browser_registry=FakeBrowserRegistry(selected=browser_selected),
+        streamlit_checker=streamlit_checker,
+        launcher_factory=FakeLauncher,
+    )
+
+
+def test_diagnostic_status_values():
+    assert DiagnosticStatus.OK.value == "ok"
+    assert DiagnosticStatus.WARNING.value == "warning"
+    assert DiagnosticStatus.ERROR.value == "error"
+    assert DiagnosticStatus.INFO.value == "info"
+
+
+def test_diagnostics_report_counts_and_ok_behavior():
+    report = DiagnosticsReport(
+        "Report",
+        (
+            DiagnosticSection(
+                "Section",
+                (
+                    DiagnosticItem("a", DiagnosticStatus.OK, "ok"),
+                    DiagnosticItem("b", DiagnosticStatus.WARNING, "warn"),
+                    DiagnosticItem("c", DiagnosticStatus.ERROR, "error"),
+                ),
+            ),
+        ),
+    )
+
+    assert report.ok is False
+    assert report.warnings == 1
+    assert report.errors == 1
+
+
+def test_report_without_errors_is_ok_with_warnings_allowed():
+    report = DiagnosticsReport(
+        "Report",
+        (
+            DiagnosticSection(
+                "Section",
+                (DiagnosticItem("warning", DiagnosticStatus.WARNING, "warn"),),
+            ),
+        ),
+    )
+
+    assert report.ok is True
+    assert report.warnings == 1
+    assert report.errors == 0
+
+
+def test_collector_without_app_path_reports_environment_only():
+    report = make_collector().collect()
+
+    assert report.ok is True
+    assert [section.title for section in report.sections] == [
+        "LitLaunch",
+        "Platform",
+        "Streamlit",
+        "Browsers",
+    ]
+    assert "LitLaunch" in report.sections[0].items[0].message
+    assert report.errors == 0
+
+
+def test_collector_with_valid_app_path_builds_previews():
+    FakeLauncher.instances = []
+
+    report = make_collector().collect(app_path=EXAMPLE_APP, port=8600)
+    rendered = TextDiagnosticsRenderer().render(report)
+
+    assert report.ok is True
+    assert "Target" in [section.title for section in report.sections]
+    assert "Command preview" in rendered
+    assert "App URL preview: http://127.0.0.1:8600" in rendered
+    assert "Health URL preview: http://127.0.0.1:8600/_stcore/health" in rendered
+    assert FakeLauncher.instances
+    assert FakeLauncher.instances[0].run_calls == 0
+
+
+def test_collector_with_missing_app_path_reports_error():
+    report = make_collector().collect(app_path=MISSING_APP)
+    rendered = TextDiagnosticsRenderer().render(report)
+
+    assert report.ok is False
+    assert report.errors == 2
+    assert "does not exist" in rendered
+    assert "is not a file" in rendered
+
+
+def test_collector_reports_streamlit_missing_with_fake_checker():
+    report = make_collector(streamlit_checker=streamlit_missing).collect()
+    rendered = TextDiagnosticsRenderer().render(report)
+
+    assert report.ok is False
+    assert "Streamlit is not installed." in rendered
+
+
+def test_collector_reports_browser_capabilities_with_fake_registry():
+    report = make_collector(browser_selected=False).collect()
+    rendered = TextDiagnosticsRenderer().render(report)
+
+    assert report.ok is True
+    assert report.warnings >= 1
+    assert "Edge: available, app-mode, full-browser" in rendered
+    assert "Chrome: unavailable, app-mode, full-browser" in rendered
+    assert "No browser available." in rendered
+
+
+def test_text_renderer_outputs_plain_text_with_summary():
+    report = DiagnosticsReport(
+        "LitLaunch Inspect",
+        (
+            DiagnosticSection(
+                "Platform",
+                (
+                    DiagnosticItem(
+                        "Platform",
+                        DiagnosticStatus.OK,
+                        "Windows x64 / Python 3.14.5",
+                        detail="detail line",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    rendered = TextDiagnosticsRenderer(include_details=True).render(report)
+
+    assert "LitLaunch Inspect" in rendered
+    assert "[OK] Platform: Windows x64 / Python 3.14.5" in rendered
+    assert "detail line" in rendered
+    assert "0 errors, 0 warnings" in rendered
+    assert "\033[" not in rendered
+
+
+def test_text_renderer_can_omit_details():
+    report = DiagnosticsReport(
+        "Report",
+        (
+            DiagnosticSection(
+                "Section",
+                (DiagnosticItem("Name", DiagnosticStatus.INFO, "message", "secret"),),
+            ),
+        ),
+    )
+
+    rendered = TextDiagnosticsRenderer(include_details=False).render(report)
+
+    assert "Name: message" in rendered
+    assert "secret" not in rendered
+
+
+def test_redact_sensitive_args():
+    redacted = redact_sensitive_args(
+        (
+            "--server.cookieSecret",
+            "super-secret",
+            "--api_key=value",
+            "--theme.base=dark",
+        )
+    )
+
+    assert "super-secret" not in redacted
+    assert "--server.cookieSecret" in redacted
+    assert "<redacted>" in redacted
+    assert "--api_key=<redacted>" in redacted
+    assert "--theme.base=dark" in redacted
+
+
+def test_report_output_does_not_include_sensitive_command_values():
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        streamlit_args=("--server.cookieSecret", "super-secret-token"),
+    )
+    rendered = TextDiagnosticsRenderer().render(report)
+
+    assert "super-secret-token" not in rendered
+    assert "<redacted>" in rendered

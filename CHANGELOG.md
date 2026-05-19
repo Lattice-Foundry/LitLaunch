@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.10.0
+
+- Added structured text diagnostics report types and collector.
+- Added `litlaunch inspect [app.py]` for local runtime readiness checks.
+- Added plain-text diagnostics rendering without launching Streamlit or browsers.
+
 ## 0.9.1
 
 - Added release hygiene tooling for build, metadata, wheel, and sdist checks.

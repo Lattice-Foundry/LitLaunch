@@ -11,6 +11,12 @@ from litlaunch import __version__
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.cli import build_parser, main
 from litlaunch.config import BrowserChoice
+from litlaunch.inspect import (
+    DiagnosticItem,
+    DiagnosticSection,
+    DiagnosticsReport,
+    DiagnosticStatus,
+)
 from litlaunch.lifecycle import LaunchResult, LaunchState
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
 
@@ -165,6 +171,49 @@ def reset_fake_launcher(session):
     return FakeLauncher
 
 
+class FakeDiagnosticCollector:
+    instances = []
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.collect_calls = []
+        FakeDiagnosticCollector.instances.append(self)
+
+    def collect(self, **kwargs):
+        self.collect_calls.append(kwargs)
+        if kwargs.get("app_path") == "missing.py":
+            return DiagnosticsReport(
+                "LitLaunch Inspect",
+                (
+                    DiagnosticSection(
+                        "Target",
+                        (
+                            DiagnosticItem(
+                                "App path exists",
+                                DiagnosticStatus.ERROR,
+                                "missing.py does not exist",
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        return DiagnosticsReport(
+            "LitLaunch Inspect",
+            (
+                DiagnosticSection(
+                    "Platform",
+                    (
+                        DiagnosticItem(
+                            "Platform",
+                            DiagnosticStatus.OK,
+                            "Windows x64 / Python 3.14.5",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+
 def test_cli_parser_builds_and_help_lists_commands():
     parser = build_parser()
     help_text = parser.format_help()
@@ -172,6 +221,7 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "version" in help_text
     assert "platform" in help_text
     assert "browsers" in help_text
+    assert "inspect" in help_text
     assert "command" in help_text
     assert "run" in help_text
     assert "source-checkout minimal example" in help_text
@@ -221,6 +271,47 @@ def test_cli_browsers_outputs_capabilities_without_launching():
     assert "Auto app-mode strategy: Selected Edge." in output
     assert registry.detect_calls
     assert "\033[" not in output
+
+
+def test_cli_inspect_outputs_report_and_returns_zero_without_launching():
+    stream = StringIO()
+    FakeDiagnosticCollector.instances = []
+
+    def launcher_factory(*args, **kwargs):
+        raise AssertionError("inspect should not construct or run launcher directly")
+
+    code = main(
+        ["inspect", "--mode", "webapp", "--browser", "edge", "--port", "8600"],
+        stream=stream,
+        platform_detector_factory=FakePlatformDetector,
+        browser_registry_factory=FakeBrowserRegistry,
+        launcher_factory=launcher_factory,
+        diagnostic_collector_factory=FakeDiagnosticCollector,
+    )
+
+    collector = FakeDiagnosticCollector.instances[0]
+    output = stream.getvalue()
+    assert code == 0
+    assert "LitLaunch Inspect" in output
+    assert "[OK] Platform: Windows x64 / Python 3.14.5" in output
+    assert collector.collect_calls[0]["app_path"] is None
+    assert collector.collect_calls[0]["mode"] == "webapp"
+    assert collector.collect_calls[0]["browser"] == "edge"
+    assert collector.collect_calls[0]["port"] == 8600
+
+
+def test_cli_inspect_returns_nonzero_for_report_errors():
+    stream = StringIO()
+    FakeDiagnosticCollector.instances = []
+
+    code = main(
+        ["inspect", "missing.py"],
+        stream=stream,
+        diagnostic_collector_factory=FakeDiagnosticCollector,
+    )
+
+    assert code == 1
+    assert "[ERROR] App path exists: missing.py does not exist" in stream.getvalue()
 
 
 def test_cli_run_builds_config_and_waits_for_backend():

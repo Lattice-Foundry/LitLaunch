@@ -16,6 +16,7 @@ from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.console import ConsoleMode, ConsoleRenderer, ConsoleTheme
 from litlaunch.exceptions import LitLaunchError
+from litlaunch.inspect import DiagnosticCollector, TextDiagnosticsRenderer
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector
 from litlaunch.version import __version__
@@ -28,6 +29,7 @@ class _CliContext:
     platform_detector_factory: Any
     browser_registry_factory: Any
     launcher_factory: Any
+    diagnostic_collector_factory: Any
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -64,6 +66,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     browsers_parser.set_defaults(handler=_cmd_browsers)
 
+    inspect_parser = subparsers.add_parser(
+        "inspect",
+        parents=[parent],
+        help="Inspect local LitLaunch and Streamlit runtime readiness.",
+    )
+    _add_inspect_flags(inspect_parser)
+    inspect_parser.set_defaults(handler=_cmd_inspect)
+
     command_parser = subparsers.add_parser(
         "command",
         parents=[parent],
@@ -98,6 +108,7 @@ def main(
     platform_detector_factory: Any = PlatformDetector,
     browser_registry_factory: Any = create_default_browser_registry,
     launcher_factory: Any = StreamlitLauncher,
+    diagnostic_collector_factory: Any = DiagnosticCollector,
 ) -> int:
     """Run the LitLaunch CLI."""
 
@@ -120,6 +131,7 @@ def main(
         platform_detector_factory=platform_detector_factory,
         browser_registry_factory=browser_registry_factory,
         launcher_factory=launcher_factory,
+        diagnostic_collector_factory=diagnostic_collector_factory,
     )
     try:
         return int(args.handler(args, context))
@@ -170,6 +182,30 @@ def _cmd_browsers(args: argparse.Namespace, context: _CliContext) -> int:
     )
     renderer.info(f"Auto app-mode strategy: {resolution.message}")
     return 0
+
+
+def _cmd_inspect(args: argparse.Namespace, context: _CliContext) -> int:
+    collector = context.diagnostic_collector_factory(
+        platform_detector=context.platform_detector_factory(),
+        browser_registry=context.browser_registry_factory(),
+        launcher_factory=context.launcher_factory,
+    )
+    report = collector.collect(
+        app_path=args.app_path,
+        mode=args.mode or LaunchMode.BROWSER,
+        browser=args.browser or BrowserChoice.AUTO,
+        host=args.host,
+        port=args.port,
+        allow_browser_fallback=not args.no_browser_fallback,
+    )
+    rendered = TextDiagnosticsRenderer(
+        include_details=_mode(args) == ConsoleMode.VERBOSE
+    ).render(report)
+    context.stream.write(rendered)
+    flush = getattr(context.stream, "flush", None)
+    if callable(flush):
+        flush()
+    return 0 if report.ok else 1
 
 
 def _cmd_command(args: argparse.Namespace, context: _CliContext) -> int:
@@ -268,6 +304,19 @@ def _add_runtime_flags(
         action="append",
         default=[],
         help="Add an app argument after Streamlit's -- separator. Repeatable.",
+    )
+
+
+def _add_inspect_flags(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("app_path", nargs="?")
+    parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
+    parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
+    parser.add_argument("--port", type=int)
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument(
+        "--no-browser-fallback",
+        action="store_true",
+        help="Disable browser fallback when the requested browser is unavailable.",
     )
 
 

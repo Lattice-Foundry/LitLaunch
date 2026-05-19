@@ -133,6 +133,8 @@ framework dependencies:
 litlaunch version
 litlaunch platform
 litlaunch browsers
+litlaunch inspect
+litlaunch inspect examples/minimal_app/app.py
 litlaunch command examples/minimal_app/app.py --server.runOnSave true
 litlaunch run examples/minimal_app/app.py
 litlaunch run examples/minimal_app/app.py --dry-run --theme.base=dark
@@ -149,6 +151,15 @@ Explicit browser choices use fallback only when `allow_browser_fallback` is true
 or `--no-browser-fallback` is not set. In webapp mode, fallback remains limited
 to app-mode-capable browsers. In browser mode, fallback may eventually resolve to
 the system default browser.
+
+## Inspect
+
+`litlaunch inspect` prints a text-only diagnostics report for the local runtime
+environment. `litlaunch inspect app.py` adds target-aware checks such as app path
+validation, command preview, app URL preview, health URL preview, and browser
+resolution. Inspect does not launch Streamlit, open browsers, start local
+servers, or dump environment variables. A richer HTML inspector/dashboard may
+be added later on top of the same structured diagnostics data.
 
 ## Examples
 

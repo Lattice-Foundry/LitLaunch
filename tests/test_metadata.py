@@ -30,6 +30,7 @@ def test_pyproject_dev_extras_include_release_tools():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
+    assert "## 0.10.0" in changelog
     assert "## 0.9.1" in changelog
     assert "## 0.9.0" in changelog
     assert "## 0.8.4" in changelog

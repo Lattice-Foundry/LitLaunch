@@ -14,6 +14,11 @@ from litlaunch import (
     ConsoleMode,
     ConsoleRenderer,
     ConsoleTheme,
+    DiagnosticCollector,
+    DiagnosticItem,
+    DiagnosticSection,
+    DiagnosticsReport,
+    DiagnosticStatus,
     HealthChecker,
     LauncherConfig,
     LauncherRuntime,
@@ -35,6 +40,7 @@ from litlaunch import (
     ShutdownResult,
     StreamlitCommandBuilder,
     StreamlitLauncher,
+    TextDiagnosticsRenderer,
     __version__,
 )
 
@@ -50,6 +56,11 @@ def test_public_imports_are_available():
     assert ConsoleMode.NORMAL.value == "normal"
     assert ConsoleRenderer
     assert ConsoleTheme
+    assert DiagnosticCollector
+    assert DiagnosticItem
+    assert DiagnosticSection
+    assert DiagnosticStatus.OK.value == "ok"
+    assert DiagnosticsReport
     assert HealthChecker
     assert issubclass(ConfigurationError, LitLaunchError)
     assert LaunchState.CREATED.value == "created"
@@ -70,6 +81,7 @@ def test_public_imports_are_available():
     assert ShutdownResult
     assert StreamlitCommandBuilder
     assert StreamlitLauncher
+    assert TextDiagnosticsRenderer
 
 
 def test_public_all_is_explicit():
@@ -85,6 +97,11 @@ def test_public_all_is_explicit():
         "ConsoleMode",
         "ConsoleRenderer",
         "ConsoleTheme",
+        "DiagnosticCollector",
+        "DiagnosticItem",
+        "DiagnosticSection",
+        "DiagnosticStatus",
+        "DiagnosticsReport",
         "HealthChecker",
         "LaunchEvent",
         "LaunchMode",
@@ -106,14 +123,15 @@ def test_public_all_is_explicit():
         "ShutdownResult",
         "StreamlitCommandBuilder",
         "StreamlitLauncher",
+        "TextDiagnosticsRenderer",
         "__version__",
     ]
     assert not hasattr(litlaunch, "ConsoleColor")
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.9.1"
-    assert __version__ == "0.9.1"
+    assert litlaunch.__version__ == "0.10.0"
+    assert __version__ == "0.10.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

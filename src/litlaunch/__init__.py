@@ -15,6 +15,14 @@ from litlaunch.console import (
 )
 from litlaunch.exceptions import ConfigurationError, LitLaunchError
 from litlaunch.health import HealthChecker
+from litlaunch.inspect import (
+    DiagnosticCollector,
+    DiagnosticItem,
+    DiagnosticSection,
+    DiagnosticsReport,
+    DiagnosticStatus,
+    TextDiagnosticsRenderer,
+)
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.platforms import (
@@ -49,6 +57,11 @@ __all__ = [
     "ConsoleRenderer",
     "ConsoleTheme",
     "HealthChecker",
+    "DiagnosticCollector",
+    "DiagnosticItem",
+    "DiagnosticSection",
+    "DiagnosticStatus",
+    "DiagnosticsReport",
     "LaunchMode",
     "LauncherConfig",
     "LitLaunchError",
@@ -69,5 +82,6 @@ __all__ = [
     "ShutdownResult",
     "StreamlitCommandBuilder",
     "StreamlitLauncher",
+    "TextDiagnosticsRenderer",
     "__version__",
 ]

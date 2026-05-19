@@ -5,6 +5,9 @@ It is being built by LatticeFoundry for projects that need a clean, dependable
 way to start Streamlit in browser or webapp-style modes without hiding process,
 browser, or configuration behavior behind magic.
 
+LitLaunch is developed and maintained by LatticeFoundry, a software division of
+Sierra Cognitive Group, LLC.
+
 Current status: early foundation. The package skeleton, public API shape,
 configuration model, command construction, browser adapter boundary, and tests
 are being established first. Full launcher lifecycle behavior will arrive in
@@ -71,4 +74,4 @@ LitLaunch uses `0.0.0` style internal versioning:
 
 ## License
 
-MIT
+MIT. Copyright (c) 2026 Sierra Cognitive Group, LLC.

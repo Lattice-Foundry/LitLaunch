@@ -30,7 +30,8 @@ if query_params:
 st.divider()
 st.markdown(
     "[LitLaunch](https://github.com/LatticeFoundry/litlaunch) is built by "
-    "[LatticeFoundry](https://github.com/LatticeFoundry). "
+    "[LatticeFoundry](https://github.com/LatticeFoundry), a software division "
+    "of Sierra Cognitive Group, LLC. "
     "[RoleThread](https://github.com/LatticeFoundry/rolethread) is part of the "
     "same local-first ecosystem."
 )

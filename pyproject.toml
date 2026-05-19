@@ -12,6 +12,9 @@ license = "MIT"
 authors = [
   { name = "LatticeFoundry" },
 ]
+maintainers = [
+  { name = "LatticeFoundry" },
+]
 keywords = ["streamlit", "launcher", "runtime", "browser", "webapp"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",

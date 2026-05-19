@@ -47,6 +47,12 @@ designed and tested.
 Commands are built as argument tuples, not shell strings. Runtime dependencies
 are intentionally minimal.
 
+## Examples
+
+The [minimal example app](examples/minimal_app) is a tiny Streamlit target for
+manual launcher checks, documentation, and future smoke/runtime tests. It is a
+fixture first: small, stable, and intentionally free of showcase complexity.
+
 ## Versioning
 
 LitLaunch uses `0.0.0` style internal versioning:

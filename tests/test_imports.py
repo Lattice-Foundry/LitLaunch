@@ -20,6 +20,7 @@ from litlaunch import (
     DiagnosticsReport,
     DiagnosticStatus,
     HealthChecker,
+    JSONDiagnosticsRenderer,
     LauncherConfig,
     LauncherRuntime,
     LaunchEvent,
@@ -34,6 +35,7 @@ from litlaunch import (
     PortManager,
     ProcessManager,
     RuntimeSession,
+    SanitizedBundleRenderer,
     ShutdownHook,
     ShutdownHookRegistry,
     ShutdownHookResult,
@@ -62,6 +64,7 @@ def test_public_imports_are_available():
     assert DiagnosticStatus.OK.value == "ok"
     assert DiagnosticsReport
     assert HealthChecker
+    assert JSONDiagnosticsRenderer
     assert issubclass(ConfigurationError, LitLaunchError)
     assert LaunchState.CREATED.value == "created"
     assert LaunchEvent
@@ -74,6 +77,7 @@ def test_public_imports_are_available():
     assert PortManager
     assert ProcessManager
     assert RuntimeSession
+    assert SanitizedBundleRenderer
     assert LauncherRuntime
     assert ShutdownHook
     assert ShutdownHookRegistry
@@ -103,6 +107,7 @@ def test_public_all_is_explicit():
         "DiagnosticStatus",
         "DiagnosticsReport",
         "HealthChecker",
+        "JSONDiagnosticsRenderer",
         "LaunchEvent",
         "LaunchMode",
         "LaunchResult",
@@ -117,6 +122,7 @@ def test_public_all_is_explicit():
         "PortManager",
         "ProcessManager",
         "RuntimeSession",
+        "SanitizedBundleRenderer",
         "ShutdownHook",
         "ShutdownHookRegistry",
         "ShutdownHookResult",
@@ -130,8 +136,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.10.0"
-    assert __version__ == "0.10.0"
+    assert litlaunch.__version__ == "0.11.0"
+    assert __version__ == "0.11.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

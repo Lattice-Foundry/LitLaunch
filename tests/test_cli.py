@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from io import StringIO
 from pathlib import Path
@@ -191,7 +192,7 @@ class FakeDiagnosticCollector:
                             DiagnosticItem(
                                 "App path exists",
                                 DiagnosticStatus.ERROR,
-                                "missing.py does not exist",
+                                "missing.py does not exist; token abc123shutdown",
                             ),
                         ),
                     ),
@@ -212,6 +213,19 @@ class FakeDiagnosticCollector:
                 ),
             ),
         )
+
+
+def run_fake_inspect(args):
+    stream = StringIO()
+    FakeDiagnosticCollector.instances = []
+    code = main(
+        args,
+        stream=stream,
+        platform_detector_factory=FakePlatformDetector,
+        browser_registry_factory=FakeBrowserRegistry,
+        diagnostic_collector_factory=FakeDiagnosticCollector,
+    )
+    return code, stream.getvalue(), FakeDiagnosticCollector.instances[0]
 
 
 def test_cli_parser_builds_and_help_lists_commands():
@@ -301,17 +315,55 @@ def test_cli_inspect_outputs_report_and_returns_zero_without_launching():
 
 
 def test_cli_inspect_returns_nonzero_for_report_errors():
-    stream = StringIO()
-    FakeDiagnosticCollector.instances = []
-
-    code = main(
-        ["inspect", "missing.py"],
-        stream=stream,
-        diagnostic_collector_factory=FakeDiagnosticCollector,
-    )
+    code, output, _collector = run_fake_inspect(["inspect", "missing.py"])
 
     assert code == 1
-    assert "[ERROR] App path exists: missing.py does not exist" in stream.getvalue()
+    assert "[ERROR] App path exists: missing.py does not exist;" in output
+    assert "abc123shutdown" not in output
+
+
+def test_cli_inspect_json_returns_parseable_json():
+    code, output, collector = run_fake_inspect(["inspect", "--json"])
+    data = json.loads(output)
+
+    assert code == 0
+    assert data["title"] == "LitLaunch Inspect"
+    assert data["sections"][0]["title"] == "Platform"
+    assert collector.collect_calls[0]["app_path"] is None
+    assert "\033[" not in output
+
+
+def test_cli_inspect_app_json_passes_app_path():
+    code, output, collector = run_fake_inspect(
+        ["inspect", str(EXAMPLE_APP), "--json", "--quiet"]
+    )
+    data = json.loads(output)
+
+    assert code == 0
+    assert data["ok"] is True
+    assert collector.collect_calls[0]["app_path"] == str(EXAMPLE_APP)
+    assert "LitLaunch Inspect" in output
+
+
+def test_cli_inspect_bundle_returns_sanitized_bundle():
+    code, output, _collector = run_fake_inspect(["inspect", "--bundle"])
+
+    assert code == 0
+    assert "LitLaunch Support Bundle" in output
+    assert "This report is sanitized" in output
+    assert "[OK] Platform: Windows x64 / Python 3.14.5" in output
+    assert "PATH=" not in output
+
+
+def test_cli_inspect_app_bundle_quiet_still_outputs_bundle():
+    code, output, collector = run_fake_inspect(
+        ["inspect", str(EXAMPLE_APP), "--bundle", "--quiet", "--no-color"]
+    )
+
+    assert code == 0
+    assert collector.collect_calls[0]["app_path"] == str(EXAMPLE_APP)
+    assert "LitLaunch Support Bundle" in output
+    assert "\033[" not in output
 
 
 def test_cli_run_builds_config_and_waits_for_backend():

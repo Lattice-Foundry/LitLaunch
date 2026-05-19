@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.11.0
+
+- Added JSON diagnostics rendering for `litlaunch inspect --json`.
+- Added sanitized support bundle output for `litlaunch inspect --bundle`.
+- Hardened diagnostics redaction for sensitive-looking report values.
+
 ## 0.10.0
 
 - Added structured text diagnostics report types and collector.

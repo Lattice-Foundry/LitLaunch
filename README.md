@@ -135,6 +135,8 @@ litlaunch platform
 litlaunch browsers
 litlaunch inspect
 litlaunch inspect examples/minimal_app/app.py
+litlaunch inspect --json
+litlaunch inspect examples/minimal_app/app.py --bundle
 litlaunch command examples/minimal_app/app.py --server.runOnSave true
 litlaunch run examples/minimal_app/app.py
 litlaunch run examples/minimal_app/app.py --dry-run --theme.base=dark
@@ -158,8 +160,12 @@ the system default browser.
 environment. `litlaunch inspect app.py` adds target-aware checks such as app path
 validation, command preview, app URL preview, health URL preview, and browser
 resolution. Inspect does not launch Streamlit, open browsers, start local
-servers, or dump environment variables. A richer HTML inspector/dashboard may
-be added later on top of the same structured diagnostics data.
+servers, or dump environment variables. `--json` emits machine-readable output
+for tools and automation. `--bundle` emits a concise sanitized support report
+for issues or support requests. Both formats render from the same structured
+diagnostics report and redact sensitive-looking values. A richer HTML
+inspector/dashboard may be added later on top of the same structured diagnostics
+data.
 
 ## Examples
 

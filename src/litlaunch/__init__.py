@@ -21,6 +21,8 @@ from litlaunch.inspect import (
     DiagnosticSection,
     DiagnosticsReport,
     DiagnosticStatus,
+    JSONDiagnosticsRenderer,
+    SanitizedBundleRenderer,
     TextDiagnosticsRenderer,
 )
 from litlaunch.launcher import StreamlitLauncher
@@ -62,6 +64,8 @@ __all__ = [
     "DiagnosticSection",
     "DiagnosticStatus",
     "DiagnosticsReport",
+    "JSONDiagnosticsRenderer",
+    "SanitizedBundleRenderer",
     "LaunchMode",
     "LauncherConfig",
     "LitLaunchError",

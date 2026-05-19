@@ -16,7 +16,12 @@ from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.console import ConsoleMode, ConsoleRenderer, ConsoleTheme
 from litlaunch.exceptions import LitLaunchError
-from litlaunch.inspect import DiagnosticCollector, TextDiagnosticsRenderer
+from litlaunch.inspect import (
+    DiagnosticCollector,
+    JSONDiagnosticsRenderer,
+    SanitizedBundleRenderer,
+    TextDiagnosticsRenderer,
+)
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector
 from litlaunch.version import __version__
@@ -198,9 +203,16 @@ def _cmd_inspect(args: argparse.Namespace, context: _CliContext) -> int:
         port=args.port,
         allow_browser_fallback=not args.no_browser_fallback,
     )
-    rendered = TextDiagnosticsRenderer(
-        include_details=_mode(args) == ConsoleMode.VERBOSE
-    ).render(report)
+    if args.json:
+        rendered = JSONDiagnosticsRenderer().render(report)
+    elif args.bundle:
+        rendered = SanitizedBundleRenderer(
+            include_details=_mode(args) == ConsoleMode.VERBOSE
+        ).render(report)
+    else:
+        rendered = TextDiagnosticsRenderer(
+            include_details=_mode(args) == ConsoleMode.VERBOSE
+        ).render(report)
     context.stream.write(rendered)
     flush = getattr(context.stream, "flush", None)
     if callable(flush):
@@ -309,6 +321,17 @@ def _add_runtime_flags(
 
 def _add_inspect_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("app_path", nargs="?")
+    output_group = parser.add_mutually_exclusive_group()
+    output_group.add_argument(
+        "--json",
+        action="store_true",
+        help="Render diagnostics as machine-readable JSON.",
+    )
+    output_group.add_argument(
+        "--bundle",
+        action="store_true",
+        help="Render a sanitized copyable support bundle.",
+    )
     parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
     parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
     parser.add_argument("--port", type=int)

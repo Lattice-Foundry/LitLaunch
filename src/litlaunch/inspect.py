@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import re
 import subprocess
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from importlib import metadata
@@ -16,6 +18,26 @@ from litlaunch.health import build_streamlit_app_url, build_streamlit_health_url
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector, PlatformInfo
 from litlaunch.version import __version__
+
+SCHEMA_VERSION = 1
+SENSITIVE_MARKERS = (
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "api_key",
+    "apikey",
+    "api-key",
+)
+SENSITIVE_ASSIGNMENT_PATTERN = re.compile(
+    r"(?i)\b(token|secret|password|passwd|api_key|apikey|key)"
+    r"(\s*[:=]\s*)"
+    r"([^\s,;]+)"
+)
+SENSITIVE_WORD_PATTERN = re.compile(
+    r"(?i)\b((?:token|secret|password|passwd|api_key|apikey|key)\s+)"
+    r"([A-Za-z0-9._~+/=-]{6,})"
+)
 
 
 class DiagnosticStatus(str, Enum):
@@ -46,6 +68,19 @@ class DiagnosticItem:
         if self.detail is not None:
             object.__setattr__(self, "detail", str(self.detail))
 
+    def to_dict(self) -> dict[str, object]:
+        """Return a sanitized stable dictionary representation."""
+
+        data: dict[str, object] = {
+            "name": redact_sensitive_text(self.name),
+            "status": self.status.value,
+            "message": redact_sensitive_text(self.message),
+            "detail": None,
+        }
+        if self.detail is not None:
+            data["detail"] = redact_sensitive_text(self.detail)
+        return data
+
 
 @dataclass(frozen=True)
 class DiagnosticSection:
@@ -59,6 +94,14 @@ class DiagnosticSection:
         object.__setattr__(self, "items", tuple(self.items))
         if not self.title:
             raise ValueError("diagnostic section title cannot be empty.")
+
+    def to_dict(self) -> dict[str, object]:
+        """Return a sanitized stable dictionary representation."""
+
+        return {
+            "title": redact_sensitive_text(self.title),
+            "items": [item.to_dict() for item in self.items],
+        }
 
 
 @dataclass(frozen=True)
@@ -83,6 +126,20 @@ class DiagnosticsReport:
         object.__setattr__(self, "ok", errors == 0)
         if not title:
             raise ValueError("diagnostics report title cannot be empty.")
+
+    def to_dict(self) -> dict[str, object]:
+        """Return a sanitized stable dictionary representation."""
+
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "generated_by": "litlaunch",
+            "litlaunch_version": __version__,
+            "title": redact_sensitive_text(self.title),
+            "ok": self.ok,
+            "warnings": self.warnings,
+            "errors": self.errors,
+            "sections": [section.to_dict() for section in self.sections],
+        }
 
 
 @dataclass(frozen=True)
@@ -376,17 +433,61 @@ class TextDiagnosticsRenderer:
     def render(self, report: DiagnosticsReport) -> str:
         """Render a diagnostics report to a deterministic text string."""
 
-        lines = [report.title, ""]
+        lines = [redact_sensitive_text(report.title), ""]
         for section in report.sections:
-            lines.append(section.title)
+            lines.append(redact_sensitive_text(section.title))
             for item in section.items:
                 lines.append(_render_item(item))
                 if self.include_details and item.detail:
-                    for detail_line in item.detail.splitlines():
+                    detail = redact_sensitive_text(item.detail)
+                    for detail_line in detail.splitlines():
                         lines.append(f"    {detail_line}")
             lines.append("")
         lines.append("Summary")
         lines.append(f"{report.errors} errors, {report.warnings} warnings")
+        return "\n".join(lines).rstrip() + "\n"
+
+
+class JSONDiagnosticsRenderer:
+    """Render structured diagnostics to deterministic JSON."""
+
+    def render(self, report: DiagnosticsReport) -> str:
+        """Render a diagnostics report as pretty JSON."""
+
+        return json.dumps(report.to_dict(), indent=2, sort_keys=True) + "\n"
+
+
+class SanitizedBundleRenderer:
+    """Render a concise copyable support bundle."""
+
+    SANITIZATION_NOTE = (
+        "This report is sanitized and does not include raw environment variables "
+        "or shutdown tokens."
+    )
+
+    def __init__(self, *, include_details: bool = True) -> None:
+        self.include_details = include_details
+
+    def render(self, report: DiagnosticsReport) -> str:
+        """Render a sanitized text support bundle."""
+
+        status = "ok" if report.ok else "failed"
+        lines = [
+            "LitLaunch Support Bundle",
+            f"Version: {__version__}",
+            f"Summary: {status}; {report.errors} errors; {report.warnings} warnings",
+            f"Note: {self.SANITIZATION_NOTE}",
+            "",
+        ]
+        for section in report.sections:
+            lines.append(redact_sensitive_text(section.title))
+            for item in section.items:
+                lines.append(f"- {_render_item(item)}")
+                if self.include_details and item.detail:
+                    detail = redact_sensitive_text(item.detail)
+                    for detail_line in detail.splitlines():
+                        lines.append(f"  {detail_line}")
+            lines.append("")
         return "\n".join(lines).rstrip() + "\n"
 
 
@@ -437,6 +538,29 @@ def redact_sensitive_args(command: Sequence[str]) -> tuple[str, ...]:
     return tuple(redacted)
 
 
+def redact_sensitive_text(value: object) -> str:
+    """Redact sensitive-looking values in display/report strings."""
+
+    text = str(value)
+    text = SENSITIVE_ASSIGNMENT_PATTERN.sub(r"\1\2<redacted>", text)
+    return SENSITIVE_WORD_PATTERN.sub(r"\1<redacted>", text)
+
+
+def sanitize_report_dict(value: object) -> object:
+    """Recursively redact strings in a report-like data structure."""
+
+    if isinstance(value, str):
+        return redact_sensitive_text(value)
+    if isinstance(value, Mapping):
+        return {
+            redact_sensitive_text(key): sanitize_report_dict(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (tuple, list)):
+        return [sanitize_report_dict(item) for item in value]
+    return value
+
+
 def _count_status(
     sections: tuple[DiagnosticSection, ...],
     status: DiagnosticStatus,
@@ -463,13 +587,14 @@ def _normalize_browser_choice(value: BrowserChoice | str) -> BrowserChoice:
 
 
 def _render_item(item: DiagnosticItem) -> str:
-    return f"[{item.status.value.upper()}] {item.name}: {item.message}"
+    name = redact_sensitive_text(item.name)
+    message = redact_sensitive_text(item.message)
+    return f"[{item.status.value.upper()}] {name}: {message}"
 
 
 def _is_sensitive_argument_name(value: str) -> bool:
     lowered = value.lower().lstrip("-")
     name = lowered.split("=", 1)[0]
-    markers = ("token", "secret", "password", "api_key", "apikey")
-    if any(marker in name for marker in markers):
+    if any(marker in name for marker in SENSITIVE_MARKERS):
         return True
-    return name.endswith("key") or ".key" in name or "_key" in name
+    return name == "key" or name.endswith((".key", "_key", "-key"))

@@ -34,6 +34,7 @@ def test_pyproject_dev_extras_include_release_tools():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
+    assert "## 0.21.0" in changelog
     assert "## 0.20.0" in changelog
     assert "## 0.19.0" in changelog
     assert "## 0.16.1" in changelog
@@ -77,3 +78,28 @@ def test_docs_foundation_exists_and_links_from_readme():
         assert path.is_file()
         assert path.read_text(encoding="utf-8").strip()
         assert f"docs/{doc}" in readme
+
+
+def test_internal_docs_exist_but_are_not_linked_from_public_docs():
+    internal_docs = [
+        "README.md",
+        "rolethread_integration_plan.md",
+        "rolethread_handoff_checklist.md",
+        "rolethread_runtime_mapping.md",
+        "rolethread_test_matrix.md",
+        "known_beta_issues.md",
+    ]
+
+    for doc in internal_docs:
+        path = REPO_ROOT / "docs" / "internal" / doc
+        text = path.read_text(encoding="utf-8")
+        assert path.is_file()
+        assert "INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION" in text
+        assert text.strip()
+
+    public_paths = [REPO_ROOT / "README.md"]
+    public_paths.extend((REPO_ROOT / "docs").glob("*.md"))
+    public_paths.extend((REPO_ROOT / "docs" / "integration").glob("*.md"))
+
+    for path in public_paths:
+        assert "docs/internal" not in path.read_text(encoding="utf-8")

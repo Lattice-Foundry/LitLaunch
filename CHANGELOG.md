@@ -3,6 +3,13 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.21.0
+
+- Added temporary internal integration docs for RoleThread migration planning,
+  beta runtime validation, TestPyPI rehearsal, and Codex handoff continuity.
+- Added internal RoleThread runtime mapping, handoff checklist, test matrix,
+  and known beta issue tracking while keeping public docs isolated.
+
 ## 0.20.0
 
 - Reworked README as a concise beta-quality integration entry point.

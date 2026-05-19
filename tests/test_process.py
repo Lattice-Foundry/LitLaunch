@@ -9,9 +9,16 @@ from litlaunch.process import ManagedProcess, ProcessManager
 class FakePopen:
     pid = 4321
 
-    def __init__(self, *, returncode=None, timeout_on_wait=False):
+    def __init__(
+        self,
+        *,
+        returncode=None,
+        timeout_on_wait=False,
+        timeout_after_kill=False,
+    ):
         self.returncode = returncode
         self.timeout_on_wait = timeout_on_wait
+        self.timeout_after_kill = timeout_after_kill
         self.calls = []
 
     def poll(self):
@@ -29,6 +36,8 @@ class FakePopen:
     def wait(self, timeout=None):
         self.calls.append(("wait", timeout))
         if self.timeout_on_wait and "kill" not in self.calls:
+            raise subprocess.TimeoutExpired("fake", timeout)
+        if self.timeout_after_kill and "kill" in self.calls:
             raise subprocess.TimeoutExpired("fake", timeout)
         self.returncode = 0 if self.returncode is None else self.returncode
         return self.returncode
@@ -107,6 +116,19 @@ def test_stop_terminates_owned_running_process():
 
 def test_stop_kills_only_after_terminate_timeout():
     fake = FakePopen(returncode=None, timeout_on_wait=True)
+    manager = ProcessManager()
+
+    manager.stop(ManagedProcess(fake, ("cmd",)), terminate_timeout_seconds=2.0)
+
+    assert fake.calls == ["terminate", ("wait", 2.0), "kill", ("wait", 1.0)]
+
+
+def test_stop_does_not_raise_when_post_kill_wait_times_out():
+    fake = FakePopen(
+        returncode=None,
+        timeout_on_wait=True,
+        timeout_after_kill=True,
+    )
     manager = ProcessManager()
 
     manager.stop(ManagedProcess(fake, ("cmd",)), terminate_timeout_seconds=2.0)

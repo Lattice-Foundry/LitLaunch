@@ -213,7 +213,13 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
 
 
 def _cmd_example(args: argparse.Namespace, context: _CliContext) -> int:
-    example_path = Path(__file__).parents[2] / "examples" / "minimal_app" / "app.py"
+    example_path = _source_checkout_example_path(Path(__file__))
+    if not example_path.is_file():
+        _renderer(args, context).error(
+            "The minimal example app is available from a LitLaunch source checkout. "
+            "Install from source or clone the repository to run it."
+        )
+        return 1
     _write(context.stream, str(example_path))
     _renderer(args, context).detail(f"Run with: litlaunch run {example_path}")
     return 0
@@ -265,6 +271,10 @@ def _write(stream: TextIO, message: str) -> None:
     flush = getattr(stream, "flush", None)
     if callable(flush):
         flush()
+
+
+def _source_checkout_example_path(module_path: Path) -> Path:
+    return module_path.resolve().parents[2] / "examples" / "minimal_app" / "app.py"
 
 
 if __name__ == "__main__":

@@ -17,11 +17,21 @@ streamlit run app.py
 
 ## Run With LitLaunch
 
-From the repository root, future CLI support is expected to use:
+From the repository root:
 
 ```powershell
 litlaunch run examples/minimal_app/app.py
 ```
 
-Until the CLI lands, this app is useful as a known-good target for
-`LauncherConfig` and `StreamlitLauncher` command-building tests.
+You can also ask the CLI for the source-checkout example path:
+
+```powershell
+litlaunch example
+```
+
+The example app is kept in the source tree as a development/demo fixture. It is
+not currently guaranteed to be present in installed wheel layouts.
+
+## Development Runtime
+
+The current LitLaunch development environment uses Python 3.14.5.

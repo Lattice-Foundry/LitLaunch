@@ -17,6 +17,7 @@ from litlaunch.shutdown import (
     ShutdownConfig,
     ShutdownHook,
     ShutdownHookRegistry,
+    _is_loopback_host,
 )
 
 
@@ -232,6 +233,43 @@ def test_shutdown_endpoint_valid_post_runs_hooks_without_exposing_token():
     assert runtime.shutdown_requested is True
     assert json.loads(body)["ok"] is True
     assert "secret-token" not in body
+
+
+def test_shutdown_endpoint_duplicate_post_does_not_rerun_hooks():
+    port = available_port()
+    calls = []
+    runtime = LauncherRuntime(
+        config=ShutdownConfig(host="127.0.0.1", port=port, token="secret-token")
+    )
+    runtime.register_shutdown_hook(lambda: calls.append("cleanup"), label="Cleanup")
+    assert runtime.enable_shutdown_endpoint() is True
+    try:
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/shutdown",
+            method="POST",
+            headers={SHUTDOWN_TOKEN_HEADER: "secret-token"},
+        )
+        first = urllib.request.urlopen(request, timeout=2.0).read().decode("utf-8")
+        second = urllib.request.urlopen(request, timeout=2.0).read().decode("utf-8")
+    finally:
+        runtime.close_shutdown_endpoint()
+
+    assert calls == ["cleanup"]
+    assert json.loads(first)["message"] == "Shutdown hooks completed."
+    assert json.loads(second)["message"] == "Shutdown already requested."
+
+
+def test_ipv6_loopback_is_accepted_for_endpoint_binding_attempt():
+    assert _is_loopback_host("::1") is True
+
+    runtime = LauncherRuntime(
+        config=ShutdownConfig(host="::1", port=available_port(), token="secret-token")
+    )
+
+    # Availability of IPv6 binding varies by environment, but ::1 should pass
+    # LitLaunch's loopback policy and either start or fail only at socket bind.
+    assert runtime.enable_shutdown_endpoint() in {True, False}
+    runtime.close_shutdown_endpoint()
 
 
 class FakeResponse:

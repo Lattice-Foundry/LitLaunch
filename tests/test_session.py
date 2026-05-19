@@ -251,6 +251,8 @@ def test_runtime_session_stop_requests_graceful_shutdown_before_fallback():
     assert "Graceful shutdown request accepted." in {
         event.message for event in session.events
     }
+    assert not hasattr(session, "shutdown_client")
+    assert hasattr(session, "_shutdown_client")
 
 
 def test_runtime_session_stop_emits_console_shutdown_messages():

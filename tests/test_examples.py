@@ -38,3 +38,23 @@ def test_nested_example_path_remains_one_command_argument():
     assert command.count(app_arg) == 1
     assert "examples" in app_arg
     assert "minimal_app" in app_arg
+
+
+def test_py_typed_marker_exists():
+    assert (REPO_ROOT / "src" / "litlaunch" / "py.typed").is_file()
+
+
+def test_readme_no_longer_uses_early_foundation_status():
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "Current status: early foundation" not in readme
+    assert "Python 3.14.5" in readme
+
+
+def test_minimal_example_readme_reflects_current_cli():
+    readme = EXAMPLE_README.read_text(encoding="utf-8")
+
+    assert "future CLI support is expected" not in readme
+    assert "Until the CLI lands" not in readme
+    assert "litlaunch run examples/minimal_app/app.py" in readme
+    assert "Python 3.14.5" in readme

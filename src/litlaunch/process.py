@@ -94,7 +94,10 @@ class ProcessManager:
 
         if self.is_running(process):
             process.popen.kill()
-            process.popen.wait(timeout=1.0)
+            try:
+                process.popen.wait(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                return
 
     def _normalize_command(self, command: Sequence[str]) -> tuple[str, ...]:
         if isinstance(command, (str, bytes)):

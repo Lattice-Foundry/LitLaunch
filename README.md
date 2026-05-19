@@ -8,10 +8,14 @@ browser, or configuration behavior behind magic.
 LitLaunch is developed and maintained by LatticeFoundry, a software division of
 Sierra Cognitive Group, LLC.
 
-Current status: early foundation. The package skeleton, public API shape,
-configuration model, command construction, browser adapter boundary, and tests
-are being established first. Full launcher lifecycle behavior will arrive in
-staged passes.
+Current status: active pre-alpha runtime hardening. LitLaunch already includes
+typed launcher configuration, shell-free Streamlit command construction, port
+management, platform and browser capability detection, backend process
+ownership, graceful shutdown hooks, console rendering, and an argparse CLI.
+
+The development environment currently uses Python 3.14.5. Package metadata
+allows Python 3.10 and newer, but the active local hardening work is verified
+against Python 3.14.5 unless noted otherwise.
 
 LitLaunch is not affiliated with Streamlit.
 
@@ -118,7 +122,9 @@ litlaunch run app.py --mode webapp --browser auto
 ```
 
 The CLI is intentionally thin over the Python runtime APIs. A fuller inspector
-or diagnostics dashboard is future work.
+or diagnostics dashboard is future work. `litlaunch example` reports the
+minimal example path when running from a source checkout; installed wheels may
+not include the repository-level example directory.
 
 ## Examples
 

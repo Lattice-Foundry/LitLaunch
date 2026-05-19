@@ -122,6 +122,38 @@ def test_launcher_builds_app_and_health_urls_with_resolved_port():
     assert launcher.build_health_url() == build_streamlit_health_url("127.0.0.1", 8600)
 
 
+def test_with_port_preserves_injected_dependencies():
+    port_manager = FakePortManager(8600)
+    process_manager = FakeProcessManager()
+    health_checker = FakeHealthChecker(healthy=True)
+    browser_registry = FakeBrowserRegistry(fake_browser())
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    console_renderer = ConsoleRenderer()
+    clock = FakeClock()
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=port_manager,
+        process_manager=process_manager,
+        health_checker=health_checker,
+        browser_registry=browser_registry,
+        browser_launcher=browser_launcher,
+        console_renderer=console_renderer,
+        clock=clock,
+    )
+
+    updated = launcher.with_port(8700)
+
+    assert updated.config.port == 8700
+    assert updated.config.auto_port is False
+    assert updated.port_manager is port_manager
+    assert updated.process_manager is process_manager
+    assert updated.health_checker is health_checker
+    assert updated.browser_registry is browser_registry
+    assert updated.browser_launcher is browser_launcher
+    assert updated.console_renderer is console_renderer
+    assert updated.clock is clock
+
+
 def test_start_backend_resolves_port_builds_command_and_waits_for_health():
     process_manager = FakeProcessManager()
     health_checker = FakeHealthChecker(healthy=True)
@@ -263,12 +295,13 @@ def test_start_backend_injects_shutdown_env_with_distinct_port_and_private_token
     env = process_manager.started[0][1]["env"]
     token = env["LITLAUNCH_SHUTDOWN_TOKEN"]
     assert session.process is not None
-    assert session.shutdown_client is not None
+    assert not hasattr(session, "shutdown_client")
+    assert session._shutdown_client is not None
     assert env["LITLAUNCH_SHUTDOWN_HOST"] == "127.0.0.1"
     assert env["LITLAUNCH_SHUTDOWN_PORT"] == "8611"
     assert env["LITLAUNCH_SHUTDOWN_PORT"] != "8610"
     assert token
-    assert session.shutdown_client.port == 8611
+    assert session._shutdown_client.port == 8611
     assert all(token not in event.message for event in session.events)
 
 

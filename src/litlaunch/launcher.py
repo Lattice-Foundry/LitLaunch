@@ -87,7 +87,7 @@ class StreamlitLauncher:
     ) -> BrowserResolution:
         """Resolve browser capability for this launcher without launching it."""
 
-        resolved_preference = self.config.mode.value == "webapp"
+        resolved_preference = self.config.mode == LaunchMode.WEBAPP
         return self.browser_registry.resolve(
             self.config.browser,
             prefer_app_mode=(
@@ -370,7 +370,16 @@ class StreamlitLauncher:
     def with_port(self, port: int) -> StreamlitLauncher:
         """Return a launcher with the same config and an explicit port."""
 
-        return StreamlitLauncher(replace(self.config, port=port, auto_port=False))
+        return StreamlitLauncher(
+            replace(self.config, port=port, auto_port=False),
+            port_manager=self.port_manager,
+            process_manager=self.process_manager,
+            health_checker=self.health_checker,
+            browser_registry=self.browser_registry,
+            browser_launcher=self.browser_launcher,
+            console_renderer=self.console_renderer,
+            clock=self.clock,
+        )
 
     def _record(
         self,
@@ -393,11 +402,6 @@ class StreamlitLauncher:
             DEFAULT_SHUTDOWN_HOST,
             start_port=start_port,
         )
-        if shutdown_port == app_port:
-            shutdown_port = self.port_manager.find_available_port(
-                DEFAULT_SHUTDOWN_HOST,
-                start_port=app_port + 1 if app_port < 65535 else 1,
-            )
         shutdown_config = ShutdownConfig(
             host=DEFAULT_SHUTDOWN_HOST,
             port=shutdown_port,

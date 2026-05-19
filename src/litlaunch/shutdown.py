@@ -220,6 +220,7 @@ class LauncherRuntime:
         self._server: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
         self._shutdown_requested = False
+        self._shutdown_result: ShutdownResult | None = None
 
     @classmethod
     def from_env(
@@ -415,8 +416,20 @@ def _build_shutdown_handler(runtime: LauncherRuntime) -> type[BaseHTTPRequestHan
                 self._write_json(403, {"ok": False, "message": "Forbidden."})
                 return
 
+            if runtime._shutdown_result is not None:
+                result = runtime._shutdown_result
+                self._write_json(
+                    200 if result.ok else 500,
+                    {
+                        "ok": result.ok,
+                        "message": "Shutdown already requested.",
+                    },
+                )
+                return
+
             runtime._shutdown_requested = True
             result = runtime.run_shutdown_hooks()
+            runtime._shutdown_result = result
             self._write_json(
                 200 if result.ok else 500,
                 {"ok": result.ok, "message": result.message},
@@ -449,4 +462,4 @@ def _validate_port(port: int | str) -> int:
 
 
 def _is_loopback_host(host: str) -> bool:
-    return host in {"127.0.0.1", "localhost"}
+    return host in {"127.0.0.1", "::1", "localhost"}

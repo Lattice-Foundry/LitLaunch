@@ -5,6 +5,7 @@ from pathlib import Path
 
 import tomllib
 
+import litlaunch.cli as cli
 from litlaunch import __version__
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.cli import build_parser, main
@@ -270,6 +271,22 @@ def test_cli_example_prints_example_path():
     assert "examples" in output
     assert "minimal_app" in output
     assert output.strip().endswith("app.py")
+
+
+def test_cli_example_fails_clearly_when_source_example_is_missing(monkeypatch):
+    stream = StringIO()
+    monkeypatch.setattr(
+        cli,
+        "_source_checkout_example_path",
+        lambda module_path: Path("X:/missing/examples/minimal_app/app.py"),
+    )
+
+    code = main(["example"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 1
+    assert "source checkout" in output
+    assert "X:/missing" not in output
 
 
 def test_cli_console_script_entrypoint_exists():

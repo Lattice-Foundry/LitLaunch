@@ -31,15 +31,15 @@ class RuntimeSession:
         self.result = result
         self.process = process
         self.process_manager = process_manager
-        self.shutdown_client = shutdown_client
+        self._shutdown_client = shutdown_client
         self.console_renderer = console_renderer
         self.clock = clock
         self._events = list(result.events)
         self._state = result.state
         self._stopped = process is None
-        if self.console_renderer is not None and self.shutdown_client is not None:
+        if self.console_renderer is not None and self._shutdown_client is not None:
             self.console_renderer.add_redaction(
-                getattr(self.shutdown_client, "token", None)
+                getattr(self._shutdown_client, "token", None)
             )
 
     @property
@@ -114,9 +114,9 @@ class RuntimeSession:
         if self.process is None or self._stopped:
             return
 
-        if self.shutdown_client is not None and self.is_running():
+        if self._shutdown_client is not None and self.is_running():
             self.add_event(LaunchState.TERMINATING, "Requesting graceful shutdown.")
-            request_result = self.shutdown_client.request_shutdown()
+            request_result = self._shutdown_client.request_shutdown()
             if request_result.ok:
                 self.add_event(
                     LaunchState.TERMINATING,

@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.12.0
+
+- Added UTC metadata to structured inspect reports.
+- Added `litlaunch inspect --json --output` and `--bundle --output`.
+- Added safe output-file validation with explicit `--force` overwrite behavior.
+
 ## 0.11.0
 
 - Added JSON diagnostics rendering for `litlaunch inspect --json`.

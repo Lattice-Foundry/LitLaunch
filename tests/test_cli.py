@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
+from contextlib import contextmanager
 from io import StringIO
 from pathlib import Path
 
@@ -22,6 +24,12 @@ from litlaunch.lifecycle import LaunchResult, LaunchState
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
 
 EXAMPLE_APP = Path("examples/minimal_app/app.py")
+
+
+@contextmanager
+def temporary_output_dir():
+    with tempfile.TemporaryDirectory(prefix="litlaunch-test-", dir=Path.cwd()) as path:
+        yield Path(path)
 
 
 def fake_platform_info():
@@ -225,7 +233,12 @@ def run_fake_inspect(args):
         browser_registry_factory=FakeBrowserRegistry,
         diagnostic_collector_factory=FakeDiagnosticCollector,
     )
-    return code, stream.getvalue(), FakeDiagnosticCollector.instances[0]
+    collector = (
+        FakeDiagnosticCollector.instances[0]
+        if FakeDiagnosticCollector.instances
+        else None
+    )
+    return code, stream.getvalue(), collector
 
 
 def test_cli_parser_builds_and_help_lists_commands():
@@ -328,6 +341,10 @@ def test_cli_inspect_json_returns_parseable_json():
 
     assert code == 0
     assert data["title"] == "LitLaunch Inspect"
+    assert data["schema_version"] == 1
+    assert data["generated_by"] == "litlaunch"
+    assert data["litlaunch_version"] == "0.12.0"
+    assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
     assert "\033[" not in output
@@ -364,6 +381,159 @@ def test_cli_inspect_app_bundle_quiet_still_outputs_bundle():
     assert collector.collect_calls[0]["app_path"] == str(EXAMPLE_APP)
     assert "LitLaunch Support Bundle" in output
     assert "\033[" not in output
+
+
+def test_cli_inspect_json_output_writes_utf8_file_without_dumping_stdout():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "report.json"
+        code, output, _collector = run_fake_inspect(
+            ["inspect", "--json", "--output", str(output_path)]
+        )
+
+        data = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert code == 0
+    assert data["title"] == "LitLaunch Inspect"
+    assert data["schema_version"] == 1
+    assert output.startswith("Wrote inspect report to ")
+    assert '"sections"' not in output
+
+
+def test_cli_inspect_app_json_output_writes_target_report():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "target-report.json"
+        code, output, collector = run_fake_inspect(
+            [
+                "inspect",
+                str(EXAMPLE_APP),
+                "--json",
+                "--output",
+                str(output_path),
+            ]
+        )
+        data = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert code == 0
+    assert data["ok"] is True
+    assert collector.collect_calls[0]["app_path"] == str(EXAMPLE_APP)
+    assert "Wrote inspect report to" in output
+
+
+def test_cli_inspect_bundle_output_writes_file():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "litlaunch-report.txt"
+        code, output, _collector = run_fake_inspect(
+            ["inspect", "--bundle", "--output", str(output_path)]
+        )
+        content = output_path.read_text(encoding="utf-8")
+
+    assert code == 0
+    assert "LitLaunch Support Bundle" in content
+    assert "Generated at:" in content
+    assert "This report is sanitized" in content
+    assert output.startswith("Wrote inspect report to ")
+
+
+def test_cli_inspect_app_bundle_output_writes_file():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "target-report.txt"
+        code, output, collector = run_fake_inspect(
+            [
+                "inspect",
+                str(EXAMPLE_APP),
+                "--bundle",
+                "--output",
+                str(output_path),
+            ]
+        )
+        content = output_path.read_text(encoding="utf-8")
+
+    assert code == 0
+    assert collector.collect_calls[0]["app_path"] == str(EXAMPLE_APP)
+    assert "LitLaunch Support Bundle" in content
+    assert "Wrote inspect report to" in output
+
+
+def test_cli_inspect_output_existing_file_requires_force():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "report.json"
+        output_path.write_text("existing", encoding="utf-8")
+        code, output, _collector = run_fake_inspect(
+            ["inspect", "--json", "--output", str(output_path)]
+        )
+
+        assert output_path.read_text(encoding="utf-8") == "existing"
+
+    assert code == 2
+    assert "already exists" in output
+    assert "--force" in output
+
+
+def test_cli_inspect_output_force_overwrites_existing_file():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "report.json"
+        output_path.write_text("existing", encoding="utf-8")
+        code, output, _collector = run_fake_inspect(
+            ["inspect", "--json", "--output", str(output_path), "--force"]
+        )
+        data = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert code == 0
+    assert data["title"] == "LitLaunch Inspect"
+    assert "Wrote inspect report to" in output
+
+
+def test_cli_inspect_output_path_as_directory_fails():
+    with temporary_output_dir() as output_dir:
+        code, output, _collector = run_fake_inspect(
+            ["inspect", "--json", "--output", str(output_dir)]
+        )
+
+    assert code == 2
+    assert "directory" in output
+
+
+def test_cli_inspect_output_missing_parent_fails():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "missing" / "report.json"
+        code, output, _collector = run_fake_inspect(
+            ["inspect", "--json", "--output", str(output_path)]
+        )
+
+    assert code == 2
+    assert "parent directory does not exist" in output.lower()
+
+
+def test_cli_inspect_output_without_json_or_bundle_fails_clearly():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "report.txt"
+        code, output, _collector = run_fake_inspect(
+            ["inspect", "--output", str(output_path)]
+        )
+
+    assert code == 2
+    assert "--output requires --json or --bundle" in output
+
+
+def test_cli_inspect_force_without_output_fails_clearly():
+    code, output, _collector = run_fake_inspect(["inspect", "--bundle", "--force"])
+
+    assert code == 2
+    assert "--force requires --output" in output
+
+
+def test_cli_inspect_output_file_does_not_leak_tokens_on_error_report():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "report.json"
+        code, output, _collector = run_fake_inspect(
+            ["inspect", "missing.py", "--json", "--output", str(output_path)]
+        )
+        content = output_path.read_text(encoding="utf-8")
+
+    assert code == 1
+    assert "Wrote inspect report to" in output
+    assert "abc123shutdown" not in content
+    assert "<redacted>" in content
 
 
 def test_cli_run_builds_config_and_waits_for_backend():

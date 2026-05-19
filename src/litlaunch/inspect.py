@@ -7,6 +7,7 @@ import re
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
 from importlib import metadata
 from pathlib import Path
@@ -110,6 +111,7 @@ class DiagnosticsReport:
 
     title: str
     sections: tuple[DiagnosticSection, ...] = ()
+    generated_at_utc: str = field(default_factory=lambda: current_utc_timestamp())
     ok: bool = field(init=False)
     warnings: int = field(init=False)
     errors: int = field(init=False)
@@ -117,15 +119,19 @@ class DiagnosticsReport:
     def __post_init__(self) -> None:
         title = self.title.strip()
         sections = tuple(self.sections)
+        generated_at = str(self.generated_at_utc).strip()
         warnings = _count_status(sections, DiagnosticStatus.WARNING)
         errors = _count_status(sections, DiagnosticStatus.ERROR)
         object.__setattr__(self, "title", title)
         object.__setattr__(self, "sections", sections)
+        object.__setattr__(self, "generated_at_utc", generated_at)
         object.__setattr__(self, "warnings", warnings)
         object.__setattr__(self, "errors", errors)
         object.__setattr__(self, "ok", errors == 0)
         if not title:
             raise ValueError("diagnostics report title cannot be empty.")
+        if not generated_at:
+            raise ValueError("diagnostics report timestamp cannot be empty.")
 
     def to_dict(self) -> dict[str, object]:
         """Return a sanitized stable dictionary representation."""
@@ -134,6 +140,7 @@ class DiagnosticsReport:
             "schema_version": SCHEMA_VERSION,
             "generated_by": "litlaunch",
             "litlaunch_version": __version__,
+            "generated_at_utc": redact_sensitive_text(self.generated_at_utc),
             "title": redact_sensitive_text(self.title),
             "ok": self.ok,
             "warnings": self.warnings,
@@ -475,6 +482,7 @@ class SanitizedBundleRenderer:
         lines = [
             "LitLaunch Support Bundle",
             f"Version: {__version__}",
+            f"Generated at: {redact_sensitive_text(report.generated_at_utc)}",
             f"Summary: {status}; {report.errors} errors; {report.warnings} warnings",
             f"Note: {self.SANITIZATION_NOTE}",
             "",
@@ -507,6 +515,12 @@ def check_streamlit_availability() -> StreamlitAvailability:
         version=version,
         message=f"Streamlit {version} detected.",
     )
+
+
+def current_utc_timestamp() -> str:
+    """Return a compact UTC ISO timestamp for diagnostics metadata."""
+
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def format_command_preview(command: Sequence[str]) -> str:

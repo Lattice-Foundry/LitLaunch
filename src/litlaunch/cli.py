@@ -190,6 +190,7 @@ def _cmd_browsers(args: argparse.Namespace, context: _CliContext) -> int:
 
 
 def _cmd_inspect(args: argparse.Namespace, context: _CliContext) -> int:
+    _validate_inspect_output_args(args)
     collector = context.diagnostic_collector_factory(
         platform_detector=context.platform_detector_factory(),
         browser_registry=context.browser_registry_factory(),
@@ -213,10 +214,19 @@ def _cmd_inspect(args: argparse.Namespace, context: _CliContext) -> int:
         rendered = TextDiagnosticsRenderer(
             include_details=_mode(args) == ConsoleMode.VERBOSE
         ).render(report)
-    context.stream.write(rendered)
-    flush = getattr(context.stream, "flush", None)
-    if callable(flush):
-        flush()
+
+    if args.output:
+        output_path = _write_inspect_output(
+            Path(args.output),
+            rendered,
+            force=args.force,
+        )
+        _write(context.stream, f"Wrote inspect report to {output_path}")
+    else:
+        context.stream.write(rendered)
+        flush = getattr(context.stream, "flush", None)
+        if callable(flush):
+            flush()
     return 0 if report.ok else 1
 
 
@@ -341,6 +351,15 @@ def _add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Disable browser fallback when the requested browser is unavailable.",
     )
+    parser.add_argument(
+        "--output",
+        help="Write JSON or bundle inspect output to a UTF-8 file.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing inspect output file.",
+    )
 
 
 def _renderer(args: argparse.Namespace, context: _CliContext) -> ConsoleRenderer:
@@ -394,6 +413,32 @@ def _runtime_config_from_args(args: argparse.Namespace) -> LauncherConfig:
         streamlit_args=streamlit_args,
         app_args=(*tuple(args.app_arg), *app_args),
     )
+
+
+def _validate_inspect_output_args(args: argparse.Namespace) -> None:
+    if args.output and not (args.json or args.bundle):
+        raise LitLaunchError("--output requires --json or --bundle.")
+    if args.force and not args.output:
+        raise LitLaunchError("--force requires --output.")
+
+
+def _write_inspect_output(path: Path, rendered: str, *, force: bool) -> Path:
+    output_path = path.expanduser()
+    parent = output_path.parent
+    if parent and not parent.exists():
+        raise LitLaunchError(f"Output parent directory does not exist: {parent}")
+    if output_path.exists() and output_path.is_dir():
+        raise LitLaunchError(f"Output path is a directory: {output_path}")
+    if output_path.exists() and not force:
+        raise LitLaunchError(
+            f"Output file already exists: {output_path}. Use --force to overwrite."
+        )
+    try:
+        output_path.write_text(rendered, encoding="utf-8")
+    except OSError as exc:
+        message = f"Could not write output file {output_path}: {exc}"
+        raise LitLaunchError(message) from exc
+    return output_path
 
 
 def _split_passthrough_args(

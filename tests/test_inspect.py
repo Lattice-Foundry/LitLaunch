@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
@@ -15,6 +16,7 @@ from litlaunch.inspect import (
     SanitizedBundleRenderer,
     StreamlitAvailability,
     TextDiagnosticsRenderer,
+    current_utc_timestamp,
     redact_sensitive_args,
     redact_sensitive_text,
 )
@@ -250,13 +252,15 @@ def test_diagnostics_report_to_dict_shape():
                 (DiagnosticItem("Name", DiagnosticStatus.WARNING, "message"),),
             ),
         ),
+        generated_at_utc="2026-05-18T12:00:00Z",
     )
 
     data = report.to_dict()
 
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.11.0"
+    assert data["litlaunch_version"] == "0.12.0"
+    assert data["generated_at_utc"] == "2026-05-18T12:00:00Z"
     assert data["title"] == "Report"
     assert data["ok"] is True
     assert data["warnings"] == 1
@@ -274,6 +278,18 @@ def test_diagnostics_report_to_dict_shape():
             ],
         }
     ]
+
+
+def test_diagnostics_report_generates_utc_metadata_shape():
+    timestamp = current_utc_timestamp()
+    report = DiagnosticsReport("Report")
+
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", timestamp)
+    assert re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z",
+        report.generated_at_utc,
+    )
+    assert report.to_dict()["generated_at_utc"] == report.generated_at_utc
 
 
 def test_report_without_errors_is_ok_with_warnings_allowed():
@@ -416,6 +432,10 @@ def test_json_renderer_outputs_parseable_sanitized_json():
     data = json.loads(rendered)
 
     assert data["title"] == "LitLaunch Inspect"
+    assert data["schema_version"] == 1
+    assert data["generated_by"] == "litlaunch"
+    assert data["litlaunch_version"] == "0.12.0"
+    assert "generated_at_utc" in data
     assert data["sections"][0]["items"][0]["message"] == "token=<redacted>"
     assert data["sections"][0]["items"][0]["detail"] == "--api_key=<redacted>"
     assert "\033[" not in rendered
@@ -443,7 +463,8 @@ def test_bundle_renderer_includes_summary_sections_and_sanitization_note():
     rendered = SanitizedBundleRenderer().render(report)
 
     assert "LitLaunch Support Bundle" in rendered
-    assert "Version: 0.11.0" in rendered
+    assert "Version: 0.12.0" in rendered
+    assert "Generated at:" in rendered
     assert "Summary: ok; 0 errors; 0 warnings" in rendered
     assert "This report is sanitized" in rendered
     assert "Platform" in rendered

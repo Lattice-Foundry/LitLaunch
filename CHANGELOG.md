@@ -3,6 +3,16 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.23.0
+
+- Clarified and tested `RuntimeSession.wait()` timed-wait behavior.
+- Added an optional real Streamlit backend smoke test that avoids browser
+  launch and skips when Streamlit is not installed.
+- Expanded installed-wheel release smoke checks to cover inspect and command
+  preview paths.
+- Clarified source-checkout example availability, `run()`/`start()` policy,
+  quiet-mode expectations, and graceful shutdown timeout budgets.
+
 ## 0.22.0
 
 - Removed stray root artifact handling and strengthened release hygiene checks

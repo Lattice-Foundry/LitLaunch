@@ -39,6 +39,13 @@ It can:
 
 It does not own browser processes.
 
+`StreamlitLauncher.run()` is the friendly common entry point. `start()` is the
+explicit lifecycle entry point. Both return a `RuntimeSession`.
+
+`RuntimeSession.wait()` with no timeout waits until the backend exits. Timed
+waits return `None` if the timeout expires and leave the backend running with
+the session state unchanged.
+
 ## Backend Lifecycle
 
 ```text
@@ -51,6 +58,12 @@ return healthy backend or failure result
 
 LitLaunch injects shutdown endpoint environment variables into the backend
 process. The shutdown token is redacted from console output.
+
+`RuntimeSession.stop()` first sends a graceful shutdown request when an app-side
+shutdown endpoint is available. The shutdown request client has a short default
+request timeout, and `stop(graceful_timeout_seconds=...)` controls how long the
+session waits for the backend to exit before using owned-process termination
+fallback.
 
 ## Browser Flow
 
@@ -97,4 +110,3 @@ behavior.
 [diagram needed]
 Create: architecture diagram with ownership boundaries. Highlight that
 BrowserLauncher launches but does not own browser processes.
-

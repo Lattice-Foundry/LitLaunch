@@ -255,15 +255,26 @@ class RuntimeSession:
         )
 
     def wait(self, timeout_seconds: float | None = None) -> int | None:
-        """Wait for the owned backend process to exit."""
+        """Wait for the owned backend process to exit.
+
+        Timed waits are non-throwing. If the timeout expires, the backend is
+        left running, the session state is unchanged, and ``None`` is returned.
+        """
 
         if self.process is None:
             return None
 
-        returncode = self.process_manager.wait(
-            self.process,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            returncode = self.process_manager.wait(
+                self.process,
+                timeout_seconds=timeout_seconds,
+            )
+        except subprocess.TimeoutExpired:
+            self.add_event(
+                self._state,
+                "Timed wait expired; owned backend process is still running.",
+            )
+            return None
         self._stopped = True
         self._state = LaunchState.TERMINATED
         self.add_event(

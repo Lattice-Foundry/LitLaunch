@@ -62,6 +62,9 @@ Run an app from the CLI:
 litlaunch run examples/minimal_app/app.py
 ```
 
+The `examples/minimal_app` path exists in a source checkout. Installed package
+users should point LitLaunch at their own Streamlit app path.
+
 Run in Chromium app-mode:
 
 ```powershell
@@ -92,6 +95,9 @@ try:
 finally:
     session.stop()
 ```
+
+`run()` is the friendly common entry point. `start()` is the explicit lifecycle
+entry point; both return a `RuntimeSession`.
 
 ## Feature Status
 

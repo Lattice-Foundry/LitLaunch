@@ -8,6 +8,9 @@ From a source checkout:
 litlaunch run examples/minimal_app/app.py
 ```
 
+The minimal example is a source-tree fixture. If LitLaunch is installed from a
+wheel, point commands at your own Streamlit app instead.
+
 Run as a Chromium app-mode window:
 
 ```powershell
@@ -58,8 +61,9 @@ finally:
 ```
 
 The returned `RuntimeSession` owns the backend process. Stop it explicitly.
+`run()` is the friendly entry point; `start()` is the explicit lifecycle entry
+point. Both return a live `RuntimeSession`.
 
 [screenshot needed]
 Capture: normal `litlaunch run examples/minimal_app/app.py --no-color` output.
 Demonstrate: backend, health, browser, and runtime-ready phase output.
-

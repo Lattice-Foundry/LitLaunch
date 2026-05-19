@@ -91,6 +91,11 @@ LitLaunch first requests graceful app shutdown when the app enables the
 shutdown endpoint. If that fails or times out, LitLaunch terminates only the
 Streamlit backend process it started.
 
+The shutdown request itself uses a short client timeout so stop operations do
+not hang indefinitely. `RuntimeSession.stop(graceful_timeout_seconds=...)`
+controls how long LitLaunch waits for the backend to exit after a graceful
+request is accepted before using the owned-process fallback.
+
 Check:
 
 - app calls `LauncherRuntime.from_env()`
@@ -108,4 +113,3 @@ litlaunch inspect app.py --bundle --output litlaunch-report.txt --force
 
 The bundle is sanitized and does not include shutdown tokens or raw environment
 dumps.
-

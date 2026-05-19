@@ -123,12 +123,15 @@ def run_command(
     *,
     cwd: Path | None = PROJECT_ROOT,
     env: dict[str, str] | None = None,
+    allowed_return_codes: tuple[int, ...] = (0,),
 ) -> None:
     """Run a command with shell-free argument passing."""
 
     printable = " ".join(str(part) for part in command)
     print(f"+ {printable}")
-    subprocess.run(tuple(str(part) for part in command), cwd=cwd, env=env, check=True)
+    result = subprocess.run(tuple(str(part) for part in command), cwd=cwd, env=env)
+    if result.returncode not in allowed_return_codes:
+        raise subprocess.CalledProcessError(result.returncode, result.args)
 
 
 def find_release_artifacts(
@@ -355,6 +358,25 @@ def run_installed_wheel_smoke(wheel_path: Path, version: str) -> None:
         run_command(
             (str(litlaunch), "browsers", "--no-color"), cwd=Path(temp_dir), env=env
         )
+        run_command(
+            (str(litlaunch), "inspect", "--no-color"),
+            cwd=Path(temp_dir),
+            env=env,
+            allowed_return_codes=(0, 1),
+        )
+        example_app = PROJECT_ROOT / "examples" / "minimal_app" / "app.py"
+        if example_app.is_file():
+            run_command(
+                (str(litlaunch), "inspect", str(example_app), "--no-color"),
+                cwd=Path(temp_dir),
+                env=env,
+                allowed_return_codes=(0, 1),
+            )
+            run_command(
+                (str(litlaunch), "command", str(example_app), "--no-color"),
+                cwd=Path(temp_dir),
+                env=env,
+            )
 
 
 def _venv_python(venv_dir: Path) -> Path:

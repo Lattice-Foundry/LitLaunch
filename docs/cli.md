@@ -23,8 +23,8 @@ litlaunch example
 --verbose
 ```
 
-Quiet suppresses normal output but keeps essential errors visible. Verbose adds
-sanitized details.
+Quiet suppresses routine output, but essential errors and failure guidance may
+still be emitted. Verbose adds sanitized details.
 
 ## Run
 
@@ -91,4 +91,3 @@ litlaunch example
 
 This reports the minimal example path only when running from a source checkout.
 Installed wheels may not include repository-level examples.
-

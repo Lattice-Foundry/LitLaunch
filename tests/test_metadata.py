@@ -34,6 +34,7 @@ def test_pyproject_dev_extras_include_release_tools():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
+    assert "## 0.23.0" in changelog
     assert "## 0.22.0" in changelog
     assert "## 0.21.0" in changelog
     assert "## 0.20.0" in changelog
@@ -92,6 +93,24 @@ def test_internal_docs_are_excluded_from_sdist_config():
 
 def test_dead_diagnostics_module_has_been_removed():
     assert not (REPO_ROOT / "src" / "litlaunch" / "diagnostics.py").exists()
+
+
+def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    quickstart = (REPO_ROOT / "docs" / "quickstart.md").read_text(encoding="utf-8")
+    architecture = (REPO_ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+    troubleshooting = (REPO_ROOT / "docs" / "troubleshooting.md").read_text(
+        encoding="utf-8"
+    )
+    cli = (REPO_ROOT / "docs" / "cli.md").read_text(encoding="utf-8")
+
+    assert "source checkout" in readme
+    assert "own Streamlit app path" in readme
+    assert "source-tree fixture" in quickstart
+    assert "`StreamlitLauncher.run()` is the friendly" in architecture
+    assert "waits return `None`" in architecture
+    assert "graceful_timeout_seconds" in troubleshooting
+    assert "essential errors and failure guidance" in cli
 
 
 def test_internal_docs_exist_but_are_not_linked_from_public_docs():

@@ -213,6 +213,39 @@ def test_runtime_session_wait_delegates_to_owned_backend_process():
     assert session.events[-1].state == LaunchState.TERMINATED
 
 
+def test_runtime_session_wait_without_timeout_remains_blocking_delegate():
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        clock=FakeClock(),
+    )
+
+    assert session.wait() == 0
+    assert manager.wait_calls == [(process, None)]
+    assert session.state == LaunchState.TERMINATED
+
+
+def test_runtime_session_timed_wait_timeout_returns_none_and_keeps_running_state():
+    process = make_process()
+    manager = FakeProcessManager(wait_timeout=True)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        clock=FakeClock(),
+    )
+
+    assert session.wait(timeout_seconds=0.1) is None
+    assert manager.wait_calls == [(process, 0.1)]
+    assert session.state == LaunchState.RUNNING
+    assert session.events[-1].message == (
+        "Timed wait expired; owned backend process is still running."
+    )
+
+
 def test_runtime_session_wait_without_process_returns_none():
     manager = FakeProcessManager(wait_return=17)
     session = RuntimeSession(

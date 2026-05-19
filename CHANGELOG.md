@@ -3,6 +3,16 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.22.0
+
+- Removed stray root artifact handling and strengthened release hygiene checks
+  for suspicious repo-root files.
+- Excluded temporary `docs/internal/` integration notes from source
+  distributions while keeping public docs in release artifacts.
+- Cleaned public exports for typed exceptions and shutdown integration helpers.
+- Removed dead diagnostics and console-rendering surfaces superseded by inspect
+  and the named theme color contract.
+
 ## 0.21.0
 
 - Added temporary internal integration docs for RoleThread migration planning,

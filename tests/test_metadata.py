@@ -34,6 +34,7 @@ def test_pyproject_dev_extras_include_release_tools():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
+    assert "## 0.22.0" in changelog
     assert "## 0.21.0" in changelog
     assert "## 0.20.0" in changelog
     assert "## 0.19.0" in changelog
@@ -78,6 +79,19 @@ def test_docs_foundation_exists_and_links_from_readme():
         assert path.is_file()
         assert path.read_text(encoding="utf-8").strip()
         assert f"docs/{doc}" in readme
+
+
+def test_internal_docs_are_excluded_from_sdist_config():
+    pyproject = tomllib.loads(
+        (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+
+    exclude = pyproject["tool"]["hatch"]["build"]["targets"]["sdist"]["exclude"]
+    assert "/docs/internal" in exclude
+
+
+def test_dead_diagnostics_module_has_been_removed():
+    assert not (REPO_ROOT / "src" / "litlaunch" / "diagnostics.py").exists()
 
 
 def test_internal_docs_exist_but_are_not_linked_from_public_docs():

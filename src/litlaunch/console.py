@@ -21,7 +21,6 @@ from litlaunch.colors import (
     terminal_green,
 )
 from litlaunch.lifecycle import LaunchEvent, LaunchState
-from litlaunch.shutdown import ShutdownHookResult
 from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
 
 ANSI_PATTERN = re.compile(r"\033\[[0-9;]*m")
@@ -46,18 +45,6 @@ class ConsolePhase(str, Enum):
     SHUTDOWN = "Shutdown"
     STOPPING_BACKEND = "Stopping backend"
     HOOK = "Hook"
-
-
-class ConsoleColor(str, Enum):
-    """Named console colors supported by the default theme."""
-
-    STREAMLIT_BLUE = "streamlit_blue"
-    ACCENT = "accent"
-    SUCCESS = "success"
-    WARNING = "warning"
-    ERROR = "error"
-    MUTED = "muted"
-    RESET = "reset"
 
 
 ANSI_COLORS: Mapping[str, str] = {
@@ -378,29 +365,6 @@ class ConsoleRenderer:
             self.success(event.message)
         else:
             self.step(event.message)
-
-    def _render_shutdown_hook_start(self, label: str, color: str | None = None) -> None:
-        """Render shutdown hook start metadata."""
-
-        self.phase(ConsolePhase.HOOK, self._with_optional_label_color(label, color))
-
-    def _render_shutdown_hook_result(self, result: ShutdownHookResult) -> None:
-        """Render one shutdown hook result."""
-
-        label = self._with_optional_label_color(result.label, result.color)
-        message = f"{label}: {result.message}"
-        if result.ok:
-            self.phase_success(ConsolePhase.HOOK, message)
-        else:
-            self.phase_error(ConsolePhase.HOOK, message)
-            self.failure_guidance(
-                "Shutdown hook failed.",
-                likely_cause=result.message,
-                next_steps=(
-                    ("Review the hook implementation and rerun with verbose output."),
-                ),
-                detail=result.error,
-            )
 
     def _emit(self, text: str) -> None:
         safe_text = self._redact(str(text))

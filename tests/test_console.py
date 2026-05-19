@@ -23,7 +23,6 @@ from litlaunch.console import (
     strip_ansi,
 )
 from litlaunch.lifecycle import LaunchEvent, LaunchState
-from litlaunch.shutdown import ShutdownHookResult
 from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
 
 
@@ -274,41 +273,13 @@ def test_console_renderer_lifecycle_event_rendering():
     assert "error Failed" in output
 
 
-def test_console_renderer_shutdown_hook_metadata_rendering_is_internal():
-    stream = StringIO()
-    renderer = ConsoleRenderer(
-        theme=ConsoleTheme(use_color=False),
-        stream=stream,
-    )
+def test_console_renderer_has_no_dead_shutdown_hook_render_surface():
+    renderer = ConsoleRenderer(theme=ConsoleTheme(use_color=False))
 
     assert not hasattr(renderer, "render_shutdown_hook_start")
     assert not hasattr(renderer, "render_shutdown_hook_result")
-
-    renderer._render_shutdown_hook_start("Closing resources", color="cyan")
-    renderer._render_shutdown_hook_result(
-        ShutdownHookResult(
-            label="Closing resources",
-            ok=True,
-            message="Resources closed",
-            color="cyan",
-        )
-    )
-    renderer._render_shutdown_hook_result(
-        ShutdownHookResult(
-            label="Closing resources",
-            ok=False,
-            message="Resource close failed",
-            error="boom",
-            color="red",
-        )
-    )
-
-    output = stream.getvalue()
-    assert "Hook: Closing resources" in output
-    assert "Hook: Closing resources: Resources closed" in output
-    assert "Hook: Closing resources: Resource close failed" in output
-    assert "Shutdown hook failed." in output
-    assert "Review the hook implementation" in output
+    assert not hasattr(renderer, "_render_shutdown_hook_start")
+    assert not hasattr(renderer, "_render_shutdown_hook_result")
 
 
 def test_console_renderer_browser_fallback_summary():

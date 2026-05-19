@@ -1,5 +1,4 @@
 from litlaunch import Architecture, OperatingSystem, PlatformDetector
-from litlaunch.diagnostics import Diagnostics
 from litlaunch.platforms.detect import normalize_architecture, normalize_os
 
 
@@ -90,7 +89,6 @@ def test_platform_summary_is_deterministic():
     ).detect()
 
     assert info.summary() == "Windows x64 / Python 3.14.5"
-    assert Diagnostics.platform_summary(info) == info.summary()
 
 
 def test_platform_as_dict_contains_expected_keys():

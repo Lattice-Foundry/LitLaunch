@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import ast
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -32,6 +33,7 @@ FORBIDDEN_ARCHIVE_COMPONENTS = frozenset(
     }
 )
 FORBIDDEN_ARCHIVE_SUFFIXES = (".pyc", ".pyo")
+MALFORMED_VERSION_FRAGMENT_PATTERN = re.compile(r"^\d+(?:\.\d+){1,3}`?$")
 
 
 @dataclass(frozen=True)
@@ -70,6 +72,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = build_parser().parse_args(argv)
     version = read_project_version()
+    ensure_no_suspicious_repo_root_artifacts()
 
     if not args.keep_dist:
         clean_dist()
@@ -216,6 +219,12 @@ def inspect_sdist(sdist_path: Path, version: str) -> None:
     with tarfile.open(sdist_path, "r:gz") as archive:
         names = tuple(member.name for member in archive.getmembers())
 
+    inspect_sdist_names(names, version)
+
+
+def inspect_sdist_names(names: Sequence[str], version: str) -> None:
+    """Inspect sdist member names without reading an archive file."""
+
     ensure_no_forbidden_archive_entries(names)
     prefix = f"litlaunch-{version}/"
     required_suffixes = (
@@ -230,6 +239,41 @@ def inspect_sdist(sdist_path: Path, version: str) -> None:
         require_archive_entry(
             names, expected, lambda name, value=expected: name == value
         )
+    require_archive_entry(
+        names,
+        "public docs",
+        lambda name: name == f"{prefix}docs/overview.md",
+    )
+    internal_prefix = f"{prefix}docs/internal/"
+    if any(name.startswith(internal_prefix) for name in names):
+        raise RuntimeError("Internal integration docs must not be included in sdist.")
+
+
+def find_suspicious_repo_root_artifacts(
+    root: Path = PROJECT_ROOT,
+) -> tuple[Path, ...]:
+    """Return suspicious root-level files that should not ship accidentally."""
+
+    suspicious: list[Path] = []
+    for path in root.iterdir():
+        if not path.is_file():
+            continue
+        name = path.name
+        if "`" in name:
+            suspicious.append(path)
+            continue
+        if path.stat().st_size == 0 and _looks_like_accidental_root_artifact(name):
+            suspicious.append(path)
+    return tuple(suspicious)
+
+
+def ensure_no_suspicious_repo_root_artifacts(root: Path = PROJECT_ROOT) -> None:
+    """Raise if the repo root contains obvious accidental shell artifacts."""
+
+    suspicious = find_suspicious_repo_root_artifacts(root)
+    if suspicious:
+        joined = ", ".join(path.name for path in suspicious)
+        raise RuntimeError(f"Suspicious repo-root artifacts found: {joined}")
 
 
 def find_forbidden_archive_entries(names: Sequence[str]) -> tuple[str, ...]:
@@ -268,6 +312,14 @@ def require_archive_entry(
 
     if not any(predicate(name) for name in names):
         raise RuntimeError(f"Missing required archive entry: {description}")
+
+
+def _looks_like_accidental_root_artifact(name: str) -> bool:
+    return (
+        MALFORMED_VERSION_FRAGMENT_PATTERN.fullmatch(name) is not None
+        or name in {"'", '"'}
+        or name.endswith(("`", "'", '"'))
+    )
 
 
 def run_installed_wheel_smoke(wheel_path: Path, version: str) -> None:

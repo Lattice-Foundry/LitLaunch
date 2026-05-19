@@ -9,7 +9,6 @@ from litlaunch.browsers import (
     DefaultBrowserAdapter,
     EdgeAdapter,
 )
-from litlaunch.diagnostics import Diagnostics
 from litlaunch.platforms import PlatformDetector
 
 
@@ -275,7 +274,7 @@ def test_explicit_edge_unavailable_without_full_browser_fallback_selects_none():
     ]
 
 
-def test_browser_diagnostics_are_plain_text():
+def test_browser_resolution_message_is_plain_text():
     registry = BrowserRegistry((ChromeAdapter("/usr/bin/chrome"),))
     resolution = registry.resolve(
         BrowserChoice.CHROME,
@@ -283,9 +282,6 @@ def test_browser_diagnostics_are_plain_text():
         prefer_app_mode=True,
     )
 
-    assert Diagnostics.browser_summary(resolution) == (
-        "Browser: Chrome or Chromium (Selected Chrome or Chromium.)"
-    )
-    assert Diagnostics.browser_capabilities(resolution.fallback_chain) == (
-        "Chrome or Chromium: available"
-    )
+    assert resolution.message == "Selected Chrome or Chromium."
+    assert resolution.fallback_chain[0].name == "Chrome or Chromium"
+    assert resolution.fallback_chain[0].available is True

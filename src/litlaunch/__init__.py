@@ -21,7 +21,14 @@ from litlaunch.console import (
     ConsoleRenderer,
     ConsoleTheme,
 )
-from litlaunch.exceptions import ConfigurationError, LitLaunchError
+from litlaunch.exceptions import (
+    BrowserError,
+    CommandBuildError,
+    ConfigurationError,
+    LitLaunchError,
+    PortError,
+    ProcessError,
+)
 from litlaunch.health import HealthChecker
 from litlaunch.inspect import (
     DiagnosticCollector,
@@ -46,9 +53,12 @@ from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.session import RuntimeSession
 from litlaunch.shutdown import (
     LauncherRuntime,
+    ShutdownClient,
+    ShutdownConfig,
     ShutdownHook,
     ShutdownHookRegistry,
     ShutdownHookResult,
+    ShutdownRequestResult,
     ShutdownResult,
 )
 from litlaunch.streamlit import StreamlitCommandBuilder
@@ -77,6 +87,8 @@ __all__ = [
     "BrowserLaunchResult",
     "BrowserLauncher",
     "BrowserResolution",
+    "BrowserError",
+    "CommandBuildError",
     "ConfigurationError",
     "ConsoleMode",
     "ConsolePhase",
@@ -105,11 +117,16 @@ __all__ = [
     "NoopWindowMonitor",
     "PortManager",
     "PollingWindowMonitor",
+    "PortError",
+    "ProcessError",
     "ProcessManager",
     "RuntimeSession",
+    "ShutdownClient",
+    "ShutdownConfig",
     "ShutdownHook",
     "ShutdownHookRegistry",
     "ShutdownHookResult",
+    "ShutdownRequestResult",
     "ShutdownResult",
     "StreamlitCommandBuilder",
     "StreamlitLauncher",

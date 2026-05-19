@@ -7,10 +7,12 @@ from litlaunch import (
     Architecture,
     BrowserCapability,
     BrowserChoice,
+    BrowserError,
     BrowserKind,
     BrowserLauncher,
     BrowserLaunchResult,
     BrowserResolution,
+    CommandBuildError,
     ConfigurationError,
     ConsoleMode,
     ConsolePhase,
@@ -36,13 +38,18 @@ from litlaunch import (
     PlatformDetector,
     PlatformInfo,
     PollingWindowMonitor,
+    PortError,
     PortManager,
+    ProcessError,
     ProcessManager,
     RuntimeSession,
     SanitizedBundleRenderer,
+    ShutdownClient,
+    ShutdownConfig,
     ShutdownHook,
     ShutdownHookRegistry,
     ShutdownHookResult,
+    ShutdownRequestResult,
     ShutdownResult,
     StreamlitCommandBuilder,
     StreamlitLauncher,
@@ -74,6 +81,8 @@ def test_public_imports_are_available():
     assert BrowserLaunchResult
     assert BrowserLauncher
     assert BrowserResolution
+    assert issubclass(BrowserError, LitLaunchError)
+    assert issubclass(CommandBuildError, LitLaunchError)
     assert ConsoleMode.NORMAL.value == "normal"
     assert ConsolePhase.BACKEND.value == "Backend"
     assert ConsoleRenderer
@@ -96,14 +105,19 @@ def test_public_imports_are_available():
     assert ManagedProcess
     assert NoopWindowMonitor
     assert PortManager
+    assert issubclass(PortError, LitLaunchError)
     assert PollingWindowMonitor
+    assert issubclass(ProcessError, LitLaunchError)
     assert ProcessManager
     assert RuntimeSession
     assert SanitizedBundleRenderer
     assert LauncherRuntime
+    assert ShutdownClient
+    assert ShutdownConfig
     assert ShutdownHook
     assert ShutdownHookRegistry
     assert ShutdownHookResult
+    assert ShutdownRequestResult
     assert ShutdownResult
     assert StreamlitCommandBuilder
     assert StreamlitLauncher
@@ -127,14 +141,16 @@ def test_public_imports_are_available():
 
 
 def test_public_all_is_explicit():
-    assert sorted(litlaunch.__all__) == [
+    expected = [
         "Architecture",
         "BrowserCapability",
         "BrowserChoice",
+        "BrowserError",
         "BrowserKind",
         "BrowserLaunchResult",
         "BrowserLauncher",
         "BrowserResolution",
+        "CommandBuildError",
         "ConfigurationError",
         "ConsoleMode",
         "ConsolePhase",
@@ -160,13 +176,18 @@ def test_public_all_is_explicit():
         "PlatformDetector",
         "PlatformInfo",
         "PollingWindowMonitor",
+        "PortError",
         "PortManager",
+        "ProcessError",
         "ProcessManager",
         "RuntimeSession",
         "SanitizedBundleRenderer",
+        "ShutdownClient",
+        "ShutdownConfig",
         "ShutdownHook",
         "ShutdownHookRegistry",
         "ShutdownHookResult",
+        "ShutdownRequestResult",
         "ShutdownResult",
         "StreamlitCommandBuilder",
         "StreamlitLauncher",
@@ -189,12 +210,13 @@ def test_public_all_is_explicit():
         "is_hex_color",
         "is_theme_color_name",
     ]
+    assert sorted(litlaunch.__all__) == sorted(expected)
     assert not hasattr(litlaunch, "ConsoleColor")
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.21.0"
-    assert __version__ == "0.21.0"
+    assert litlaunch.__version__ == "0.22.0"
+    assert __version__ == "0.22.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

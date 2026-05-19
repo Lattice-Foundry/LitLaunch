@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -34,7 +35,7 @@ def test_release_check_script_exists_and_help_mentions_build_and_twine():
 def test_release_script_reads_current_version():
     module = load_release_script()
 
-    assert module.read_project_version() == "0.21.0"
+    assert module.read_project_version() == "0.22.0"
 
 
 def test_release_script_detects_forbidden_archive_entries():
@@ -42,27 +43,57 @@ def test_release_script_detects_forbidden_archive_entries():
 
     forbidden = module.find_forbidden_archive_entries(
         (
-            "litlaunch-0.21.0/src/litlaunch/__pycache__/x.pyc",
-            "litlaunch-0.21.0/.ruff_cache/CACHEDIR.TAG",
-            "litlaunch-0.21.0/.claude/settings.json",
-            "litlaunch-0.21.0/src/litlaunch/module.py",
+            "litlaunch-0.22.0/src/litlaunch/__pycache__/x.pyc",
+            "litlaunch-0.22.0/.ruff_cache/CACHEDIR.TAG",
+            "litlaunch-0.22.0/.claude/settings.json",
+            "litlaunch-0.22.0/src/litlaunch/module.py",
         )
     )
 
     assert forbidden == (
-        "litlaunch-0.21.0/src/litlaunch/__pycache__/x.pyc",
-        "litlaunch-0.21.0/.ruff_cache/CACHEDIR.TAG",
-        "litlaunch-0.21.0/.claude/settings.json",
+        "litlaunch-0.22.0/src/litlaunch/__pycache__/x.pyc",
+        "litlaunch-0.22.0/.ruff_cache/CACHEDIR.TAG",
+        "litlaunch-0.22.0/.claude/settings.json",
     )
+
+
+def test_release_script_detects_suspicious_repo_root_artifacts():
+    module = load_release_script()
+
+    with tempfile.TemporaryDirectory(
+        prefix="litlaunch-test-",
+        dir=REPO_ROOT,
+    ) as temp_dir:
+        root = Path(temp_dir)
+        suspicious = root / "3.10`"
+        suspicious.write_text("", encoding="utf-8")
+        legitimate = root / "README.md"
+        legitimate.write_text("# Project\n", encoding="utf-8")
+
+        assert module.find_suspicious_repo_root_artifacts(root) == (suspicious,)
+
+
+def test_release_script_accepts_normal_empty_root_files():
+    module = load_release_script()
+
+    with tempfile.TemporaryDirectory(
+        prefix="litlaunch-test-",
+        dir=REPO_ROOT,
+    ) as temp_dir:
+        root = Path(temp_dir)
+        keep = root / ".gitkeep"
+        keep.write_text("", encoding="utf-8")
+
+        assert module.find_suspicious_repo_root_artifacts(root) == ()
 
 
 @pytest.mark.parametrize(
     "entry",
     [
         "/absolute/path.py",
-        "litlaunch-0.21.0/../escape.py",
-        "litlaunch-0.21.0/.git/config",
-        "litlaunch-0.21.0/.venv/pyvenv.cfg",
+        "litlaunch-0.22.0/../escape.py",
+        "litlaunch-0.22.0/.git/config",
+        "litlaunch-0.22.0/.venv/pyvenv.cfg",
     ],
 )
 def test_release_script_rejects_unsafe_archive_entries(entry):
@@ -77,13 +108,31 @@ def test_release_script_allows_normal_archive_entries():
     assert (
         module.find_forbidden_archive_entries(
             (
-                "litlaunch-0.21.0/README.md",
-                "litlaunch-0.21.0/src/litlaunch/__init__.py",
-                "litlaunch-0.21.0/src/litlaunch/py.typed",
+                "litlaunch-0.22.0/README.md",
+                "litlaunch-0.22.0/src/litlaunch/__init__.py",
+                "litlaunch-0.22.0/src/litlaunch/py.typed",
             )
         )
         == ()
     )
+
+
+def test_release_script_rejects_internal_docs_in_sdist():
+    module = load_release_script()
+
+    with pytest.raises(RuntimeError, match="Internal integration docs"):
+        module.inspect_sdist_names(
+            (
+                "litlaunch-0.22.0/README.md",
+                "litlaunch-0.22.0/LICENSE",
+                "litlaunch-0.22.0/pyproject.toml",
+                "litlaunch-0.22.0/docs/overview.md",
+                "litlaunch-0.22.0/docs/internal/README.md",
+                "litlaunch-0.22.0/src/litlaunch/__init__.py",
+                "litlaunch-0.22.0/src/litlaunch/py.typed",
+            ),
+            "0.22.0",
+        )
 
 
 def test_release_script_require_archive_entry_raises_for_missing_entry():

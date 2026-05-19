@@ -133,6 +133,7 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "platform" in help_text
     assert "browsers" in help_text
     assert "run" in help_text
+    assert "source-checkout minimal example" in help_text
 
 
 def test_cli_version_returns_zero_and_prints_version():
@@ -248,6 +249,22 @@ def test_cli_run_rejects_missing_app_path_before_launching():
 
     assert code == 2
     assert "Streamlit app path does not exist" in stream.getvalue()
+
+
+def test_cli_run_rejects_invalid_host_before_launching():
+    stream = StringIO()
+
+    def launcher_factory(*args, **kwargs):
+        raise AssertionError("launcher should not be constructed for invalid host")
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--host", "bad host"],
+        stream=stream,
+        launcher_factory=launcher_factory,
+    )
+
+    assert code == 2
+    assert "host must be a valid IP address or plausible hostname" in stream.getvalue()
 
 
 def test_cli_run_keyboard_interrupt_stops_session():

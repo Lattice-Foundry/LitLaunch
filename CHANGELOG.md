@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.8.4
+
+- Added early host validation and CLI invalid-host coverage.
+- Added a webapp/headless configuration guardrail.
+- Clarified source-checkout example policy and provisional documentation areas.
+
 ## 0.8.3
 
 - Added line-ending normalization metadata for the repository.

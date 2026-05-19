@@ -42,6 +42,11 @@ def test_app_url_builds_correctly():
     assert build_streamlit_app_url("127.0.0.1", 8501) == "http://127.0.0.1:8501"
 
 
+def test_ipv6_app_and_health_urls_use_brackets():
+    assert build_streamlit_app_url("::1", 8501) == "http://[::1]:8501"
+    assert build_streamlit_health_url("::1", 8501) == "http://[::1]:8501/_stcore/health"
+
+
 def test_check_once_true_on_successful_response():
     checker = HealthChecker(opener=lambda url, timeout: FakeResponse(204))
 

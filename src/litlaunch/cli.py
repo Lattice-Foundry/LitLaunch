@@ -96,7 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     example_parser = subparsers.add_parser(
         "example",
         parents=[parent],
-        help="Show the bundled minimal example app path.",
+        help="Show the source-checkout minimal example app path.",
     )
     example_parser.set_defaults(handler=_cmd_example)
 

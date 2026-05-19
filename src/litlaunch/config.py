@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ipaddress
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
@@ -10,6 +12,8 @@ from types import MappingProxyType
 from typing import Any
 
 from litlaunch.exceptions import ConfigurationError
+
+HOSTNAME_PATTERN = re.compile(r"^[A-Za-z0-9.-]+$")
 
 
 class LaunchMode(str, Enum):
@@ -53,7 +57,7 @@ class LauncherConfig:
         title = _normalize_required_string(self.title, "title")
         mode = _normalize_enum(LaunchMode, self.mode, "mode")
         browser = _normalize_enum(BrowserChoice, self.browser, "browser")
-        host = _normalize_required_string(self.host, "host")
+        host = _normalize_host(self.host)
         port = _normalize_port(self.port)
         auto_port = True if port is None else bool(self.auto_port)
         app_args = _normalize_string_sequence(self.app_args, "app_args")
@@ -62,6 +66,7 @@ class LauncherConfig:
             "extra_browser_args",
         )
         streamlit_flags = _normalize_streamlit_flags(self.streamlit_flags)
+        _validate_webapp_headless(mode, self.headless, streamlit_flags)
 
         object.__setattr__(self, "app_path", app_path)
         object.__setattr__(self, "title", title)
@@ -96,6 +101,36 @@ def _normalize_required_string(value: str, field_name: str) -> str:
     if not normalized:
         raise ConfigurationError(f"{field_name} cannot be empty.")
     return normalized
+
+
+def _normalize_host(value: str) -> str:
+    host = _normalize_required_string(value, "host")
+    if _is_ip_address(host) or _is_plausible_hostname(host):
+        return host
+    raise ConfigurationError("host must be a valid IP address or plausible hostname.")
+
+
+def _is_ip_address(value: str) -> bool:
+    try:
+        ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _is_plausible_hostname(value: str) -> bool:
+    if len(value) > 253 or not HOSTNAME_PATTERN.fullmatch(value):
+        return False
+    hostname = value[:-1] if value.endswith(".") else value
+    if not hostname:
+        return False
+    labels = hostname.split(".")
+    for label in labels:
+        if not label or len(label) > 63:
+            return False
+        if label.startswith("-") or label.endswith("-"):
+            return False
+    return True
 
 
 def _normalize_enum(
@@ -167,3 +202,39 @@ def _validate_flag_value(value: Any) -> str | int | float | bool | None:
     raise ConfigurationError(
         "streamlit flag values must be str, int, float, bool, or None."
     )
+
+
+def _validate_webapp_headless(
+    mode: LaunchMode,
+    headless: bool | None,
+    streamlit_flags: MappingProxyType[str, object] | tuple[str, ...],
+) -> None:
+    if mode != LaunchMode.WEBAPP or headless is not False:
+        return
+    if _has_streamlit_flag(streamlit_flags, "server.headless"):
+        return
+    raise ConfigurationError(
+        "mode='webapp' requires headless=True. Use browser mode or pass "
+        "an explicit Streamlit server.headless flag if you intentionally need "
+        "Streamlit-native override behavior."
+    )
+
+
+def _has_streamlit_flag(
+    flags: MappingProxyType[str, object] | tuple[str, ...],
+    name: str,
+) -> bool:
+    if isinstance(flags, Mapping):
+        return any(_normalize_flag_name(key) == name for key in flags)
+    return any(
+        _normalize_flag_name(item) == name
+        for item in flags
+        if str(item).strip().startswith("--")
+    )
+
+
+def _normalize_flag_name(name: str) -> str:
+    stripped = str(name).strip()
+    if stripped.startswith("--"):
+        stripped = stripped[2:]
+    return stripped.split("=", 1)[0].strip().lower()

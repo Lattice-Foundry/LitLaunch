@@ -10,13 +10,19 @@ from urllib import request
 def build_streamlit_health_url(host: str, port: int) -> str:
     """Build the Streamlit health endpoint URL."""
 
-    return f"http://{host}:{port}/_stcore/health"
+    return f"http://{_format_host_for_url(host)}:{port}/_stcore/health"
 
 
 def build_streamlit_app_url(host: str, port: int) -> str:
     """Build the Streamlit app URL."""
 
-    return f"http://{host}:{port}"
+    return f"http://{_format_host_for_url(host)}:{port}"
+
+
+def _format_host_for_url(host: str) -> str:
+    if ":" in host and not host.startswith("["):
+        return f"[{host}]"
+    return host
 
 
 class HealthChecker:

@@ -43,6 +43,39 @@ def test_empty_title_raises_configuration_error():
         LauncherConfig(app_path="app.py", title=" ")
 
 
+@pytest.mark.parametrize(
+    "host",
+    [
+        "localhost",
+        "127.0.0.1",
+        "::1",
+        "0.0.0.0",
+        "example.com",
+        "my-app.local",
+    ],
+)
+def test_valid_hosts_are_accepted(host):
+    config = LauncherConfig(app_path="app.py", host=host)
+
+    assert config.host == host
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        "bad host",
+        "http://localhost",
+        "-bad.local",
+        "bad-.local",
+        "",
+        "name_with_underscore",
+    ],
+)
+def test_invalid_hosts_raise_configuration_error(host):
+    with pytest.raises(ConfigurationError, match="host"):
+        LauncherConfig(app_path="app.py", host=host)
+
+
 @pytest.mark.parametrize("port", [0, 65536, -1, True, "8501"])
 def test_invalid_port_raises_configuration_error(port):
     with pytest.raises(ConfigurationError, match="port must be an integer"):
@@ -84,3 +117,32 @@ def test_streamlit_flags_sequence_becomes_tuple():
     )
 
     assert config.streamlit_flags == ("--logger.level", "debug")
+
+
+def test_webapp_mode_rejects_headless_false_without_explicit_streamlit_override():
+    with pytest.raises(ConfigurationError, match="headless=True"):
+        LauncherConfig(app_path="app.py", mode="webapp", headless=False)
+
+
+def test_webapp_mode_allows_explicit_streamlit_headless_override_mapping():
+    config = LauncherConfig(
+        app_path="app.py",
+        mode="webapp",
+        headless=False,
+        streamlit_flags={"server.headless": False},
+    )
+
+    assert config.headless is False
+    assert config.streamlit_flags["server.headless"] is False
+
+
+def test_webapp_mode_allows_explicit_streamlit_headless_override_sequence():
+    config = LauncherConfig(
+        app_path="app.py",
+        mode="webapp",
+        headless=False,
+        streamlit_flags=("--server.headless=false",),
+    )
+
+    assert config.headless is False
+    assert config.streamlit_flags == ("--server.headless=false",)

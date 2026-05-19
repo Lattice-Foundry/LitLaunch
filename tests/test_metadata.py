@@ -20,6 +20,7 @@ def test_pyproject_metadata_includes_console_and_typing_classifiers():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
+    assert "## 0.8.4" in changelog
     assert "## 0.8.3" in changelog
     assert "## 0.8.2" in changelog
     assert "## 0.8.1" in changelog

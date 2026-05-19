@@ -20,6 +20,7 @@ from litlaunch import (
     OperatingSystem,
     PlatformDetector,
     PlatformInfo,
+    RuntimeSession,
     StreamlitLauncher,
     __version__,
 )
@@ -41,6 +42,7 @@ def test_public_imports_are_available():
     assert Architecture.X64.value == "x64"
     assert PlatformDetector
     assert PlatformInfo
+    assert RuntimeSession
     assert StreamlitLauncher
 
 
@@ -63,14 +65,15 @@ def test_public_all_is_explicit():
         "OperatingSystem",
         "PlatformDetector",
         "PlatformInfo",
+        "RuntimeSession",
         "StreamlitLauncher",
         "__version__",
     ]
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.4.0"
-    assert __version__ == "0.4.0"
+    assert litlaunch.__version__ == "0.5.0"
+    assert __version__ == "0.5.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

@@ -17,6 +17,7 @@ from litlaunch.platforms import (
     PlatformDetector,
     PlatformInfo,
 )
+from litlaunch.session import RuntimeSession
 from litlaunch.version import __version__
 
 __all__ = [
@@ -37,6 +38,7 @@ __all__ = [
     "OperatingSystem",
     "PlatformDetector",
     "PlatformInfo",
+    "RuntimeSession",
     "StreamlitLauncher",
     "__version__",
 ]

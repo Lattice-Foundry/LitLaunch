@@ -66,6 +66,15 @@ class ProcessManager:
             return
         process.popen.kill()
 
+    def wait(
+        self,
+        process: ManagedProcess,
+        timeout_seconds: float | None = None,
+    ) -> int | None:
+        """Wait for one managed process to exit and return its code."""
+
+        return process.popen.wait(timeout=timeout_seconds)
+
     def stop(
         self,
         process: ManagedProcess,

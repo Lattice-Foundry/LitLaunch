@@ -26,12 +26,20 @@ config = LauncherConfig(
     mode="browser",
 )
 
-StreamlitLauncher(config).run()
+session = StreamlitLauncher(config).run()
+
+print(f"Running at {session.url}")
+
+try:
+    ...
+finally:
+    session.stop()
 ```
 
-For now, `StreamlitLauncher.build_command()` is the stable foundation API.
-`run()` is intentionally not implemented until process lifecycle management is
-designed and tested.
+`StreamlitLauncher.run()` returns a `RuntimeSession` so backend lifecycle
+ownership stays explicit. LitLaunch owns only the Streamlit backend process it
+started; browser processes are launched but not owned, monitored, stopped, or
+killed by LitLaunch.
 
 ## Design Principles
 
@@ -59,10 +67,11 @@ default-browser availability. Detection is used for compatibility planning and
 future runtime launch behavior; it does not launch browsers.
 
 LitLaunch can now orchestrate backend startup, Streamlit health checks, browser
-capability resolution, and the first browser launch. Browser mode and Chromium
-app-mode are supported through command-based adapters. Advanced Streamlit flags
-and app arguments remain part of the compatibility model, while window
-monitoring and graceful app shutdown hooks remain future work.
+capability resolution, browser launch, and explicit runtime-session ownership.
+Browser mode and Chromium app-mode are supported through command-based adapters.
+Advanced Streamlit flags and app arguments remain part of the compatibility
+model, while window monitoring and graceful app shutdown hooks remain future
+work.
 
 ## Examples
 

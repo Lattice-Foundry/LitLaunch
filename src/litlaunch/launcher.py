@@ -16,6 +16,7 @@ from litlaunch.health import (
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.ports import PortManager
 from litlaunch.process import ManagedProcess, ProcessManager
+from litlaunch.session import RuntimeSession
 from litlaunch.streamlit import StreamlitCommandBuilder
 
 
@@ -43,7 +44,6 @@ class StreamlitLauncher:
             registry=self.browser_registry
         )
         self.clock = clock
-        self._managed_process: ManagedProcess | None = None
 
     def build_command(self) -> tuple[str, ...]:
         """Build the Streamlit command without starting a process."""
@@ -89,7 +89,7 @@ class StreamlitLauncher:
         wait_for_health: bool = True,
         health_timeout_seconds: float = 15.0,
         health_interval_seconds: float = 0.25,
-    ) -> LaunchResult:
+    ) -> RuntimeSession:
         """Start the Streamlit backend without launching a browser."""
 
         result, managed_process = self._start_backend(
@@ -97,20 +97,24 @@ class StreamlitLauncher:
             health_timeout_seconds=health_timeout_seconds,
             health_interval_seconds=health_interval_seconds,
         )
-        self._managed_process = managed_process
-        return result
+        return RuntimeSession(
+            result=result,
+            process=managed_process,
+            process_manager=self.process_manager,
+            clock=self.clock,
+        )
 
-    def run(
+    def start(
         self,
         *,
         health_timeout_seconds: float = 15.0,
         health_interval_seconds: float = 0.25,
-    ) -> LaunchResult:
-        """Start Streamlit, wait for health, and launch the resolved browser.
+    ) -> RuntimeSession:
+        """Start Streamlit, wait for health, launch a browser, and return a session.
 
         On success, the Streamlit backend remains running and owned by this
-        launcher instance. Window monitoring and graceful shutdown hooks are
-        future lifecycle layers.
+        returned RuntimeSession. Window monitoring and graceful shutdown hooks
+        are future lifecycle layers.
         """
 
         backend_result, managed_process = self._start_backend(
@@ -118,13 +122,17 @@ class StreamlitLauncher:
             health_timeout_seconds=health_timeout_seconds,
             health_interval_seconds=health_interval_seconds,
         )
-        self._managed_process = managed_process
         if (
             not backend_result.ok
             or managed_process is None
             or backend_result.url is None
         ):
-            return backend_result
+            return RuntimeSession(
+                result=backend_result,
+                process=None,
+                process_manager=self.process_manager,
+                clock=self.clock,
+            )
 
         events = list(backend_result.events)
         self._record(events, LaunchState.BROWSER_RESOLVING, "Resolving browser.")
@@ -147,9 +155,8 @@ class StreamlitLauncher:
                 "Browser launch failed; stopping owned backend.",
             )
             self.process_manager.stop(managed_process)
-            self._managed_process = None
             self._record(events, LaunchState.FAILED, browser_result.message)
-            return LaunchResult(
+            failure_result = LaunchResult(
                 ok=False,
                 state=LaunchState.FAILED,
                 command=backend_result.command,
@@ -161,9 +168,15 @@ class StreamlitLauncher:
                 browser_command=browser_result.command,
                 browser_launched=False,
             )
+            return RuntimeSession(
+                result=failure_result,
+                process=None,
+                process_manager=self.process_manager,
+                clock=self.clock,
+            )
 
         self._record(events, LaunchState.RUNNING, browser_result.message)
-        return LaunchResult(
+        result = LaunchResult(
             ok=True,
             state=LaunchState.RUNNING,
             command=backend_result.command,
@@ -174,6 +187,25 @@ class StreamlitLauncher:
             browser=browser_result.browser,
             browser_command=browser_result.command,
             browser_launched=True,
+        )
+        return RuntimeSession(
+            result=result,
+            process=managed_process,
+            process_manager=self.process_manager,
+            clock=self.clock,
+        )
+
+    def run(
+        self,
+        *,
+        health_timeout_seconds: float = 15.0,
+        health_interval_seconds: float = 0.25,
+    ) -> RuntimeSession:
+        """Start the runtime and return a live RuntimeSession."""
+
+        return self.start(
+            health_timeout_seconds=health_timeout_seconds,
+            health_interval_seconds=health_interval_seconds,
         )
 
     def _start_backend(

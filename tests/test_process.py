@@ -79,6 +79,14 @@ def test_is_running_reflects_poll_result():
     )
 
 
+def test_wait_delegates_to_owned_process():
+    fake = FakePopen(returncode=7)
+    manager = ProcessManager()
+
+    assert manager.wait(ManagedProcess(fake, ("cmd",)), timeout_seconds=4.0) == 7
+    assert fake.calls == [("wait", 4.0)]
+
+
 def test_stop_does_nothing_if_already_exited():
     fake = FakePopen(returncode=0)
     manager = ProcessManager()

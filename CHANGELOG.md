@@ -3,6 +3,16 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.25.0
+
+- Documented inspect redaction limits and support-bundle review expectations.
+- Added common home/user path prefix redaction for diagnostics output.
+- Clarified the internal shutdown-result storage contract used by the local
+  shutdown endpoint.
+- Documented the browser adapter naming invariant used by registry resolution.
+- Tracked screenshot and diagram placeholders as deferred beta documentation
+  work.
+
 ## 0.24.0
 
 - Updated package metadata to the Alpha development classifier for TestPyPI

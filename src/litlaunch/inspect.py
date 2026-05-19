@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -562,7 +564,8 @@ def redact_sensitive_text(value: object) -> str:
 
     text = str(value)
     text = SENSITIVE_ASSIGNMENT_PATTERN.sub(r"\1\2<redacted>", text)
-    return SENSITIVE_WORD_PATTERN.sub(r"\1<redacted>", text)
+    text = SENSITIVE_WORD_PATTERN.sub(r"\1<redacted>", text)
+    return _redact_local_path_prefixes(text)
 
 
 def sanitize_report_dict(value: object) -> object:
@@ -617,3 +620,41 @@ def _is_sensitive_argument_name(value: str) -> bool:
     if any(marker in name for marker in SENSITIVE_MARKERS):
         return True
     return name == "key" or name.endswith((".key", "_key", "-key"))
+
+
+def _redact_local_path_prefixes(text: str) -> str:
+    redacted = text
+    for prefix in _local_path_prefixes():
+        flags = re.IGNORECASE if re.match(r"^[A-Za-z]:[\\/]", prefix) else 0
+        redacted = re.sub(re.escape(prefix), "<user-home>", redacted, flags=flags)
+    return redacted
+
+
+def _local_path_prefixes() -> tuple[str, ...]:
+    candidates: set[str] = set()
+    for name in ("USERPROFILE", "HOME"):
+        value = os.environ.get(name)
+        if value:
+            candidates.update(_path_variants(value))
+
+    home_drive = os.environ.get("HOMEDRIVE")
+    home_path = os.environ.get("HOMEPATH")
+    if home_drive and home_path:
+        candidates.update(_path_variants(f"{home_drive}{home_path}"))
+
+    with suppress(RuntimeError):
+        candidates.update(_path_variants(str(Path.home())))
+
+    useful = {
+        candidate.rstrip("\\/")
+        for candidate in candidates
+        if len(candidate.rstrip("\\/")) >= 5 and candidate.rstrip("\\/") not in {"/"}
+    }
+    return tuple(sorted(useful, key=len, reverse=True))
+
+
+def _path_variants(path: str) -> tuple[str, ...]:
+    normalized = path.strip().rstrip("\\/")
+    if not normalized:
+        return ()
+    return (normalized, normalized.replace("\\", "/"), normalized.replace("/", "\\"))

@@ -262,6 +262,11 @@ class LauncherRuntime:
 
         return self._shutdown_requested
 
+    def _mark_shutdown_complete(self, result: ShutdownResult) -> None:
+        """Store the completed shutdown result for idempotent endpoint replies."""
+
+        self._shutdown_result = result
+
     def shutdown_hook(
         self,
         *,
@@ -421,7 +426,7 @@ def _build_shutdown_handler(runtime: LauncherRuntime) -> type[BaseHTTPRequestHan
 
             runtime._shutdown_requested = True
             result = runtime.run_shutdown_hooks()
-            runtime._shutdown_result = result
+            runtime._mark_shutdown_complete(result)
             self._write_json(
                 200 if result.ok else 500,
                 {"ok": result.ok, "message": result.message},

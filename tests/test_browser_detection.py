@@ -285,3 +285,11 @@ def test_browser_resolution_message_is_plain_text():
     assert resolution.message == "Selected Chrome or Chromium."
     assert resolution.fallback_chain[0].name == "Chrome or Chromium"
     assert resolution.fallback_chain[0].available is True
+
+
+def test_default_adapter_registry_keys_match_browser_kind_values():
+    registry = BrowserRegistry(
+        (EdgeAdapter(), ChromeAdapter(), DefaultBrowserAdapter())
+    )
+
+    assert registry.names() == tuple(sorted(kind.value for kind in BrowserKind))

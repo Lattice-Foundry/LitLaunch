@@ -69,6 +69,13 @@ browser window will appear.
 
 Use inspect alongside real smoke tests, not instead of them.
 
+## Screenshot And Diagram Placeholders
+
+Public and internal docs intentionally keep `[screenshot needed]` and
+`[diagram needed]` placeholders as deferred until release stabilization. Actual
+images should be captured after TestPyPI and RoleThread integration validation
+reduce the chance of rework.
+
 ## Future Runtime Profiles
 
 Runtime profiles are a future possibility, not implemented behavior. They may
@@ -89,4 +96,3 @@ Packaging guidance is expected to evolve during RoleThread validation.
 Create: beta risk map showing which areas are stable beta foundation, which are
 experimental, and which remain future work. Include browser fallback, window
 monitoring, graceful shutdown, inspect, and packaging.
-

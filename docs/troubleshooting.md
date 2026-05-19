@@ -112,4 +112,6 @@ litlaunch inspect app.py --bundle --output litlaunch-report.txt --force
 ```
 
 The bundle is sanitized and does not include shutdown tokens or raw environment
-dumps.
+dumps. LitLaunch also redacts common home/user path prefixes where practical.
+Sanitization is pattern-based, so encoded, URL-wrapped, or reformatted secrets
+may not always be detected. Review support bundles before sharing them publicly.

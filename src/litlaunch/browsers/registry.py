@@ -17,7 +17,12 @@ from litlaunch.platforms import OperatingSystem, PlatformDetector, PlatformInfo
 
 
 class BrowserRegistry:
-    """Small explicit registry for browser adapters."""
+    """Small explicit registry for browser adapters.
+
+    Adapter names are registry keys and must remain aligned with their
+    corresponding ``BrowserKind.value`` values. Resolution itself uses
+    ``BrowserKind`` so display-name changes cannot alter fallback order.
+    """
 
     def __init__(
         self,

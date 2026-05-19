@@ -259,7 +259,7 @@ def test_diagnostics_report_to_dict_shape():
 
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.24.0"
+    assert data["litlaunch_version"] == "0.25.0"
     assert data["generated_at_utc"] == "2026-05-18T12:00:00Z"
     assert data["title"] == "Report"
     assert data["ok"] is True
@@ -434,7 +434,7 @@ def test_json_renderer_outputs_parseable_sanitized_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.24.0"
+    assert data["litlaunch_version"] == "0.25.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["items"][0]["message"] == "token=<redacted>"
     assert data["sections"][0]["items"][0]["detail"] == "--api_key=<redacted>"
@@ -463,7 +463,7 @@ def test_bundle_renderer_includes_summary_sections_and_sanitization_note():
     rendered = SanitizedBundleRenderer().render(report)
 
     assert "LitLaunch Support Bundle" in rendered
-    assert "Version: 0.24.0" in rendered
+    assert "Version: 0.25.0" in rendered
     assert "Generated at:" in rendered
     assert "Summary: ok; 0 errors; 0 warnings" in rendered
     assert "This report is sanitized" in rendered
@@ -511,6 +511,45 @@ def test_redact_sensitive_text_patterns():
     assert "value" not in redacted
     assert "abcd1234" not in redacted
     assert redacted.count("<redacted>") == 6
+
+
+def test_redact_sensitive_text_hides_common_home_path_prefixes(monkeypatch):
+    monkeypatch.setenv("USERPROFILE", r"C:\Users\Ada")
+    monkeypatch.setenv("HOME", "/home/ada")
+
+    redacted = redact_sensitive_text(
+        r"C:\Users\Ada\Projects\app.py and /home/ada/projects/app.py"
+    )
+
+    assert r"C:\Users\Ada" not in redacted
+    assert "/home/ada" not in redacted
+    assert r"<user-home>\Projects\app.py" in redacted
+    assert "<user-home>/projects/app.py" in redacted
+
+
+def test_bundle_renderer_redacts_home_path_details(monkeypatch):
+    monkeypatch.setenv("USERPROFILE", r"C:\Users\Ada")
+
+    report = DiagnosticsReport(
+        "LitLaunch Inspect",
+        (
+            DiagnosticSection(
+                "Platform",
+                (
+                    DiagnosticItem(
+                        "Python executable",
+                        DiagnosticStatus.INFO,
+                        r"C:\Users\Ada\.venv\Scripts\python.exe",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    rendered = SanitizedBundleRenderer().render(report)
+
+    assert r"C:\Users\Ada" not in rendered
+    assert r"<user-home>\.venv\Scripts\python.exe" in rendered
 
 
 def test_report_output_does_not_include_sensitive_command_values():

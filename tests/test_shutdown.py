@@ -276,6 +276,15 @@ def test_shutdown_endpoint_duplicate_post_does_not_rerun_hooks():
     assert json.loads(second)["message"] == "Shutdown already requested."
 
 
+def test_launcher_runtime_marks_shutdown_complete_for_idempotency():
+    runtime = LauncherRuntime.from_env({})
+    result = runtime.run_shutdown_hooks()
+
+    runtime._mark_shutdown_complete(result)
+
+    assert runtime._shutdown_result is result
+
+
 def test_ipv6_loopback_is_accepted_for_endpoint_binding_attempt():
     assert _is_loopback_host("::1") is True
 

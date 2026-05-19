@@ -6,7 +6,11 @@ import ctypes
 import time
 from collections.abc import Callable, Sequence
 from contextlib import suppress
-from ctypes import wintypes
+
+try:
+    from ctypes import wintypes
+except ImportError:  # pragma: no cover - exercised on non-Windows hosts.
+    wintypes = None
 
 from litlaunch._protocols import ClockProvider
 from litlaunch.browsers import BrowserKind
@@ -36,13 +40,13 @@ class WindowsWindowProvider:
         process_name_provider: Callable[[int], str | None] | None = None,
     ) -> None:
         self.is_windows = _is_windows() if is_windows is None else bool(is_windows)
+        self.process_name_provider = process_name_provider
         if self.is_windows:
             self.user32 = user32 or ctypes.WinDLL("user32", use_last_error=True)
-            self.kernel32 = kernel32 or ctypes.WinDLL("kernel32", use_last_error=True)
+            self.kernel32 = kernel32 or self._load_kernel32()
         else:
             self.user32 = user32
             self.kernel32 = kernel32
-        self.process_name_provider = process_name_provider
 
     def capture(self, target: WindowTarget | None = None) -> tuple[WindowInfo, ...]:
         """Return visible top-level windows.
@@ -110,7 +114,7 @@ class WindowsWindowProvider:
         return buffer.value
 
     def _get_window_pid(self, hwnd: int) -> int | None:
-        pid = wintypes.DWORD()
+        pid = _DWORD()
         try:
             self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         except (AttributeError, OSError):
@@ -133,7 +137,7 @@ class WindowsWindowProvider:
                 return None
 
             buffer = ctypes.create_unicode_buffer(32768)
-            size = wintypes.DWORD(len(buffer))
+            size = _DWORD(len(buffer))
             ok = self.kernel32.QueryFullProcessImageNameW(
                 handle,
                 0,
@@ -149,6 +153,11 @@ class WindowsWindowProvider:
             if handle:
                 with suppress(AttributeError, OSError):
                     self.kernel32.CloseHandle(handle)
+
+    def _load_kernel32(self) -> object | None:
+        if self.process_name_provider is not None:
+            return None
+        return ctypes.WinDLL("kernel32", use_last_error=True)
 
 
 class WindowsChromiumWindowMonitor(PollingWindowMonitor):
@@ -261,9 +270,33 @@ def _enum_windows_proc(
     if not hasattr(ctypes, "WINFUNCTYPE"):
         return wrapped
 
-    prototype = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    prototype = ctypes.WINFUNCTYPE(_BOOL(), _HWND(), _LPARAM())
     return prototype(wrapped)
 
 
 def _is_windows() -> bool:
     return hasattr(ctypes, "WinDLL")
+
+
+def _DWORD(value: int = 0):
+    if wintypes is not None:
+        return wintypes.DWORD(value)
+    return ctypes.c_ulong(value)
+
+
+def _BOOL():
+    if wintypes is not None:
+        return wintypes.BOOL
+    return ctypes.c_int
+
+
+def _HWND():
+    if wintypes is not None:
+        return wintypes.HWND
+    return ctypes.c_void_p
+
+
+def _LPARAM():
+    if wintypes is not None:
+        return wintypes.LPARAM
+    return ctypes.c_long

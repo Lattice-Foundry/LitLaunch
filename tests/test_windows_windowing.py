@@ -254,6 +254,7 @@ def test_windows_monitor_has_no_browser_or_window_control_surface():
 
 
 def test_windows_provider_fake_path_does_not_require_real_winfuntype(monkeypatch):
+    monkeypatch.delattr(ctypes, "WinDLL", raising=False)
     monkeypatch.delattr(ctypes, "WINFUNCTYPE", raising=False)
 
     provider = WindowsWindowProvider(

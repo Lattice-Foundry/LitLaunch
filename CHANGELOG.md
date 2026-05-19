@@ -3,6 +3,13 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.16.2
+
+- Fixed Windows window-provider fake paths on non-Windows hosts by avoiding
+  eager `kernel32` loading when an injected process-name provider is used.
+- Added coverage for importing and exercising the Windows provider without
+  `ctypes.WinDLL` or `ctypes.WINFUNCTYPE`.
+
 ## 0.16.1
 
 - Hardened Windows browser detection to use the real process environment by default.

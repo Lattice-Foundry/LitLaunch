@@ -34,7 +34,7 @@ def test_release_check_script_exists_and_help_mentions_build_and_twine():
 def test_release_script_reads_current_version():
     module = load_release_script()
 
-    assert module.read_project_version() == "0.16.1"
+    assert module.read_project_version() == "0.16.2"
 
 
 def test_release_script_detects_forbidden_archive_entries():
@@ -42,17 +42,17 @@ def test_release_script_detects_forbidden_archive_entries():
 
     forbidden = module.find_forbidden_archive_entries(
         (
-            "litlaunch-0.16.1/src/litlaunch/__pycache__/x.pyc",
-            "litlaunch-0.16.1/.ruff_cache/CACHEDIR.TAG",
-            "litlaunch-0.16.1/.claude/settings.json",
-            "litlaunch-0.16.1/src/litlaunch/module.py",
+            "litlaunch-0.16.2/src/litlaunch/__pycache__/x.pyc",
+            "litlaunch-0.16.2/.ruff_cache/CACHEDIR.TAG",
+            "litlaunch-0.16.2/.claude/settings.json",
+            "litlaunch-0.16.2/src/litlaunch/module.py",
         )
     )
 
     assert forbidden == (
-        "litlaunch-0.16.1/src/litlaunch/__pycache__/x.pyc",
-        "litlaunch-0.16.1/.ruff_cache/CACHEDIR.TAG",
-        "litlaunch-0.16.1/.claude/settings.json",
+        "litlaunch-0.16.2/src/litlaunch/__pycache__/x.pyc",
+        "litlaunch-0.16.2/.ruff_cache/CACHEDIR.TAG",
+        "litlaunch-0.16.2/.claude/settings.json",
     )
 
 
@@ -60,9 +60,9 @@ def test_release_script_detects_forbidden_archive_entries():
     "entry",
     [
         "/absolute/path.py",
-        "litlaunch-0.16.1/../escape.py",
-        "litlaunch-0.16.1/.git/config",
-        "litlaunch-0.16.1/.venv/pyvenv.cfg",
+        "litlaunch-0.16.2/../escape.py",
+        "litlaunch-0.16.2/.git/config",
+        "litlaunch-0.16.2/.venv/pyvenv.cfg",
     ],
 )
 def test_release_script_rejects_unsafe_archive_entries(entry):
@@ -77,9 +77,9 @@ def test_release_script_allows_normal_archive_entries():
     assert (
         module.find_forbidden_archive_entries(
             (
-                "litlaunch-0.16.1/README.md",
-                "litlaunch-0.16.1/src/litlaunch/__init__.py",
-                "litlaunch-0.16.1/src/litlaunch/py.typed",
+                "litlaunch-0.16.2/README.md",
+                "litlaunch-0.16.2/src/litlaunch/__init__.py",
+                "litlaunch-0.16.2/src/litlaunch/py.typed",
             )
         )
         == ()

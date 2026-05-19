@@ -21,6 +21,8 @@ class LaunchState(str, Enum):
     HEALTHY = "healthy"
     BROWSER_RESOLVING = "browser_resolving"
     BROWSER_LAUNCHING = "browser_launching"
+    WINDOW_MONITORING = "window_monitoring"
+    WINDOW_CLOSED = "window_closed"
     RUNNING = "running"
     FAILED = "failed"
     TERMINATING = "terminating"

@@ -10,6 +10,13 @@ from litlaunch.console import ConsoleRenderer
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.shutdown import ShutdownClient
+from litlaunch.windowing import (
+    WindowMonitor,
+    WindowMonitorConfig,
+    WindowMonitorResult,
+    WindowMonitorStatus,
+    WindowTarget,
+)
 
 
 class RuntimeSession:
@@ -182,6 +189,35 @@ class RuntimeSession:
             f"Owned backend process exited with code {returncode}.",
         )
         return returncode
+
+    def monitor_window(
+        self,
+        monitor: WindowMonitor,
+        target: WindowTarget,
+        config: WindowMonitorConfig | None = None,
+    ) -> WindowMonitorResult:
+        """Monitor an app-mode window and stop the backend only after close."""
+
+        resolved_config = config or WindowMonitorConfig()
+        self.add_event(LaunchState.WINDOW_MONITORING, "Window monitoring started.")
+        result = monitor.wait_for_close(
+            target,
+            backend_is_running=self.is_running,
+            config=resolved_config,
+        )
+        if result.closed:
+            self.add_event(
+                LaunchState.WINDOW_CLOSED,
+                result.message or "App-mode window closed.",
+            )
+            self.stop()
+        elif result.status == WindowMonitorStatus.BACKEND_EXITED:
+            self._stopped = True
+            self._state = LaunchState.TERMINATED
+            self.add_event(LaunchState.TERMINATED, result.message)
+        else:
+            self.add_event(LaunchState.WINDOW_MONITORING, result.message)
+        return result
 
     def add_event(self, state: LaunchState, message: str) -> None:
         """Record a lifecycle event for this live session."""

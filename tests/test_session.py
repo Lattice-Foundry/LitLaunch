@@ -8,6 +8,12 @@ from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess
 from litlaunch.session import RuntimeSession
 from litlaunch.shutdown import ShutdownRequestResult
+from litlaunch.windowing import (
+    WindowInfo,
+    WindowMonitorResult,
+    WindowMonitorStatus,
+    WindowTarget,
+)
 
 
 class FakeClock:
@@ -63,6 +69,19 @@ class FakeShutdownClient:
             status_code=200 if self.ok else 500,
             message="accepted" if self.ok else "failed",
         )
+
+
+class FakeWindowMonitor:
+    def __init__(self, result):
+        self.result = result
+        self.calls = []
+
+    def capture(self, target):
+        return ()
+
+    def wait_for_close(self, target, *, backend_is_running, config):
+        self.calls.append((target, backend_is_running(), config))
+        return self.result
 
 
 def make_result(*, browser=None, browser_launched=False):
@@ -339,3 +358,112 @@ def test_runtime_session_has_no_browser_process_ownership_surface():
     assert not hasattr(session, "browser_process")
     assert not hasattr(session, "kill_browser")
     assert not hasattr(session, "stop_browser")
+
+
+def test_runtime_session_monitor_window_closed_result_stops_owned_backend():
+    process = make_process()
+    manager = FakeProcessManager()
+    target_window = WindowInfo("0x1", title="Streamlit App")
+    monitor = FakeWindowMonitor(
+        WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=True,
+            status=WindowMonitorStatus.WINDOW_CLOSED,
+            message="window closed",
+            target=target_window,
+        )
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        clock=FakeClock(),
+    )
+
+    result = session.monitor_window(monitor, WindowTarget("Streamlit"))
+
+    assert result.closed is True
+    assert manager.stop_calls == [(process, 5.0)]
+    assert monitor.calls
+    assert LaunchState.WINDOW_MONITORING in {event.state for event in session.events}
+    assert LaunchState.WINDOW_CLOSED in {event.state for event in session.events}
+    assert session.state == LaunchState.TERMINATED
+
+
+def test_runtime_session_monitor_window_unsupported_does_not_stop_backend():
+    process = make_process()
+    manager = FakeProcessManager()
+    monitor = FakeWindowMonitor(
+        WindowMonitorResult(
+            supported=False,
+            observed=False,
+            closed=False,
+            status=WindowMonitorStatus.UNSUPPORTED,
+            message="unsupported",
+        )
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        clock=FakeClock(),
+    )
+
+    result = session.monitor_window(monitor, WindowTarget("Streamlit"))
+
+    assert result.status == WindowMonitorStatus.UNSUPPORTED
+    assert manager.stop_calls == []
+    assert session.state == LaunchState.RUNNING
+
+
+def test_runtime_session_monitor_window_timeout_does_not_stop_backend():
+    process = make_process()
+    manager = FakeProcessManager()
+    monitor = FakeWindowMonitor(
+        WindowMonitorResult(
+            supported=True,
+            observed=False,
+            closed=False,
+            status=WindowMonitorStatus.TIMEOUT,
+            message="timeout",
+        )
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        clock=FakeClock(),
+    )
+
+    result = session.monitor_window(monitor, WindowTarget("Streamlit"))
+
+    assert result.status == WindowMonitorStatus.TIMEOUT
+    assert manager.stop_calls == []
+    assert session.state == LaunchState.RUNNING
+
+
+def test_runtime_session_monitor_window_backend_exited_does_not_stop_backend():
+    process = make_process()
+    manager = FakeProcessManager(running=False)
+    monitor = FakeWindowMonitor(
+        WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=False,
+            status=WindowMonitorStatus.BACKEND_EXITED,
+            message="backend exited",
+        )
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        clock=FakeClock(),
+    )
+
+    result = session.monitor_window(monitor, WindowTarget("Streamlit"))
+
+    assert result.status == WindowMonitorStatus.BACKEND_EXITED
+    assert manager.stop_calls == []
+    assert session.state == LaunchState.TERMINATED

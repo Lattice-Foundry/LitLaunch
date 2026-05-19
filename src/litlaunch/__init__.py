@@ -45,6 +45,17 @@ from litlaunch.shutdown import (
 )
 from litlaunch.streamlit import StreamlitCommandBuilder
 from litlaunch.version import __version__
+from litlaunch.windowing import (
+    NoopWindowMonitor,
+    PollingWindowMonitor,
+    WindowInfo,
+    WindowMonitor,
+    WindowMonitorConfig,
+    WindowMonitorEvent,
+    WindowMonitorResult,
+    WindowMonitorStatus,
+    WindowTarget,
+)
 
 __all__ = [
     "Architecture",
@@ -77,7 +88,9 @@ __all__ = [
     "PlatformDetector",
     "PlatformInfo",
     "ManagedProcess",
+    "NoopWindowMonitor",
     "PortManager",
+    "PollingWindowMonitor",
     "ProcessManager",
     "RuntimeSession",
     "ShutdownHook",
@@ -87,5 +100,12 @@ __all__ = [
     "StreamlitCommandBuilder",
     "StreamlitLauncher",
     "TextDiagnosticsRenderer",
+    "WindowInfo",
+    "WindowMonitor",
+    "WindowMonitorConfig",
+    "WindowMonitorEvent",
+    "WindowMonitorResult",
+    "WindowMonitorStatus",
+    "WindowTarget",
     "__version__",
 ]

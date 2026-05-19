@@ -29,9 +29,11 @@ from litlaunch import (
     LaunchState,
     LitLaunchError,
     ManagedProcess,
+    NoopWindowMonitor,
     OperatingSystem,
     PlatformDetector,
     PlatformInfo,
+    PollingWindowMonitor,
     PortManager,
     ProcessManager,
     RuntimeSession,
@@ -43,6 +45,13 @@ from litlaunch import (
     StreamlitCommandBuilder,
     StreamlitLauncher,
     TextDiagnosticsRenderer,
+    WindowInfo,
+    WindowMonitor,
+    WindowMonitorConfig,
+    WindowMonitorEvent,
+    WindowMonitorResult,
+    WindowMonitorStatus,
+    WindowTarget,
     __version__,
 )
 
@@ -74,7 +83,9 @@ def test_public_imports_are_available():
     assert PlatformDetector
     assert PlatformInfo
     assert ManagedProcess
+    assert NoopWindowMonitor
     assert PortManager
+    assert PollingWindowMonitor
     assert ProcessManager
     assert RuntimeSession
     assert SanitizedBundleRenderer
@@ -86,6 +97,13 @@ def test_public_imports_are_available():
     assert StreamlitCommandBuilder
     assert StreamlitLauncher
     assert TextDiagnosticsRenderer
+    assert WindowInfo
+    assert WindowMonitor
+    assert WindowMonitorConfig
+    assert WindowMonitorEvent
+    assert WindowMonitorResult
+    assert WindowMonitorStatus.WINDOW_CLOSED.value == "window_closed"
+    assert WindowTarget
 
 
 def test_public_all_is_explicit():
@@ -116,9 +134,11 @@ def test_public_all_is_explicit():
         "LauncherRuntime",
         "LitLaunchError",
         "ManagedProcess",
+        "NoopWindowMonitor",
         "OperatingSystem",
         "PlatformDetector",
         "PlatformInfo",
+        "PollingWindowMonitor",
         "PortManager",
         "ProcessManager",
         "RuntimeSession",
@@ -130,14 +150,21 @@ def test_public_all_is_explicit():
         "StreamlitCommandBuilder",
         "StreamlitLauncher",
         "TextDiagnosticsRenderer",
+        "WindowInfo",
+        "WindowMonitor",
+        "WindowMonitorConfig",
+        "WindowMonitorEvent",
+        "WindowMonitorResult",
+        "WindowMonitorStatus",
+        "WindowTarget",
         "__version__",
     ]
     assert not hasattr(litlaunch, "ConsoleColor")
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.13.2"
-    assert __version__ == "0.13.2"
+    assert litlaunch.__version__ == "0.14.0"
+    assert __version__ == "0.14.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

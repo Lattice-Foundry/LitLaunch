@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.14.0
+
+- Added the foundational window monitoring contracts and result types.
+- Added no-op and fake-friendly polling window monitor implementations.
+- Added opt-in `RuntimeSession.monitor_window()` scaffolding for future app-mode close handling.
+
 ## 0.13.2
 
 - Removed CI pip caching after hosted macOS jobs emitted cache warning noise.

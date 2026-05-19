@@ -92,6 +92,16 @@ Known provisional areas are intentionally called out: diagnostics are lightweigh
 plain-text helpers for now, a web inspector/dashboard is future work, window
 monitoring is future work, and packaging/install guidance is future work.
 
+## Window Monitoring
+
+LitLaunch includes the first opt-in window monitoring foundation for future
+Chromium app-mode runtime flows. The current API provides observation-only
+contracts, a no-op monitor for unsupported environments, and a fake-friendly
+polling monitor foundation. Real Windows Chromium enumeration and CLI wiring are
+future work. Window monitors observe app windows only; `RuntimeSession` remains
+responsible for graceful backend shutdown, and LitLaunch never owns, stops, or
+kills browser processes.
+
 ## Graceful Shutdown
 
 Streamlit apps can opt in to cleanup hooks when launched by LitLaunch:

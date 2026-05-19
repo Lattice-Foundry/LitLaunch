@@ -23,6 +23,17 @@ def test_ci_workflow_runs_test_lint_format_and_release_hygiene():
     assert "python scripts/check_release.py" in workflow
 
 
+def test_ci_workflow_uses_node24_backed_actions_with_cache_and_timeouts():
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    assert "uses: actions/checkout@v6" in workflow
+    assert "uses: actions/setup-python@v6" in workflow
+    assert "uses: actions/checkout@v4" not in workflow
+    assert "cache: pip" in workflow
+    assert "cache-dependency-path: pyproject.toml" in workflow
+    assert "timeout-minutes: 15" in workflow
+
+
 def test_ci_workflow_includes_cross_platform_python_matrix():
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
 

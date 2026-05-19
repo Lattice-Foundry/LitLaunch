@@ -206,7 +206,9 @@ manual dispatches. The CI test job installs `.[dev]`, runs pytest, Ruff linting,
 and Ruff format checks across Windows, Linux, and macOS on Python 3.10, 3.12,
 and 3.14. A separate build job runs `scripts/check_release.py` on Linux to
 validate wheel/sdist builds, metadata, archive contents, and installed-package
-CLI smoke checks. CI does not publish to TestPyPI or PyPI yet.
+CLI smoke checks. CI uses current Node 24-backed first-party actions, pip
+caching, and bounded job timeouts to keep hosted runs low-noise. CI does not
+publish to TestPyPI or PyPI yet.
 
 ## Versioning
 

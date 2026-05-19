@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.13.1
+
+- Updated GitHub Actions checkout usage to the current Node 24-backed major.
+- Added CI job timeouts and pip caching for lower-noise hosted runs.
+- Kept the existing cross-platform Python matrix pending hosted-runner proof.
+
 ## 0.13.0
 
 - Added GitHub Actions CI for tests, linting, formatting, and release hygiene.

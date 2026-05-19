@@ -104,6 +104,22 @@ runtime, diagnostics, and shutdown-hook messages. The default primary color is
 or `verbose` modes. Plain/no-color output is supported, including `NO_COLOR`,
 without adding Rich, Textual, or Colorama.
 
+## CLI
+
+LitLaunch includes a small argparse-based CLI with no external command-line
+framework dependencies:
+
+```powershell
+litlaunch version
+litlaunch platform
+litlaunch browsers
+litlaunch run examples/minimal_app/app.py
+litlaunch run app.py --mode webapp --browser auto
+```
+
+The CLI is intentionally thin over the Python runtime APIs. A fuller inspector
+or diagnostics dashboard is future work.
+
 ## Examples
 
 The [minimal example app](examples/minimal_app) is a tiny Streamlit target for

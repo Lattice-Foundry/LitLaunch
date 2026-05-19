@@ -41,6 +41,9 @@ Homepage = "https://github.com/LatticeFoundry/litlaunch"
 Repository = "https://github.com/LatticeFoundry/litlaunch"
 Issues = "https://github.com/LatticeFoundry/litlaunch/issues"
 
+[project.scripts]
+litlaunch = "litlaunch.cli:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/litlaunch"]
 

@@ -1,0 +1,278 @@
+from __future__ import annotations
+
+from io import StringIO
+from pathlib import Path
+
+import tomllib
+
+from litlaunch import __version__
+from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
+from litlaunch.cli import build_parser, main
+from litlaunch.config import BrowserChoice
+from litlaunch.lifecycle import LaunchResult, LaunchState
+from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
+
+
+def fake_platform_info():
+    return PlatformInfo(
+        os=OperatingSystem.WINDOWS,
+        architecture=Architecture.X64,
+        python_version="3.14.5",
+        python_executable="X:/Python/python.exe",
+        machine="AMD64",
+        system="Windows",
+        release="11",
+        is_windows=True,
+        is_macos=False,
+        is_linux=False,
+        supports_chromium_app_mode=True,
+        supports_window_monitoring=True,
+        supports_default_browser_open=True,
+        notes=("Window monitoring capability is currently Windows-first.",),
+    )
+
+
+class FakePlatformDetector:
+    def detect(self):
+        return fake_platform_info()
+
+
+class FakeBrowserRegistry:
+    def __init__(self):
+        self.detect_calls = []
+        self.resolve_calls = []
+
+    def detect_all(self, platform_info=None):
+        self.detect_calls.append(platform_info)
+        return (
+            BrowserCapability(
+                kind=BrowserKind.EDGE,
+                name="Edge",
+                executable_path="C:/Edge/msedge.exe",
+                available=True,
+                supports_app_mode=True,
+                supports_full_browser=True,
+            ),
+            BrowserCapability(
+                kind=BrowserKind.CHROME,
+                name="Chrome",
+                executable_path=None,
+                available=False,
+                supports_app_mode=True,
+                supports_full_browser=True,
+                notes=("Chrome not found.",),
+            ),
+        )
+
+    def resolve(self, choice, platform_info=None, *, prefer_app_mode=False):
+        self.resolve_calls.append((choice, platform_info, prefer_app_mode))
+        return BrowserResolution(
+            requested=BrowserChoice.AUTO,
+            selected=None,
+            fallback_chain=(),
+            message="Selected Edge.",
+        )
+
+
+class FakeSession:
+    def __init__(self, *, ok=True, wait_return=0, wait_raises=False):
+        self.ok = ok
+        self.url = "http://127.0.0.1:8501"
+        self.process = object() if ok else None
+        self.wait_return = wait_return
+        self.wait_raises = wait_raises
+        self.wait_calls = 0
+        self.stop_calls = 0
+        self.result = LaunchResult(
+            ok=ok,
+            state=LaunchState.RUNNING if ok else LaunchState.FAILED,
+            command=("python", "-m", "streamlit"),
+            pid=123,
+            url=self.url,
+            message="running" if ok else "failed cleanly",
+            events=(),
+        )
+
+    def wait(self):
+        self.wait_calls += 1
+        if self.wait_raises:
+            raise KeyboardInterrupt
+        return self.wait_return
+
+    def stop(self):
+        self.stop_calls += 1
+
+
+class FakeLauncher:
+    instances = []
+    next_session = FakeSession()
+
+    def __init__(self, config, *, console_renderer=None):
+        self.config = config
+        self.console_renderer = console_renderer
+        FakeLauncher.instances.append(self)
+
+    def run(self):
+        return FakeLauncher.next_session
+
+
+def reset_fake_launcher(session):
+    FakeLauncher.instances = []
+    FakeLauncher.next_session = session
+    return FakeLauncher
+
+
+def test_cli_parser_builds_and_help_lists_commands():
+    parser = build_parser()
+    help_text = parser.format_help()
+
+    assert "version" in help_text
+    assert "platform" in help_text
+    assert "browsers" in help_text
+    assert "run" in help_text
+
+
+def test_cli_version_returns_zero_and_prints_version():
+    stream = StringIO()
+
+    code = main(["version"], stream=stream)
+
+    assert code == 0
+    assert f"LitLaunch {__version__}" in stream.getvalue()
+
+
+def test_cli_platform_outputs_summary_and_verbose_details():
+    stream = StringIO()
+
+    code = main(
+        ["platform", "--verbose"],
+        stream=stream,
+        platform_detector_factory=FakePlatformDetector,
+    )
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "Windows x64 / Python 3.14.5" in output
+    assert "python_executable: X:/Python/python.exe" in output
+    assert "supports_chromium_app_mode: True" in output
+
+
+def test_cli_browsers_outputs_capabilities_without_launching():
+    stream = StringIO()
+    registry = FakeBrowserRegistry()
+
+    code = main(
+        ["browsers", "--no-color"],
+        stream=stream,
+        platform_detector_factory=FakePlatformDetector,
+        browser_registry_factory=lambda: registry,
+    )
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "Browser capabilities" in output
+    assert "Edge: available, app-mode" in output
+    assert "Chrome: unavailable, app-mode" in output
+    assert "Auto app-mode strategy: Selected Edge." in output
+    assert registry.detect_calls
+    assert "\033[" not in output
+
+
+def test_cli_run_builds_config_and_waits_for_backend():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+
+    code = main(
+        [
+            "run",
+            "example app.py",
+            "--mode",
+            "webapp",
+            "--browser",
+            "edge",
+            "--port",
+            "8600",
+            "--host",
+            "127.0.0.1",
+            "--no-browser-fallback",
+            "--streamlit-flag",
+            "server.maxUploadSize=20",
+            "--app-arg",
+            "dataset.json",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+    )
+
+    launcher = FakeLauncher.instances[0]
+    assert code == 0
+    assert launcher.config.app_path == Path("example app.py")
+    assert launcher.config.mode.value == "webapp"
+    assert launcher.config.browser.value == "edge"
+    assert launcher.config.port == 8600
+    assert launcher.config.allow_browser_fallback is False
+    assert launcher.config.streamlit_flags["server.maxUploadSize"] == "20"
+    assert launcher.config.app_args == ("dataset.json",)
+    assert launcher.console_renderer is not None
+    assert session.wait_calls == 1
+    assert "Runtime active at http://127.0.0.1:8501" in stream.getvalue()
+
+
+def test_cli_run_returns_nonzero_on_failed_session():
+    stream = StringIO()
+
+    code = main(
+        ["run", "app.py"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(FakeSession(ok=False)),
+    )
+
+    assert code == 1
+    assert "failed cleanly" in stream.getvalue()
+
+
+def test_cli_run_keyboard_interrupt_stops_session():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_raises=True)
+
+    code = main(
+        ["run", "app.py"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+    )
+
+    assert code == 0
+    assert session.stop_calls == 1
+    assert "Interrupt received; stopping runtime." in stream.getvalue()
+
+
+def test_cli_quiet_suppresses_run_success_message():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+
+    code = main(
+        ["run", "app.py", "--quiet"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+    )
+
+    assert code == 0
+    assert "Runtime active" not in stream.getvalue()
+
+
+def test_cli_example_prints_example_path():
+    stream = StringIO()
+
+    code = main(["example"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "examples" in output
+    assert "minimal_app" in output
+    assert output.strip().endswith("app.py")
+
+
+def test_cli_console_script_entrypoint_exists():
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+    assert pyproject["project"]["scripts"]["litlaunch"] == "litlaunch.cli:main"

@@ -54,7 +54,11 @@ from litlaunch.windowing import (
     WindowMonitorEvent,
     WindowMonitorResult,
     WindowMonitorStatus,
+    WindowsChromiumWindowMonitor,
+    WindowsWindowProvider,
     WindowTarget,
+    create_window_monitor,
+    is_chromium_window,
 )
 
 __all__ = [
@@ -100,6 +104,8 @@ __all__ = [
     "StreamlitCommandBuilder",
     "StreamlitLauncher",
     "TextDiagnosticsRenderer",
+    "WindowsChromiumWindowMonitor",
+    "WindowsWindowProvider",
     "WindowInfo",
     "WindowMonitor",
     "WindowMonitorConfig",
@@ -108,4 +114,6 @@ __all__ = [
     "WindowMonitorStatus",
     "WindowTarget",
     "__version__",
+    "create_window_monitor",
+    "is_chromium_window",
 ]

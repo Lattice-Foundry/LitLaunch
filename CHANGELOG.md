@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.15.0
+
+- Added a Windows HWND capture provider using stable Win32 APIs through `ctypes`.
+- Added a Windows Chromium app-mode monitor built on the existing polling monitor.
+- Added platform-aware window monitor factory behavior with clean non-Windows fallback.
+
 ## 0.14.0
 
 - Added the foundational window monitoring contracts and result types.

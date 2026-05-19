@@ -81,7 +81,7 @@ LitLaunch can now orchestrate backend startup, Streamlit health checks, browser
 capability resolution, browser launch, and explicit runtime-session ownership.
 Browser mode and Chromium app-mode are supported through command-based adapters.
 Advanced Streamlit flags and app arguments remain part of the compatibility
-model, while window monitoring remains future work. LitLaunch injects its
+model, while window monitoring remains opt-in API functionality. LitLaunch injects its
 Streamlit defaults only when the user has not supplied the equivalent
 Streamlit flag, so explicit user flags remain the authority. The CLI validates
 that the target app file exists before starting the backend.
@@ -89,18 +89,20 @@ Raw Streamlit passthrough is supported before Streamlit's own `--` separator,
 and app arguments remain after that separator.
 
 Known provisional areas are intentionally called out: diagnostics are lightweight
-plain-text helpers for now, a web inspector/dashboard is future work, window
-monitoring is future work, and packaging/install guidance is future work.
+plain-text helpers for now, a web inspector/dashboard is future work, CLI
+window-monitor wiring is future work, and packaging/install guidance is future
+work.
 
 ## Window Monitoring
 
 LitLaunch includes the first opt-in window monitoring foundation for future
 Chromium app-mode runtime flows. The current API provides observation-only
-contracts, a no-op monitor for unsupported environments, and a fake-friendly
-polling monitor foundation. Real Windows Chromium enumeration and CLI wiring are
-future work. Window monitors observe app windows only; `RuntimeSession` remains
-responsible for graceful backend shutdown, and LitLaunch never owns, stops, or
-kills browser processes.
+contracts, a no-op monitor for unsupported environments, a fake-friendly polling
+monitor foundation, and a Windows Chromium HWND provider built on stable Win32
+APIs available on Windows 10 and Windows 11. CLI wiring remains future work.
+Window monitors observe app windows only; `RuntimeSession` remains responsible
+for graceful backend shutdown, and LitLaunch never owns, stops, or kills browser
+processes.
 
 ## Graceful Shutdown
 

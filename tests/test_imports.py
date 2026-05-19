@@ -51,8 +51,12 @@ from litlaunch import (
     WindowMonitorEvent,
     WindowMonitorResult,
     WindowMonitorStatus,
+    WindowsChromiumWindowMonitor,
+    WindowsWindowProvider,
     WindowTarget,
     __version__,
+    create_window_monitor,
+    is_chromium_window,
 )
 
 
@@ -97,6 +101,8 @@ def test_public_imports_are_available():
     assert StreamlitCommandBuilder
     assert StreamlitLauncher
     assert TextDiagnosticsRenderer
+    assert WindowsChromiumWindowMonitor
+    assert WindowsWindowProvider
     assert WindowInfo
     assert WindowMonitor
     assert WindowMonitorConfig
@@ -104,6 +110,8 @@ def test_public_imports_are_available():
     assert WindowMonitorResult
     assert WindowMonitorStatus.WINDOW_CLOSED.value == "window_closed"
     assert WindowTarget
+    assert create_window_monitor
+    assert is_chromium_window
 
 
 def test_public_all_is_explicit():
@@ -157,14 +165,18 @@ def test_public_all_is_explicit():
         "WindowMonitorResult",
         "WindowMonitorStatus",
         "WindowTarget",
+        "WindowsChromiumWindowMonitor",
+        "WindowsWindowProvider",
         "__version__",
+        "create_window_monitor",
+        "is_chromium_window",
     ]
     assert not hasattr(litlaunch, "ConsoleColor")
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.14.0"
-    assert __version__ == "0.14.0"
+    assert litlaunch.__version__ == "0.15.0"
+    assert __version__ == "0.15.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

@@ -12,7 +12,7 @@ from litlaunch._protocols import ClockProvider
 from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
-from litlaunch.console import ConsoleRenderer
+from litlaunch.console import ConsolePhase, ConsoleRenderer
 from litlaunch.health import (
     HealthChecker,
     build_streamlit_app_url,
@@ -157,11 +157,34 @@ class StreamlitLauncher:
             )
 
         events = list(backend_result.events)
-        self._record(events, LaunchState.BROWSER_RESOLVING, "Resolving browser.")
+        self._record(
+            events,
+            LaunchState.BROWSER_RESOLVING,
+            "Resolving browser.",
+            render=False,
+        )
         resolution = self.resolve_browser(
             prefer_app_mode=self.config.mode == LaunchMode.WEBAPP
         )
-        self._record(events, LaunchState.BROWSER_LAUNCHING, resolution.message)
+        self._record(
+            events,
+            LaunchState.BROWSER_LAUNCHING,
+            resolution.message,
+            render=False,
+        )
+        self._render_browser_resolution(
+            resolution,
+            prefer_app_mode=self.config.mode == LaunchMode.WEBAPP,
+        )
+        browser_name = (
+            resolution.selected.name if resolution.selected is not None else "browser"
+        )
+        browser_mode = "app window" if self.config.mode == LaunchMode.WEBAPP else "tab"
+        self._render_phase_start(
+            ConsolePhase.BROWSER,
+            f"opening {browser_name} {browser_mode}",
+        )
+        browser_start_time = self.clock.monotonic()
         browser_result = self.browser_launcher.launch(
             resolution,
             url=backend_result.url,
@@ -169,15 +192,23 @@ class StreamlitLauncher:
             title=self.config.title,
             extra_args=self.config.extra_browser_args,
         )
+        browser_elapsed = self.clock.monotonic() - browser_start_time
 
         if not browser_result.ok:
             self._record(
                 events,
                 LaunchState.TERMINATING,
                 "Browser launch failed; stopping owned backend.",
+                render=False,
             )
+            self._render_phase_error(ConsolePhase.BROWSER, browser_result.message)
             self.process_manager.stop(managed_process)
-            self._record(events, LaunchState.FAILED, browser_result.message)
+            self._record(
+                events,
+                LaunchState.FAILED,
+                browser_result.message,
+                render=False,
+            )
             failure_result = LaunchResult(
                 ok=False,
                 state=LaunchState.FAILED,
@@ -199,7 +230,13 @@ class StreamlitLauncher:
                 clock=self.clock,
             )
 
-        self._record(events, LaunchState.RUNNING, browser_result.message)
+        self._record(events, LaunchState.RUNNING, browser_result.message, render=False)
+        self._render_phase_success(
+            ConsolePhase.BROWSER,
+            browser_result.message,
+            elapsed_seconds=browser_elapsed,
+        )
+        self._render_runtime_ready(backend_result.url)
         result = LaunchResult(
             ok=True,
             state=LaunchState.RUNNING,
@@ -244,8 +281,18 @@ class StreamlitLauncher:
         """Start the Streamlit backend and return the managed process."""
 
         events: list[LaunchEvent] = []
-        self._record(events, LaunchState.CREATED, "Launcher backend start requested.")
-        self._record(events, LaunchState.CONFIGURED, "Launcher configuration accepted.")
+        self._record(
+            events,
+            LaunchState.CREATED,
+            "Launcher backend start requested.",
+            render=False,
+        )
+        self._record(
+            events,
+            LaunchState.CONFIGURED,
+            "Launcher configuration accepted.",
+            render=False,
+        )
 
         command: tuple[str, ...] | None = None
         pid: int | None = None
@@ -255,10 +302,19 @@ class StreamlitLauncher:
         try:
             port = self.resolve_port()
             self._record(
-                events, LaunchState.PORT_READY, f"Resolved backend port {port}."
+                events,
+                LaunchState.PORT_READY,
+                f"Resolved backend port {port}.",
+                render=False,
             )
+            self._render_detail(f"Backend port: {port}")
             command = self.command_builder.build(port=port)
-            self._record(events, LaunchState.COMMAND_BUILT, "Streamlit command built.")
+            self._record(
+                events,
+                LaunchState.COMMAND_BUILT,
+                "Streamlit command built.",
+                render=False,
+            )
             self._render_detail(f"Command: {' '.join(command)}")
             shutdown_config = self._build_shutdown_config(app_port=port)
             shutdown_client = ShutdownClient(
@@ -268,9 +324,15 @@ class StreamlitLauncher:
             )
             env = self._build_backend_env(shutdown_config)
             self._record(
-                events, LaunchState.PROCESS_STARTING, "Starting Streamlit backend."
+                events,
+                LaunchState.PROCESS_STARTING,
+                "Starting Streamlit backend.",
+                render=False,
             )
+            self._render_phase_start(ConsolePhase.BACKEND, "starting Streamlit")
+            backend_start_time = self.clock.monotonic()
             managed_process = self.process_manager.start(command, env=env)
+            backend_elapsed = self.clock.monotonic() - backend_start_time
             pid = getattr(managed_process.popen, "pid", None)
             app_url = build_streamlit_app_url(self.config.host, port)
             health_url = build_streamlit_health_url(self.config.host, port)
@@ -278,6 +340,12 @@ class StreamlitLauncher:
                 events,
                 LaunchState.PROCESS_RUNNING,
                 f"Streamlit backend started with PID {pid}.",
+                render=False,
+            )
+            self._render_phase_success(
+                ConsolePhase.BACKEND,
+                f"started Streamlit with PID {pid}",
+                elapsed_seconds=backend_elapsed,
             )
 
             if wait_for_health:
@@ -285,12 +353,16 @@ class StreamlitLauncher:
                     events,
                     LaunchState.HEALTH_CHECKING,
                     "Waiting for Streamlit health endpoint.",
+                    render=False,
                 )
+                self._render_phase_start(ConsolePhase.HEALTH, "waiting for Streamlit")
+                health_start_time = self.clock.monotonic()
                 healthy = self.health_checker.wait_until_healthy(
                     health_url,
                     timeout_seconds=health_timeout_seconds,
                     interval_seconds=health_interval_seconds,
                 )
+                health_elapsed = self.clock.monotonic() - health_start_time
                 if not healthy:
                     failure_message = self._health_failure_message(
                         managed_process,
@@ -300,12 +372,15 @@ class StreamlitLauncher:
                         events,
                         LaunchState.TERMINATING,
                         "Health check failed; stopping owned backend.",
+                        render=False,
                     )
+                    self._render_phase_error(ConsolePhase.HEALTH, failure_message)
                     self.process_manager.stop(managed_process)
                     self._record(
                         events,
                         LaunchState.FAILED,
                         failure_message,
+                        render=False,
                     )
                     return _BackendStart(
                         LaunchResult(
@@ -322,7 +397,15 @@ class StreamlitLauncher:
                     )
 
                 self._record(
-                    events, LaunchState.HEALTHY, "Streamlit backend is healthy."
+                    events,
+                    LaunchState.HEALTHY,
+                    "Streamlit backend is healthy.",
+                    render=False,
+                )
+                self._render_phase_success(
+                    ConsolePhase.HEALTH,
+                    "ready",
+                    elapsed_seconds=health_elapsed,
                 )
                 return _BackendStart(
                     LaunchResult(
@@ -342,7 +425,9 @@ class StreamlitLauncher:
                 events,
                 LaunchState.PROCESS_RUNNING,
                 "Health check skipped; backend process is running.",
+                render=False,
             )
+            self._render_phase_success(ConsolePhase.BACKEND, "running")
             return _BackendStart(
                 LaunchResult(
                     ok=True,
@@ -357,7 +442,8 @@ class StreamlitLauncher:
                 shutdown_client,
             )
         except Exception as exc:
-            self._record(events, LaunchState.FAILED, str(exc))
+            self._record(events, LaunchState.FAILED, str(exc), render=False)
+            self._render_phase_error(ConsolePhase.BACKEND, str(exc))
             return _BackendStart(
                 LaunchResult(
                     ok=False,
@@ -409,6 +495,8 @@ class StreamlitLauncher:
         events: list[LaunchEvent],
         state: LaunchState,
         message: str,
+        *,
+        render: bool = True,
     ) -> None:
         event = LaunchEvent(
             state=state,
@@ -416,7 +504,7 @@ class StreamlitLauncher:
             timestamp=self.clock.monotonic(),
         )
         events.append(event)
-        if self.console_renderer is not None:
+        if render and self.console_renderer is not None:
             self.console_renderer.render_launch_event(event)
 
     def _build_shutdown_config(self, *, app_port: int) -> ShutdownConfig:
@@ -440,11 +528,48 @@ class StreamlitLauncher:
     def _render_header(self) -> None:
         if self.console_renderer is None:
             return
-        self.console_renderer.header(
-            "LitLaunch",
-            f"{self.config.title} / {self.config.mode.value}",
-        )
+        self.console_renderer.runtime_start("Starting runtime")
+        self.console_renderer.detail(f"App: {self.config.title}")
+        self.console_renderer.detail(f"Mode: {self.config.mode.value}")
 
     def _render_detail(self, message: str) -> None:
         if self.console_renderer is not None:
             self.console_renderer.detail(message)
+
+    def _render_phase_start(self, phase: ConsolePhase, message: str) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.phase_start(phase, message)
+
+    def _render_phase_success(
+        self,
+        phase: ConsolePhase,
+        message: str,
+        *,
+        elapsed_seconds: float | None = None,
+    ) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.phase_success(
+                phase,
+                message,
+                elapsed_seconds=elapsed_seconds,
+            )
+
+    def _render_phase_error(self, phase: ConsolePhase, message: str) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.phase_error(phase, message)
+
+    def _render_browser_resolution(
+        self,
+        resolution: BrowserResolution,
+        *,
+        prefer_app_mode: bool,
+    ) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.render_browser_resolution(
+                resolution,
+                prefer_app_mode=prefer_app_mode,
+            )
+
+    def _render_runtime_ready(self, url: str | None) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.runtime_ready(url)

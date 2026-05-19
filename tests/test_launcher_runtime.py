@@ -462,12 +462,13 @@ def test_launcher_emits_high_level_console_messages_without_tokens():
     output = stream.getvalue()
     token = process_manager.started[0][1]["env"]["LITLAUNCH_SHUTDOWN_TOKEN"]
     assert session.ok is True
-    assert "LitLaunch" in output
-    assert "Resolved backend port 8609." in output
-    assert "Starting Streamlit backend." in output
-    assert "Streamlit backend is healthy." in output
-    assert "Resolving browser." in output
-    assert "browser launched" in output
+    assert "[LitLaunch] Starting runtime" in output
+    assert "Backend: starting Streamlit" in output
+    assert "Backend: started Streamlit with PID 999 in" in output
+    assert "Health: ready in" in output
+    assert "Browser: opening Edge app window" in output
+    assert "Browser: browser launched in" in output
+    assert "Runtime ready at http://127.0.0.1:8609" in output
     assert token not in output
 
 

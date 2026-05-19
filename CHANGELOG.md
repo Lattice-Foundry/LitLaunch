@@ -3,6 +3,13 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.18.0
+
+- Added structured runtime console phase rendering for backend startup, health
+  checks, browser launch, window monitoring, and shutdown.
+- Added concise elapsed timing for key runtime and shutdown phases.
+- Improved browser fallback, monitor status, and shutdown hook console messages.
+
 ## 0.17.0
 
 - Added stable developer-facing console theme color names and hex values.

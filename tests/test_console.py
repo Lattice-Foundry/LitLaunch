@@ -1,5 +1,6 @@
 from io import StringIO
 
+from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.colors import (
     THEME_COLORS,
     is_hex_color,
@@ -11,15 +12,19 @@ from litlaunch.colors import (
     success_green,
     terminal_green,
 )
+from litlaunch.config import BrowserChoice
 from litlaunch.console import (
     ANSI_COLORS,
     ConsoleMode,
+    ConsolePhase,
     ConsoleRenderer,
     ConsoleTheme,
+    format_elapsed,
     strip_ansi,
 )
 from litlaunch.lifecycle import LaunchEvent, LaunchState
 from litlaunch.shutdown import ShutdownHookResult
+from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
 
 
 def test_named_theme_colors_exist_and_are_hex():
@@ -103,6 +108,26 @@ def test_console_renderer_status_methods_use_injected_stream():
     assert "Plain" in output
 
 
+def test_console_renderer_phase_and_elapsed_shape():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+
+    renderer.runtime_start()
+    renderer.phase_start(ConsolePhase.BACKEND, "starting Streamlit")
+    renderer.phase_success(ConsolePhase.HEALTH, "ready", elapsed_seconds=1.234)
+    renderer.runtime_ready("http://127.0.0.1:8501")
+
+    output = stream.getvalue()
+    assert "[LitLaunch] Starting runtime" in output
+    assert "[LitLaunch]   Backend: starting Streamlit" in output
+    assert "Health: ready in 1.2s" in output
+    assert "[LitLaunch] Runtime ready at http://127.0.0.1:8501" in output
+    assert format_elapsed(0.04) == "0.0s"
+
+
 def test_console_renderer_quiet_suppresses_normal_output_but_not_errors():
     stream = StringIO()
     renderer = ConsoleRenderer(
@@ -114,6 +139,7 @@ def test_console_renderer_quiet_suppresses_normal_output_but_not_errors():
     renderer.header("LitLaunch")
     renderer.step("Starting")
     renderer.success("Ready")
+    renderer.phase_start(ConsolePhase.BROWSER, "opening")
     renderer.info("Info")
     renderer.warning("Warning")
     renderer.error("Failure")
@@ -121,6 +147,7 @@ def test_console_renderer_quiet_suppresses_normal_output_but_not_errors():
     output = stream.getvalue()
     assert "Starting" not in output
     assert "Ready" not in output
+    assert "opening" not in output
     assert "Info" not in output
     assert "warn Warning" in output
     assert "error Failure" in output
@@ -225,9 +252,78 @@ def test_console_renderer_shutdown_hook_metadata_rendering_is_internal():
     )
 
     output = stream.getvalue()
-    assert "Shutdown hook: Closing resources" in output
-    assert "ok Resources closed" in output
-    assert "error Resource close failed" in output
+    assert "Hook: Closing resources" in output
+    assert "Hook: Closing resources: Resources closed" in output
+    assert "Hook: Closing resources: Resource close failed" in output
+
+
+def test_console_renderer_browser_fallback_summary():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    edge = BrowserCapability(
+        kind=BrowserKind.EDGE,
+        name="Microsoft Edge",
+        executable_path=None,
+        available=False,
+        supports_app_mode=True,
+        supports_full_browser=True,
+    )
+    chrome = BrowserCapability(
+        kind=BrowserKind.CHROME,
+        name="Chrome",
+        executable_path="chrome.exe",
+        available=True,
+        supports_app_mode=True,
+        supports_full_browser=True,
+    )
+
+    renderer.render_browser_resolution(
+        BrowserResolution(
+            requested=BrowserChoice.EDGE,
+            selected=chrome,
+            fallback_chain=(edge, chrome),
+            message="Selected Chrome.",
+        ),
+        prefer_app_mode=True,
+    )
+
+    output = stream.getvalue()
+    assert "Microsoft Edge unavailable; using Chrome" in output
+    assert "app-mode" in output
+
+
+def test_console_renderer_monitor_status_rendering():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+
+    renderer.render_window_monitor_result(
+        WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=True,
+            status=WindowMonitorStatus.WINDOW_CLOSED,
+            message="Window closed.",
+        )
+    )
+    renderer.render_window_monitor_result(
+        WindowMonitorResult(
+            supported=False,
+            observed=False,
+            closed=False,
+            status=WindowMonitorStatus.UNSUPPORTED,
+            message="Unsupported.",
+        )
+    )
+
+    output = stream.getvalue()
+    assert "Monitor: Window closed." in output
+    assert "Monitor: Unsupported." in output
 
 
 def test_console_renderer_redacts_registered_values():

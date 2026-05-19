@@ -159,6 +159,11 @@ The default prefix/brand color is `terminal_green`, status labels use
 `streamlit_blue`, errors use `powershell_red`, and shutdown hooks can store
 these named colors in their `color` metadata for renderer support.
 
+Normal runtime output is grouped into concise phases such as backend startup,
+health checks, browser launch, window monitoring, and shutdown. Where useful,
+LitLaunch includes elapsed timings like `ready in 1.2s` without changing
+runtime ownership or adding terminal UI dependencies.
+
 ## CLI
 
 LitLaunch includes a small argparse-based CLI with no external command-line

@@ -6,7 +6,7 @@ import subprocess
 import time
 
 from litlaunch._protocols import ClockProvider
-from litlaunch.console import ConsoleRenderer
+from litlaunch.console import ConsolePhase, ConsoleRenderer
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.shutdown import ShutdownClient
@@ -122,13 +122,26 @@ class RuntimeSession:
         if self.process is None or self._stopped:
             return
 
+        stop_start_time = self.clock.monotonic()
+        self._render_phase_start(ConsolePhase.SHUTDOWN, "requested")
+
         if self._shutdown_client is not None and self.is_running():
-            self.add_event(LaunchState.TERMINATING, "Requesting graceful shutdown.")
+            self.add_event(
+                LaunchState.TERMINATING,
+                "Requesting graceful shutdown.",
+                render=False,
+            )
+            self._render_phase_start(ConsolePhase.SHUTDOWN, "requesting app cleanup")
             request_result = self._shutdown_client.request_shutdown()
             if request_result.ok:
                 self.add_event(
                     LaunchState.TERMINATING,
                     "Graceful shutdown request accepted.",
+                    render=False,
+                )
+                self._render_phase_success(
+                    ConsolePhase.SHUTDOWN,
+                    "app cleanup request accepted",
                 )
                 try:
                     returncode = self.process_manager.wait(
@@ -139,6 +152,11 @@ class RuntimeSession:
                     self.add_event(
                         LaunchState.TERMINATING,
                         "Graceful shutdown timed out; using termination fallback.",
+                        render=False,
+                    )
+                    self._render_phase_warning(
+                        ConsolePhase.STOPPING_BACKEND,
+                        "graceful stop timed out; using termination fallback",
                     )
                 else:
                     self._stopped = True
@@ -146,23 +164,48 @@ class RuntimeSession:
                     self.add_event(
                         LaunchState.TERMINATED,
                         f"Owned backend process exited with code {returncode}.",
+                        render=False,
+                    )
+                    self._render_phase_success(
+                        ConsolePhase.SHUTDOWN,
+                        f"complete; backend exited with code {returncode}",
+                        elapsed_seconds=self.clock.monotonic() - stop_start_time,
                     )
                     return
             else:
                 self.add_event(
                     LaunchState.TERMINATING,
                     "Graceful shutdown request failed; using termination fallback.",
+                    render=False,
+                )
+                self._render_phase_warning(
+                    ConsolePhase.STOPPING_BACKEND,
+                    "graceful request failed; using termination fallback",
                 )
 
         if not self.is_running():
             self._stopped = True
             self._state = LaunchState.TERMINATED
-            self.add_event(LaunchState.TERMINATED, "Owned backend process stopped.")
+            self.add_event(
+                LaunchState.TERMINATED,
+                "Owned backend process stopped.",
+                render=False,
+            )
+            self._render_phase_success(
+                ConsolePhase.SHUTDOWN,
+                "complete; backend already stopped",
+                elapsed_seconds=self.clock.monotonic() - stop_start_time,
+            )
             return
 
         self.add_event(
             LaunchState.TERMINATING,
             "Stopping owned backend process with termination fallback.",
+            render=False,
+        )
+        self._render_phase_warning(
+            ConsolePhase.STOPPING_BACKEND,
+            "terminating owned backend process",
         )
         self.process_manager.stop(
             self.process,
@@ -170,7 +213,16 @@ class RuntimeSession:
         )
         self._stopped = True
         self._state = LaunchState.TERMINATED
-        self.add_event(LaunchState.TERMINATED, "Owned backend process stopped.")
+        self.add_event(
+            LaunchState.TERMINATED,
+            "Owned backend process stopped.",
+            render=False,
+        )
+        self._render_phase_success(
+            ConsolePhase.SHUTDOWN,
+            "complete",
+            elapsed_seconds=self.clock.monotonic() - stop_start_time,
+        )
 
     def wait(self, timeout_seconds: float | None = None) -> int | None:
         """Wait for the owned backend process to exit."""
@@ -199,7 +251,12 @@ class RuntimeSession:
         """Monitor an app-mode window and stop the backend only after close."""
 
         resolved_config = config or WindowMonitorConfig()
-        self.add_event(LaunchState.WINDOW_MONITORING, "Window monitoring started.")
+        self.add_event(
+            LaunchState.WINDOW_MONITORING,
+            "Window monitoring started.",
+            render=False,
+        )
+        self._render_phase_start(ConsolePhase.MONITOR, "watching app window")
         result = monitor.wait_for_close(
             target,
             backend_is_running=self.is_running,
@@ -209,17 +266,31 @@ class RuntimeSession:
             self.add_event(
                 LaunchState.WINDOW_CLOSED,
                 result.message or "App-mode window closed.",
+                render=False,
             )
+            self._render_window_monitor_result(result)
             self.stop()
         elif result.status == WindowMonitorStatus.BACKEND_EXITED:
             self._stopped = True
             self._state = LaunchState.TERMINATED
-            self.add_event(LaunchState.TERMINATED, result.message)
+            self.add_event(LaunchState.TERMINATED, result.message, render=False)
+            self._render_window_monitor_result(result)
         else:
-            self.add_event(LaunchState.WINDOW_MONITORING, result.message)
+            self.add_event(
+                LaunchState.WINDOW_MONITORING,
+                result.message,
+                render=False,
+            )
+            self._render_window_monitor_result(result)
         return result
 
-    def add_event(self, state: LaunchState, message: str) -> None:
+    def add_event(
+        self,
+        state: LaunchState,
+        message: str,
+        *,
+        render: bool = True,
+    ) -> None:
         """Record a lifecycle event for this live session."""
 
         event = LaunchEvent(
@@ -228,8 +299,34 @@ class RuntimeSession:
             timestamp=self.clock.monotonic(),
         )
         self._events.append(event)
-        if self.console_renderer is not None:
+        if render and self.console_renderer is not None:
             self.console_renderer.render_launch_event(event)
+
+    def _render_phase_start(self, phase: ConsolePhase, message: str) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.phase_start(phase, message)
+
+    def _render_phase_success(
+        self,
+        phase: ConsolePhase,
+        message: str,
+        *,
+        elapsed_seconds: float | None = None,
+    ) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.phase_success(
+                phase,
+                message,
+                elapsed_seconds=elapsed_seconds,
+            )
+
+    def _render_phase_warning(self, phase: ConsolePhase, message: str) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.phase_warning(phase, message)
+
+    def _render_window_monitor_result(self, result: WindowMonitorResult) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.render_window_monitor_result(result)
 
     def __enter__(self) -> RuntimeSession:
         """Return this session for context manager ownership."""

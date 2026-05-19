@@ -303,9 +303,10 @@ def test_runtime_session_stop_emits_console_shutdown_messages():
     session.stop(graceful_timeout_seconds=0.5)
 
     output = stream.getvalue()
-    assert "Requesting graceful shutdown." in output
-    assert "Graceful shutdown request accepted." in output
-    assert "Owned backend process exited with code 0." in output
+    assert "Shutdown: requested" in output
+    assert "Shutdown: requesting app cleanup" in output
+    assert "Shutdown: app cleanup request accepted" in output
+    assert "Shutdown: complete; backend exited with code 0 in" in output
 
 
 def test_runtime_session_stop_uses_fallback_when_graceful_request_fails():

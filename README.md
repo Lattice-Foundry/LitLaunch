@@ -96,6 +96,14 @@ LitLaunch requests graceful shutdown first, then falls back to terminating only
 the owned Streamlit backend process if needed. Browser processes are not killed.
 The `color` metadata is stored now for future console/theme rendering.
 
+## Console UX
+
+LitLaunch includes a lightweight stdlib-only console renderer for launcher,
+runtime, diagnostics, and shutdown-hook messages. The default primary color is
+`streamlit_blue` with an indigo accent, and output can run in `quiet`, `normal`,
+or `verbose` modes. Plain/no-color output is supported, including `NO_COLOR`,
+without adding Rich, Textual, or Colorama.
+
 ## Examples
 
 The [minimal example app](examples/minimal_app) is a tiny Streamlit target for

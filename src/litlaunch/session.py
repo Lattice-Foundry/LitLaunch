@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 import time
 
+from litlaunch.console import ConsoleRenderer
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.shutdown import ShutdownClient
@@ -24,16 +25,22 @@ class RuntimeSession:
         process: ManagedProcess | None,
         process_manager: ProcessManager,
         shutdown_client: ShutdownClient | None = None,
+        console_renderer: ConsoleRenderer | None = None,
         clock: object = time,
     ) -> None:
         self.result = result
         self.process = process
         self.process_manager = process_manager
         self.shutdown_client = shutdown_client
+        self.console_renderer = console_renderer
         self.clock = clock
         self._events = list(result.events)
         self._state = result.state
         self._stopped = process is None
+        if self.console_renderer is not None and self.shutdown_client is not None:
+            self.console_renderer.add_redaction(
+                getattr(self.shutdown_client, "token", None)
+            )
 
     @property
     def ok(self) -> bool:
@@ -178,13 +185,14 @@ class RuntimeSession:
     def add_event(self, state: LaunchState, message: str) -> None:
         """Record a lifecycle event for this live session."""
 
-        self._events.append(
-            LaunchEvent(
-                state=state,
-                message=message,
-                timestamp=self.clock.monotonic(),
-            )
+        event = LaunchEvent(
+            state=state,
+            message=message,
+            timestamp=self.clock.monotonic(),
         )
+        self._events.append(event)
+        if self.console_renderer is not None:
+            self.console_renderer.render_launch_event(event)
 
     def __enter__(self) -> RuntimeSession:
         """Return this session for context manager ownership."""

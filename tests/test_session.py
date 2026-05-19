@@ -1,6 +1,8 @@
 import subprocess
+from io import StringIO
 
 from litlaunch.browsers import BrowserCapability, BrowserKind
+from litlaunch.console import ConsoleRenderer, ConsoleTheme
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess
 from litlaunch.session import RuntimeSession
@@ -249,6 +251,32 @@ def test_runtime_session_stop_requests_graceful_shutdown_before_fallback():
     assert "Graceful shutdown request accepted." in {
         event.message for event in session.events
     }
+
+
+def test_runtime_session_stop_emits_console_shutdown_messages():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    shutdown_client = FakeShutdownClient(ok=True)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session.stop(graceful_timeout_seconds=0.5)
+
+    output = stream.getvalue()
+    assert "Requesting graceful shutdown." in output
+    assert "Graceful shutdown request accepted." in output
+    assert "Owned backend process exited with code 0." in output
 
 
 def test_runtime_session_stop_uses_fallback_when_graceful_request_fails():

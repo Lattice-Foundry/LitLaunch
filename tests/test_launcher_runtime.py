@@ -1,3 +1,5 @@
+from io import StringIO
+
 from litlaunch import LauncherConfig, LaunchMode
 from litlaunch.browsers import (
     BrowserCapability,
@@ -6,6 +8,7 @@ from litlaunch.browsers import (
     BrowserResolution,
 )
 from litlaunch.config import BrowserChoice
+from litlaunch.console import ConsoleRenderer, ConsoleTheme
 from litlaunch.health import build_streamlit_app_url, build_streamlit_health_url
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchState
@@ -370,3 +373,59 @@ def test_start_returns_runtime_session_without_blocking():
     assert session.ok is True
     assert session.state == LaunchState.RUNNING
     assert session.url == "http://127.0.0.1:8608"
+
+
+def test_launcher_emits_high_level_console_messages_without_tokens():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process_manager = FakeProcessManager()
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", mode="webapp"),
+        port_manager=FakePortManager(8609),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session = launcher.run()
+
+    output = stream.getvalue()
+    token = process_manager.started[0][1]["env"]["LITLAUNCH_SHUTDOWN_TOKEN"]
+    assert session.ok is True
+    assert "LitLaunch" in output
+    assert "Resolved backend port 8609." in output
+    assert "Starting Streamlit backend." in output
+    assert "Streamlit backend is healthy." in output
+    assert "Resolving browser." in output
+    assert "browser launched" in output
+    assert token not in output
+
+
+def test_launcher_verbose_console_emits_command_detail():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        mode="verbose",
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8612),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend()
+
+    output = stream.getvalue()
+    assert session.ok is True
+    assert "Command:" in output
+    assert "--server.port 8612" in output

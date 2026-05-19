@@ -11,6 +11,7 @@ from typing import NamedTuple
 from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
+from litlaunch.console import ConsoleRenderer
 from litlaunch.health import (
     HealthChecker,
     build_streamlit_app_url,
@@ -42,6 +43,7 @@ class StreamlitLauncher:
         health_checker: HealthChecker | None = None,
         browser_registry: BrowserRegistry | None = None,
         browser_launcher: BrowserLauncher | None = None,
+        console_renderer: ConsoleRenderer | None = None,
         clock: object = time,
     ) -> None:
         self.config = config
@@ -53,6 +55,7 @@ class StreamlitLauncher:
         self.browser_launcher = browser_launcher or BrowserLauncher(
             registry=self.browser_registry
         )
+        self.console_renderer = console_renderer
         self.clock = clock
 
     def build_command(self) -> tuple[str, ...]:
@@ -102,6 +105,7 @@ class StreamlitLauncher:
     ) -> RuntimeSession:
         """Start the Streamlit backend without launching a browser."""
 
+        self._render_header()
         backend_start = self._start_backend(
             wait_for_health=wait_for_health,
             health_timeout_seconds=health_timeout_seconds,
@@ -112,6 +116,7 @@ class StreamlitLauncher:
             process=backend_start.process,
             process_manager=self.process_manager,
             shutdown_client=backend_start.shutdown_client,
+            console_renderer=self.console_renderer,
             clock=self.clock,
         )
 
@@ -128,6 +133,7 @@ class StreamlitLauncher:
         build on this lifecycle boundary.
         """
 
+        self._render_header()
         backend_start = self._start_backend(
             wait_for_health=True,
             health_timeout_seconds=health_timeout_seconds,
@@ -145,6 +151,7 @@ class StreamlitLauncher:
                 process=None,
                 process_manager=self.process_manager,
                 shutdown_client=None,
+                console_renderer=self.console_renderer,
                 clock=self.clock,
             )
 
@@ -187,6 +194,7 @@ class StreamlitLauncher:
                 process=None,
                 process_manager=self.process_manager,
                 shutdown_client=None,
+                console_renderer=self.console_renderer,
                 clock=self.clock,
             )
 
@@ -208,6 +216,7 @@ class StreamlitLauncher:
             process=managed_process,
             process_manager=self.process_manager,
             shutdown_client=backend_start.shutdown_client,
+            console_renderer=self.console_renderer,
             clock=self.clock,
         )
 
@@ -249,6 +258,7 @@ class StreamlitLauncher:
             )
             command = self.command_builder.build(port=port)
             self._record(events, LaunchState.COMMAND_BUILT, "Streamlit command built.")
+            self._render_detail(f"Command: {' '.join(command)}")
             shutdown_config = self._build_shutdown_config(app_port=port)
             shutdown_client = ShutdownClient(
                 host=shutdown_config.host,
@@ -368,13 +378,14 @@ class StreamlitLauncher:
         state: LaunchState,
         message: str,
     ) -> None:
-        events.append(
-            LaunchEvent(
-                state=state,
-                message=message,
-                timestamp=self.clock.monotonic(),
-            )
+        event = LaunchEvent(
+            state=state,
+            message=message,
+            timestamp=self.clock.monotonic(),
         )
+        events.append(event)
+        if self.console_renderer is not None:
+            self.console_renderer.render_launch_event(event)
 
     def _build_shutdown_config(self, *, app_port: int) -> ShutdownConfig:
         start_port = app_port + 1 if app_port < 65535 else 1
@@ -387,11 +398,26 @@ class StreamlitLauncher:
                 DEFAULT_SHUTDOWN_HOST,
                 start_port=app_port + 1 if app_port < 65535 else 1,
             )
-        return ShutdownConfig(
+        shutdown_config = ShutdownConfig(
             host=DEFAULT_SHUTDOWN_HOST,
             port=shutdown_port,
             token=secrets.token_urlsafe(32),
         )
+        if self.console_renderer is not None:
+            self.console_renderer.add_redaction(shutdown_config.token)
+        return shutdown_config
 
     def _build_backend_env(self, shutdown_config: ShutdownConfig) -> dict[str, str]:
         return {**os.environ, **shutdown_config.as_env()}
+
+    def _render_header(self) -> None:
+        if self.console_renderer is None:
+            return
+        self.console_renderer.header(
+            "LitLaunch",
+            f"{self.config.title} / {self.config.mode.value}",
+        )
+
+    def _render_detail(self, message: str) -> None:
+        if self.console_renderer is not None:
+            self.console_renderer.detail(message)

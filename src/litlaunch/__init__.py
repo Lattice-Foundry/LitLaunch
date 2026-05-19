@@ -8,6 +8,12 @@ from litlaunch.browsers import (
     BrowserResolution,
 )
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
+from litlaunch.console import (
+    ConsoleColor,
+    ConsoleMode,
+    ConsoleRenderer,
+    ConsoleTheme,
+)
 from litlaunch.exceptions import ConfigurationError, LitLaunchError
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
@@ -36,6 +42,10 @@ __all__ = [
     "BrowserLauncher",
     "BrowserResolution",
     "ConfigurationError",
+    "ConsoleColor",
+    "ConsoleMode",
+    "ConsoleRenderer",
+    "ConsoleTheme",
     "LaunchMode",
     "LauncherConfig",
     "LitLaunchError",

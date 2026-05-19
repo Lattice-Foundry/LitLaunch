@@ -7,7 +7,7 @@ import re
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from importlib import metadata
 from pathlib import Path
@@ -520,7 +520,12 @@ def check_streamlit_availability() -> StreamlitAvailability:
 def current_utc_timestamp() -> str:
     """Return a compact UTC ISO timestamp for diagnostics metadata."""
 
-    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def format_command_preview(command: Sequence[str]) -> str:

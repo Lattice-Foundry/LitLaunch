@@ -16,8 +16,8 @@ The API is usable for early adopters, but still evolving while LitLaunch is in
 pre-alpha.
 
 The development environment currently uses Python 3.14.5. Package metadata
-allows Python 3.10 and newer, but the active local hardening work is verified
-against Python 3.14.5 unless noted otherwise.
+allows Python 3.10 and newer. CI tests the supported range on Python 3.10,
+3.12, and 3.14 across Windows, Linux, and macOS.
 
 LitLaunch is not affiliated with Streamlit.
 
@@ -198,6 +198,15 @@ The script builds the source distribution and wheel, runs `twine check`,
 inspects archive contents for required files and excluded junk, then installs
 the built wheel into a temporary virtual environment for import and basic CLI
 smoke checks. TestPyPI/PyPI publishing is future work.
+
+## Continuous Integration
+
+GitHub Actions runs the project protection gate on pushes, pull requests, and
+manual dispatches. The CI test job installs `.[dev]`, runs pytest, Ruff linting,
+and Ruff format checks across Windows, Linux, and macOS on Python 3.10, 3.12,
+and 3.14. A separate build job runs `scripts/check_release.py` on Linux to
+validate wheel/sdist builds, metadata, archive contents, and installed-package
+CLI smoke checks. CI does not publish to TestPyPI or PyPI yet.
 
 ## Versioning
 

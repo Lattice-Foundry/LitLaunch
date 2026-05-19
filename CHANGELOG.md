@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.13.0
+
+- Added GitHub Actions CI for tests, linting, formatting, and release hygiene.
+- Added a cross-platform Python matrix for Windows, Linux, and macOS.
+- Hardened Python 3.10 test compatibility for TOML metadata reads.
+
 ## 0.12.0
 
 - Added UTC metadata to structured inspect reports.

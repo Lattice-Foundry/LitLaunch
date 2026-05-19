@@ -4,7 +4,10 @@ from importlib.metadata import version
 import litlaunch
 from litlaunch import (
     Architecture,
+    BrowserCapability,
     BrowserChoice,
+    BrowserKind,
+    BrowserResolution,
     ConfigurationError,
     LauncherConfig,
     LaunchEvent,
@@ -23,6 +26,9 @@ from litlaunch import (
 def test_public_imports_are_available():
     assert LauncherConfig(app_path="app.py").mode == LaunchMode.BROWSER
     assert BrowserChoice.AUTO.value == "auto"
+    assert BrowserKind.EDGE.value == "edge"
+    assert BrowserCapability
+    assert BrowserResolution
     assert issubclass(ConfigurationError, LitLaunchError)
     assert LaunchState.CREATED.value == "created"
     assert LaunchEvent
@@ -37,7 +43,10 @@ def test_public_imports_are_available():
 def test_public_all_is_explicit():
     assert sorted(litlaunch.__all__) == [
         "Architecture",
+        "BrowserCapability",
         "BrowserChoice",
+        "BrowserKind",
+        "BrowserResolution",
         "ConfigurationError",
         "LaunchEvent",
         "LaunchMode",
@@ -54,8 +63,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.2.0"
-    assert __version__ == "0.2.0"
+    assert litlaunch.__version__ == "0.3.0"
+    assert __version__ == "0.3.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

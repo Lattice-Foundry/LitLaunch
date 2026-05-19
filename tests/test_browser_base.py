@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from litlaunch.browsers.chrome import ChromeAdapter
 from litlaunch.browsers.edge import EdgeAdapter
 
@@ -10,7 +8,7 @@ def test_edge_adapter_builds_chromium_app_command():
         title="Example",
     )
 
-    assert command == (str(Path("C:/Edge/msedge.exe")), "--app=http://127.0.0.1:8501")
+    assert command == ("C:/Edge/msedge.exe", "--app=http://127.0.0.1:8501")
 
 
 def test_chrome_adapter_builds_chromium_app_command():
@@ -20,7 +18,7 @@ def test_chrome_adapter_builds_chromium_app_command():
     )
 
     assert command == (
-        str(Path("C:/Chrome/chrome.exe")),
+        "C:/Chrome/chrome.exe",
         "--app=http://127.0.0.1:8501",
     )
 
@@ -33,7 +31,7 @@ def test_extra_browser_args_are_preserved():
     )
 
     assert command == (
-        str(Path("C:/Edge/msedge.exe")),
+        "C:/Edge/msedge.exe",
         "--app=http://127.0.0.1:8501",
         "--new-window",
         "--disable-extensions",

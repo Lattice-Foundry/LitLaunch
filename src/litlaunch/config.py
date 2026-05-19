@@ -43,6 +43,7 @@ class LauncherConfig:
     port: int | None = None
     auto_port: bool = True
     headless: bool | None = None
+    allow_browser_fallback: bool = True
     streamlit_flags: StreamlitFlags = field(default_factory=dict)
     app_args: Sequence[str] = field(default_factory=tuple)
     extra_browser_args: Sequence[str] = field(default_factory=tuple)
@@ -69,6 +70,9 @@ class LauncherConfig:
         object.__setattr__(self, "host", host)
         object.__setattr__(self, "port", port)
         object.__setattr__(self, "auto_port", auto_port)
+        object.__setattr__(
+            self, "allow_browser_fallback", bool(self.allow_browser_fallback)
+        )
         object.__setattr__(self, "app_args", app_args)
         object.__setattr__(self, "extra_browser_args", extra_browser_args)
         object.__setattr__(self, "streamlit_flags", streamlit_flags)

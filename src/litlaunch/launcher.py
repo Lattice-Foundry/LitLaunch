@@ -5,6 +5,8 @@ from __future__ import annotations
 import time
 from dataclasses import replace
 
+from litlaunch.browsers import BrowserRegistry, BrowserResolution
+from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig
 from litlaunch.health import (
     HealthChecker,
@@ -27,6 +29,7 @@ class StreamlitLauncher:
         port_manager: PortManager | None = None,
         process_manager: ProcessManager | None = None,
         health_checker: HealthChecker | None = None,
+        browser_registry: BrowserRegistry | None = None,
         clock: object = time,
     ) -> None:
         self.config = config
@@ -34,6 +37,7 @@ class StreamlitLauncher:
         self.port_manager = port_manager or PortManager(config.host)
         self.process_manager = process_manager or ProcessManager()
         self.health_checker = health_checker or HealthChecker()
+        self.browser_registry = browser_registry or create_default_browser_registry()
         self.clock = clock
 
     def build_command(self) -> tuple[str, ...]:
@@ -57,6 +61,22 @@ class StreamlitLauncher:
 
         resolved_port = self.resolve_port() if port is None else port
         return build_streamlit_health_url(self.config.host, resolved_port)
+
+    def resolve_browser(
+        self,
+        *,
+        prefer_app_mode: bool | None = None,
+    ) -> BrowserResolution:
+        """Resolve browser capability for this launcher without launching it."""
+
+        resolved_preference = self.config.mode.value == "webapp"
+        return self.browser_registry.resolve(
+            self.config.browser,
+            prefer_app_mode=(
+                resolved_preference if prefer_app_mode is None else prefer_app_mode
+            ),
+            allow_fallback=self.config.allow_browser_fallback,
+        )
 
     def start_backend(
         self,

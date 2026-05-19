@@ -51,6 +51,10 @@ LitLaunch also includes a platform capability layer for runtime diagnostics and
 future browser fallback decisions. It reports normalized OS, architecture,
 Python runtime details, and conservative launch capability flags.
 
+Browser capability detection now covers initial Edge, Chrome, Chromium, and
+default-browser availability. Detection is used for compatibility planning and
+future runtime launch behavior; it does not launch browsers.
+
 ## Examples
 
 The [minimal example app](examples/minimal_app) is a tiny Streamlit target for

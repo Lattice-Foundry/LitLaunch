@@ -13,6 +13,7 @@ def test_default_config_normalizes_correctly():
     assert config.host == "127.0.0.1"
     assert config.port is None
     assert config.auto_port is True
+    assert config.allow_browser_fallback is True
 
 
 def test_string_mode_and_browser_normalize_to_enums():

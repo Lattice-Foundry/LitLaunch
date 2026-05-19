@@ -1,0 +1,58 @@
+# Runtime Philosophy
+
+LitLaunch follows a conservative runtime philosophy: explicit behavior,
+deterministic boundaries, and safe ownership over convenience shortcuts.
+
+## Ownership Boundaries
+
+LitLaunch owns only the Streamlit backend process it starts.
+
+It does not:
+
+- kill browser processes
+- kill by process name
+- kill by port owner
+- discover and kill unknown PIDs
+- close browser windows
+- assume that a browser process belongs to the app
+
+This keeps failure recovery boring and safe.
+
+## Browser Launch Is Not Browser Ownership
+
+LitLaunch may launch Edge, Chrome/Chromium, or the system default browser. After
+launch, the browser remains outside LitLaunch ownership. This is intentional:
+browsers reuse processes, share profiles, restore windows, and may host many
+unrelated sessions.
+
+## Monitoring Is Observational
+
+Window monitoring observes app-mode windows and reports lifecycle signals. It
+does not control windows or browser processes. When a monitored app window
+closes, `RuntimeSession` handles backend shutdown through the normal graceful
+shutdown path.
+
+## Stdlib-First
+
+Runtime code is stdlib-only by default. Dev tooling uses test, lint, and release
+tools, but the package avoids runtime dependencies unless a future capability
+clearly justifies one.
+
+## Packaging-Agnostic
+
+LitLaunch is meant to cooperate with packaged apps, not own packaging. PyInstaller,
+Nuitka, uv, pipx, shortcuts, and installers should remain integration guidance
+unless a small runtime hook is genuinely needed.
+
+## Diagnostics And Sanitization
+
+Diagnostics should help users and support teams understand the local runtime
+without exposing secrets. Inspect output avoids raw environment dumps, shutdown
+tokens, browser profile paths, and sensitive-looking values.
+
+## Infrastructure Over Orchestration
+
+LitLaunch should provide dependable primitives and a clean launch path. It
+should not become a hidden supervisor that guesses, mutates, or controls
+unrelated system state.
+

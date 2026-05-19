@@ -65,11 +65,10 @@ def test_readme_no_longer_uses_early_foundation_status():
     assert "Current status: early foundation" not in readme
     assert "Python 3.14.5" in readme
     normalized = " ".join(readme.split()).lower()
-    assert "diagnostics are lightweight" in normalized
-    assert "web inspector/dashboard is future work" in normalized
-    assert "richer window-monitor defaults are future work" in normalized
-    assert "packaging/install guidance is future work" in normalized
-    assert "Example files are source-checkout fixtures" in readme
+    assert "html inspector/dashboard" in normalized
+    assert "window monitoring is observational only" in normalized
+    assert "packaging guidance" in normalized
+    assert "examples/minimal_app" in readme
 
 
 def test_minimal_example_readme_reflects_current_cli():

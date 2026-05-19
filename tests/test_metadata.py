@@ -34,6 +34,7 @@ def test_pyproject_dev_extras_include_release_tools():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
+    assert "## 0.20.0" in changelog
     assert "## 0.19.0" in changelog
     assert "## 0.16.1" in changelog
     assert "## 0.16.0" in changelog
@@ -52,3 +53,27 @@ def test_changelog_exists_and_mentions_current_version():
     assert "## 0.8.2" in changelog
     assert "## 0.8.1" in changelog
     assert "## 0.8.0" in changelog
+
+
+def test_docs_foundation_exists_and_links_from_readme():
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    docs = [
+        "overview.md",
+        "philosophy.md",
+        "installation.md",
+        "quickstart.md",
+        "cli.md",
+        "browser_support.md",
+        "window_monitoring.md",
+        "inspect.md",
+        "troubleshooting.md",
+        "architecture.md",
+        "integration/rolethread.md",
+        "integration/packaging_notes.md",
+    ]
+
+    for doc in docs:
+        path = REPO_ROOT / "docs" / doc
+        assert path.is_file()
+        assert path.read_text(encoding="utf-8").strip()
+        assert f"docs/{doc}" in readme

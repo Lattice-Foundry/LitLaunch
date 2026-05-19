@@ -3,6 +3,14 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.20.0
+
+- Reworked README as a concise beta-quality integration entry point.
+- Added repository-native markdown docs for architecture, philosophy,
+  installation, quickstart, CLI, browser support, window monitoring, inspect,
+  troubleshooting, RoleThread integration, and packaging notes.
+- Added operational screenshot and diagram placeholders for future docs polish.
+
 ## 0.19.0
 
 - Added calm, actionable failure guidance for backend startup, health timeout,

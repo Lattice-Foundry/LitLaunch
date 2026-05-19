@@ -21,7 +21,7 @@ class StreamlitCommandBuilder:
         self.config = config
         self.python_executable = python_executable or sys.executable
 
-    def build(self) -> tuple[str, ...]:
+    def build(self, *, port: int | None = None) -> tuple[str, ...]:
         """Return a shell-free command tuple for Streamlit."""
 
         if not self.python_executable:
@@ -39,8 +39,9 @@ class StreamlitCommandBuilder:
             _format_bool(self._resolve_headless()),
         ]
 
-        if self.config.port is not None:
-            command.extend(("--server.port", str(self.config.port)))
+        resolved_port = self.config.port if port is None else port
+        if resolved_port is not None:
+            command.extend(("--server.port", str(resolved_port)))
 
         command.extend(_format_streamlit_flags(self.config.streamlit_flags))
 

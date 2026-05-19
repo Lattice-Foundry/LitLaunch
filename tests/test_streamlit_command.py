@@ -50,6 +50,14 @@ def test_host_and_port_flags_are_included_correctly():
     assert command[command.index("--server.port") + 1] == "8502"
 
 
+def test_explicit_build_port_overrides_config_port():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(app_path="app.py", port=8501),
+    ).build(port=8600)
+
+    assert command[command.index("--server.port") + 1] == "8600"
+
+
 def test_app_args_appear_after_separator():
     command = StreamlitCommandBuilder(
         LauncherConfig(app_path="app.py", app_args=["--workspace", "demo"]),

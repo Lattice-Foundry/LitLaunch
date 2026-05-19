@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
+from litlaunch._protocols import ManagedPopen
 from litlaunch.exceptions import ProcessError
 
 
@@ -15,14 +15,18 @@ from litlaunch.exceptions import ProcessError
 class ManagedProcess:
     """A subprocess started and owned by LitLaunch."""
 
-    popen: Any
+    popen: ManagedPopen
     command: tuple[str, ...]
 
 
 class ProcessManager:
     """Start and stop only subprocesses created by this manager."""
 
-    def __init__(self, *, popen_factory: Any = subprocess.Popen) -> None:
+    def __init__(
+        self,
+        *,
+        popen_factory: Callable[..., ManagedPopen] = subprocess.Popen,
+    ) -> None:
         self.popen_factory = popen_factory
 
     def start(

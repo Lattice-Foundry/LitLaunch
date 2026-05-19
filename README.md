@@ -12,6 +12,8 @@ Current status: active pre-alpha runtime hardening. LitLaunch already includes
 typed launcher configuration, shell-free Streamlit command construction, port
 management, platform and browser capability detection, backend process
 ownership, graceful shutdown hooks, console rendering, and an argparse CLI.
+The API is usable for early adopters, but still evolving while LitLaunch is in
+pre-alpha.
 
 The development environment currently uses Python 3.14.5. Package metadata
 allows Python 3.10 and newer, but the active local hardening work is verified
@@ -61,6 +63,11 @@ killed by LitLaunch.
 
 Commands are built as argument tuples, not shell strings. Runtime dependencies
 are intentionally minimal.
+
+Stable utility classes such as `PortManager`, `ProcessManager`,
+`ManagedProcess`, `HealthChecker`, and `StreamlitCommandBuilder` are exported
+for dependency-injection and testing use cases. Diagnostics helpers are still
+intentionally lightweight and may evolve before beta.
 
 LitLaunch also includes a platform capability layer for runtime diagnostics and
 future browser fallback decisions. It reports normalized OS, architecture,

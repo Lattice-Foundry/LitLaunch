@@ -14,6 +14,7 @@ from litlaunch.console import (
     ConsoleTheme,
 )
 from litlaunch.exceptions import ConfigurationError, LitLaunchError
+from litlaunch.health import HealthChecker
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.platforms import (
@@ -22,6 +23,8 @@ from litlaunch.platforms import (
     PlatformDetector,
     PlatformInfo,
 )
+from litlaunch.ports import PortManager
+from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.session import RuntimeSession
 from litlaunch.shutdown import (
     LauncherRuntime,
@@ -30,6 +33,7 @@ from litlaunch.shutdown import (
     ShutdownHookResult,
     ShutdownResult,
 )
+from litlaunch.streamlit import StreamlitCommandBuilder
 from litlaunch.version import __version__
 
 __all__ = [
@@ -44,6 +48,7 @@ __all__ = [
     "ConsoleMode",
     "ConsoleRenderer",
     "ConsoleTheme",
+    "HealthChecker",
     "LaunchMode",
     "LauncherConfig",
     "LitLaunchError",
@@ -54,11 +59,15 @@ __all__ = [
     "OperatingSystem",
     "PlatformDetector",
     "PlatformInfo",
+    "ManagedProcess",
+    "PortManager",
+    "ProcessManager",
     "RuntimeSession",
     "ShutdownHook",
     "ShutdownHookRegistry",
     "ShutdownHookResult",
     "ShutdownResult",
+    "StreamlitCommandBuilder",
     "StreamlitLauncher",
     "__version__",
 ]

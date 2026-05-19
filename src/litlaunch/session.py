@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 import time
 
+from litlaunch._protocols import ClockProvider
 from litlaunch.console import ConsoleRenderer
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess, ProcessManager
@@ -26,7 +27,7 @@ class RuntimeSession:
         process_manager: ProcessManager,
         shutdown_client: ShutdownClient | None = None,
         console_renderer: ConsoleRenderer | None = None,
-        clock: object = time,
+        clock: ClockProvider = time,
     ) -> None:
         self.result = result
         self.process = process

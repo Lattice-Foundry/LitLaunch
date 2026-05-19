@@ -24,6 +24,9 @@ class FakeClock:
         self.value += 1.0
         return self.value
 
+    def time(self):
+        return self.value
+
 
 class FakePortManager:
     def __init__(self, port):

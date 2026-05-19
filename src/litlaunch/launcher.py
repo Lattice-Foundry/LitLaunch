@@ -8,6 +8,7 @@ import time
 from dataclasses import replace
 from typing import NamedTuple
 
+from litlaunch._protocols import ClockProvider
 from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
@@ -44,7 +45,7 @@ class StreamlitLauncher:
         browser_registry: BrowserRegistry | None = None,
         browser_launcher: BrowserLauncher | None = None,
         console_renderer: ConsoleRenderer | None = None,
-        clock: object = time,
+        clock: ClockProvider = time,
     ) -> None:
         self.config = config
         self.command_builder = StreamlitCommandBuilder(config)

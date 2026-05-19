@@ -1,6 +1,7 @@
 import subprocess
 from io import StringIO
 
+from litlaunch._protocols import ClockProvider
 from litlaunch.browsers import BrowserCapability, BrowserKind
 from litlaunch.console import ConsoleRenderer, ConsoleTheme
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
@@ -15,6 +16,9 @@ class FakeClock:
 
     def monotonic(self):
         self.value += 1.0
+        return self.value
+
+    def time(self):
         return self.value
 
 
@@ -80,6 +84,10 @@ def make_result(*, browser=None, browser_launched=False):
 
 def make_process():
     return ManagedProcess(FakePopen(), ("python", "-m", "streamlit"))
+
+
+def test_fake_clock_matches_clock_provider_protocol():
+    assert isinstance(FakeClock(), ClockProvider)
 
 
 def test_runtime_session_exposes_launch_result_convenience_properties():

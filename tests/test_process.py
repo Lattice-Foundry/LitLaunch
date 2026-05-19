@@ -2,6 +2,7 @@ import subprocess
 
 import pytest
 
+from litlaunch._protocols import ManagedPopen
 from litlaunch.exceptions import ProcessError
 from litlaunch.process import ManagedProcess, ProcessManager
 
@@ -75,6 +76,10 @@ def test_start_passes_args_without_shell_true():
             {"cwd": "X:/app", "env": {"A": "1"}, "shell": False},
         )
     ]
+
+
+def test_fake_popen_matches_managed_popen_protocol():
+    assert isinstance(FakePopen(), ManagedPopen)
 
 
 def test_is_running_reflects_poll_result():

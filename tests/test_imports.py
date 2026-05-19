@@ -14,6 +14,7 @@ from litlaunch import (
     ConsoleMode,
     ConsoleRenderer,
     ConsoleTheme,
+    HealthChecker,
     LauncherConfig,
     LauncherRuntime,
     LaunchEvent,
@@ -21,14 +22,18 @@ from litlaunch import (
     LaunchResult,
     LaunchState,
     LitLaunchError,
+    ManagedProcess,
     OperatingSystem,
     PlatformDetector,
     PlatformInfo,
+    PortManager,
+    ProcessManager,
     RuntimeSession,
     ShutdownHook,
     ShutdownHookRegistry,
     ShutdownHookResult,
     ShutdownResult,
+    StreamlitCommandBuilder,
     StreamlitLauncher,
     __version__,
 )
@@ -45,6 +50,7 @@ def test_public_imports_are_available():
     assert ConsoleMode.NORMAL.value == "normal"
     assert ConsoleRenderer
     assert ConsoleTheme
+    assert HealthChecker
     assert issubclass(ConfigurationError, LitLaunchError)
     assert LaunchState.CREATED.value == "created"
     assert LaunchEvent
@@ -53,12 +59,16 @@ def test_public_imports_are_available():
     assert Architecture.X64.value == "x64"
     assert PlatformDetector
     assert PlatformInfo
+    assert ManagedProcess
+    assert PortManager
+    assert ProcessManager
     assert RuntimeSession
     assert LauncherRuntime
     assert ShutdownHook
     assert ShutdownHookRegistry
     assert ShutdownHookResult
     assert ShutdownResult
+    assert StreamlitCommandBuilder
     assert StreamlitLauncher
 
 
@@ -75,6 +85,7 @@ def test_public_all_is_explicit():
         "ConsoleMode",
         "ConsoleRenderer",
         "ConsoleTheme",
+        "HealthChecker",
         "LaunchEvent",
         "LaunchMode",
         "LaunchResult",
@@ -82,14 +93,18 @@ def test_public_all_is_explicit():
         "LauncherConfig",
         "LauncherRuntime",
         "LitLaunchError",
+        "ManagedProcess",
         "OperatingSystem",
         "PlatformDetector",
         "PlatformInfo",
+        "PortManager",
+        "ProcessManager",
         "RuntimeSession",
         "ShutdownHook",
         "ShutdownHookRegistry",
         "ShutdownHookResult",
         "ShutdownResult",
+        "StreamlitCommandBuilder",
         "StreamlitLauncher",
         "__version__",
     ]
@@ -97,8 +112,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.8.2"
-    assert __version__ == "0.8.2"
+    assert litlaunch.__version__ == "0.8.3"
+    assert __version__ == "0.8.3"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

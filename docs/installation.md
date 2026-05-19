@@ -1,6 +1,6 @@
 # Installation
 
-LitLaunch is currently in pre-beta internal integration and TestPyPI rehearsal
+LitLaunch is currently in alpha internal integration and TestPyPI rehearsal
 readiness.
 
 ## Source Checkout
@@ -8,7 +8,7 @@ readiness.
 For development:
 
 ```powershell
-git clone https://github.com/LatticeFoundry/litlaunch
+git clone https://github.com/Lattice-Foundry/LitLaunch
 cd litlaunch
 python -m pip install -e .[dev]
 ```
@@ -38,4 +38,3 @@ Windows, Linux, and macOS.
 
 Do not assume packaged-app behavior has been validated unless the integration
 notes for that packaging path say so.
-

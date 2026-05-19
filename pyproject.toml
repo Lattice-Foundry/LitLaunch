@@ -17,7 +17,7 @@ maintainers = [
 ]
 keywords = ["streamlit", "launcher", "runtime", "browser", "webapp"]
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
+  "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",
@@ -43,9 +43,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/LatticeFoundry/litlaunch"
-Repository = "https://github.com/LatticeFoundry/litlaunch"
-Issues = "https://github.com/LatticeFoundry/litlaunch/issues"
+Homepage = "https://github.com/Lattice-Foundry/LitLaunch"
+Repository = "https://github.com/Lattice-Foundry/LitLaunch"
+Issues = "https://github.com/Lattice-Foundry/LitLaunch/issues"
 
 [project.scripts]
 litlaunch = "litlaunch.cli:main"

@@ -44,6 +44,10 @@ litlaunch run app.py --mode webapp --monitor-window
 litlaunch run app.py --mode webapp --monitor-window --title "My Streamlit App"
 ```
 
+`--title` sets the expected runtime/app-window title. For monitor-window flows,
+choose a stable title that matches the browser app-mode window closely enough
+for detection.
+
 ## Streamlit Passthrough
 
 Unknown arguments before `--` are forwarded to Streamlit:
@@ -63,6 +67,11 @@ Structured flags remain available:
 ```powershell
 litlaunch run app.py --streamlit-flag server.maxUploadSize=200 --app-arg demo
 ```
+
+Avoid specifying the same Streamlit option through both structured
+`--streamlit-flag` and raw passthrough arguments. LitLaunch avoids duplicating
+its own built-in defaults, but it does not deduplicate repeated user-supplied
+Streamlit options.
 
 ## Command Preview
 

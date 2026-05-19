@@ -64,6 +64,19 @@ The returned `RuntimeSession` owns the backend process. Stop it explicitly.
 `run()` is the friendly entry point; `start()` is the explicit lifecycle entry
 point. Both return a live `RuntimeSession`.
 
+Use `launcher.with_port(port)` when you need a copy of an existing launcher
+with a fixed port. The returned launcher preserves injected managers, browser
+helpers, renderer, and clock while leaving the original launcher unchanged.
+
+`LauncherConfig.title` is used for display and browser/app-window matching
+where monitoring applies. Choose a stable title for monitored webapp flows.
+If the actual app window title differs significantly, `--monitor-window` may
+timeout; use `--title` to override the expected title.
+
+Prefer either structured `streamlit_flags` or raw `streamlit_args` for a given
+Streamlit option. LitLaunch suppresses its own defaults when user options
+overlap, but it does not deduplicate duplicate user options across both inputs.
+
 [screenshot needed]
 Capture: normal `litlaunch run examples/minimal_app/app.py --no-color` output.
 Demonstrate: backend, health, browser, and runtime-ready phase output.

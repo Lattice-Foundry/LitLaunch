@@ -14,6 +14,8 @@ def test_pyproject_metadata_includes_console_and_typing_classifiers():
     )
 
     classifiers = set(pyproject["project"]["classifiers"])
+    assert "Development Status :: 3 - Alpha" in classifiers
+    assert "Development Status :: 2 - Pre-Alpha" not in classifiers
     assert "Environment :: Console" in classifiers
     assert "Topic :: Utilities" in classifiers
     assert "Typing :: Typed" in classifiers
@@ -31,9 +33,21 @@ def test_pyproject_dev_extras_include_release_tools():
     assert "twine>=6" in dev_dependencies
 
 
+def test_pyproject_urls_use_canonical_repository_location():
+    pyproject = tomllib.loads(
+        (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+
+    urls = pyproject["project"]["urls"]
+    assert urls["Homepage"] == "https://github.com/Lattice-Foundry/LitLaunch"
+    assert urls["Repository"] == "https://github.com/Lattice-Foundry/LitLaunch"
+    assert urls["Issues"] == "https://github.com/Lattice-Foundry/LitLaunch/issues"
+
+
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
+    assert "## 0.24.0" in changelog
     assert "## 0.23.0" in changelog
     assert "## 0.22.0" in changelog
     assert "## 0.21.0" in changelog
@@ -106,11 +120,31 @@ def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
 
     assert "source checkout" in readme
     assert "own Streamlit app path" in readme
+    assert "alpha internal integration" in (
+        REPO_ROOT / "docs" / "installation.md"
+    ).read_text(encoding="utf-8")
     assert "source-tree fixture" in quickstart
     assert "`StreamlitLauncher.run()` is the friendly" in architecture
     assert "waits return `None`" in architecture
     assert "graceful_timeout_seconds" in troubleshooting
     assert "essential errors and failure guidance" in cli
+
+
+def test_docs_clarify_with_port_title_and_streamlit_passthrough_policy():
+    quickstart = (REPO_ROOT / "docs" / "quickstart.md").read_text(encoding="utf-8")
+    architecture = (REPO_ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+    cli = (REPO_ROOT / "docs" / "cli.md").read_text(encoding="utf-8")
+    rolethread = (REPO_ROOT / "docs" / "integration" / "rolethread.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "`launcher.with_port(port)`" in quickstart
+    assert "preserves injected managers" in quickstart
+    assert "`with_port(port)` returns a new launcher" in architecture
+    assert "`LauncherConfig.title`" in quickstart
+    assert "window detection" in rolethread
+    assert "does not deduplicate duplicate user options" in quickstart
+    assert "does not deduplicate repeated user-supplied" in cli
 
 
 def test_internal_docs_exist_but_are_not_linked_from_public_docs():

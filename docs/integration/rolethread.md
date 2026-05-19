@@ -12,7 +12,7 @@ packaging behavior.
 RoleThread should provide:
 
 - app path
-- title
+- stable title for display and app-window matching
 - launch mode
 - browser preference
 - Streamlit flags
@@ -47,6 +47,10 @@ RoleThread may opt into `--monitor-window` or equivalent API behavior for
 Windows Chromium app-mode flows. Monitoring must remain observational; closing
 or killing browser windows should remain outside LitLaunch.
 
+Choose a stable `LauncherConfig.title` for webapp monitoring. If the browser
+window title differs significantly from the configured title, window detection
+may timeout.
+
 ## Future Compatibility
 
 Future launch profiles may help RoleThread map development, browser, webapp,
@@ -56,4 +60,3 @@ use explicit `LauncherConfig` fields.
 [diagram needed]
 Create: RoleThread-to-LitLaunch integration boundary diagram. Show RoleThread
 configuration flowing into LitLaunch and `RuntimeSession` returning ownership.
-

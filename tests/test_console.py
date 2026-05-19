@@ -204,6 +204,21 @@ def test_failure_guidance_respects_quiet_normal_and_verbose_modes():
     assert "[redacted]" in verbose_output
 
 
+def test_failure_guidance_does_not_duplicate_verbose_next_step():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+
+    renderer.failure_guidance(
+        "Monitor failed.",
+        next_steps=("Use verbose mode to inspect monitor setup details.",),
+    )
+
+    assert stream.getvalue().count("verbose") == 1
+
+
 def test_console_renderer_verbose_includes_detail_messages():
     stream = StringIO()
     renderer = ConsoleRenderer(

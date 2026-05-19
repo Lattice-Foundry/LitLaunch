@@ -3,6 +3,16 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.24.0
+
+- Updated package metadata to the Alpha development classifier for TestPyPI
+  rehearsal readiness.
+- Clarified `run()`/`start()`, `with_port()`, title/window matching, and
+  Streamlit flag passthrough expectations in docs.
+- Kept temporary internal integration docs excluded from distributions and
+  isolated from public docs.
+- Avoided duplicate verbose-mode guidance in console failure output.
+
 ## 0.23.0
 
 - Clarified and tested `RuntimeSession.wait()` timed-wait behavior.

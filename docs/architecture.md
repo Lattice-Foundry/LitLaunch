@@ -41,6 +41,8 @@ It does not own browser processes.
 
 `StreamlitLauncher.run()` is the friendly common entry point. `start()` is the
 explicit lifecycle entry point. Both return a `RuntimeSession`.
+`with_port(port)` returns a new launcher with the same injected dependencies
+and a fixed port, leaving the original launcher unchanged.
 
 `RuntimeSession.wait()` with no timeout waits until the backend exits. Timed
 waits return `None` if the timeout expires and leave the backend running with

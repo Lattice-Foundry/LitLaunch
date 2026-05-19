@@ -216,7 +216,8 @@ class ConsoleRenderer:
                 "Next",
                 'Run "litlaunch inspect" for local diagnostics.',
             )
-        self._guidance_line("Next", "Use verbose mode for more runtime details.")
+        if not _mentions_verbose(next_steps):
+            self._guidance_line("Next", "Use verbose mode for more runtime details.")
         if docs_hint:
             self._guidance_line("Docs", docs_hint)
         if detail:
@@ -415,3 +416,7 @@ def _normalize_mode(mode: ConsoleMode | str) -> ConsoleMode:
     if isinstance(mode, ConsoleMode):
         return mode
     return ConsoleMode(str(mode).strip().lower())
+
+
+def _mentions_verbose(messages: Sequence[str]) -> bool:
+    return any("verbose" in message.lower() for message in messages)

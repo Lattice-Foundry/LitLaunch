@@ -8,7 +8,7 @@ and exposes diagnostics without hiding ownership or process behavior.
 LitLaunch is developed and maintained by LatticeFoundry, a software division of
 Sierra Cognitive Group, LLC. LitLaunch is not affiliated with Streamlit.
 
-Current status: pre-beta internal integration and TestPyPI rehearsal readiness.
+Current status: alpha internal integration and TestPyPI rehearsal readiness.
 The runtime is usable for early integration work, but public API stability is
 still being hardened.
 
@@ -103,12 +103,12 @@ entry point; both return a `RuntimeSession`.
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Streamlit backend launch | Beta foundation | Shell-free command construction and owned backend process management. |
-| Browser mode | Beta foundation | Uses default browser or detected Chromium browser capability. |
-| Chromium app-mode | Beta | Edge and Chrome/Chromium adapters first. |
-| Browser fallback | Beta | Explicit browser choices can fall back unless disabled. |
-| Graceful shutdown hooks | Beta | Opt-in app runtime, tokened loopback endpoint, fallback backend termination. |
-| Inspect diagnostics | Beta foundation | Text, JSON, and sanitized bundle output. No app launch. |
+| Streamlit backend launch | Alpha foundation | Shell-free command construction and owned backend process management. |
+| Browser mode | Alpha foundation | Uses default browser or detected Chromium browser capability. |
+| Chromium app-mode | Alpha | Edge and Chrome/Chromium adapters first. |
+| Browser fallback | Alpha | Explicit browser choices can fall back unless disabled. |
+| Graceful shutdown hooks | Alpha | Opt-in app runtime, tokened loopback endpoint, fallback backend termination. |
+| Inspect diagnostics | Alpha foundation | Text, JSON, and sanitized bundle output. No app launch. |
 | Window monitoring | Experimental | Opt-in, Windows Chromium app-mode first, observational only. |
 | Packaging guidance | Notes only | LitLaunch supports packaged apps conceptually but does not own packaging. |
 | HTML inspector/dashboard | Not implemented | Future work; no local diagnostics server exists today. |

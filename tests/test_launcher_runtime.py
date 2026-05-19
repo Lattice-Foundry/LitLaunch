@@ -155,6 +155,10 @@ def test_with_port_preserves_injected_dependencies():
 
     assert updated.config.port == 8700
     assert updated.config.auto_port is False
+    assert launcher.config.port is None
+    assert launcher.config.auto_port is True
+    assert updated.config.app_path == launcher.config.app_path
+    assert updated.config.mode == launcher.config.mode
     assert updated.port_manager is port_manager
     assert updated.process_manager is process_manager
     assert updated.health_checker is health_checker

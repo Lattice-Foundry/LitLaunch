@@ -4,9 +4,16 @@ from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError, LitLaunchError
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
+from litlaunch.platforms import (
+    Architecture,
+    OperatingSystem,
+    PlatformDetector,
+    PlatformInfo,
+)
 from litlaunch.version import __version__
 
 __all__ = [
+    "Architecture",
     "BrowserChoice",
     "ConfigurationError",
     "LaunchMode",
@@ -15,6 +22,9 @@ __all__ = [
     "LaunchEvent",
     "LaunchResult",
     "LaunchState",
+    "OperatingSystem",
+    "PlatformDetector",
+    "PlatformInfo",
     "StreamlitLauncher",
     "__version__",
 ]

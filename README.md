@@ -47,6 +47,10 @@ designed and tested.
 Commands are built as argument tuples, not shell strings. Runtime dependencies
 are intentionally minimal.
 
+LitLaunch also includes a platform capability layer for runtime diagnostics and
+future browser fallback decisions. It reports normalized OS, architecture,
+Python runtime details, and conservative launch capability flags.
+
 ## Examples
 
 The [minimal example app](examples/minimal_app) is a tiny Streamlit target for

@@ -182,8 +182,13 @@ def _cmd_browsers(args: argparse.Namespace, context: _CliContext) -> int:
 
 def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
     renderer = _renderer(args, context)
+    app_path = Path(args.app_path)
+    if not app_path.is_file():
+        renderer.error(f"Streamlit app path does not exist: {app_path}")
+        return 2
+
     config = LauncherConfig(
-        app_path=args.app_path,
+        app_path=app_path,
         mode=args.mode or LaunchMode.BROWSER,
         browser=args.browser or BrowserChoice.AUTO,
         host=args.host,

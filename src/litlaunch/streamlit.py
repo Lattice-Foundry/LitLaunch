@@ -27,20 +27,23 @@ class StreamlitCommandBuilder:
         if not self.python_executable:
             raise CommandBuildError("A Python executable is required.")
 
+        user_flag_names = _streamlit_flag_names(self.config.streamlit_flags)
         command: list[str] = [
             str(self.python_executable),
             "-m",
             "streamlit",
             "run",
             str(self.config.app_path),
-            "--server.address",
-            self.config.host,
-            "--server.headless",
-            _format_bool(self._resolve_headless()),
         ]
+        if "server.address" not in user_flag_names:
+            command.extend(("--server.address", self.config.host))
+        if "server.headless" not in user_flag_names:
+            command.extend(
+                ("--server.headless", _format_bool(self._resolve_headless()))
+            )
 
         resolved_port = self.config.port if port is None else port
-        if resolved_port is not None:
+        if resolved_port is not None and "server.port" not in user_flag_names:
             command.extend(("--server.port", str(resolved_port)))
 
         command.extend(_format_streamlit_flags(self.config.streamlit_flags))
@@ -69,6 +72,27 @@ def _format_streamlit_flags(
                 parts.append(_format_flag_value(value))
         return tuple(parts)
     return tuple(str(item) for item in flags)
+
+
+def _streamlit_flag_names(
+    flags: Mapping[str, str | int | float | bool | None] | Sequence[str],
+) -> frozenset[str]:
+    if isinstance(flags, Mapping):
+        return frozenset(_normalize_flag_name(key) for key in flags)
+
+    names: set[str] = set()
+    for item in flags:
+        value = str(item).strip()
+        if value.startswith("--"):
+            names.add(_normalize_flag_name(value))
+    return frozenset(names)
+
+
+def _normalize_flag_name(name: str) -> str:
+    stripped = str(name).strip()
+    if stripped.startswith("--"):
+        stripped = stripped[2:]
+    return stripped.split("=", 1)[0].strip().lower()
 
 
 def _format_flag_name(name: str) -> str:

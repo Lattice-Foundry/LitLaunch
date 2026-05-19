@@ -11,7 +11,6 @@ from litlaunch import (
     BrowserLaunchResult,
     BrowserResolution,
     ConfigurationError,
-    ConsoleColor,
     ConsoleMode,
     ConsoleRenderer,
     ConsoleTheme,
@@ -43,7 +42,6 @@ def test_public_imports_are_available():
     assert BrowserLaunchResult
     assert BrowserLauncher
     assert BrowserResolution
-    assert ConsoleColor.STREAMLIT_BLUE.value == "streamlit_blue"
     assert ConsoleMode.NORMAL.value == "normal"
     assert ConsoleRenderer
     assert ConsoleTheme
@@ -74,7 +72,6 @@ def test_public_all_is_explicit():
         "BrowserLauncher",
         "BrowserResolution",
         "ConfigurationError",
-        "ConsoleColor",
         "ConsoleMode",
         "ConsoleRenderer",
         "ConsoleTheme",
@@ -96,11 +93,12 @@ def test_public_all_is_explicit():
         "StreamlitLauncher",
         "__version__",
     ]
+    assert not hasattr(litlaunch, "ConsoleColor")
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.8.1"
-    assert __version__ == "0.8.1"
+    assert litlaunch.__version__ == "0.8.2"
+    assert __version__ == "0.8.2"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

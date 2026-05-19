@@ -13,6 +13,8 @@ from litlaunch.config import BrowserChoice
 from litlaunch.lifecycle import LaunchResult, LaunchState
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
 
+EXAMPLE_APP = Path("examples/minimal_app/app.py")
+
 
 def fake_platform_info():
     return PlatformInfo(
@@ -186,7 +188,7 @@ def test_cli_run_builds_config_and_waits_for_backend():
     code = main(
         [
             "run",
-            "example app.py",
+            str(EXAMPLE_APP),
             "--mode",
             "webapp",
             "--browser",
@@ -207,7 +209,7 @@ def test_cli_run_builds_config_and_waits_for_backend():
 
     launcher = FakeLauncher.instances[0]
     assert code == 0
-    assert launcher.config.app_path == Path("example app.py")
+    assert launcher.config.app_path == EXAMPLE_APP
     assert launcher.config.mode.value == "webapp"
     assert launcher.config.browser.value == "edge"
     assert launcher.config.port == 8600
@@ -223,7 +225,7 @@ def test_cli_run_returns_nonzero_on_failed_session():
     stream = StringIO()
 
     code = main(
-        ["run", "app.py"],
+        ["run", str(EXAMPLE_APP)],
         stream=stream,
         launcher_factory=reset_fake_launcher(FakeSession(ok=False)),
     )
@@ -232,12 +234,28 @@ def test_cli_run_returns_nonzero_on_failed_session():
     assert "failed cleanly" in stream.getvalue()
 
 
+def test_cli_run_rejects_missing_app_path_before_launching():
+    stream = StringIO()
+
+    def launcher_factory(*args, **kwargs):
+        raise AssertionError("launcher should not be constructed for a missing app")
+
+    code = main(
+        ["run", "does-not-exist.py"],
+        stream=stream,
+        launcher_factory=launcher_factory,
+    )
+
+    assert code == 2
+    assert "Streamlit app path does not exist" in stream.getvalue()
+
+
 def test_cli_run_keyboard_interrupt_stops_session():
     stream = StringIO()
     session = FakeSession(ok=True, wait_raises=True)
 
     code = main(
-        ["run", "app.py"],
+        ["run", str(EXAMPLE_APP)],
         stream=stream,
         launcher_factory=reset_fake_launcher(session),
     )
@@ -252,7 +270,7 @@ def test_cli_quiet_suppresses_run_success_message():
     session = FakeSession(ok=True, wait_return=0)
 
     code = main(
-        ["run", "app.py", "--quiet"],
+        ["run", str(EXAMPLE_APP), "--quiet"],
         stream=stream,
         launcher_factory=reset_fake_launcher(session),
     )

@@ -74,7 +74,10 @@ LitLaunch can now orchestrate backend startup, Streamlit health checks, browser
 capability resolution, browser launch, and explicit runtime-session ownership.
 Browser mode and Chromium app-mode are supported through command-based adapters.
 Advanced Streamlit flags and app arguments remain part of the compatibility
-model, while window monitoring remains future work.
+model, while window monitoring remains future work. LitLaunch injects its
+Streamlit defaults only when the user has not supplied the equivalent
+Streamlit flag, so explicit user flags remain the authority. The CLI validates
+that the target app file exists before starting the backend.
 
 ## Graceful Shutdown
 
@@ -119,6 +122,7 @@ litlaunch platform
 litlaunch browsers
 litlaunch run examples/minimal_app/app.py
 litlaunch run app.py --mode webapp --browser auto
+litlaunch run app.py --streamlit-flag server.maxUploadSize=200 --app-arg demo
 ```
 
 The CLI is intentionally thin over the Python runtime APIs. A fuller inspector

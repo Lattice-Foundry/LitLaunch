@@ -83,15 +83,56 @@ def test_user_streamlit_flags_are_included_before_app_args():
     assert "debug" in command[:separator_index]
 
 
-def test_user_streamlit_flags_are_appended_after_litlaunch_defaults():
+def test_non_conflicting_user_streamlit_flags_are_appended_after_litlaunch_defaults():
     command = StreamlitCommandBuilder(
         LauncherConfig(
             app_path="app.py",
-            streamlit_flags={"server.headless": True},
+            streamlit_flags={"logger.level": "debug"},
         ),
     ).build()
 
     default_index = command.index("--server.headless")
-    user_index = command.index("--server.headless", default_index + 1)
+    user_index = command.index("--logger.level")
     assert default_index < user_index
-    assert command[user_index + 1] == "true"
+    assert command[user_index + 1] == "debug"
+
+
+def test_user_builtin_streamlit_flag_prevents_duplicate_default_injection():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            port=8501,
+            streamlit_flags={"server.port": 9000, "server.headless": True},
+        ),
+    ).build()
+
+    assert command.count("--server.port") == 1
+    assert command[command.index("--server.port") + 1] == "9000"
+    assert command.count("--server.headless") == 1
+    assert command[command.index("--server.headless") + 1] == "true"
+
+
+def test_sequence_builtin_streamlit_flag_prevents_duplicate_default_injection():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            host="127.0.0.1",
+            streamlit_flags=("--server.address", "0.0.0.0"),
+        ),
+    ).build()
+
+    assert command.count("--server.address") == 1
+    assert command[command.index("--server.address") + 1] == "0.0.0.0"
+
+
+def test_inline_sequence_builtin_streamlit_flag_prevents_duplicate_default_injection():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            port=8501,
+            streamlit_flags=("--server.port=9000",),
+        ),
+    ).build()
+
+    assert command.count("--server.port") == 0
+    assert command.count("--server.port=9000") == 1

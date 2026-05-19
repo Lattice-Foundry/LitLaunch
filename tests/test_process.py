@@ -96,6 +96,14 @@ def test_wait_delegates_to_owned_process():
     assert fake.calls == [("wait", 4.0)]
 
 
+def test_process_manager_exposes_stop_as_public_safe_shutdown_path():
+    manager = ProcessManager()
+
+    assert hasattr(manager, "stop")
+    assert not hasattr(manager, "terminate")
+    assert not hasattr(manager, "kill")
+
+
 def test_stop_does_nothing_if_already_exited():
     fake = FakePopen(returncode=0)
     manager = ProcessManager()

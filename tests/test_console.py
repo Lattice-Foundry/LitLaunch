@@ -148,15 +148,18 @@ def test_console_renderer_lifecycle_event_rendering():
     assert "error Failed" in output
 
 
-def test_console_renderer_shutdown_hook_metadata_rendering():
+def test_console_renderer_shutdown_hook_metadata_rendering_is_internal():
     stream = StringIO()
     renderer = ConsoleRenderer(
         theme=ConsoleTheme(use_color=False),
         stream=stream,
     )
 
-    renderer.render_shutdown_hook_start("Closing resources", color="cyan")
-    renderer.render_shutdown_hook_result(
+    assert not hasattr(renderer, "render_shutdown_hook_start")
+    assert not hasattr(renderer, "render_shutdown_hook_result")
+
+    renderer._render_shutdown_hook_start("Closing resources", color="cyan")
+    renderer._render_shutdown_hook_result(
         ShutdownHookResult(
             label="Closing resources",
             ok=True,
@@ -164,7 +167,7 @@ def test_console_renderer_shutdown_hook_metadata_rendering():
             color="cyan",
         )
     )
-    renderer.render_shutdown_hook_result(
+    renderer._render_shutdown_hook_result(
         ShutdownHookResult(
             label="Closing resources",
             ok=False,

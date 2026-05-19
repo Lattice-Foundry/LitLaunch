@@ -165,12 +165,12 @@ class ConsoleRenderer:
         else:
             self.step(event.message)
 
-    def render_shutdown_hook_start(self, label: str, color: str | None = None) -> None:
+    def _render_shutdown_hook_start(self, label: str, color: str | None = None) -> None:
         """Render shutdown hook start metadata."""
 
         self.step(self._with_optional_label_color(f"Shutdown hook: {label}", color))
 
-    def render_shutdown_hook_result(self, result: ShutdownHookResult) -> None:
+    def _render_shutdown_hook_result(self, result: ShutdownHookResult) -> None:
         """Render one shutdown hook result."""
 
         message = self._with_optional_label_color(result.message, result.color)

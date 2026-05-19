@@ -281,15 +281,6 @@ class LauncherRuntime:
             continue_on_error=continue_on_error,
         )
 
-    def on_shutdown(
-        self,
-        func: Callable[[], object],
-        **metadata: object,
-    ) -> Callable[[], object]:
-        """Register a shutdown hook."""
-
-        return self.register_shutdown_hook(func, **metadata)
-
     def register_shutdown_hook(
         self,
         func: Callable[[], object],

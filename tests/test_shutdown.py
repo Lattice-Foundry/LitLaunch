@@ -138,6 +138,12 @@ def test_launcher_runtime_registration_works_when_unavailable():
     assert result.ok is True
 
 
+def test_launcher_runtime_has_no_duplicate_on_shutdown_alias():
+    runtime = LauncherRuntime.from_env({})
+
+    assert not hasattr(runtime, "on_shutdown")
+
+
 def test_launcher_runtime_available_when_env_vars_present():
     runtime = LauncherRuntime.from_env(
         {

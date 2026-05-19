@@ -6,6 +6,8 @@ from litlaunch import LauncherConfig, StreamlitLauncher
 REPO_ROOT = Path(__file__).parents[1]
 EXAMPLE_APP = REPO_ROOT / "examples" / "minimal_app" / "app.py"
 EXAMPLE_README = REPO_ROOT / "examples" / "minimal_app" / "README.md"
+GITATTRIBUTES = REPO_ROOT / ".gitattributes"
+GITIGNORE = REPO_ROOT / ".gitignore"
 
 
 def test_minimal_example_app_exists():
@@ -42,6 +44,19 @@ def test_nested_example_path_remains_one_command_argument():
 
 def test_py_typed_marker_exists():
     assert (REPO_ROOT / "src" / "litlaunch" / "py.typed").is_file()
+
+
+def test_claude_directory_is_ignored():
+    gitignore = GITIGNORE.read_text(encoding="utf-8")
+
+    assert ".claude/" in gitignore
+
+
+def test_gitattributes_normalizes_text_to_lf():
+    gitattributes = GITATTRIBUTES.read_text(encoding="utf-8")
+
+    assert GITATTRIBUTES.is_file()
+    assert "* text=auto eol=lf" in gitattributes
 
 
 def test_readme_no_longer_uses_early_foundation_status():

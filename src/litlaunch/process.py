@@ -47,25 +47,6 @@ class ProcessManager:
 
         return process.popen.poll() is None
 
-    def terminate(
-        self,
-        process: ManagedProcess,
-        timeout_seconds: float = 5.0,
-    ) -> None:
-        """Terminate one managed process and wait for it to exit."""
-
-        if not self.is_running(process):
-            return
-        process.popen.terminate()
-        process.popen.wait(timeout=timeout_seconds)
-
-    def kill(self, process: ManagedProcess) -> None:
-        """Kill one managed process."""
-
-        if not self.is_running(process):
-            return
-        process.popen.kill()
-
     def wait(
         self,
         process: ManagedProcess,

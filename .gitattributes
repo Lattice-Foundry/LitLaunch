@@ -1,0 +1,6 @@
+* text=auto eol=lf
+
+# Windows command scripts may require CRLF when executed by native shells.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

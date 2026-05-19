@@ -9,7 +9,6 @@ from litlaunch.browsers import (
 )
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.console import (
-    ConsoleColor,
     ConsoleMode,
     ConsoleRenderer,
     ConsoleTheme,
@@ -42,7 +41,6 @@ __all__ = [
     "BrowserLauncher",
     "BrowserResolution",
     "ConfigurationError",
-    "ConsoleColor",
     "ConsoleMode",
     "ConsoleRenderer",
     "ConsoleTheme",

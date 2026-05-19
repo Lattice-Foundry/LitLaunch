@@ -158,6 +158,25 @@ fixture first: small, stable, and intentionally free of showcase complexity.
 Example files are source-checkout fixtures unless they are explicitly packaged
 in a later release.
 
+## Release Hygiene / Build Verification
+
+Install development tooling with:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e .[dev]
+```
+
+Run the release hygiene gate with:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\check_release.py
+```
+
+The script builds the source distribution and wheel, runs `twine check`,
+inspects archive contents for required files and excluded junk, then installs
+the built wheel into a temporary virtual environment for import and basic CLI
+smoke checks. TestPyPI/PyPI publishing is future work.
+
 ## Versioning
 
 LitLaunch uses `0.0.0` style internal versioning:

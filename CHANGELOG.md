@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.9.1
+
+- Added release hygiene tooling for build, metadata, wheel, and sdist checks.
+- Added installed-wheel smoke checks for imports and basic CLI commands.
+- Added dev-only build and twine tooling for repeatable artifact validation.
+
 ## 0.9.0
 
 - Added ordered raw Streamlit argument passthrough and CLI app-arg splitting.

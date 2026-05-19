@@ -26,10 +26,15 @@ class FakePortManager:
     def __init__(self, port):
         self.port = port
         self.calls = []
+        self.available_port_calls = []
 
     def resolve_port(self, config):
         self.calls.append(config)
         return self.port
+
+    def find_available_port(self, host, start_port=8501, max_attempts=100):
+        self.available_port_calls.append((host, start_port, max_attempts))
+        return start_port
 
 
 class FakePopen:
@@ -44,8 +49,8 @@ class FakeProcessManager:
         self.started = []
         self.stopped = []
 
-    def start(self, command):
-        self.started.append(command)
+    def start(self, command, **kwargs):
+        self.started.append((command, kwargs))
         return ManagedProcess(FakePopen(), tuple(command))
 
     def stop(self, process):
@@ -139,7 +144,10 @@ def test_start_backend_resolves_port_builds_command_and_waits_for_health():
     assert session.command is not None
     assert session.command[session.command.index("--server.port") + 1] == "8600"
     assert session.process is not None
-    assert process_manager.started == [session.command]
+    assert len(process_manager.started) == 1
+    assert process_manager.started[0][0] == session.command
+    assert process_manager.started[0][1]["env"]["LITLAUNCH_SHUTDOWN_ENABLED"] == "1"
+    assert process_manager.started[0][1]["env"]["LITLAUNCH_SHUTDOWN_PORT"] == "8601"
     assert process_manager.stopped == []
     assert health_checker.calls == [("http://127.0.0.1:8600/_stcore/health", 3.0, 0.1)]
     assert [event.state for event in result.events] == [
@@ -234,6 +242,31 @@ def test_run_starts_backend_waits_health_resolves_and_launches_browser():
         ("--x",),
     )
     assert process_manager.stopped == []
+
+
+def test_start_backend_injects_shutdown_env_with_distinct_port_and_private_token():
+    process_manager = FakeProcessManager()
+    port_manager = FakePortManager(8610)
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=port_manager,
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend()
+
+    env = process_manager.started[0][1]["env"]
+    token = env["LITLAUNCH_SHUTDOWN_TOKEN"]
+    assert session.process is not None
+    assert session.shutdown_client is not None
+    assert env["LITLAUNCH_SHUTDOWN_HOST"] == "127.0.0.1"
+    assert env["LITLAUNCH_SHUTDOWN_PORT"] == "8611"
+    assert env["LITLAUNCH_SHUTDOWN_PORT"] != "8610"
+    assert token
+    assert session.shutdown_client.port == 8611
+    assert all(token not in event.message for event in session.events)
 
 
 def test_run_health_failure_stops_only_backend_before_browser_resolution():

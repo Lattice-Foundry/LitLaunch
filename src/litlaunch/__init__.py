@@ -18,6 +18,13 @@ from litlaunch.platforms import (
     PlatformInfo,
 )
 from litlaunch.session import RuntimeSession
+from litlaunch.shutdown import (
+    LauncherRuntime,
+    ShutdownHook,
+    ShutdownHookRegistry,
+    ShutdownHookResult,
+    ShutdownResult,
+)
 from litlaunch.version import __version__
 
 __all__ = [
@@ -35,10 +42,15 @@ __all__ = [
     "LaunchEvent",
     "LaunchResult",
     "LaunchState",
+    "LauncherRuntime",
     "OperatingSystem",
     "PlatformDetector",
     "PlatformInfo",
     "RuntimeSession",
+    "ShutdownHook",
+    "ShutdownHookRegistry",
+    "ShutdownHookResult",
+    "ShutdownResult",
     "StreamlitLauncher",
     "__version__",
 ]

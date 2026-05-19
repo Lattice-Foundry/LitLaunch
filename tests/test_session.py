@@ -1,7 +1,10 @@
+import subprocess
+
 from litlaunch.browsers import BrowserCapability, BrowserKind
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess
 from litlaunch.session import RuntimeSession
+from litlaunch.shutdown import ShutdownRequestResult
 
 
 class FakeClock:
@@ -18,9 +21,10 @@ class FakePopen:
 
 
 class FakeProcessManager:
-    def __init__(self, *, running=True, wait_return=0):
+    def __init__(self, *, running=True, wait_return=0, wait_timeout=False):
         self.running = running
         self.wait_return = wait_return
+        self.wait_timeout = wait_timeout
         self.is_running_calls = []
         self.stop_calls = []
         self.wait_calls = []
@@ -35,8 +39,24 @@ class FakeProcessManager:
 
     def wait(self, process, timeout_seconds=None):
         self.wait_calls.append((process, timeout_seconds))
+        if self.wait_timeout:
+            raise subprocess.TimeoutExpired("fake", timeout_seconds)
         self.running = False
         return self.wait_return
+
+
+class FakeShutdownClient:
+    def __init__(self, *, ok=True):
+        self.ok = ok
+        self.calls = 0
+
+    def request_shutdown(self):
+        self.calls += 1
+        return ShutdownRequestResult(
+            ok=self.ok,
+            status_code=200 if self.ok else 500,
+            message="accepted" if self.ok else "failed",
+        )
 
 
 def make_result(*, browser=None, browser_launched=False):
@@ -206,6 +226,69 @@ def test_runtime_session_context_manager_stops_on_exit():
         assert active is session
 
     assert manager.stop_calls == [(process, 5.0)]
+
+
+def test_runtime_session_stop_requests_graceful_shutdown_before_fallback():
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    shutdown_client = FakeShutdownClient(ok=True)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        clock=FakeClock(),
+    )
+
+    session.stop(timeout_seconds=2.0, graceful_timeout_seconds=0.5)
+
+    assert shutdown_client.calls == 1
+    assert manager.wait_calls == [(process, 0.5)]
+    assert manager.stop_calls == []
+    assert session.state == LaunchState.TERMINATED
+    assert "Graceful shutdown request accepted." in {
+        event.message for event in session.events
+    }
+
+
+def test_runtime_session_stop_uses_fallback_when_graceful_request_fails():
+    process = make_process()
+    manager = FakeProcessManager()
+    shutdown_client = FakeShutdownClient(ok=False)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        clock=FakeClock(),
+    )
+
+    session.stop(timeout_seconds=2.0)
+
+    assert shutdown_client.calls == 1
+    assert manager.wait_calls == []
+    assert manager.stop_calls == [(process, 2.0)]
+    assert session.state == LaunchState.TERMINATED
+
+
+def test_runtime_session_stop_uses_fallback_when_graceful_wait_times_out():
+    process = make_process()
+    manager = FakeProcessManager(wait_timeout=True)
+    shutdown_client = FakeShutdownClient(ok=True)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        clock=FakeClock(),
+    )
+
+    session.stop(timeout_seconds=2.0, graceful_timeout_seconds=0.5)
+
+    assert shutdown_client.calls == 1
+    assert manager.wait_calls == [(process, 0.5)]
+    assert manager.stop_calls == [(process, 2.0)]
+    assert session.state == LaunchState.TERMINATED
 
 
 def test_runtime_session_has_no_browser_process_ownership_surface():

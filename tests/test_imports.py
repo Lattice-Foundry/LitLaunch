@@ -12,6 +12,7 @@ from litlaunch import (
     BrowserResolution,
     ConfigurationError,
     LauncherConfig,
+    LauncherRuntime,
     LaunchEvent,
     LaunchMode,
     LaunchResult,
@@ -21,6 +22,10 @@ from litlaunch import (
     PlatformDetector,
     PlatformInfo,
     RuntimeSession,
+    ShutdownHook,
+    ShutdownHookRegistry,
+    ShutdownHookResult,
+    ShutdownResult,
     StreamlitLauncher,
     __version__,
 )
@@ -43,6 +48,11 @@ def test_public_imports_are_available():
     assert PlatformDetector
     assert PlatformInfo
     assert RuntimeSession
+    assert LauncherRuntime
+    assert ShutdownHook
+    assert ShutdownHookRegistry
+    assert ShutdownHookResult
+    assert ShutdownResult
     assert StreamlitLauncher
 
 
@@ -61,19 +71,24 @@ def test_public_all_is_explicit():
         "LaunchResult",
         "LaunchState",
         "LauncherConfig",
+        "LauncherRuntime",
         "LitLaunchError",
         "OperatingSystem",
         "PlatformDetector",
         "PlatformInfo",
         "RuntimeSession",
+        "ShutdownHook",
+        "ShutdownHookRegistry",
+        "ShutdownHookResult",
+        "ShutdownResult",
         "StreamlitLauncher",
         "__version__",
     ]
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.5.0"
-    assert __version__ == "0.5.0"
+    assert litlaunch.__version__ == "0.6.0"
+    assert __version__ == "0.6.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

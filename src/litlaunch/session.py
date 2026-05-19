@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import subprocess
 import time
 
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess, ProcessManager
+from litlaunch.shutdown import ShutdownClient
 
 
 class RuntimeSession:
@@ -21,11 +23,13 @@ class RuntimeSession:
         result: LaunchResult,
         process: ManagedProcess | None,
         process_manager: ProcessManager,
+        shutdown_client: ShutdownClient | None = None,
         clock: object = time,
     ) -> None:
         self.result = result
         self.process = process
         self.process_manager = process_manager
+        self.shutdown_client = shutdown_client
         self.clock = clock
         self._events = list(result.events)
         self._state = result.state
@@ -92,13 +96,59 @@ class RuntimeSession:
             self.process
         )
 
-    def stop(self, timeout_seconds: float = 5.0) -> None:
-        """Stop the owned backend process exactly once."""
+    def stop(
+        self,
+        timeout_seconds: float = 5.0,
+        *,
+        graceful_timeout_seconds: float = 3.0,
+    ) -> None:
+        """Gracefully stop the app, then terminate the owned backend if needed."""
 
         if self.process is None or self._stopped:
             return
 
-        self.add_event(LaunchState.TERMINATING, "Stopping owned backend process.")
+        if self.shutdown_client is not None and self.is_running():
+            self.add_event(LaunchState.TERMINATING, "Requesting graceful shutdown.")
+            request_result = self.shutdown_client.request_shutdown()
+            if request_result.ok:
+                self.add_event(
+                    LaunchState.TERMINATING,
+                    "Graceful shutdown request accepted.",
+                )
+                try:
+                    returncode = self.process_manager.wait(
+                        self.process,
+                        timeout_seconds=graceful_timeout_seconds,
+                    )
+                except subprocess.TimeoutExpired:
+                    self.add_event(
+                        LaunchState.TERMINATING,
+                        "Graceful shutdown timed out; using termination fallback.",
+                    )
+                else:
+                    self._stopped = True
+                    self._state = LaunchState.TERMINATED
+                    self.add_event(
+                        LaunchState.TERMINATED,
+                        f"Owned backend process exited with code {returncode}.",
+                    )
+                    return
+            else:
+                self.add_event(
+                    LaunchState.TERMINATING,
+                    "Graceful shutdown request failed; using termination fallback.",
+                )
+
+        if not self.is_running():
+            self._stopped = True
+            self._state = LaunchState.TERMINATED
+            self.add_event(LaunchState.TERMINATED, "Owned backend process stopped.")
+            return
+
+        self.add_event(
+            LaunchState.TERMINATING,
+            "Stopping owned backend process with termination fallback.",
+        )
         self.process_manager.stop(
             self.process,
             terminate_timeout_seconds=timeout_seconds,

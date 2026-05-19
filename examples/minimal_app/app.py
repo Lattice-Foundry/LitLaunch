@@ -9,6 +9,22 @@ from pathlib import Path
 
 import streamlit as st
 
+from litlaunch import LauncherRuntime
+
+runtime = LauncherRuntime.from_env()
+
+
+@runtime.shutdown_hook(
+    label="Closing example resources",
+    success_message="Example resources closed",
+    color="streamlit_blue",
+)
+def close_example_resources():
+    return None
+
+
+runtime.enable_shutdown_endpoint()
+
 st.set_page_config(page_title="LitLaunch Example App", layout="centered")
 
 st.title("LitLaunch Example App")
@@ -21,6 +37,10 @@ st.write(f"Python: `{sys.version.split()[0]}`")
 st.write(f"Platform: `{platform.platform()}`")
 st.write(f"Working directory: `{Path.cwd()}`")
 st.write(f"UTC time: `{datetime.now(timezone.utc).isoformat(timespec='seconds')}`")
+st.write(
+    "Graceful shutdown runtime: "
+    f"`{'available' if runtime.available else 'not available'}`"
+)
 
 query_params = dict(st.query_params)
 if query_params:

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import os
+import secrets
 import time
 from dataclasses import replace
+from typing import NamedTuple
 
 from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
@@ -17,7 +20,14 @@ from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.ports import PortManager
 from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.session import RuntimeSession
+from litlaunch.shutdown import DEFAULT_SHUTDOWN_HOST, ShutdownClient, ShutdownConfig
 from litlaunch.streamlit import StreamlitCommandBuilder
+
+
+class _BackendStart(NamedTuple):
+    result: LaunchResult
+    process: ManagedProcess | None
+    shutdown_client: ShutdownClient | None
 
 
 class StreamlitLauncher:
@@ -92,15 +102,16 @@ class StreamlitLauncher:
     ) -> RuntimeSession:
         """Start the Streamlit backend without launching a browser."""
 
-        result, managed_process = self._start_backend(
+        backend_start = self._start_backend(
             wait_for_health=wait_for_health,
             health_timeout_seconds=health_timeout_seconds,
             health_interval_seconds=health_interval_seconds,
         )
         return RuntimeSession(
-            result=result,
-            process=managed_process,
+            result=backend_start.result,
+            process=backend_start.process,
             process_manager=self.process_manager,
+            shutdown_client=backend_start.shutdown_client,
             clock=self.clock,
         )
 
@@ -114,14 +125,16 @@ class StreamlitLauncher:
 
         On success, the Streamlit backend remains running and owned by this
         returned RuntimeSession. Window monitoring and graceful shutdown hooks
-        are future lifecycle layers.
+        build on this lifecycle boundary.
         """
 
-        backend_result, managed_process = self._start_backend(
+        backend_start = self._start_backend(
             wait_for_health=True,
             health_timeout_seconds=health_timeout_seconds,
             health_interval_seconds=health_interval_seconds,
         )
+        backend_result = backend_start.result
+        managed_process = backend_start.process
         if (
             not backend_result.ok
             or managed_process is None
@@ -131,6 +144,7 @@ class StreamlitLauncher:
                 result=backend_result,
                 process=None,
                 process_manager=self.process_manager,
+                shutdown_client=None,
                 clock=self.clock,
             )
 
@@ -172,6 +186,7 @@ class StreamlitLauncher:
                 result=failure_result,
                 process=None,
                 process_manager=self.process_manager,
+                shutdown_client=None,
                 clock=self.clock,
             )
 
@@ -192,6 +207,7 @@ class StreamlitLauncher:
             result=result,
             process=managed_process,
             process_manager=self.process_manager,
+            shutdown_client=backend_start.shutdown_client,
             clock=self.clock,
         )
 
@@ -214,7 +230,7 @@ class StreamlitLauncher:
         wait_for_health: bool,
         health_timeout_seconds: float,
         health_interval_seconds: float,
-    ) -> tuple[LaunchResult, ManagedProcess | None]:
+    ) -> _BackendStart:
         """Start the Streamlit backend and return the managed process."""
 
         events: list[LaunchEvent] = []
@@ -224,6 +240,7 @@ class StreamlitLauncher:
         command: tuple[str, ...] | None = None
         pid: int | None = None
         app_url: str | None = None
+        shutdown_client: ShutdownClient | None = None
 
         try:
             port = self.resolve_port()
@@ -232,10 +249,17 @@ class StreamlitLauncher:
             )
             command = self.command_builder.build(port=port)
             self._record(events, LaunchState.COMMAND_BUILT, "Streamlit command built.")
+            shutdown_config = self._build_shutdown_config(app_port=port)
+            shutdown_client = ShutdownClient(
+                host=shutdown_config.host,
+                port=shutdown_config.port,
+                token=shutdown_config.token,
+            )
+            env = self._build_backend_env(shutdown_config)
             self._record(
                 events, LaunchState.PROCESS_STARTING, "Starting Streamlit backend."
             )
-            managed_process = self.process_manager.start(command)
+            managed_process = self.process_manager.start(command, env=env)
             pid = getattr(managed_process.popen, "pid", None)
             app_url = build_streamlit_app_url(self.config.host, port)
             health_url = build_streamlit_health_url(self.config.host, port)
@@ -268,7 +292,7 @@ class StreamlitLauncher:
                         LaunchState.FAILED,
                         "Streamlit health check timed out.",
                     )
-                    return (
+                    return _BackendStart(
                         LaunchResult(
                             ok=False,
                             state=LaunchState.FAILED,
@@ -279,12 +303,13 @@ class StreamlitLauncher:
                             events=tuple(events),
                         ),
                         None,
+                        None,
                     )
 
                 self._record(
                     events, LaunchState.HEALTHY, "Streamlit backend is healthy."
                 )
-                return (
+                return _BackendStart(
                     LaunchResult(
                         ok=True,
                         state=LaunchState.HEALTHY,
@@ -295,6 +320,7 @@ class StreamlitLauncher:
                         events=tuple(events),
                     ),
                     managed_process,
+                    shutdown_client,
                 )
 
             self._record(
@@ -302,7 +328,7 @@ class StreamlitLauncher:
                 LaunchState.PROCESS_RUNNING,
                 "Health check skipped; backend process is running.",
             )
-            return (
+            return _BackendStart(
                 LaunchResult(
                     ok=True,
                     state=LaunchState.PROCESS_RUNNING,
@@ -313,10 +339,11 @@ class StreamlitLauncher:
                     events=tuple(events),
                 ),
                 managed_process,
+                shutdown_client,
             )
         except Exception as exc:
             self._record(events, LaunchState.FAILED, str(exc))
-            return (
+            return _BackendStart(
                 LaunchResult(
                     ok=False,
                     state=LaunchState.FAILED,
@@ -326,6 +353,7 @@ class StreamlitLauncher:
                     message=str(exc),
                     events=tuple(events),
                 ),
+                None,
                 None,
             )
 
@@ -347,3 +375,23 @@ class StreamlitLauncher:
                 timestamp=self.clock.monotonic(),
             )
         )
+
+    def _build_shutdown_config(self, *, app_port: int) -> ShutdownConfig:
+        start_port = app_port + 1 if app_port < 65535 else 1
+        shutdown_port = self.port_manager.find_available_port(
+            DEFAULT_SHUTDOWN_HOST,
+            start_port=start_port,
+        )
+        if shutdown_port == app_port:
+            shutdown_port = self.port_manager.find_available_port(
+                DEFAULT_SHUTDOWN_HOST,
+                start_port=app_port + 1 if app_port < 65535 else 1,
+            )
+        return ShutdownConfig(
+            host=DEFAULT_SHUTDOWN_HOST,
+            port=shutdown_port,
+            token=secrets.token_urlsafe(32),
+        )
+
+    def _build_backend_env(self, shutdown_config: ShutdownConfig) -> dict[str, str]:
+        return {**os.environ, **shutdown_config.as_env()}

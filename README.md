@@ -70,8 +70,31 @@ LitLaunch can now orchestrate backend startup, Streamlit health checks, browser
 capability resolution, browser launch, and explicit runtime-session ownership.
 Browser mode and Chromium app-mode are supported through command-based adapters.
 Advanced Streamlit flags and app arguments remain part of the compatibility
-model, while window monitoring and graceful app shutdown hooks remain future
-work.
+model, while window monitoring remains future work.
+
+## Graceful Shutdown
+
+Streamlit apps can opt in to cleanup hooks when launched by LitLaunch:
+
+```python
+from litlaunch import LauncherRuntime
+
+runtime = LauncherRuntime.from_env()
+
+
+@runtime.shutdown_hook(label="Closing resources", color="streamlit_blue")
+def close_resources():
+    ...
+
+
+runtime.enable_shutdown_endpoint()
+```
+
+This is safe when the app is run with plain `streamlit run`: registration still
+works and the endpoint simply does not start. During `RuntimeSession.stop()`,
+LitLaunch requests graceful shutdown first, then falls back to terminating only
+the owned Streamlit backend process if needed. Browser processes are not killed.
+The `color` metadata is stored now for future console/theme rendering.
 
 ## Examples
 

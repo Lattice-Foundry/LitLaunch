@@ -25,6 +25,11 @@ from litlaunch.inspect import (
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector
 from litlaunch.version import __version__
+from litlaunch.windowing import (
+    WindowMonitorStatus,
+    WindowTarget,
+    create_window_monitor,
+)
 
 
 @dataclass(frozen=True)
@@ -35,6 +40,7 @@ class _CliContext:
     browser_registry_factory: Any
     launcher_factory: Any
     diagnostic_collector_factory: Any
+    window_monitor_factory: Any
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -114,6 +120,7 @@ def main(
     browser_registry_factory: Any = create_default_browser_registry,
     launcher_factory: Any = StreamlitLauncher,
     diagnostic_collector_factory: Any = DiagnosticCollector,
+    window_monitor_factory: Any = create_window_monitor,
 ) -> int:
     """Run the LitLaunch CLI."""
 
@@ -137,6 +144,7 @@ def main(
         browser_registry_factory=browser_registry_factory,
         launcher_factory=launcher_factory,
         diagnostic_collector_factory=diagnostic_collector_factory,
+        window_monitor_factory=window_monitor_factory,
     )
     try:
         return int(args.handler(args, context))
@@ -262,6 +270,9 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
     if session.process is None:
         return 0
 
+    if args.monitor_window:
+        return _monitor_session_window(args, context, config, session)
+
     try:
         returncode = session.wait()
     except KeyboardInterrupt:
@@ -307,6 +318,11 @@ def _add_runtime_flags(
             "--dry-run",
             action="store_true",
             help="Print the resolved Streamlit command without starting runtime.",
+        )
+        parser.add_argument(
+            "--monitor-window",
+            action="store_true",
+            help="Monitor the Chromium app-mode window and stop runtime on close.",
         )
     parser.add_argument(
         "--no-browser-fallback",
@@ -402,7 +418,7 @@ def _runtime_config_from_args(args: argparse.Namespace) -> LauncherConfig:
         raise LitLaunchError(f"Streamlit app path does not exist: {app_path}")
 
     streamlit_args, app_args = _split_passthrough_args(args.passthrough_args)
-    return LauncherConfig(
+    config = LauncherConfig(
         app_path=app_path,
         mode=args.mode or LaunchMode.BROWSER,
         browser=args.browser or BrowserChoice.AUTO,
@@ -413,6 +429,56 @@ def _runtime_config_from_args(args: argparse.Namespace) -> LauncherConfig:
         streamlit_args=streamlit_args,
         app_args=(*tuple(args.app_arg), *app_args),
     )
+    if getattr(args, "monitor_window", False) and config.mode != LaunchMode.WEBAPP:
+        raise LitLaunchError("--monitor-window is only valid with --mode webapp.")
+    return config
+
+
+def _monitor_session_window(
+    args: argparse.Namespace,
+    context: _CliContext,
+    config: LauncherConfig,
+    session: Any,
+) -> int:
+    renderer = _renderer(args, context)
+    platform_info = context.platform_detector_factory().detect()
+    monitor = context.window_monitor_factory(platform_info)
+    target = WindowTarget(
+        config.title,
+        url=session.url,
+        browser_kind=getattr(session.browser, "kind", None),
+        app_mode=True,
+    )
+
+    renderer.info("Window monitoring started.")
+    try:
+        result = session.monitor_window(monitor, target)
+    except KeyboardInterrupt:
+        renderer.warning("Interrupt received; stopping runtime.")
+        session.stop()
+        return 0
+
+    if result.status == WindowMonitorStatus.UNSUPPORTED:
+        renderer.error(result.message)
+        session.stop()
+        return 1
+    if result.status == WindowMonitorStatus.TIMEOUT:
+        renderer.error(result.message)
+        session.stop()
+        return 1
+    if result.status == WindowMonitorStatus.ERROR:
+        renderer.error(result.message)
+        session.stop()
+        return 1
+    if result.closed:
+        renderer.success(result.message)
+        return 0
+    if result.status == WindowMonitorStatus.BACKEND_EXITED:
+        renderer.info(result.message)
+        return 0
+
+    renderer.warning(result.message)
+    return 1
 
 
 def _validate_inspect_output_args(args: argparse.Namespace) -> None:

@@ -89,9 +89,9 @@ Raw Streamlit passthrough is supported before Streamlit's own `--` separator,
 and app arguments remain after that separator.
 
 Known provisional areas are intentionally called out: diagnostics are lightweight
-plain-text helpers for now, a web inspector/dashboard is future work, CLI
-window-monitor wiring is future work, and packaging/install guidance is future
-work.
+plain-text helpers for now, a web inspector/dashboard is future work, richer
+window-monitor defaults are future work, and packaging/install guidance is
+future work.
 
 ## Window Monitoring
 
@@ -99,7 +99,9 @@ LitLaunch includes the first opt-in window monitoring foundation for future
 Chromium app-mode runtime flows. The current API provides observation-only
 contracts, a no-op monitor for unsupported environments, a fake-friendly polling
 monitor foundation, and a Windows Chromium HWND provider built on stable Win32
-APIs available on Windows 10 and Windows 11. CLI wiring remains future work.
+APIs available on Windows 10 and Windows 11.
+`litlaunch run --mode webapp --monitor-window` can opt into waiting for the
+app-mode window and stopping the owned Streamlit backend when that window closes.
 Window monitors observe app windows only; `RuntimeSession` remains responsible
 for graceful backend shutdown, and LitLaunch never owns, stops, or kills browser
 processes.
@@ -156,6 +158,7 @@ litlaunch command examples/minimal_app/app.py --server.runOnSave true
 litlaunch run examples/minimal_app/app.py
 litlaunch run examples/minimal_app/app.py --dry-run --theme.base=dark
 litlaunch run app.py --mode webapp --browser auto
+litlaunch run app.py --mode webapp --monitor-window
 litlaunch run app.py --streamlit-flag server.maxUploadSize=200 -- --demo
 ```
 
@@ -167,7 +170,9 @@ fails clearly when that fixture is unavailable.
 Explicit browser choices use fallback only when `allow_browser_fallback` is true
 or `--no-browser-fallback` is not set. In webapp mode, fallback remains limited
 to app-mode-capable browsers. In browser mode, fallback may eventually resolve to
-the system default browser.
+the system default browser. `--monitor-window` is valid only with
+`--mode webapp`; unsupported monitors fail clearly instead of silently ignoring
+explicit user intent.
 
 ## Inspect
 

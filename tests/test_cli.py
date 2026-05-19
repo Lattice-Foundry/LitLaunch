@@ -25,6 +25,7 @@ from litlaunch.inspect import (
 )
 from litlaunch.lifecycle import LaunchResult, LaunchState
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
+from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
 
 EXAMPLE_APP = Path("examples/minimal_app/app.py")
 
@@ -97,14 +98,23 @@ class FakeBrowserRegistry:
 
 
 class FakeSession:
-    def __init__(self, *, ok=True, wait_return=0, wait_raises=False):
+    def __init__(
+        self,
+        *,
+        ok=True,
+        wait_return=0,
+        wait_raises=False,
+        monitor_result=None,
+    ):
         self.ok = ok
         self.url = "http://127.0.0.1:8501"
         self.process = object() if ok else None
         self.wait_return = wait_return
         self.wait_raises = wait_raises
+        self.monitor_result = monitor_result
         self.wait_calls = 0
         self.stop_calls = 0
+        self.monitor_calls = []
         self.result = LaunchResult(
             ok=ok,
             state=LaunchState.RUNNING if ok else LaunchState.FAILED,
@@ -123,6 +133,23 @@ class FakeSession:
 
     def stop(self):
         self.stop_calls += 1
+
+    @property
+    def browser(self):
+        return self.result.browser
+
+    def monitor_window(self, monitor, target):
+        self.monitor_calls.append((monitor, target))
+        result = self.monitor_result or WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=True,
+            status=WindowMonitorStatus.WINDOW_CLOSED,
+            message="window closed",
+        )
+        if result.closed:
+            self.stop()
+        return result
 
 
 class FakeLauncher:
@@ -346,7 +373,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.15.0"
+    assert data["litlaunch_version"] == "0.16.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -705,6 +732,134 @@ def test_cli_run_keyboard_interrupt_stops_session():
     assert code == 0
     assert session.stop_calls == 1
     assert "Interrupt received; stopping runtime." in stream.getvalue()
+
+
+def test_cli_run_monitor_window_requires_webapp_mode():
+    stream = StringIO()
+
+    def launcher_factory(*args, **kwargs):
+        raise AssertionError("launcher should not be constructed for invalid mode")
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--monitor-window"],
+        stream=stream,
+        launcher_factory=launcher_factory,
+    )
+
+    assert code == 2
+    assert "--monitor-window is only valid with --mode webapp" in stream.getvalue()
+
+
+def test_cli_run_monitor_window_closure_stops_runtime():
+    stream = StringIO()
+    session = FakeSession(
+        ok=True,
+        monitor_result=WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=True,
+            status=WindowMonitorStatus.WINDOW_CLOSED,
+            message="window closed",
+        ),
+    )
+    monitor = object()
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--mode", "webapp", "--monitor-window"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: monitor,
+    )
+
+    output = stream.getvalue()
+    assert code == 0
+    assert session.wait_calls == 0
+    assert session.stop_calls == 1
+    assert session.monitor_calls[0][0] is monitor
+    assert session.monitor_calls[0][1].title == "Streamlit App"
+    assert session.monitor_calls[0][1].app_mode is True
+    assert "Window monitoring started." in output
+    assert "window closed" in output
+
+
+def test_cli_run_monitor_window_unsupported_returns_nonzero_and_stops_runtime():
+    stream = StringIO()
+    session = FakeSession(
+        ok=True,
+        monitor_result=WindowMonitorResult(
+            supported=False,
+            observed=False,
+            closed=False,
+            status=WindowMonitorStatus.UNSUPPORTED,
+            message="window monitoring unsupported",
+        ),
+    )
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--mode", "webapp", "--monitor-window"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: object(),
+    )
+
+    assert code == 1
+    assert session.stop_calls == 1
+    assert "window monitoring unsupported" in stream.getvalue()
+
+
+def test_cli_run_monitor_window_backend_exit_returns_zero_without_extra_stop():
+    stream = StringIO()
+    session = FakeSession(
+        ok=True,
+        monitor_result=WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=False,
+            status=WindowMonitorStatus.BACKEND_EXITED,
+            message="backend exited",
+        ),
+    )
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--mode", "webapp", "--monitor-window"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: object(),
+    )
+
+    assert code == 0
+    assert session.wait_calls == 0
+    assert session.stop_calls == 0
+    assert "backend exited" in stream.getvalue()
+
+
+def test_cli_run_monitor_window_timeout_returns_nonzero_and_stops_runtime():
+    stream = StringIO()
+    session = FakeSession(
+        ok=True,
+        monitor_result=WindowMonitorResult(
+            supported=True,
+            observed=False,
+            closed=False,
+            status=WindowMonitorStatus.TIMEOUT,
+            message="timed out",
+        ),
+    )
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--mode", "webapp", "--monitor-window"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: object(),
+    )
+
+    assert code == 1
+    assert session.stop_calls == 1
+    assert "timed out" in stream.getvalue()
 
 
 def test_cli_quiet_suppresses_run_success_message():

@@ -67,7 +67,7 @@ def test_readme_no_longer_uses_early_foundation_status():
     normalized = " ".join(readme.split()).lower()
     assert "diagnostics are lightweight" in normalized
     assert "web inspector/dashboard is future work" in normalized
-    assert "cli window-monitor wiring is future work" in normalized
+    assert "richer window-monitor defaults are future work" in normalized
     assert "packaging/install guidance is future work" in normalized
     assert "Example files are source-checkout fixtures" in readme
 

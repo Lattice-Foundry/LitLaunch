@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.16.0
+
+- Added explicit CLI opt-in window monitoring with `litlaunch run --monitor-window`.
+- Restricted CLI window monitoring to webapp mode and fail clearly when unsupported.
+- Wired monitored app-window close results through `RuntimeSession.stop()`.
+
 ## 0.15.0
 
 - Added a Windows HWND capture provider using stable Win32 APIs through `ctypes`.

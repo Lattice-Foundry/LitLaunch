@@ -101,6 +101,11 @@ def test_streamlit_app_and_extra_browser_args_become_tuples():
     assert config.extra_browser_args == ("--new-window",)
 
 
+def test_streamlit_args_reject_plain_string():
+    with pytest.raises(ConfigurationError, match="streamlit_args must be a sequence"):
+        LauncherConfig(app_path="app.py", streamlit_args="--server.runOnSave true")
+
+
 def test_streamlit_flags_mapping_is_copy_safe():
     flags = {"server.maxUploadSize": 1024}
     config = LauncherConfig(app_path="app.py", streamlit_flags=flags)

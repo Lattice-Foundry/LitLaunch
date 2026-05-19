@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from io import StringIO
 from pathlib import Path
 
@@ -120,6 +121,18 @@ class FakeLauncher:
     def resolve_port(self):
         return self.config.port or 8501
 
+    def build_app_url(self, port=None):
+        resolved_port = port or self.resolve_port()
+        return f"http://{self.config.host}:{resolved_port}"
+
+    def resolve_browser(self):
+        return BrowserResolution(
+            requested=self.config.browser,
+            selected=None,
+            fallback_chain=(),
+            message="Selected default browser.",
+        )
+
     def run(self):
         self.run_calls += 1
         return FakeLauncher.next_session
@@ -131,7 +144,7 @@ class FakeCommandBuilder:
 
     def build(self, *, port=None):
         command = [
-            "python",
+            sys.executable,
             "-m",
             "streamlit",
             "run",
@@ -324,6 +337,9 @@ def test_cli_run_dry_run_prints_command_without_starting_backend():
     assert launcher.config.streamlit_args == ("--server.runOnSave", "true")
     assert launcher.config.app_args == ("--workspace", "demo")
     assert "Dry run" in output
+    assert "App URL: http://127.0.0.1:8600" in output
+    assert "Mode: browser" in output
+    assert "Browser: Selected default browser." in output
     assert "--server.runOnSave true -- --workspace demo" in output
 
 
@@ -355,6 +371,7 @@ def test_cli_command_prints_resolved_streamlit_command():
         "--logger.enableRich",
     )
     assert launcher.config.app_args == ("--workspace", "demo")
+    assert sys.executable in output
     assert "streamlit run" in output
     assert "--theme.base=dark --logger.enableRich -- --workspace demo" in output
 

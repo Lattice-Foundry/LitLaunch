@@ -107,7 +107,7 @@ entry point; both return a `RuntimeSession`.
 | Browser mode | Alpha foundation | Uses default browser or detected Chromium browser capability. |
 | Chromium app-mode | Alpha | Edge and Chrome/Chromium adapters first. |
 | Browser fallback | Alpha | Explicit browser choices can fall back unless disabled. |
-| Graceful shutdown hooks | Alpha | Opt-in app runtime, tokened loopback endpoint, fallback backend termination. |
+| Graceful shutdown hooks | Alpha | Opt-in app runtime, tokened loopback endpoint, optional app completion callback, fallback backend termination. |
 | Inspect diagnostics | Alpha foundation | Text, JSON, and sanitized bundle output. No app launch. |
 | Window monitoring | Experimental | Opt-in, Windows Chromium app-mode first, observational only. |
 | Packaging guidance | Notes only | LitLaunch supports packaged apps conceptually but does not own packaging. |
@@ -124,6 +124,7 @@ litlaunch command app.py --server.runOnSave true -- --workspace demo
 litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
 litlaunch run app.py --mode webapp --monitor-window --title "My Streamlit App"
+litlaunch run app.py --mode webapp --monitor-window --graceful-timeout 15
 
 litlaunch inspect
 litlaunch inspect app.py --json

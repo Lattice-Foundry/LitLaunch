@@ -349,6 +349,15 @@ def _add_runtime_flags(
             action="store_true",
             help="Monitor the Chromium app-mode window and stop runtime on close.",
         )
+        parser.add_argument(
+            "--graceful-timeout",
+            type=float,
+            default=3.0,
+            help=(
+                "Seconds to wait for graceful app shutdown after monitored "
+                "window close."
+            ),
+        )
     parser.add_argument(
         "--no-browser-fallback",
         action="store_true",
@@ -457,6 +466,8 @@ def _runtime_config_from_args(args: argparse.Namespace) -> LauncherConfig:
     )
     if getattr(args, "monitor_window", False) and config.mode != LaunchMode.WEBAPP:
         raise LitLaunchError("--monitor-window is only valid with --mode webapp.")
+    if getattr(args, "graceful_timeout", 3.0) <= 0:
+        raise LitLaunchError("--graceful-timeout must be positive.")
     return config
 
 
@@ -521,7 +532,11 @@ def _monitor_session_window(
     )
 
     try:
-        result = session.monitor_window(monitor, target)
+        result = session.monitor_window(
+            monitor,
+            target,
+            graceful_timeout_seconds=args.graceful_timeout,
+        )
     except KeyboardInterrupt:
         renderer.warning("Interrupt received; stopping runtime.")
         session.stop()

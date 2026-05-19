@@ -451,6 +451,39 @@ def test_runtime_session_monitor_window_closed_result_stops_owned_backend():
     assert session.state == LaunchState.TERMINATED
 
 
+def test_runtime_session_monitor_window_passes_custom_graceful_timeout_to_stop():
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    shutdown_client = FakeShutdownClient(ok=True)
+    monitor = FakeWindowMonitor(
+        WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=True,
+            status=WindowMonitorStatus.WINDOW_CLOSED,
+            message="window closed",
+        )
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        clock=FakeClock(),
+    )
+
+    result = session.monitor_window(
+        monitor,
+        WindowTarget("Streamlit"),
+        graceful_timeout_seconds=12.5,
+    )
+
+    assert result.closed is True
+    assert shutdown_client.calls == 1
+    assert manager.wait_calls == [(process, 12.5)]
+    assert manager.stop_calls == []
+
+
 def test_runtime_session_monitor_window_unsupported_does_not_stop_backend():
     process = make_process()
     manager = FakeProcessManager()

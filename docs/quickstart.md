@@ -77,6 +77,35 @@ Prefer either structured `streamlit_flags` or raw `streamlit_args` for a given
 Streamlit option. LitLaunch suppresses its own defaults when user options
 overlap, but it does not deduplicate duplicate user options across both inputs.
 
+## App-Side Shutdown Cleanup
+
+Streamlit apps can opt into graceful cleanup when launched by LitLaunch:
+
+```python
+from litlaunch import LauncherRuntime
+
+runtime = LauncherRuntime.from_env()
+
+
+@runtime.shutdown_hook(label="Closing resources")
+def close_resources():
+    ...
+
+
+def finish_after_response(result):
+    if result.ok:
+        ...
+
+
+runtime.set_shutdown_completion_callback(finish_after_response)
+runtime.enable_shutdown_endpoint()
+```
+
+Shutdown hooks run before the endpoint responds to LitLaunch. The optional
+completion callback runs after the endpoint response is sent and is useful when
+an app needs to schedule its own final exit or post-response completion work.
+Duplicate shutdown requests do not rerun hooks or the completion callback.
+
 [screenshot needed]
 Capture: normal `litlaunch run examples/minimal_app/app.py --no-color` output.
 Demonstrate: backend, health, browser, and runtime-ready phase output.

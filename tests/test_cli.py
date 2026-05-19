@@ -118,6 +118,7 @@ class FakeSession:
         self.monitor_result = monitor_result
         self.wait_calls = 0
         self.stop_calls = 0
+        self.stop_args = []
         self.monitor_calls = []
         self.result = LaunchResult(
             ok=ok,
@@ -135,15 +136,16 @@ class FakeSession:
             raise KeyboardInterrupt
         return self.wait_return
 
-    def stop(self):
+    def stop(self, *args, **kwargs):
         self.stop_calls += 1
+        self.stop_args.append((args, kwargs))
 
     @property
     def browser(self):
         return self.result.browser
 
-    def monitor_window(self, monitor, target):
-        self.monitor_calls.append((monitor, target))
+    def monitor_window(self, monitor, target, **kwargs):
+        self.monitor_calls.append((monitor, target, kwargs))
         result = self.monitor_result or WindowMonitorResult(
             supported=True,
             observed=True,
@@ -387,7 +389,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.25.0"
+    assert data["litlaunch_version"] == "0.26.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -794,6 +796,7 @@ def test_cli_run_monitor_window_closure_stops_runtime():
     assert session.wait_calls == 0
     assert session.stop_calls == 1
     assert session.monitor_calls[0][0] is monitor
+    assert session.monitor_calls[0][2]["graceful_timeout_seconds"] == 3.0
     assert monitor.capture_calls[0].title == "Streamlit App"
     assert session.monitor_calls[0][1].title == "Streamlit App"
     assert session.monitor_calls[0][1].app_mode is True
@@ -825,6 +828,51 @@ def test_cli_run_monitor_window_uses_configured_title():
     assert FakeLauncher.instances[0].config.title == "LitLaunch Example App"
     assert session.monitor_calls[0][1].title == "LitLaunch Example App"
     assert session.monitor_calls[0][1].baseline_handles == ("old",)
+
+
+def test_cli_run_monitor_window_passes_custom_graceful_timeout():
+    stream = StringIO()
+    session = FakeSession(ok=True)
+
+    code = main(
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--mode",
+            "webapp",
+            "--monitor-window",
+            "--graceful-timeout",
+            "14.5",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: FakeCliMonitor(),
+    )
+
+    assert code == 0
+    assert session.monitor_calls[0][2]["graceful_timeout_seconds"] == 14.5
+
+
+def test_cli_run_rejects_nonpositive_graceful_timeout():
+    stream = StringIO()
+
+    code = main(
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--mode",
+            "webapp",
+            "--monitor-window",
+            "--graceful-timeout",
+            "0",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(FakeSession(ok=True)),
+    )
+
+    assert code == 2
+    assert "--graceful-timeout must be positive" in stream.getvalue()
 
 
 def test_cli_run_monitor_window_unsupported_returns_nonzero_and_stops_runtime():

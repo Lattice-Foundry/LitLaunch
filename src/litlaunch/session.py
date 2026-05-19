@@ -288,6 +288,8 @@ class RuntimeSession:
         monitor: WindowMonitor,
         target: WindowTarget,
         config: WindowMonitorConfig | None = None,
+        *,
+        graceful_timeout_seconds: float = 3.0,
     ) -> WindowMonitorResult:
         """Monitor an app-mode window and stop the backend only after close."""
 
@@ -310,7 +312,7 @@ class RuntimeSession:
                 render=False,
             )
             self._render_window_monitor_result(result)
-            self.stop()
+            self.stop(graceful_timeout_seconds=graceful_timeout_seconds)
         elif result.status == WindowMonitorStatus.BACKEND_EXITED:
             self._stopped = True
             self._state = LaunchState.TERMINATED

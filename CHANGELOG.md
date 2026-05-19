@@ -3,6 +3,16 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.26.0
+
+- Added an optional app-side shutdown completion callback that runs after
+  shutdown hooks complete and the endpoint response is sent.
+- Hardened shutdown endpoint idempotency so hooks and completion callbacks do
+  not rerun on duplicate shutdown requests.
+- Added configurable graceful-timeout plumbing for monitor-window shutdown.
+- Documented generic shutdown hooks, completion callbacks, and monitor-window
+  graceful timeout behavior.
+
 ## 0.25.0
 
 - Documented inspect redaction limits and support-bundle review expectations.

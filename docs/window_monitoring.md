@@ -11,6 +11,12 @@ trigger graceful backend shutdown.
 litlaunch run app.py --mode webapp --monitor-window --browser edge
 ```
 
+If app cleanup needs more time after the window closes:
+
+```powershell
+litlaunch run app.py --mode webapp --monitor-window --graceful-timeout 15
+```
+
 If the browser window title differs from the default title:
 
 ```powershell
@@ -48,6 +54,10 @@ Window monitoring does not:
 When a close is observed, `RuntimeSession.stop()` performs graceful shutdown and
 owned-backend fallback termination if needed.
 
+`--graceful-timeout` controls how long the CLI waits for the backend to exit
+after a monitored-window shutdown request is accepted before using the
+owned-backend fallback.
+
 ## Timeout Behavior
 
 If no stable app window is observed before timeout, the monitor reports timeout.
@@ -62,4 +72,3 @@ defines safe defaults.
 [screenshot needed]
 Capture: Windows Edge app-mode minimal app window launched by LitLaunch.
 Demonstrate: title matching and separate app-mode window.
-

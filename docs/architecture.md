@@ -67,6 +67,13 @@ request timeout, and `stop(graceful_timeout_seconds=...)` controls how long the
 session waits for the backend to exit before using owned-process termination
 fallback.
 
+App code can register cleanup hooks with `LauncherRuntime`. Apps that need a
+post-response completion phase can also register a shutdown completion callback.
+The endpoint runs hooks, sends the HTTP response to LitLaunch, and then schedules
+the app-provided completion callback. Hooks and completion callbacks are
+idempotent for a single shutdown request sequence; duplicate shutdown requests
+return the stored result and do not rerun cleanup.
+
 ## Browser Flow
 
 ```text

@@ -1,5 +1,6 @@
 import json
 import socket
+import threading
 import urllib.error
 import urllib.request
 
@@ -149,6 +150,13 @@ def test_launcher_runtime_registration_works_when_unavailable():
     assert result.ok is True
 
 
+def test_launcher_runtime_requires_callable_completion_callback():
+    runtime = LauncherRuntime.from_env({})
+
+    with pytest.raises(ConfigurationError, match="completion callback"):
+        runtime.set_shutdown_completion_callback("nope")
+
+
 def test_launcher_runtime_has_no_duplicate_on_shutdown_alias():
     runtime = LauncherRuntime.from_env({})
 
@@ -252,6 +260,49 @@ def test_shutdown_endpoint_valid_post_runs_hooks_without_exposing_token():
     assert "secret-token" not in body
 
 
+def test_shutdown_endpoint_runs_completion_callback_after_response_is_sent():
+    port = available_port()
+    calls = []
+    completion_started = threading.Event()
+    completion_done = threading.Event()
+    release_completion = threading.Event()
+    runtime = LauncherRuntime(
+        config=ShutdownConfig(host="127.0.0.1", port=port, token="secret-token")
+    )
+    runtime.register_shutdown_hook(lambda: calls.append("hook"), label="Cleanup")
+
+    def completion(result):
+        completion_started.set()
+        release_completion.wait(timeout=2.0)
+        calls.append(("completion", result.ok))
+        completion_done.set()
+
+    runtime.set_shutdown_completion_callback(completion)
+    assert runtime.enable_shutdown_endpoint() is True
+    try:
+        body = (
+            urllib.request.urlopen(
+                urllib.request.Request(
+                    f"http://127.0.0.1:{port}/shutdown",
+                    method="POST",
+                    headers={SHUTDOWN_TOKEN_HEADER: "secret-token"},
+                ),
+                timeout=2.0,
+            )
+            .read()
+            .decode("utf-8")
+        )
+        assert completion_started.wait(timeout=2.0)
+        assert calls == ["hook"]
+        release_completion.set()
+        assert completion_done.wait(timeout=2.0)
+    finally:
+        runtime.close_shutdown_endpoint()
+
+    assert json.loads(body)["message"] == "Shutdown hooks completed."
+    assert calls == ["hook", ("completion", True)]
+
+
 def test_shutdown_endpoint_duplicate_post_does_not_rerun_hooks():
     port = available_port()
     calls = []
@@ -274,6 +325,108 @@ def test_shutdown_endpoint_duplicate_post_does_not_rerun_hooks():
     assert calls == ["cleanup"]
     assert json.loads(first)["message"] == "Shutdown hooks completed."
     assert json.loads(second)["message"] == "Shutdown already requested."
+
+
+def test_shutdown_endpoint_duplicate_post_does_not_rerun_completion_callback():
+    port = available_port()
+    calls = []
+    completion_done = threading.Event()
+    runtime = LauncherRuntime(
+        config=ShutdownConfig(host="127.0.0.1", port=port, token="secret-token")
+    )
+    runtime.register_shutdown_hook(lambda: calls.append("hook"), label="Cleanup")
+
+    def completion(result):
+        calls.append("completion")
+        completion_done.set()
+
+    runtime.set_shutdown_completion_callback(completion)
+    assert runtime.enable_shutdown_endpoint() is True
+    try:
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/shutdown",
+            method="POST",
+            headers={SHUTDOWN_TOKEN_HEADER: "secret-token"},
+        )
+        urllib.request.urlopen(request, timeout=2.0).read()
+        urllib.request.urlopen(request, timeout=2.0).read()
+        assert completion_done.wait(timeout=2.0)
+    finally:
+        runtime.close_shutdown_endpoint()
+
+    assert calls == ["hook", "completion"]
+
+
+def test_shutdown_endpoint_schedules_completion_after_hook_failure():
+    port = available_port()
+    completion_results = []
+    completion_done = threading.Event()
+    runtime = LauncherRuntime(
+        config=ShutdownConfig(host="127.0.0.1", port=port, token="secret-token")
+    )
+
+    def fail():
+        raise RuntimeError("boom")
+
+    def completion(result):
+        completion_results.append(result.ok)
+        completion_done.set()
+
+    runtime.register_shutdown_hook(fail, label="Cleanup")
+    runtime.set_shutdown_completion_callback(completion)
+    assert runtime.enable_shutdown_endpoint() is True
+    try:
+        with pytest.raises(urllib.error.HTTPError) as failure:
+            urllib.request.urlopen(
+                urllib.request.Request(
+                    f"http://127.0.0.1:{port}/shutdown",
+                    method="POST",
+                    headers={SHUTDOWN_TOKEN_HEADER: "secret-token"},
+                ),
+                timeout=2.0,
+            ).read()
+        assert completion_done.wait(timeout=2.0)
+    finally:
+        runtime.close_shutdown_endpoint()
+
+    assert failure.value.code == 500
+    assert completion_results == [False]
+
+
+def test_shutdown_completion_callback_exception_is_captured_without_token_leak():
+    port = available_port()
+    completion_done = threading.Event()
+    runtime = LauncherRuntime(
+        config=ShutdownConfig(host="127.0.0.1", port=port, token="secret-token")
+    )
+
+    def completion(result):
+        try:
+            raise RuntimeError("secret-token leaked")
+        finally:
+            completion_done.set()
+
+    runtime.set_shutdown_completion_callback(completion)
+    assert runtime.enable_shutdown_endpoint() is True
+    try:
+        body = (
+            urllib.request.urlopen(
+                urllib.request.Request(
+                    f"http://127.0.0.1:{port}/shutdown",
+                    method="POST",
+                    headers={SHUTDOWN_TOKEN_HEADER: "secret-token"},
+                ),
+                timeout=2.0,
+            )
+            .read()
+            .decode("utf-8")
+        )
+        assert completion_done.wait(timeout=2.0)
+    finally:
+        runtime.close_shutdown_endpoint()
+
+    assert "secret-token" not in body
+    assert runtime._shutdown_completion_error == "RuntimeError"
 
 
 def test_launcher_runtime_marks_shutdown_complete_for_idempotency():

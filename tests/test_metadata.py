@@ -47,7 +47,7 @@ def test_pyproject_urls_use_canonical_repository_location():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert "## 0.25.0" in changelog
+    assert "## 0.26.0" in changelog
     assert "## 0.23.0" in changelog
     assert "## 0.22.0" in changelog
     assert "## 0.21.0" in changelog
@@ -127,6 +127,8 @@ def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
     assert "`StreamlitLauncher.run()` is the friendly" in architecture
     assert "waits return `None`" in architecture
     assert "graceful_timeout_seconds" in troubleshooting
+    assert "set_shutdown_completion_callback" in quickstart
+    assert "after the endpoint response is sent" in quickstart
     assert "essential errors and failure guidance" in cli
 
 

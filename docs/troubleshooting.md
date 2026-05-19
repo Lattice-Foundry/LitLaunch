@@ -101,6 +101,8 @@ Check:
 - app calls `LauncherRuntime.from_env()`
 - app calls `runtime.enable_shutdown_endpoint()`
 - shutdown hooks complete quickly
+- apps that need to exit themselves after responding register a completion
+  callback with `runtime.set_shutdown_completion_callback(...)`
 - verbose output for safe runtime details
 
 ## Support Bundle

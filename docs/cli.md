@@ -42,11 +42,15 @@ Window monitoring is explicit and webapp-only:
 ```powershell
 litlaunch run app.py --mode webapp --monitor-window
 litlaunch run app.py --mode webapp --monitor-window --title "My Streamlit App"
+litlaunch run app.py --mode webapp --monitor-window --graceful-timeout 15
 ```
 
 `--title` sets the expected runtime/app-window title. For monitor-window flows,
 choose a stable title that matches the browser app-mode window closely enough
 for detection.
+
+`--graceful-timeout` controls the backend-exit wait after a monitored app-window
+close triggers graceful shutdown.
 
 ## Streamlit Passthrough
 

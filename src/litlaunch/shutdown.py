@@ -217,10 +217,17 @@ class LauncherRuntime:
     ) -> None:
         self.config = config
         self.registry = registry or ShutdownHookRegistry()
+        self._shutdown_completion_callback: (
+            Callable[[ShutdownResult], object] | None
+        ) = None
         self._server: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
+        self._shutdown_lock = threading.Lock()
+        self._completion_lock = threading.Lock()
         self._shutdown_requested = False
         self._shutdown_result: ShutdownResult | None = None
+        self._shutdown_completion_started = False
+        self._shutdown_completion_error: str | None = None
 
     @classmethod
     def from_env(
@@ -267,6 +274,17 @@ class LauncherRuntime:
 
         self._shutdown_result = result
 
+    def set_shutdown_completion_callback(
+        self,
+        callback: Callable[[ShutdownResult], object],
+    ) -> Callable[[ShutdownResult], object]:
+        """Register a callback to run after endpoint shutdown response is sent."""
+
+        if not callable(callback):
+            raise ConfigurationError("Shutdown completion callback must be callable.")
+        self._shutdown_completion_callback = callback
+        return callback
+
     def shutdown_hook(
         self,
         *,
@@ -299,6 +317,32 @@ class LauncherRuntime:
         """Run registered shutdown hooks."""
 
         return self.registry.run_all()
+
+    def _schedule_shutdown_completion(self, result: ShutdownResult) -> None:
+        with self._completion_lock:
+            if (
+                self._shutdown_completion_callback is None
+                or self._shutdown_completion_started
+            ):
+                return
+            self._shutdown_completion_started = True
+
+        thread = threading.Thread(
+            target=self._run_shutdown_completion,
+            args=(result,),
+            daemon=True,
+            name="litlaunch-shutdown-completion",
+        )
+        thread.start()
+
+    def _run_shutdown_completion(self, result: ShutdownResult) -> None:
+        callback = self._shutdown_completion_callback
+        if callback is None:
+            return
+        try:
+            callback(result)
+        except Exception as exc:
+            self._shutdown_completion_error = type(exc).__name__
 
     def enable_shutdown_endpoint(self) -> bool:
         """Start the loopback tokened shutdown endpoint when available."""
@@ -413,24 +457,26 @@ def _build_shutdown_handler(runtime: LauncherRuntime) -> type[BaseHTTPRequestHan
                 self._write_json(403, {"ok": False, "message": "Forbidden."})
                 return
 
-            if runtime._shutdown_result is not None:
-                result = runtime._shutdown_result
-                self._write_json(
-                    200 if result.ok else 500,
-                    {
-                        "ok": result.ok,
-                        "message": "Shutdown already requested.",
-                    },
-                )
-                return
+            with runtime._shutdown_lock:
+                if runtime._shutdown_result is not None:
+                    result = runtime._shutdown_result
+                    self._write_json(
+                        200 if result.ok else 500,
+                        {
+                            "ok": result.ok,
+                            "message": "Shutdown already requested.",
+                        },
+                    )
+                    return
 
-            runtime._shutdown_requested = True
-            result = runtime.run_shutdown_hooks()
-            runtime._mark_shutdown_complete(result)
+                runtime._shutdown_requested = True
+                result = runtime.run_shutdown_hooks()
+                runtime._mark_shutdown_complete(result)
             self._write_json(
                 200 if result.ok else 500,
                 {"ok": result.ok, "message": result.message},
             )
+            runtime._schedule_shutdown_completion(result)
 
         def log_message(self, format: str, *args: object) -> None:
             return
@@ -442,6 +488,7 @@ def _build_shutdown_handler(runtime: LauncherRuntime) -> type[BaseHTTPRequestHan
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+            self.wfile.flush()
 
     return ShutdownHandler
 

@@ -106,6 +106,20 @@ Window monitors observe app windows only; `RuntimeSession` remains responsible
 for graceful backend shutdown, and LitLaunch never owns, stops, or kills browser
 processes.
 
+Manual Windows smoke checklist:
+
+```powershell
+litlaunch run examples/minimal_app/app.py --mode webapp --monitor-window --browser edge
+# Close the app-mode window and verify the CLI exits after graceful shutdown.
+litlaunch run examples/minimal_app/app.py --mode webapp --monitor-window --browser chrome
+# Run Chrome only when Chrome/Chromium is installed and detected.
+litlaunch run examples/minimal_app/app.py --mode browser --monitor-window
+# Expected: rejected because monitoring is webapp-mode only.
+```
+
+For unsupported platforms or unavailable monitors, explicit `--monitor-window`
+requests fail clearly instead of continuing silently.
+
 ## Graceful Shutdown
 
 Streamlit apps can opt in to cleanup hooks when launched by LitLaunch:
@@ -159,6 +173,7 @@ litlaunch run examples/minimal_app/app.py
 litlaunch run examples/minimal_app/app.py --dry-run --theme.base=dark
 litlaunch run app.py --mode webapp --browser auto
 litlaunch run app.py --mode webapp --monitor-window
+litlaunch run app.py --mode webapp --monitor-window --title "My Streamlit App"
 litlaunch run app.py --streamlit-flag server.maxUploadSize=200 -- --demo
 ```
 
@@ -172,7 +187,8 @@ or `--no-browser-fallback` is not set. In webapp mode, fallback remains limited
 to app-mode-capable browsers. In browser mode, fallback may eventually resolve to
 the system default browser. `--monitor-window` is valid only with
 `--mode webapp`; unsupported monitors fail clearly instead of silently ignoring
-explicit user intent.
+explicit user intent. Use `--title` when the app-mode browser window title
+differs from LitLaunch's default `Streamlit App` title.
 
 ## Inspect
 

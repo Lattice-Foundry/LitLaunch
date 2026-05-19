@@ -26,6 +26,7 @@ from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector
 from litlaunch.version import __version__
 from litlaunch.windowing import (
+    NoopWindowMonitor,
     WindowMonitorStatus,
     WindowTarget,
     create_window_monitor,
@@ -261,6 +262,10 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
         _write(context.stream, _format_command(plan.command))
         return 0
 
+    monitor_plan = _prepare_window_monitor(args, context, config)
+    if monitor_plan is _MONITOR_UNSUPPORTED:
+        return 1
+
     session = launcher.run()
     if not session.ok:
         renderer.error(session.result.message)
@@ -271,7 +276,15 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
         return 0
 
     if args.monitor_window:
-        return _monitor_session_window(args, context, config, session)
+        monitor, baseline_handles = monitor_plan
+        return _monitor_session_window(
+            args,
+            config,
+            session,
+            renderer=renderer,
+            monitor=monitor,
+            baseline_handles=baseline_handles,
+        )
 
     try:
         returncode = session.wait()
@@ -309,6 +322,10 @@ def _add_runtime_flags(
     include_dry_run: bool,
 ) -> None:
     parser.add_argument("app_path")
+    parser.add_argument(
+        "--title",
+        help="Set the runtime title used for browser/app-mode window matching.",
+    )
     parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
     parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
     parser.add_argument("--port", type=int)
@@ -420,6 +437,7 @@ def _runtime_config_from_args(args: argparse.Namespace) -> LauncherConfig:
     streamlit_args, app_args = _split_passthrough_args(args.passthrough_args)
     config = LauncherConfig(
         app_path=app_path,
+        title=args.title or "Streamlit App",
         mode=args.mode or LaunchMode.BROWSER,
         browser=args.browser or BrowserChoice.AUTO,
         host=args.host,
@@ -434,23 +452,52 @@ def _runtime_config_from_args(args: argparse.Namespace) -> LauncherConfig:
     return config
 
 
-def _monitor_session_window(
+_MONITOR_UNSUPPORTED = object()
+
+
+def _prepare_window_monitor(
     args: argparse.Namespace,
     context: _CliContext,
     config: LauncherConfig,
-    session: Any,
-) -> int:
+) -> tuple[Any, tuple[str, ...]] | object:
+    if not getattr(args, "monitor_window", False):
+        return (None, ())
+
     renderer = _renderer(args, context)
     platform_info = context.platform_detector_factory().detect()
     monitor = context.window_monitor_factory(platform_info)
+    if isinstance(monitor, NoopWindowMonitor):
+        renderer.error(
+            "Window monitoring is not supported on this platform or monitor "
+            "implementation."
+        )
+        return _MONITOR_UNSUPPORTED
+
+    try:
+        baseline = monitor.capture(WindowTarget(config.title, app_mode=True))
+    except Exception as exc:
+        renderer.error(f"Window monitoring baseline capture failed: {exc}")
+        return _MONITOR_UNSUPPORTED
+    return monitor, tuple(window.handle for window in baseline)
+
+
+def _monitor_session_window(
+    args: argparse.Namespace,
+    config: LauncherConfig,
+    session: Any,
+    *,
+    renderer: ConsoleRenderer,
+    monitor: Any,
+    baseline_handles: tuple[str, ...],
+) -> int:
     target = WindowTarget(
         config.title,
         url=session.url,
         browser_kind=getattr(session.browser, "kind", None),
         app_mode=True,
+        baseline_handles=baseline_handles,
     )
 
-    renderer.info("Window monitoring started.")
     try:
         result = session.monitor_window(monitor, target)
     except KeyboardInterrupt:

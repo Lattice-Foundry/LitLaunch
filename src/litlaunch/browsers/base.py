@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
@@ -74,7 +75,7 @@ class BrowserAdapter(ABC):
     ) -> None:
         self.executable_path = str(executable_path) if executable_path else None
         self.which_func = which_func
-        self.env = dict(env or {})
+        self.env = dict(os.environ if env is None else env)
         self.path_exists_func = path_exists_func or Path.is_file
 
     @abstractmethod

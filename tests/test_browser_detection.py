@@ -76,6 +76,22 @@ def test_browser_unavailable_returns_clean_capability_without_launching():
     assert calls
 
 
+def test_edge_detects_windows_program_files_from_default_environment(monkeypatch):
+    monkeypatch.setenv("PROGRAMFILES", "C:/Program Files")
+    monkeypatch.setenv("PROGRAMFILES(X86)", "C:/Program Files (x86)")
+    edge_path = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+    adapter = EdgeAdapter(
+        which_func=lambda name: None,
+        path_exists_func=lambda path: str(path).replace("\\", "/") == edge_path,
+    )
+
+    capability = adapter.detect(platform_info("Windows"))
+
+    assert capability.available is True
+    assert capability.executable_path is not None
+    assert capability.executable_path.replace("\\", "/") == edge_path
+
+
 def test_default_browser_detection_uses_platform_capability():
     adapter = DefaultBrowserAdapter()
 

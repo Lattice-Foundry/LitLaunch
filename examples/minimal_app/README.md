@@ -7,6 +7,9 @@ shows a few basic runtime details.
 It is intentionally small: no dashboards, no custom styling, no browser
 automation, and no project-specific dependencies.
 
+The browser window title intentionally uses LitLaunch's default launcher title,
+`Streamlit App`, so it can serve as a simple window-monitoring smoke fixture.
+
 ## Run With Streamlit
 
 From this directory:
@@ -21,6 +24,7 @@ From the repository root:
 
 ```powershell
 litlaunch run examples/minimal_app/app.py
+litlaunch run examples/minimal_app/app.py --mode webapp --monitor-window --browser edge
 ```
 
 You can also ask the CLI for the source-checkout example path:

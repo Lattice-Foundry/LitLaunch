@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.16.1
+
+- Hardened Windows browser detection to use the real process environment by default.
+- Added coverage for Edge discovery through standard Windows Program Files paths.
+- Documented the manual webapp window-monitoring smoke checklist.
+
 ## 0.16.0
 
 - Added explicit CLI opt-in window monitoring with `litlaunch run --monitor-window`.

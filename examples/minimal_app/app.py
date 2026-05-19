@@ -25,7 +25,7 @@ def close_example_resources():
 
 runtime.enable_shutdown_endpoint()
 
-st.set_page_config(page_title="LitLaunch Example App", layout="centered")
+st.set_page_config(page_title="Streamlit App", layout="centered")
 
 st.title("LitLaunch Example App")
 st.write(

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from litlaunch.browsers.base import BrowserCapability
+
 
 class LaunchState(str, Enum):
     """Coarse lifecycle states for launcher-owned backend runs."""
@@ -17,6 +19,9 @@ class LaunchState(str, Enum):
     PROCESS_RUNNING = "process_running"
     HEALTH_CHECKING = "health_checking"
     HEALTHY = "healthy"
+    BROWSER_RESOLVING = "browser_resolving"
+    BROWSER_LAUNCHING = "browser_launching"
+    RUNNING = "running"
     FAILED = "failed"
     TERMINATING = "terminating"
     TERMINATED = "terminated"
@@ -42,3 +47,6 @@ class LaunchResult:
     url: str | None
     message: str
     events: tuple[LaunchEvent, ...]
+    browser: BrowserCapability | None = None
+    browser_command: tuple[str, ...] | None = None
+    browser_launched: bool = False

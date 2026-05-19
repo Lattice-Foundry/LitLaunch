@@ -1,6 +1,12 @@
 """Public API for LitLaunch."""
 
-from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
+from litlaunch.browsers import (
+    BrowserCapability,
+    BrowserKind,
+    BrowserLauncher,
+    BrowserLaunchResult,
+    BrowserResolution,
+)
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError, LitLaunchError
 from litlaunch.launcher import StreamlitLauncher
@@ -18,6 +24,8 @@ __all__ = [
     "BrowserCapability",
     "BrowserChoice",
     "BrowserKind",
+    "BrowserLaunchResult",
+    "BrowserLauncher",
     "BrowserResolution",
     "ConfigurationError",
     "LaunchMode",

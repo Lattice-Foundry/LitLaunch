@@ -5,9 +5,9 @@ from __future__ import annotations
 import time
 from dataclasses import replace
 
-from litlaunch.browsers import BrowserRegistry, BrowserResolution
+from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
-from litlaunch.config import LauncherConfig
+from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.health import (
     HealthChecker,
     build_streamlit_app_url,
@@ -15,7 +15,7 @@ from litlaunch.health import (
 )
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.ports import PortManager
-from litlaunch.process import ProcessManager
+from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.streamlit import StreamlitCommandBuilder
 
 
@@ -30,6 +30,7 @@ class StreamlitLauncher:
         process_manager: ProcessManager | None = None,
         health_checker: HealthChecker | None = None,
         browser_registry: BrowserRegistry | None = None,
+        browser_launcher: BrowserLauncher | None = None,
         clock: object = time,
     ) -> None:
         self.config = config
@@ -38,7 +39,11 @@ class StreamlitLauncher:
         self.process_manager = process_manager or ProcessManager()
         self.health_checker = health_checker or HealthChecker()
         self.browser_registry = browser_registry or create_default_browser_registry()
+        self.browser_launcher = browser_launcher or BrowserLauncher(
+            registry=self.browser_registry
+        )
         self.clock = clock
+        self._managed_process: ManagedProcess | None = None
 
     def build_command(self) -> tuple[str, ...]:
         """Build the Streamlit command without starting a process."""
@@ -86,6 +91,99 @@ class StreamlitLauncher:
         health_interval_seconds: float = 0.25,
     ) -> LaunchResult:
         """Start the Streamlit backend without launching a browser."""
+
+        result, managed_process = self._start_backend(
+            wait_for_health=wait_for_health,
+            health_timeout_seconds=health_timeout_seconds,
+            health_interval_seconds=health_interval_seconds,
+        )
+        self._managed_process = managed_process
+        return result
+
+    def run(
+        self,
+        *,
+        health_timeout_seconds: float = 15.0,
+        health_interval_seconds: float = 0.25,
+    ) -> LaunchResult:
+        """Start Streamlit, wait for health, and launch the resolved browser.
+
+        On success, the Streamlit backend remains running and owned by this
+        launcher instance. Window monitoring and graceful shutdown hooks are
+        future lifecycle layers.
+        """
+
+        backend_result, managed_process = self._start_backend(
+            wait_for_health=True,
+            health_timeout_seconds=health_timeout_seconds,
+            health_interval_seconds=health_interval_seconds,
+        )
+        self._managed_process = managed_process
+        if (
+            not backend_result.ok
+            or managed_process is None
+            or backend_result.url is None
+        ):
+            return backend_result
+
+        events = list(backend_result.events)
+        self._record(events, LaunchState.BROWSER_RESOLVING, "Resolving browser.")
+        resolution = self.resolve_browser(
+            prefer_app_mode=self.config.mode == LaunchMode.WEBAPP
+        )
+        self._record(events, LaunchState.BROWSER_LAUNCHING, resolution.message)
+        browser_result = self.browser_launcher.launch(
+            resolution,
+            url=backend_result.url,
+            mode=self.config.mode,
+            title=self.config.title,
+            extra_args=self.config.extra_browser_args,
+        )
+
+        if not browser_result.ok:
+            self._record(
+                events,
+                LaunchState.TERMINATING,
+                "Browser launch failed; stopping owned backend.",
+            )
+            self.process_manager.stop(managed_process)
+            self._managed_process = None
+            self._record(events, LaunchState.FAILED, browser_result.message)
+            return LaunchResult(
+                ok=False,
+                state=LaunchState.FAILED,
+                command=backend_result.command,
+                pid=backend_result.pid,
+                url=backend_result.url,
+                message=browser_result.message,
+                events=tuple(events),
+                browser=browser_result.browser,
+                browser_command=browser_result.command,
+                browser_launched=False,
+            )
+
+        self._record(events, LaunchState.RUNNING, browser_result.message)
+        return LaunchResult(
+            ok=True,
+            state=LaunchState.RUNNING,
+            command=backend_result.command,
+            pid=backend_result.pid,
+            url=backend_result.url,
+            message="Streamlit backend is running and browser launch succeeded.",
+            events=tuple(events),
+            browser=browser_result.browser,
+            browser_command=browser_result.command,
+            browser_launched=True,
+        )
+
+    def _start_backend(
+        self,
+        *,
+        wait_for_health: bool,
+        health_timeout_seconds: float,
+        health_interval_seconds: float,
+    ) -> tuple[LaunchResult, ManagedProcess | None]:
+        """Start the Streamlit backend and return the managed process."""
 
         events: list[LaunchEvent] = []
         self._record(events, LaunchState.CREATED, "Launcher backend start requested.")
@@ -138,27 +236,33 @@ class StreamlitLauncher:
                         LaunchState.FAILED,
                         "Streamlit health check timed out.",
                     )
-                    return LaunchResult(
-                        ok=False,
-                        state=LaunchState.FAILED,
-                        command=command,
-                        pid=pid,
-                        url=app_url,
-                        message="Streamlit health check timed out.",
-                        events=tuple(events),
+                    return (
+                        LaunchResult(
+                            ok=False,
+                            state=LaunchState.FAILED,
+                            command=command,
+                            pid=pid,
+                            url=app_url,
+                            message="Streamlit health check timed out.",
+                            events=tuple(events),
+                        ),
+                        None,
                     )
 
                 self._record(
                     events, LaunchState.HEALTHY, "Streamlit backend is healthy."
                 )
-                return LaunchResult(
-                    ok=True,
-                    state=LaunchState.HEALTHY,
-                    command=command,
-                    pid=pid,
-                    url=app_url,
-                    message="Streamlit backend started and passed health check.",
-                    events=tuple(events),
+                return (
+                    LaunchResult(
+                        ok=True,
+                        state=LaunchState.HEALTHY,
+                        command=command,
+                        pid=pid,
+                        url=app_url,
+                        message="Streamlit backend started and passed health check.",
+                        events=tuple(events),
+                    ),
+                    managed_process,
                 )
 
             self._record(
@@ -166,38 +270,32 @@ class StreamlitLauncher:
                 LaunchState.PROCESS_RUNNING,
                 "Health check skipped; backend process is running.",
             )
-            return LaunchResult(
-                ok=True,
-                state=LaunchState.PROCESS_RUNNING,
-                command=command,
-                pid=pid,
-                url=app_url,
-                message="Streamlit backend started; health check skipped.",
-                events=tuple(events),
+            return (
+                LaunchResult(
+                    ok=True,
+                    state=LaunchState.PROCESS_RUNNING,
+                    command=command,
+                    pid=pid,
+                    url=app_url,
+                    message="Streamlit backend started; health check skipped.",
+                    events=tuple(events),
+                ),
+                managed_process,
             )
         except Exception as exc:
             self._record(events, LaunchState.FAILED, str(exc))
-            return LaunchResult(
-                ok=False,
-                state=LaunchState.FAILED,
-                command=command,
-                pid=pid,
-                url=app_url,
-                message=str(exc),
-                events=tuple(events),
+            return (
+                LaunchResult(
+                    ok=False,
+                    state=LaunchState.FAILED,
+                    command=command,
+                    pid=pid,
+                    url=app_url,
+                    message=str(exc),
+                    events=tuple(events),
+                ),
+                None,
             )
-
-    def run(self) -> None:
-        """Run the configured Streamlit app.
-
-        Browser launch, shutdown hooks, and window monitoring are intentionally
-        deferred. Use start_backend() for the current runtime-management spine.
-        """
-
-        raise NotImplementedError(
-            "StreamlitLauncher.run() is not implemented yet. "
-            "Use start_backend() for backend-only lifecycle work."
-        )
 
     def with_port(self, port: int) -> StreamlitLauncher:
         """Return a launcher with the same config and an explicit port."""

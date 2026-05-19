@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from litlaunch.config import BrowserChoice
+from litlaunch.config import BrowserChoice, LaunchMode
 from litlaunch.exceptions import BrowserError
 from litlaunch.platforms import PlatformDetector, PlatformInfo
 
@@ -42,6 +42,17 @@ class BrowserResolution:
     requested: BrowserChoice
     selected: BrowserCapability | None
     fallback_chain: tuple[BrowserCapability, ...]
+    message: str
+
+
+@dataclass(frozen=True)
+class BrowserLaunchResult:
+    """Result from opening a browser target."""
+
+    ok: bool
+    command: tuple[str, ...] | None
+    browser: BrowserCapability | None
+    mode: LaunchMode
     message: str
 
 
@@ -86,6 +97,16 @@ class BrowserAdapter(ABC):
         if self.executable_path is None:
             raise BrowserError(f"{self.name} executable path is required.")
         return self.executable_path
+
+    def with_executable_path(self, executable_path: str | Path) -> BrowserAdapter:
+        """Return a same-kind adapter configured with an executable path."""
+
+        return type(self)(
+            executable_path,
+            which_func=self.which_func,
+            env=self.env,
+            path_exists_func=self.path_exists_func,
+        )
 
     def _platform_info(self, platform_info: PlatformInfo | None) -> PlatformInfo:
         return platform_info or PlatformDetector().detect()

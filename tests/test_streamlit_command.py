@@ -81,3 +81,17 @@ def test_user_streamlit_flags_are_included_before_app_args():
     assert "1024" in command[:separator_index]
     assert "--logger.level" in command[:separator_index]
     assert "debug" in command[:separator_index]
+
+
+def test_user_streamlit_flags_are_appended_after_litlaunch_defaults():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            streamlit_flags={"server.headless": True},
+        ),
+    ).build()
+
+    default_index = command.index("--server.headless")
+    user_index = command.index("--server.headless", default_index + 1)
+    assert default_index < user_index
+    assert command[user_index + 1] == "true"

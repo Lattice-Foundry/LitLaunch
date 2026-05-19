@@ -1,4 +1,11 @@
-from litlaunch import LauncherConfig
+from litlaunch import LauncherConfig, LaunchMode
+from litlaunch.browsers import (
+    BrowserCapability,
+    BrowserKind,
+    BrowserLaunchResult,
+    BrowserResolution,
+)
+from litlaunch.config import BrowserChoice
 from litlaunch.health import build_streamlit_app_url, build_streamlit_health_url
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchState
@@ -52,6 +59,48 @@ class FakeHealthChecker:
     def wait_until_healthy(self, url, timeout_seconds, interval_seconds):
         self.calls.append((url, timeout_seconds, interval_seconds))
         return self.healthy
+
+
+class FakeBrowserRegistry:
+    def __init__(self, selected):
+        self.selected = selected
+        self.calls = []
+
+    def resolve(self, choice, *, prefer_app_mode, allow_fallback):
+        self.calls.append((choice, prefer_app_mode, allow_fallback))
+        return BrowserResolution(
+            requested=choice,
+            selected=self.selected,
+            fallback_chain=(self.selected,) if self.selected else (),
+            message="browser resolved" if self.selected else "no browser",
+        )
+
+
+class FakeBrowserLauncher:
+    def __init__(self, ok=True):
+        self.ok = ok
+        self.calls = []
+
+    def launch(self, resolution, *, url, mode, title, extra_args):
+        self.calls.append((resolution, url, mode, title, extra_args))
+        return BrowserLaunchResult(
+            ok=self.ok,
+            command=("browser", "--app=" + url) if self.ok else ("browser",),
+            browser=resolution.selected,
+            mode=mode,
+            message="browser launched" if self.ok else "browser failed",
+        )
+
+
+def fake_browser(kind=BrowserKind.EDGE):
+    return BrowserCapability(
+        kind=kind,
+        name=kind.value.title(),
+        executable_path="browser.exe",
+        available=True,
+        supports_app_mode=kind != BrowserKind.DEFAULT,
+        supports_full_browser=True,
+    )
 
 
 def test_launcher_builds_app_and_health_urls_with_resolved_port():
@@ -137,3 +186,120 @@ def test_start_backend_can_skip_health_check():
     assert result.state == LaunchState.PROCESS_RUNNING
     assert health_checker.calls == []
     assert process_manager.stopped == []
+
+
+def test_run_starts_backend_waits_health_resolves_and_launches_browser():
+    process_manager = FakeProcessManager()
+    browser_registry = FakeBrowserRegistry(fake_browser())
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", mode="webapp", extra_browser_args=["--x"]),
+        port_manager=FakePortManager(8603),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=browser_registry,
+        browser_launcher=browser_launcher,
+        clock=FakeClock(),
+    )
+
+    result = launcher.run(health_timeout_seconds=2.0, health_interval_seconds=0.2)
+
+    assert result.ok is True
+    assert result.state == LaunchState.RUNNING
+    assert result.url == "http://127.0.0.1:8603"
+    assert result.pid == 999
+    assert result.command is not None
+    assert result.command[result.command.index("--server.port") + 1] == "8603"
+    assert result.browser is not None
+    assert result.browser.kind == BrowserKind.EDGE
+    assert result.browser_launched is True
+    assert result.browser_command == ("browser", "--app=http://127.0.0.1:8603")
+    assert browser_registry.calls == [(BrowserChoice.AUTO, True, True)]
+    assert browser_launcher.calls[0][2:] == (
+        LaunchMode.WEBAPP,
+        "Streamlit App",
+        ("--x",),
+    )
+    assert process_manager.stopped == []
+
+
+def test_run_health_failure_stops_only_backend_before_browser_resolution():
+    process_manager = FakeProcessManager()
+    browser_registry = FakeBrowserRegistry(fake_browser())
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8604),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=False),
+        browser_registry=browser_registry,
+        browser_launcher=browser_launcher,
+        clock=FakeClock(),
+    )
+
+    result = launcher.run()
+
+    assert result.ok is False
+    assert result.state == LaunchState.FAILED
+    assert len(process_manager.stopped) == 1
+    assert browser_registry.calls == []
+    assert browser_launcher.calls == []
+
+
+def test_run_browser_failure_stops_only_backend():
+    process_manager = FakeProcessManager()
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8605),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser(BrowserKind.DEFAULT)),
+        browser_launcher=FakeBrowserLauncher(ok=False),
+        clock=FakeClock(),
+    )
+
+    result = launcher.run()
+
+    assert result.ok is False
+    assert result.state == LaunchState.FAILED
+    assert result.browser_launched is False
+    assert result.browser_command == ("browser",)
+    assert len(process_manager.stopped) == 1
+    assert LaunchState.TERMINATING in {event.state for event in result.events}
+
+
+def test_run_browser_mode_can_use_default_browser_path():
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", mode="browser", browser="default"),
+        port_manager=FakePortManager(8606),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser(BrowserKind.DEFAULT)),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        clock=FakeClock(),
+    )
+
+    result = launcher.run()
+
+    assert result.ok is True
+    assert result.browser is not None
+    assert result.browser.kind == BrowserKind.DEFAULT
+    assert result.state == LaunchState.RUNNING
+
+
+def test_run_respects_allow_browser_fallback_config():
+    browser_registry = FakeBrowserRegistry(fake_browser())
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", allow_browser_fallback=False),
+        port_manager=FakePortManager(8607),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=browser_registry,
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        clock=FakeClock(),
+    )
+
+    result = launcher.run()
+
+    assert result.ok is True
+    assert browser_registry.calls == [(BrowserChoice.AUTO, False, False)]

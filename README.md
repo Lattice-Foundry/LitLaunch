@@ -58,6 +58,12 @@ Browser capability detection now covers initial Edge, Chrome, Chromium, and
 default-browser availability. Detection is used for compatibility planning and
 future runtime launch behavior; it does not launch browsers.
 
+LitLaunch can now orchestrate backend startup, Streamlit health checks, browser
+capability resolution, and the first browser launch. Browser mode and Chromium
+app-mode are supported through command-based adapters. Advanced Streamlit flags
+and app arguments remain part of the compatibility model, while window
+monitoring and graceful app shutdown hooks remain future work.
+
 ## Examples
 
 The [minimal example app](examples/minimal_app) is a tiny Streamlit target for

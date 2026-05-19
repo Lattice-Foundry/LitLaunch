@@ -7,6 +7,8 @@ from litlaunch import (
     BrowserCapability,
     BrowserChoice,
     BrowserKind,
+    BrowserLauncher,
+    BrowserLaunchResult,
     BrowserResolution,
     ConfigurationError,
     LauncherConfig,
@@ -28,6 +30,8 @@ def test_public_imports_are_available():
     assert BrowserChoice.AUTO.value == "auto"
     assert BrowserKind.EDGE.value == "edge"
     assert BrowserCapability
+    assert BrowserLaunchResult
+    assert BrowserLauncher
     assert BrowserResolution
     assert issubclass(ConfigurationError, LitLaunchError)
     assert LaunchState.CREATED.value == "created"
@@ -46,6 +50,8 @@ def test_public_all_is_explicit():
         "BrowserCapability",
         "BrowserChoice",
         "BrowserKind",
+        "BrowserLaunchResult",
+        "BrowserLauncher",
         "BrowserResolution",
         "ConfigurationError",
         "LaunchEvent",
@@ -63,8 +69,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.3.1"
-    assert __version__ == "0.3.1"
+    assert litlaunch.__version__ == "0.4.0"
+    assert __version__ == "0.4.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

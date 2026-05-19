@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from litlaunch.browsers import BrowserCapability, BrowserResolution
+from litlaunch.lifecycle import LaunchResult
 from litlaunch.platforms import PlatformInfo
 
 
@@ -32,3 +33,10 @@ class Diagnostics:
             f"{'available' if capability.available else 'unavailable'}"
             for capability in capabilities
         )
+
+    @staticmethod
+    def launch_result_summary(result: LaunchResult) -> str:
+        """Return a concise runtime launch result summary."""
+
+        status = "ok" if result.ok else "failed"
+        return f"Launch {status}: {result.message}"

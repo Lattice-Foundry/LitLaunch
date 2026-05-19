@@ -3,6 +3,11 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.13.2
+
+- Removed CI pip caching after hosted macOS jobs emitted cache warning noise.
+- Kept the modernized GitHub Actions versions and cross-platform matrix.
+
 ## 0.13.1
 
 - Updated GitHub Actions checkout usage to the current Node 24-backed major.

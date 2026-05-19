@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -62,35 +63,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     browsers_parser.set_defaults(handler=_cmd_browsers)
 
+    command_parser = subparsers.add_parser(
+        "command",
+        parents=[parent],
+        help="Print the Streamlit backend command without launching it.",
+    )
+    _add_runtime_flags(command_parser, include_dry_run=False)
+    command_parser.set_defaults(handler=_cmd_command)
+
     run_parser = subparsers.add_parser(
         "run",
         parents=[parent],
         help="Run a Streamlit app with LitLaunch.",
     )
-    run_parser.add_argument("app_path")
-    run_parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
-    run_parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
-    run_parser.add_argument("--port", type=int)
-    run_parser.add_argument("--host", default="127.0.0.1")
-    run_parser.add_argument(
-        "--no-browser-fallback",
-        action="store_true",
-        help="Disable browser fallback when the requested browser is unavailable.",
-    )
-    run_parser.add_argument(
-        "--streamlit-flag",
-        action="append",
-        default=[],
-        metavar="KEY=VALUE",
-        type=_parse_streamlit_flag,
-        help="Add a Streamlit flag. Repeatable.",
-    )
-    run_parser.add_argument(
-        "--app-arg",
-        action="append",
-        default=[],
-        help="Add an app argument after Streamlit's -- separator. Repeatable.",
-    )
+    _add_runtime_flags(run_parser, include_dry_run=True)
     run_parser.set_defaults(handler=_cmd_run)
 
     example_parser = subparsers.add_parser(
@@ -117,10 +103,15 @@ def main(
     output = stream if stream is not None else sys.stdout
     resolved_env = env if env is not None else os.environ
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args, extra_args = parser.parse_known_args(argv)
     if not hasattr(args, "handler"):
+        if extra_args:
+            parser.error(f"unrecognized arguments: {' '.join(extra_args)}")
         parser.print_help(file=output)
         return 0
+    if extra_args and args.command not in {"run", "command"}:
+        parser.error(f"unrecognized arguments: {' '.join(extra_args)}")
+    args.passthrough_args = tuple(extra_args)
 
     context = _CliContext(
         stream=output,
@@ -180,24 +171,25 @@ def _cmd_browsers(args: argparse.Namespace, context: _CliContext) -> int:
     return 0
 
 
+def _cmd_command(args: argparse.Namespace, context: _CliContext) -> int:
+    renderer = _renderer(args, context)
+    config = _runtime_config_from_args(args)
+    launcher = context.launcher_factory(config, console_renderer=renderer)
+    command = _build_resolved_command(launcher)
+    _write(context.stream, _format_command(command))
+    return 0
+
+
 def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
     renderer = _renderer(args, context)
-    app_path = Path(args.app_path)
-    if not app_path.is_file():
-        renderer.error(f"Streamlit app path does not exist: {app_path}")
-        return 2
-
-    config = LauncherConfig(
-        app_path=app_path,
-        mode=args.mode or LaunchMode.BROWSER,
-        browser=args.browser or BrowserChoice.AUTO,
-        host=args.host,
-        port=args.port,
-        allow_browser_fallback=not args.no_browser_fallback,
-        streamlit_flags=_streamlit_flags_mapping(args.streamlit_flag),
-        app_args=tuple(args.app_arg),
-    )
+    config = _runtime_config_from_args(args)
     launcher = context.launcher_factory(config, console_renderer=renderer)
+    if args.dry_run:
+        command = _build_resolved_command(launcher)
+        renderer.info("Dry run: backend and browser were not started.")
+        _write(context.stream, _format_command(command))
+        return 0
+
     session = launcher.run()
     if not session.ok:
         renderer.error(session.result.message)
@@ -237,6 +229,43 @@ def _add_global_flags(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--verbose", action="store_true", help="Show detailed output.")
 
 
+def _add_runtime_flags(
+    parser: argparse.ArgumentParser,
+    *,
+    include_dry_run: bool,
+) -> None:
+    parser.add_argument("app_path")
+    parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
+    parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
+    parser.add_argument("--port", type=int)
+    parser.add_argument("--host", default="127.0.0.1")
+    if include_dry_run:
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Print the resolved Streamlit command without starting runtime.",
+        )
+    parser.add_argument(
+        "--no-browser-fallback",
+        action="store_true",
+        help="Disable browser fallback when the requested browser is unavailable.",
+    )
+    parser.add_argument(
+        "--streamlit-flag",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        type=_parse_streamlit_flag,
+        help="Add a Streamlit flag. Repeatable.",
+    )
+    parser.add_argument(
+        "--app-arg",
+        action="append",
+        default=[],
+        help="Add an app argument after Streamlit's -- separator. Repeatable.",
+    )
+
+
 def _renderer(args: argparse.Namespace, context: _CliContext) -> ConsoleRenderer:
     use_color = (
         not bool(getattr(args, "no_color", False)) and "NO_COLOR" not in context.env
@@ -269,6 +298,44 @@ def _streamlit_flags_mapping(
     values: Sequence[tuple[str, str | None]],
 ) -> dict[str, str | None]:
     return {key: value for key, value in values}
+
+
+def _runtime_config_from_args(args: argparse.Namespace) -> LauncherConfig:
+    app_path = Path(args.app_path)
+    if not app_path.is_file():
+        raise LitLaunchError(f"Streamlit app path does not exist: {app_path}")
+
+    streamlit_args, app_args = _split_passthrough_args(args.passthrough_args)
+    return LauncherConfig(
+        app_path=app_path,
+        mode=args.mode or LaunchMode.BROWSER,
+        browser=args.browser or BrowserChoice.AUTO,
+        host=args.host,
+        port=args.port,
+        allow_browser_fallback=not args.no_browser_fallback,
+        streamlit_flags=_streamlit_flags_mapping(args.streamlit_flag),
+        streamlit_args=streamlit_args,
+        app_args=(*tuple(args.app_arg), *app_args),
+    )
+
+
+def _split_passthrough_args(
+    values: Sequence[str],
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    items = tuple(str(value) for value in values)
+    if "--" not in items:
+        return items, ()
+    separator_index = items.index("--")
+    return items[:separator_index], items[separator_index + 1 :]
+
+
+def _build_resolved_command(launcher: StreamlitLauncher) -> tuple[str, ...]:
+    port = launcher.resolve_port()
+    return launcher.command_builder.build(port=port)
+
+
+def _format_command(command: Sequence[str]) -> str:
+    return subprocess.list2cmdline(tuple(str(part) for part in command))
 
 
 def _write(stream: TextIO, message: str) -> None:

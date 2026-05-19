@@ -206,6 +206,59 @@ def test_explicit_edge_unavailable_with_fallback_selects_chrome():
     assert resolution.selected.kind == BrowserKind.CHROME
 
 
+def test_explicit_edge_unavailable_with_full_browser_fallback_can_select_default():
+    registry = BrowserRegistry(
+        (
+            EdgeAdapter(
+                which_func=lambda name: None,
+                path_exists_func=lambda path: False,
+            ),
+            ChromeAdapter(
+                which_func=lambda name: None,
+                path_exists_func=lambda path: False,
+            ),
+            DefaultBrowserAdapter(),
+        )
+    )
+
+    resolution = registry.resolve(
+        BrowserChoice.EDGE,
+        platform_info("Windows"),
+        prefer_app_mode=False,
+        allow_fallback=True,
+    )
+
+    assert resolution.selected is not None
+    assert resolution.selected.kind == BrowserKind.DEFAULT
+
+
+def test_explicit_edge_unavailable_without_full_browser_fallback_selects_none():
+    registry = BrowserRegistry(
+        (
+            EdgeAdapter(
+                which_func=lambda name: None,
+                path_exists_func=lambda path: False,
+            ),
+            ChromeAdapter("C:/Chrome/chrome.exe"),
+            DefaultBrowserAdapter(),
+        )
+    )
+
+    resolution = registry.resolve(
+        BrowserChoice.EDGE,
+        platform_info("Windows"),
+        prefer_app_mode=False,
+        allow_fallback=False,
+    )
+
+    assert resolution.selected is None
+    assert [capability.kind for capability in resolution.fallback_chain] == [
+        BrowserKind.EDGE,
+        BrowserKind.CHROME,
+        BrowserKind.DEFAULT,
+    ]
+
+
 def test_browser_diagnostics_are_plain_text():
     registry = BrowserRegistry((ChromeAdapter("/usr/bin/chrome"),))
     resolution = registry.resolve(

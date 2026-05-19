@@ -3,6 +3,13 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.9.0
+
+- Added ordered raw Streamlit argument passthrough and CLI app-arg splitting.
+- Added `litlaunch command` and `litlaunch run --dry-run`.
+- Improved health failure messages for early backend exits and timeouts.
+- Fixed IPv6 shutdown client URL formatting.
+
 ## 0.8.4
 
 - Added early host validation and CLI invalid-host coverage.

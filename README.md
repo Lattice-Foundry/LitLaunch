@@ -85,6 +85,8 @@ model, while window monitoring remains future work. LitLaunch injects its
 Streamlit defaults only when the user has not supplied the equivalent
 Streamlit flag, so explicit user flags remain the authority. The CLI validates
 that the target app file exists before starting the backend.
+Raw Streamlit passthrough is supported before Streamlit's own `--` separator,
+and app arguments remain after that separator.
 
 Known provisional areas are intentionally called out: diagnostics are lightweight
 plain-text helpers for now, a web inspector/dashboard is future work, window
@@ -131,15 +133,22 @@ framework dependencies:
 litlaunch version
 litlaunch platform
 litlaunch browsers
+litlaunch command examples/minimal_app/app.py --server.runOnSave true
 litlaunch run examples/minimal_app/app.py
+litlaunch run examples/minimal_app/app.py --dry-run --theme.base=dark
 litlaunch run app.py --mode webapp --browser auto
-litlaunch run app.py --streamlit-flag server.maxUploadSize=200 --app-arg demo
+litlaunch run app.py --streamlit-flag server.maxUploadSize=200 -- --demo
 ```
 
 The CLI is intentionally thin over the Python runtime APIs. `litlaunch example`
 reports the minimal example path when running from a source checkout; installed
 wheels may not include the repository-level example directory, and the command
 fails clearly when that fixture is unavailable.
+
+Explicit browser choices use fallback only when `allow_browser_fallback` is true
+or `--no-browser-fallback` is not set. In webapp mode, fallback remains limited
+to app-mode-capable browsers. In browser mode, fallback may eventually resolve to
+the system default browser.
 
 ## Examples
 

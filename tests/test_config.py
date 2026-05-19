@@ -88,13 +88,15 @@ def test_port_none_forces_auto_port_true():
     assert config.auto_port is True
 
 
-def test_app_args_and_extra_browser_args_become_tuples():
+def test_streamlit_app_and_extra_browser_args_become_tuples():
     config = LauncherConfig(
         app_path="app.py",
+        streamlit_args=["--server.runOnSave", "true"],
         app_args=["--workspace", "demo"],
         extra_browser_args=["--new-window"],
     )
 
+    assert config.streamlit_args == ("--server.runOnSave", "true")
     assert config.app_args == ("--workspace", "demo")
     assert config.extra_browser_args == ("--new-window",)
 
@@ -146,3 +148,15 @@ def test_webapp_mode_allows_explicit_streamlit_headless_override_sequence():
 
     assert config.headless is False
     assert config.streamlit_flags == ("--server.headless=false",)
+
+
+def test_webapp_mode_allows_explicit_raw_streamlit_headless_override():
+    config = LauncherConfig(
+        app_path="app.py",
+        mode="webapp",
+        headless=False,
+        streamlit_args=("--server.headless=false",),
+    )
+
+    assert config.headless is False
+    assert config.streamlit_args == ("--server.headless=false",)

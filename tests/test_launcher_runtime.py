@@ -46,18 +46,25 @@ class FakePortManager:
 class FakePopen:
     pid = 999
 
+    def __init__(self, returncode=None):
+        self.returncode = returncode
+
     def poll(self):
-        return None
+        return self.returncode
 
 
 class FakeProcessManager:
-    def __init__(self):
+    def __init__(self, *, process_returncode=None):
         self.started = []
         self.stopped = []
+        self.process_returncode = process_returncode
 
     def start(self, command, **kwargs):
         self.started.append((command, kwargs))
-        return ManagedProcess(FakePopen(), tuple(command))
+        return ManagedProcess(FakePopen(self.process_returncode), tuple(command))
+
+    def is_running(self, process):
+        return process.popen.poll() is None
 
     def stop(self, process):
         self.stopped.append(process)
@@ -218,7 +225,28 @@ def test_start_backend_stops_owned_process_when_health_fails():
     assert result.pid == 999
     assert session.process is None
     assert len(process_manager.stopped) == 1
+    assert "health check timed out" in result.message
     assert LaunchState.TERMINATING in {event.state for event in result.events}
+
+
+def test_start_backend_reports_process_exit_before_health_as_startup_failure():
+    process_manager = FakeProcessManager(process_returncode=1)
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8601),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=False),
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend()
+    result = session.result
+
+    assert result.ok is False
+    assert "exited before becoming healthy" in result.message
+    assert "Streamlit is not installed" in result.message
+    assert "app crashes during startup" in result.message
+    assert len(process_manager.stopped) == 1
 
 
 def test_start_backend_can_skip_health_check():

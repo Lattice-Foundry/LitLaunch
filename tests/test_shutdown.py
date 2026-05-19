@@ -316,6 +316,28 @@ def test_shutdown_client_sends_post_with_token_header():
     assert response.closed is True
 
 
+def test_shutdown_client_formats_ipv6_loopback_url_with_brackets():
+    calls = []
+    response = FakeResponse()
+
+    def opener(request, timeout):
+        calls.append((request, timeout))
+        return response
+
+    client = ShutdownClient(
+        host="::1",
+        port=9900,
+        token="secret-token",
+        opener=opener,
+    )
+
+    result = client.request_shutdown()
+
+    request, _timeout = calls[0]
+    assert result.ok is True
+    assert request.full_url == "http://[::1]:9900/shutdown"
+
+
 def test_shutdown_client_failure_message_does_not_include_token():
     def opener(request, timeout):
         raise RuntimeError("network down")

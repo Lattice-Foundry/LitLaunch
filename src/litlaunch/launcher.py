@@ -292,6 +292,10 @@ class StreamlitLauncher:
                     interval_seconds=health_interval_seconds,
                 )
                 if not healthy:
+                    failure_message = self._health_failure_message(
+                        managed_process,
+                        health_url,
+                    )
                     self._record(
                         events,
                         LaunchState.TERMINATING,
@@ -301,7 +305,7 @@ class StreamlitLauncher:
                     self._record(
                         events,
                         LaunchState.FAILED,
-                        "Streamlit health check timed out.",
+                        failure_message,
                     )
                     return _BackendStart(
                         LaunchResult(
@@ -310,7 +314,7 @@ class StreamlitLauncher:
                             command=command,
                             pid=pid,
                             url=app_url,
-                            message="Streamlit health check timed out.",
+                            message=failure_message,
                             events=tuple(events),
                         ),
                         None,
@@ -380,6 +384,24 @@ class StreamlitLauncher:
             browser_launcher=self.browser_launcher,
             console_renderer=self.console_renderer,
             clock=self.clock,
+        )
+
+    def _health_failure_message(
+        self,
+        process: ManagedProcess,
+        health_url: str,
+    ) -> str:
+        if not self.process_manager.is_running(process):
+            returncode = process.popen.poll()
+            return (
+                "Streamlit backend process exited before becoming healthy"
+                f" (exit code {returncode}). This can happen when Streamlit is not "
+                "installed, the app crashes during startup, or a Streamlit CLI "
+                "option is invalid."
+            )
+        return (
+            f"Streamlit health check timed out at {health_url}. The backend process "
+            "is still running but did not report ready before the timeout."
         )
 
     def _record(

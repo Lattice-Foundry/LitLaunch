@@ -27,7 +27,9 @@ class StreamlitCommandBuilder:
         if not self.python_executable:
             raise CommandBuildError("A Python executable is required.")
 
-        user_flag_names = _streamlit_flag_names(self.config.streamlit_flags)
+        user_flag_names = _streamlit_flag_names(
+            self.config.streamlit_flags
+        ) | _streamlit_flag_names(self.config.streamlit_args)
         command: list[str] = [
             str(self.python_executable),
             "-m",
@@ -47,6 +49,7 @@ class StreamlitCommandBuilder:
             command.extend(("--server.port", str(resolved_port)))
 
         command.extend(_format_streamlit_flags(self.config.streamlit_flags))
+        command.extend(self.config.streamlit_args)
 
         if self.config.app_args:
             command.append("--")

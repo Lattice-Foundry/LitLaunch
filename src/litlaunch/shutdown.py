@@ -360,7 +360,8 @@ class ShutdownClient:
         """POST to the app-side shutdown endpoint."""
 
         request = urllib.request.Request(
-            f"http://{self.host}:{self.port}{SHUTDOWN_ENDPOINT_PATH}",
+            f"http://{_format_host_for_url(self.host)}:{self.port}"
+            f"{SHUTDOWN_ENDPOINT_PATH}",
             method="POST",
         )
         request.add_header(SHUTDOWN_TOKEN_HEADER, self.token)
@@ -454,3 +455,9 @@ def _validate_port(port: int | str) -> int:
 
 def _is_loopback_host(host: str) -> bool:
     return host in {"127.0.0.1", "::1", "localhost"}
+
+
+def _format_host_for_url(host: str) -> str:
+    if ":" in host and not host.startswith("["):
+        return f"[{host}]"
+    return host

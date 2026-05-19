@@ -83,6 +83,52 @@ def test_user_streamlit_flags_are_included_before_app_args():
     assert "debug" in command[:separator_index]
 
 
+def test_raw_streamlit_args_preserve_order_before_app_args():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            streamlit_args=(
+                "--server.runOnSave",
+                "true",
+                "--theme.base=dark",
+                "--logger.enableRich",
+            ),
+            app_args=("--workspace", "demo"),
+        ),
+    ).build()
+
+    separator_index = command.index("--")
+    assert command[separator_index - 4 : separator_index] == (
+        "--server.runOnSave",
+        "true",
+        "--theme.base=dark",
+        "--logger.enableRich",
+    )
+    assert command[separator_index + 1 :] == ("--workspace", "demo")
+
+
+def test_raw_streamlit_args_allow_repeated_flags():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            streamlit_args=(
+                "--server.folderWatchBlacklist",
+                "data",
+                "--server.folderWatchBlacklist",
+                "logs",
+            ),
+        ),
+    ).build()
+
+    assert command.count("--server.folderWatchBlacklist") == 2
+    assert command[-4:] == (
+        "--server.folderWatchBlacklist",
+        "data",
+        "--server.folderWatchBlacklist",
+        "logs",
+    )
+
+
 def test_non_conflicting_user_streamlit_flags_are_appended_after_litlaunch_defaults():
     command = StreamlitCommandBuilder(
         LauncherConfig(
@@ -136,3 +182,18 @@ def test_inline_sequence_builtin_streamlit_flag_prevents_duplicate_default_injec
 
     assert command.count("--server.port") == 0
     assert command.count("--server.port=9000") == 1
+
+
+def test_raw_builtin_streamlit_args_prevent_duplicate_default_injection():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            port=8501,
+            streamlit_args=("--server.port", "9000", "--server.headless=false"),
+        ),
+    ).build()
+
+    assert command.count("--server.port") == 1
+    assert command[command.index("--server.port") + 1] == "9000"
+    assert command.count("--server.headless") == 0
+    assert command.count("--server.headless=false") == 1

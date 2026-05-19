@@ -113,10 +113,37 @@ class FakeLauncher:
     def __init__(self, config, *, console_renderer=None):
         self.config = config
         self.console_renderer = console_renderer
+        self.run_calls = 0
+        self.command_builder = FakeCommandBuilder(config)
         FakeLauncher.instances.append(self)
 
+    def resolve_port(self):
+        return self.config.port or 8501
+
     def run(self):
+        self.run_calls += 1
         return FakeLauncher.next_session
+
+
+class FakeCommandBuilder:
+    def __init__(self, config):
+        self.config = config
+
+    def build(self, *, port=None):
+        command = [
+            "python",
+            "-m",
+            "streamlit",
+            "run",
+            str(self.config.app_path),
+            "--server.port",
+            str(port or self.config.port or 8501),
+        ]
+        command.extend(self.config.streamlit_args)
+        if self.config.app_args:
+            command.append("--")
+            command.extend(self.config.app_args)
+        return tuple(command)
 
 
 def reset_fake_launcher(session):
@@ -132,6 +159,7 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "version" in help_text
     assert "platform" in help_text
     assert "browsers" in help_text
+    assert "command" in help_text
     assert "run" in help_text
     assert "source-checkout minimal example" in help_text
 
@@ -217,6 +245,7 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.config.allow_browser_fallback is False
     assert launcher.config.streamlit_flags["server.maxUploadSize"] == "20"
     assert launcher.config.app_args == ("dataset.json",)
+    assert launcher.config.streamlit_args == ()
     assert launcher.console_renderer is not None
     assert session.wait_calls == 1
     assert "Runtime active at http://127.0.0.1:8501" in stream.getvalue()
@@ -265,6 +294,69 @@ def test_cli_run_rejects_invalid_host_before_launching():
 
     assert code == 2
     assert "host must be a valid IP address or plausible hostname" in stream.getvalue()
+
+
+def test_cli_run_dry_run_prints_command_without_starting_backend():
+    stream = StringIO()
+    session = FakeSession(ok=True)
+
+    code = main(
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--port",
+            "8600",
+            "--dry-run",
+            "--server.runOnSave",
+            "true",
+            "--",
+            "--workspace",
+            "demo",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+    )
+
+    launcher = FakeLauncher.instances[0]
+    output = stream.getvalue()
+    assert code == 0
+    assert launcher.run_calls == 0
+    assert launcher.config.streamlit_args == ("--server.runOnSave", "true")
+    assert launcher.config.app_args == ("--workspace", "demo")
+    assert "Dry run" in output
+    assert "--server.runOnSave true -- --workspace demo" in output
+
+
+def test_cli_command_prints_resolved_streamlit_command():
+    stream = StringIO()
+
+    code = main(
+        [
+            "command",
+            str(EXAMPLE_APP),
+            "--port",
+            "8600",
+            "--theme.base=dark",
+            "--logger.enableRich",
+            "--",
+            "--workspace",
+            "demo",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(FakeSession(ok=True)),
+    )
+
+    launcher = FakeLauncher.instances[0]
+    output = stream.getvalue()
+    assert code == 0
+    assert launcher.run_calls == 0
+    assert launcher.config.streamlit_args == (
+        "--theme.base=dark",
+        "--logger.enableRich",
+    )
+    assert launcher.config.app_args == ("--workspace", "demo")
+    assert "streamlit run" in output
+    assert "--theme.base=dark --logger.enableRich -- --workspace demo" in output
 
 
 def test_cli_run_keyboard_interrupt_stops_session():

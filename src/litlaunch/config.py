@@ -49,6 +49,7 @@ class LauncherConfig:
     headless: bool | None = None
     allow_browser_fallback: bool = True
     streamlit_flags: StreamlitFlags = field(default_factory=dict)
+    streamlit_args: Sequence[str] = field(default_factory=tuple)
     app_args: Sequence[str] = field(default_factory=tuple)
     extra_browser_args: Sequence[str] = field(default_factory=tuple)
 
@@ -60,13 +61,22 @@ class LauncherConfig:
         host = _normalize_host(self.host)
         port = _normalize_port(self.port)
         auto_port = True if port is None else bool(self.auto_port)
+        streamlit_args = _normalize_string_sequence(
+            self.streamlit_args,
+            "streamlit_args",
+        )
         app_args = _normalize_string_sequence(self.app_args, "app_args")
         extra_browser_args = _normalize_string_sequence(
             self.extra_browser_args,
             "extra_browser_args",
         )
         streamlit_flags = _normalize_streamlit_flags(self.streamlit_flags)
-        _validate_webapp_headless(mode, self.headless, streamlit_flags)
+        _validate_webapp_headless(
+            mode,
+            self.headless,
+            streamlit_flags,
+            streamlit_args,
+        )
 
         object.__setattr__(self, "app_path", app_path)
         object.__setattr__(self, "title", title)
@@ -78,6 +88,7 @@ class LauncherConfig:
         object.__setattr__(
             self, "allow_browser_fallback", bool(self.allow_browser_fallback)
         )
+        object.__setattr__(self, "streamlit_args", streamlit_args)
         object.__setattr__(self, "app_args", app_args)
         object.__setattr__(self, "extra_browser_args", extra_browser_args)
         object.__setattr__(self, "streamlit_flags", streamlit_flags)
@@ -208,10 +219,13 @@ def _validate_webapp_headless(
     mode: LaunchMode,
     headless: bool | None,
     streamlit_flags: MappingProxyType[str, object] | tuple[str, ...],
+    streamlit_args: tuple[str, ...],
 ) -> None:
     if mode != LaunchMode.WEBAPP or headless is not False:
         return
-    if _has_streamlit_flag(streamlit_flags, "server.headless"):
+    if _has_streamlit_flag(streamlit_flags, "server.headless") or _has_streamlit_flag(
+        streamlit_args, "server.headless"
+    ):
         return
     raise ConfigurationError(
         "mode='webapp' requires headless=True. Use browser mode or pass "

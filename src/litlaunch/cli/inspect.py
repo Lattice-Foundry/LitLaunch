@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from litlaunch.cli_common import CliContext, mode, write
-from litlaunch.cli_config import add_profile_flags, load_cli_profile, profile_value
+from litlaunch.cli.common import CliContext, mode, write
+from litlaunch.cli.config import add_profile_flags, load_cli_profile, profile_value
 from litlaunch.config import BrowserChoice, LaunchMode
 from litlaunch.console import ConsoleMode
 from litlaunch.exceptions import LitLaunchError

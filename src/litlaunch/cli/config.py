@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from litlaunch.cli_common import split_passthrough_args
+from litlaunch.cli.common import split_passthrough_args
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.profiles import LaunchProfile, load_profile

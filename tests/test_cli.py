@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import json
 import sys
 import tempfile
@@ -12,7 +13,6 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
     import tomli as tomllib
 
-import litlaunch.cli as cli
 from litlaunch import __version__
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.cli import build_parser, main
@@ -34,6 +34,7 @@ from litlaunch.windowing import (
 )
 
 EXAMPLE_APP = Path("examples/minimal_app/app.py")
+CLI_MAIN_MODULE = importlib.import_module("litlaunch.cli.main")
 
 
 @contextmanager
@@ -430,7 +431,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.84.0"
+    assert data["litlaunch_version"] == "0.85.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1450,7 +1451,7 @@ def test_cli_example_prints_example_path():
 def test_cli_example_fails_clearly_when_source_example_is_missing(monkeypatch):
     stream = StringIO()
     monkeypatch.setattr(
-        cli,
+        CLI_MAIN_MODULE,
         "_source_checkout_example_path",
         lambda module_path: Path("X:/missing/examples/minimal_app/app.py"),
     )

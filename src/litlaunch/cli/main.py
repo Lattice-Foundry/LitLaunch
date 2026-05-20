@@ -7,21 +7,21 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, TextIO
 
-from litlaunch.cli_commands import (
+from litlaunch.cli.commands import (
     cmd_browsers,
     cmd_command,
     cmd_platform,
     cmd_run,
     cmd_version,
 )
-from litlaunch.cli_common import (
+from litlaunch.cli.common import (
     build_context,
     renderer,
     source_checkout_example_path,
     write,
 )
-from litlaunch.cli_config import add_runtime_flags
-from litlaunch.cli_inspect import add_inspect_flags, cmd_inspect
+from litlaunch.cli.config import add_runtime_flags
+from litlaunch.cli.inspect import add_inspect_flags, cmd_inspect
 from litlaunch.exceptions import LitLaunchError
 
 _source_checkout_example_path = source_checkout_example_path
@@ -153,7 +153,7 @@ def _factory_overrides(**values: Any) -> dict[str, Any]:
 
 
 def _cmd_example(args: argparse.Namespace, context) -> int:
-    example_path = _source_checkout_example_path(Path(__file__))
+    example_path = _source_checkout_example_path(Path(__file__).parent)
     if not example_path.is_file():
         renderer(args, context).error(
             "The minimal example app is available from a LitLaunch source checkout. "

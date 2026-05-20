@@ -3,6 +3,11 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.85.0
+
+- Moved CLI implementation modules into a dedicated `litlaunch.cli` package
+  while preserving `litlaunch.cli:main` and `python -m litlaunch.cli`.
+
 ## 0.84.0
 
 - Split launch planning and backend startup mechanics out of the public

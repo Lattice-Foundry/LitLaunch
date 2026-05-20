@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -24,6 +23,7 @@ from litlaunch.inspect import (
 )
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector
+from litlaunch.redaction import format_command_preview
 from litlaunch.version import __version__
 from litlaunch.windowing import (
     NoopWindowMonitor,
@@ -212,6 +212,7 @@ def _cmd_inspect(args: argparse.Namespace, context: _CliContext) -> int:
         browser=args.browser or BrowserChoice.AUTO,
         host=args.host,
         port=args.port,
+        auto_port=not args.no_auto_port,
         allow_browser_fallback=not args.no_browser_fallback,
     )
     if args.json:
@@ -338,6 +339,11 @@ def _add_runtime_flags(
     parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
     parser.add_argument("--port", type=int)
     parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument(
+        "--no-auto-port",
+        action="store_true",
+        help="Fail if the requested port is unavailable instead of trying another.",
+    )
     if include_dry_run:
         parser.add_argument(
             "--dry-run",
@@ -396,6 +402,11 @@ def _add_inspect_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
     parser.add_argument("--port", type=int)
     parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument(
+        "--no-auto-port",
+        action="store_true",
+        help="Fail if the requested port is unavailable instead of trying another.",
+    )
     parser.add_argument(
         "--no-browser-fallback",
         action="store_true",
@@ -459,6 +470,7 @@ def _runtime_config_from_args(args: argparse.Namespace) -> LauncherConfig:
         browser=args.browser or BrowserChoice.AUTO,
         host=args.host,
         port=args.port,
+        auto_port=not args.no_auto_port,
         allow_browser_fallback=not args.no_browser_fallback,
         streamlit_flags=_streamlit_flags_mapping(args.streamlit_flag),
         streamlit_args=streamlit_args,
@@ -632,7 +644,7 @@ def _build_launch_plan(launcher: StreamlitLauncher) -> _LaunchPlan:
 
 
 def _format_command(command: Sequence[str]) -> str:
-    return subprocess.list2cmdline(tuple(str(part) for part in command))
+    return format_command_preview(tuple(str(part) for part in command))
 
 
 def _write(stream: TextIO, message: str) -> None:

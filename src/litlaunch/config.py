@@ -48,6 +48,8 @@ class LauncherConfig:
     auto_port: bool = True
     headless: bool | None = None
     allow_browser_fallback: bool = True
+    cwd: str | Path | None = None
+    extra_env: Mapping[str, str] = field(default_factory=dict)
     streamlit_flags: StreamlitFlags = field(default_factory=dict)
     streamlit_args: Sequence[str] = field(default_factory=tuple)
     app_args: Sequence[str] = field(default_factory=tuple)
@@ -61,6 +63,8 @@ class LauncherConfig:
         host = _normalize_host(self.host)
         port = _normalize_port(self.port)
         auto_port = True if port is None else bool(self.auto_port)
+        cwd = _normalize_optional_path(self.cwd, "cwd")
+        extra_env = _normalize_env_mapping(self.extra_env)
         streamlit_args = _normalize_string_sequence(
             self.streamlit_args,
             "streamlit_args",
@@ -88,6 +92,8 @@ class LauncherConfig:
         object.__setattr__(
             self, "allow_browser_fallback", bool(self.allow_browser_fallback)
         )
+        object.__setattr__(self, "cwd", cwd)
+        object.__setattr__(self, "extra_env", extra_env)
         object.__setattr__(self, "streamlit_args", streamlit_args)
         object.__setattr__(self, "app_args", app_args)
         object.__setattr__(self, "extra_browser_args", extra_browser_args)
@@ -105,6 +111,34 @@ def _normalize_path(value: str | Path) -> Path:
     if not str(path):
         raise ConfigurationError("app_path cannot be empty.")
     return path
+
+
+def _normalize_optional_path(value: str | Path | None, field_name: str) -> Path | None:
+    if value is None:
+        return None
+    if isinstance(value, Path):
+        return value
+    raw_value = str(value).strip()
+    if not raw_value:
+        raise ConfigurationError(f"{field_name} cannot be empty.")
+    return Path(raw_value)
+
+
+def _normalize_env_mapping(value: Mapping[str, str]) -> MappingProxyType[str, str]:
+    if not isinstance(value, Mapping):
+        raise ConfigurationError("extra_env must be a mapping of strings.")
+    copied: dict[str, str] = {}
+    for key, item in value.items():
+        env_name = str(key).strip()
+        if not env_name:
+            raise ConfigurationError("extra_env variable names cannot be empty.")
+        if "\x00" in env_name:
+            raise ConfigurationError("extra_env variable names cannot contain NUL.")
+        env_value = str(item)
+        if "\x00" in env_value:
+            raise ConfigurationError("extra_env values cannot contain NUL.")
+        copied[env_name] = env_value
+    return MappingProxyType(copied)
 
 
 def _normalize_required_string(value: str, field_name: str) -> str:

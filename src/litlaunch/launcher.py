@@ -21,6 +21,7 @@ from litlaunch.health import (
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.ports import PortManager
 from litlaunch.process import ManagedProcess, ProcessManager
+from litlaunch.redaction import format_command_preview
 from litlaunch.session import RuntimeSession
 from litlaunch.shutdown import DEFAULT_SHUTDOWN_HOST, ShutdownClient, ShutdownConfig
 from litlaunch.streamlit import StreamlitCommandBuilder
@@ -327,7 +328,7 @@ class StreamlitLauncher:
                 "Streamlit command built.",
                 render=False,
             )
-            self._render_detail(f"Command: {' '.join(command)}")
+            self._render_detail(f"Command: {format_command_preview(command)}")
             shutdown_config = self._build_shutdown_config(app_port=port)
             shutdown_client = ShutdownClient(
                 host=shutdown_config.host,
@@ -343,7 +344,11 @@ class StreamlitLauncher:
             )
             self._render_phase_start(ConsolePhase.BACKEND, "starting Streamlit")
             backend_start_time = self.clock.monotonic()
-            managed_process = self.process_manager.start(command, env=env)
+            managed_process = self.process_manager.start(
+                command,
+                cwd=self.config.cwd,
+                env=env,
+            )
             backend_elapsed = self.clock.monotonic() - backend_start_time
             pid = getattr(managed_process.popen, "pid", None)
             app_url = build_streamlit_app_url(self.config.host, port)
@@ -538,7 +543,11 @@ class StreamlitLauncher:
         return shutdown_config
 
     def _build_backend_env(self, shutdown_config: ShutdownConfig) -> dict[str, str]:
-        return {**os.environ, **shutdown_config.as_env()}
+        return {
+            **os.environ,
+            **self.config.extra_env,
+            **shutdown_config.as_env(),
+        }
 
     def _render_header(self) -> None:
         if self.console_renderer is None:

@@ -1,3 +1,4 @@
+import os
 from io import StringIO
 
 from litlaunch import LauncherConfig, LaunchMode
@@ -209,6 +210,69 @@ def test_start_backend_resolves_port_builds_command_and_waits_for_health():
         LaunchState.HEALTH_CHECKING,
         LaunchState.HEALTHY,
     ]
+
+
+def test_start_backend_passes_cwd_and_extra_env_without_mutating_global_env(
+    monkeypatch,
+):
+    monkeypatch.setenv("APP_SETTING", "global")
+    monkeypatch.setenv("LITLAUNCH_SHUTDOWN_TOKEN", "global-token")
+    process_manager = FakeProcessManager()
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            cwd="workspace",
+            extra_env={
+                "APP_SETTING": "child",
+                "APP_SECRET": "super-secret",
+                "LITLAUNCH_SHUTDOWN_TOKEN": "app-token",
+            },
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend()
+    env = process_manager.started[0][1]["env"]
+
+    assert session.ok is True
+    assert process_manager.started[0][1]["cwd"] == launcher.config.cwd
+    assert env["APP_SETTING"] == "child"
+    assert env["APP_SECRET"] == "super-secret"
+    assert env["LITLAUNCH_SHUTDOWN_ENABLED"] == "1"
+    assert env["LITLAUNCH_SHUTDOWN_TOKEN"] != "app-token"
+    assert env["LITLAUNCH_SHUTDOWN_TOKEN"] != "global-token"
+    assert os.environ["APP_SETTING"] == "global"
+    assert os.environ["LITLAUNCH_SHUTDOWN_TOKEN"] == "global-token"
+
+
+def test_verbose_backend_command_detail_redacts_sensitive_values():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        mode="verbose",
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            streamlit_args=("--server.cookieSecret", "super-secret-token"),
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    launcher.start_backend()
+    output = stream.getvalue()
+
+    assert "Command:" in output
+    assert "super-secret-token" not in output
+    assert "<redacted>" in output
 
 
 def test_start_backend_stops_owned_process_when_health_fails():

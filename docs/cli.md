@@ -33,6 +33,7 @@ litlaunch run app.py
 litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
 litlaunch run app.py --port 8501 --host 127.0.0.1
+litlaunch run app.py --port 8501 --no-auto-port
 litlaunch run app.py --no-browser-fallback
 litlaunch run app.py --dry-run
 ```
@@ -84,6 +85,8 @@ litlaunch command app.py --server.runOnSave true -- --workspace demo
 ```
 
 This prints the backend command and does not launch Streamlit or a browser.
+Use `--no-auto-port` with `command` when you want fixed-port availability
+checked instead of allowing automatic port selection.
 
 ## Inspect
 
@@ -95,6 +98,9 @@ litlaunch inspect app.py --bundle
 litlaunch inspect app.py --json --output litlaunch-report.json
 litlaunch inspect app.py --bundle --output litlaunch-report.txt --force
 ```
+
+Use `--no-auto-port` with `inspect` to validate fixed-port behavior before a
+launch.
 
 ## Example
 

@@ -53,13 +53,16 @@ the session state unchanged.
 ```text
 resolve port
 build command
-start backend process
+start backend process with configured cwd/env
 wait for /_stcore/health
 return healthy backend or failure result
 ```
 
 LitLaunch injects shutdown endpoint environment variables into the backend
-process. The shutdown token is redacted from console output.
+process after applying any `LauncherConfig.extra_env` overrides. This keeps
+app-provided environment values child-process only and ensures LitLaunch-owned
+shutdown variables win on collision. The shutdown token is redacted from
+console output.
 
 `RuntimeSession.stop()` first sends a graceful shutdown request when an app-side
 shutdown endpoint is available. The shutdown request client has a short default

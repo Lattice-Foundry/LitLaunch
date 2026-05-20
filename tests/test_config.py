@@ -88,6 +88,38 @@ def test_port_none_forces_auto_port_true():
     assert config.auto_port is True
 
 
+def test_cwd_normalizes_to_optional_path():
+    config = LauncherConfig(app_path="app.py", cwd="workspace")
+
+    assert str(config.cwd) == "workspace"
+
+
+def test_empty_cwd_raises_configuration_error():
+    with pytest.raises(ConfigurationError, match="cwd cannot be empty"):
+        LauncherConfig(app_path="app.py", cwd=" ")
+
+
+def test_extra_env_is_copy_safe_and_string_normalized():
+    env = {"APP_MODE": "demo", "COUNT": 3}
+    config = LauncherConfig(app_path="app.py", extra_env=env)
+
+    env["APP_MODE"] = "changed"
+
+    assert config.extra_env["APP_MODE"] == "demo"
+    assert config.extra_env["COUNT"] == "3"
+    with pytest.raises(TypeError):
+        config.extra_env["OTHER"] = "value"
+
+
+def test_extra_env_rejects_invalid_mapping_values():
+    with pytest.raises(ConfigurationError, match="extra_env must be a mapping"):
+        LauncherConfig(app_path="app.py", extra_env=["A=B"])
+    with pytest.raises(ConfigurationError, match="variable names"):
+        LauncherConfig(app_path="app.py", extra_env={" ": "value"})
+    with pytest.raises(ConfigurationError, match="NUL"):
+        LauncherConfig(app_path="app.py", extra_env={"A": "bad\x00value"})
+
+
 def test_streamlit_app_and_extra_browser_args_become_tuples():
     config = LauncherConfig(
         app_path="app.py",

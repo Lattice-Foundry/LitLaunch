@@ -50,6 +50,8 @@ config = LauncherConfig(
     app_path="app.py",
     title="My Streamlit App",
     mode="browser",
+    cwd=".",
+    extra_env={"APP_ENV": "local"},
 )
 
 session = StreamlitLauncher(config).run()
@@ -63,6 +65,11 @@ finally:
 The returned `RuntimeSession` owns the backend process. Stop it explicitly.
 `run()` is the friendly entry point; `start()` is the explicit lifecycle entry
 point. Both return a live `RuntimeSession`.
+
+`LauncherConfig.cwd` sets the backend process working directory.
+`LauncherConfig.extra_env` adds child-process environment variables without
+mutating `os.environ`. LitLaunch shutdown endpoint variables are injected after
+`extra_env`, so LitLaunch-owned shutdown values win on collision.
 
 Use `launcher.with_port(port)` when you need a copy of an existing launcher
 with a fixed port. The returned launcher preserves injected managers, browser

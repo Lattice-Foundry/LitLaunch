@@ -123,6 +123,7 @@ litlaunch browsers
 litlaunch command app.py --server.runOnSave true -- --workspace demo
 litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
+litlaunch run app.py --port 8501 --no-auto-port
 litlaunch run app.py --mode webapp --monitor-window --title "My Streamlit App"
 litlaunch run app.py --mode webapp --monitor-window --graceful-timeout 15
 
@@ -133,6 +134,9 @@ litlaunch inspect app.py --bundle --output litlaunch-report.txt --force
 
 Unknown arguments before Streamlit's `--` separator are passed through to
 Streamlit. Arguments after `--` are passed to the app.
+
+Python integrations can set `LauncherConfig.cwd` and `LauncherConfig.extra_env`
+to control the backend child process without mutating global environment state.
 
 ## App-Mode And Monitoring
 

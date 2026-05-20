@@ -3,6 +3,16 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.27.0
+
+- Added `LauncherConfig.cwd` and `LauncherConfig.extra_env` for backend process
+  working-directory and child-only environment overrides.
+- Ensured LitLaunch shutdown environment injection wins over app-provided
+  environment collisions.
+- Added `--no-auto-port` for `run`, `command`, and `inspect`.
+- Reused sensitive-value redaction for verbose command details and CLI command
+  previews.
+
 ## 0.26.0
 
 - Added an optional app-side shutdown completion callback that runs after

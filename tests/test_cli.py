@@ -25,6 +25,7 @@ from litlaunch.inspect import (
 )
 from litlaunch.lifecycle import LaunchResult, LaunchState
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
+from litlaunch.ports import PortError
 from litlaunch.windowing import (
     NoopWindowMonitor,
     WindowMonitorResult,
@@ -371,6 +372,17 @@ def test_cli_inspect_outputs_report_and_returns_zero_without_launching():
     assert collector.collect_calls[0]["mode"] == "webapp"
     assert collector.collect_calls[0]["browser"] == "edge"
     assert collector.collect_calls[0]["port"] == 8600
+    assert collector.collect_calls[0]["auto_port"] is True
+
+
+def test_cli_inspect_no_auto_port_maps_to_false():
+    code, _output, collector = run_fake_inspect(
+        ["inspect", str(EXAMPLE_APP), "--port", "8600", "--no-auto-port"]
+    )
+
+    assert code == 0
+    assert collector.collect_calls[0]["port"] == 8600
+    assert collector.collect_calls[0]["auto_port"] is False
 
 
 def test_cli_inspect_returns_nonzero_for_report_errors():
@@ -389,7 +401,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.26.0"
+    assert data["litlaunch_version"] == "0.27.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -617,6 +629,7 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.config.browser.value == "edge"
     assert launcher.config.title == "Example Runtime"
     assert launcher.config.port == 8600
+    assert launcher.config.auto_port is True
     assert launcher.config.allow_browser_fallback is False
     assert launcher.config.streamlit_flags["server.maxUploadSize"] == "20"
     assert launcher.config.app_args == ("dataset.json",)
@@ -624,6 +637,54 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.console_renderer is not None
     assert session.wait_calls == 1
     assert "Runtime active at http://127.0.0.1:8501" in stream.getvalue()
+
+
+def test_cli_run_no_auto_port_maps_to_config_false():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--port", "8600", "--no-auto-port"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+    )
+
+    launcher = FakeLauncher.instances[0]
+    assert code == 0
+    assert launcher.config.port == 8600
+    assert launcher.config.auto_port is False
+
+
+def test_cli_command_no_auto_port_maps_to_config_false():
+    stream = StringIO()
+
+    code = main(
+        ["command", str(EXAMPLE_APP), "--port", "8600", "--no-auto-port"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(FakeSession(ok=True)),
+    )
+
+    launcher = FakeLauncher.instances[0]
+    assert code == 0
+    assert launcher.config.port == 8600
+    assert launcher.config.auto_port is False
+
+
+def test_cli_command_no_auto_port_busy_port_fails_clearly():
+    stream = StringIO()
+
+    class BusyPortLauncher(FakeLauncher):
+        def resolve_port(self):
+            raise PortError("Port 8600 is already in use on 127.0.0.1.")
+
+    code = main(
+        ["command", str(EXAMPLE_APP), "--port", "8600", "--no-auto-port"],
+        stream=stream,
+        launcher_factory=BusyPortLauncher,
+    )
+
+    assert code == 2
+    assert "Port 8600 is already in use on 127.0.0.1." in stream.getvalue()
 
 
 def test_cli_run_returns_nonzero_on_failed_session():
@@ -705,6 +766,28 @@ def test_cli_run_dry_run_prints_command_without_starting_backend():
     assert "--server.runOnSave true -- --workspace demo" in output
 
 
+def test_cli_run_dry_run_redacts_sensitive_streamlit_args():
+    stream = StringIO()
+    session = FakeSession(ok=True)
+
+    code = main(
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--dry-run",
+            "--server.cookieSecret",
+            "super-secret-token",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+    )
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "super-secret-token" not in output
+    assert "<redacted>" in output
+
+
 def test_cli_command_prints_resolved_streamlit_command():
     stream = StringIO()
 
@@ -736,6 +819,26 @@ def test_cli_command_prints_resolved_streamlit_command():
     assert sys.executable in output
     assert "streamlit run" in output
     assert "--theme.base=dark --logger.enableRich -- --workspace demo" in output
+
+
+def test_cli_command_redacts_sensitive_streamlit_args():
+    stream = StringIO()
+
+    code = main(
+        [
+            "command",
+            str(EXAMPLE_APP),
+            "--server.cookieSecret",
+            "super-secret-token",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(FakeSession(ok=True)),
+    )
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "super-secret-token" not in output
+    assert "<redacted>" in output
 
 
 def test_cli_run_keyboard_interrupt_stops_session():

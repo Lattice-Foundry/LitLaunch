@@ -259,7 +259,7 @@ def test_diagnostics_report_to_dict_shape():
 
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.26.0"
+    assert data["litlaunch_version"] == "0.27.0"
     assert data["generated_at_utc"] == "2026-05-18T12:00:00Z"
     assert data["title"] == "Report"
     assert data["ok"] is True
@@ -335,6 +335,22 @@ def test_collector_with_valid_app_path_builds_previews():
     assert "Health URL preview: http://127.0.0.1:8600/_stcore/health" in rendered
     assert FakeLauncher.instances
     assert FakeLauncher.instances[0].run_calls == 0
+
+
+def test_collector_target_section_redacts_sensitive_extra_env():
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        cwd="workspace",
+        extra_env={"APP_TOKEN": "super-secret-token", "APP_MODE": "demo"},
+    )
+    rendered = TextDiagnosticsRenderer().render(report)
+
+    assert "Working directory" in rendered
+    assert "workspace" in rendered
+    assert "Environment overrides" in rendered
+    assert "APP_MODE=demo" in rendered
+    assert "APP_TOKEN=<redacted>" in rendered
+    assert "super-secret-token" not in rendered
 
 
 def test_collector_with_missing_app_path_reports_error():
@@ -434,7 +450,7 @@ def test_json_renderer_outputs_parseable_sanitized_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.26.0"
+    assert data["litlaunch_version"] == "0.27.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["items"][0]["message"] == "token=<redacted>"
     assert data["sections"][0]["items"][0]["detail"] == "--api_key=<redacted>"
@@ -463,7 +479,7 @@ def test_bundle_renderer_includes_summary_sections_and_sanitization_note():
     rendered = SanitizedBundleRenderer().render(report)
 
     assert "LitLaunch Support Bundle" in rendered
-    assert "Version: 0.26.0" in rendered
+    assert "Version: 0.27.0" in rendered
     assert "Generated at:" in rendered
     assert "Summary: ok; 0 errors; 0 warnings" in rendered
     assert "This report is sanitized" in rendered

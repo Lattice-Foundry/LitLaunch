@@ -171,6 +171,7 @@ litlaunch run app.py --mode webapp --browser edge
 litlaunch run app.py --port 8501 --no-auto-port
 litlaunch run app.py --mode webapp --monitor-window --title "My Streamlit App"
 litlaunch run app.py --mode webapp --monitor-window --graceful-timeout 15
+litlaunch run app.py --mode webapp --monitor-window --monitor-appear-timeout 90
 
 litlaunch inspect
 litlaunch inspect app.py --json

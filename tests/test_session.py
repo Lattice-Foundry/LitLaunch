@@ -10,6 +10,7 @@ from litlaunch.session import RuntimeSession
 from litlaunch.shutdown import ShutdownRequestResult
 from litlaunch.windowing import (
     WindowInfo,
+    WindowMonitorConfig,
     WindowMonitorResult,
     WindowMonitorStatus,
     WindowTarget,
@@ -481,6 +482,41 @@ def test_runtime_session_monitor_window_passes_custom_graceful_timeout_to_stop()
     assert result.closed is True
     assert shutdown_client.calls == 1
     assert manager.wait_calls == [(process, 12.5)]
+    assert manager.stop_calls == []
+
+
+def test_runtime_session_monitor_window_passes_custom_monitor_config():
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    monitor = FakeWindowMonitor(
+        WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=False,
+            status=WindowMonitorStatus.BACKEND_EXITED,
+            message="backend exited",
+        )
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        clock=FakeClock(),
+    )
+    monitor_config = WindowMonitorConfig(
+        appear_timeout_seconds=12.5,
+        poll_interval_seconds=0.25,
+        stable_poll_count=3,
+    )
+
+    result = session.monitor_window(
+        monitor,
+        WindowTarget("Streamlit"),
+        config=monitor_config,
+    )
+
+    assert result.status == WindowMonitorStatus.BACKEND_EXITED
+    assert monitor.calls[0][2] is monitor_config
     assert manager.stop_calls == []
 
 

@@ -44,6 +44,9 @@ Window monitoring is explicit and webapp-only:
 litlaunch run app.py --mode webapp --monitor-window
 litlaunch run app.py --mode webapp --monitor-window --title "My Streamlit App"
 litlaunch run app.py --mode webapp --monitor-window --graceful-timeout 15
+litlaunch run app.py --mode webapp --monitor-window --monitor-appear-timeout 90
+litlaunch run app.py --mode webapp --monitor-window --monitor-poll-interval 0.5
+litlaunch run app.py --mode webapp --monitor-window --monitor-stable-polls 3
 ```
 
 `--title` sets the expected runtime/app-window title. For monitor-window flows,
@@ -52,6 +55,10 @@ for detection.
 
 `--graceful-timeout` controls the backend-exit wait after a monitored app-window
 close triggers graceful shutdown.
+
+`--monitor-appear-timeout`, `--monitor-poll-interval`, and
+`--monitor-stable-polls` tune observational window detection only. They do not
+make LitLaunch own, close, or kill browser windows.
 
 ## Streamlit Passthrough
 

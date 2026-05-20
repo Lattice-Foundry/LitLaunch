@@ -25,6 +25,7 @@ from litlaunch.platforms import PlatformDetector
 from litlaunch.version import __version__
 from litlaunch.windowing import (
     NoopWindowMonitor,
+    WindowMonitorConfig,
     WindowMonitorResult,
     WindowMonitorStatus,
     WindowTarget,
@@ -362,6 +363,24 @@ def _add_runtime_flags(
                 "window close."
             ),
         )
+        parser.add_argument(
+            "--monitor-appear-timeout",
+            type=float,
+            default=60.0,
+            help="Seconds to wait for the app-mode window to appear.",
+        )
+        parser.add_argument(
+            "--monitor-poll-interval",
+            type=float,
+            default=1.0,
+            help="Seconds between window monitor polls.",
+        )
+        parser.add_argument(
+            "--monitor-stable-polls",
+            type=int,
+            default=2,
+            help="Matching polls required before a window is considered stable.",
+        )
     parser.add_argument(
         "--no-browser-fallback",
         action="store_true",
@@ -478,6 +497,12 @@ def _runtime_config_from_args(args: argparse.Namespace) -> LauncherConfig:
         raise LitLaunchError("--monitor-window is only valid with --mode webapp.")
     if getattr(args, "graceful_timeout", 3.0) <= 0:
         raise LitLaunchError("--graceful-timeout must be positive.")
+    if getattr(args, "monitor_appear_timeout", 60.0) <= 0:
+        raise LitLaunchError("--monitor-appear-timeout must be positive.")
+    if getattr(args, "monitor_poll_interval", 1.0) <= 0:
+        raise LitLaunchError("--monitor-poll-interval must be positive.")
+    if getattr(args, "monitor_stable_polls", 2) < 1:
+        raise LitLaunchError("--monitor-stable-polls must be at least 1.")
     return config
 
 
@@ -545,6 +570,11 @@ def _monitor_session_window(
         result = session.monitor_window(
             monitor,
             target,
+            config=WindowMonitorConfig(
+                appear_timeout_seconds=args.monitor_appear_timeout,
+                poll_interval_seconds=args.monitor_poll_interval,
+                stable_poll_count=args.monitor_stable_polls,
+            ),
             graceful_timeout_seconds=args.graceful_timeout,
         )
     except KeyboardInterrupt:

@@ -3,6 +3,14 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.31.0
+
+- Added CLI tuning for opt-in window monitoring appearance timeout, poll
+  interval, and stable poll count.
+- Documented monitor tuning for CLI and Python `WindowMonitorConfig` usage.
+- Preserved observational-only window monitoring and backend-owned shutdown
+  behavior.
+
 ## 0.30.0
 
 - Added launch-time browser fallback retry when fallback is allowed and the

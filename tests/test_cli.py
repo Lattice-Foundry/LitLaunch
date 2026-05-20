@@ -430,7 +430,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.30.0"
+    assert data["litlaunch_version"] == "0.31.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -929,6 +929,10 @@ def test_cli_run_monitor_window_closure_stops_runtime():
     assert session.stop_calls == 1
     assert session.monitor_calls[0][0] is monitor
     assert session.monitor_calls[0][2]["graceful_timeout_seconds"] == 3.0
+    monitor_config = session.monitor_calls[0][2]["config"]
+    assert monitor_config.appear_timeout_seconds == 60.0
+    assert monitor_config.poll_interval_seconds == 1.0
+    assert monitor_config.stable_poll_count == 2
     assert monitor.capture_calls[0].title == "Streamlit App"
     assert session.monitor_calls[0][1].title == "Streamlit App"
     assert session.monitor_calls[0][1].app_mode is True
@@ -986,6 +990,37 @@ def test_cli_run_monitor_window_passes_custom_graceful_timeout():
     assert session.monitor_calls[0][2]["graceful_timeout_seconds"] == 14.5
 
 
+def test_cli_run_monitor_window_passes_custom_monitor_config():
+    stream = StringIO()
+    session = FakeSession(ok=True)
+
+    code = main(
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--mode",
+            "webapp",
+            "--monitor-window",
+            "--monitor-appear-timeout",
+            "12.5",
+            "--monitor-poll-interval",
+            "0.25",
+            "--monitor-stable-polls",
+            "3",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: FakeCliMonitor(),
+    )
+
+    monitor_config = session.monitor_calls[0][2]["config"]
+    assert code == 0
+    assert monitor_config.appear_timeout_seconds == 12.5
+    assert monitor_config.poll_interval_seconds == 0.25
+    assert monitor_config.stable_poll_count == 3
+
+
 def test_cli_run_rejects_nonpositive_graceful_timeout():
     stream = StringIO()
 
@@ -1005,6 +1040,33 @@ def test_cli_run_rejects_nonpositive_graceful_timeout():
 
     assert code == 2
     assert "--graceful-timeout must be positive" in stream.getvalue()
+
+
+def test_cli_run_rejects_invalid_monitor_tuning():
+    invalid_cases = (
+        ("--monitor-appear-timeout", "0", "--monitor-appear-timeout must be positive"),
+        ("--monitor-poll-interval", "0", "--monitor-poll-interval must be positive"),
+        ("--monitor-stable-polls", "0", "--monitor-stable-polls must be at least 1"),
+    )
+    for flag, value, message in invalid_cases:
+        stream = StringIO()
+
+        code = main(
+            [
+                "run",
+                str(EXAMPLE_APP),
+                "--mode",
+                "webapp",
+                "--monitor-window",
+                flag,
+                value,
+            ],
+            stream=stream,
+            launcher_factory=reset_fake_launcher(FakeSession(ok=True)),
+        )
+
+        assert code == 2
+        assert message in stream.getvalue()
 
 
 def test_cli_run_monitor_window_unsupported_returns_nonzero_and_stops_runtime():

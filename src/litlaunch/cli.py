@@ -21,7 +21,7 @@ from litlaunch.inspect import (
     TextDiagnosticsRenderer,
 )
 from litlaunch.launcher import StreamlitLauncher
-from litlaunch.monitored import run_monitored_webapp
+from litlaunch.monitored import run_profile
 from litlaunch.platforms import PlatformDetector
 from litlaunch.profiles import LaunchProfile, load_profile
 from litlaunch.version import __version__
@@ -301,25 +301,32 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
         _write(context.stream, plan.command_display)
         return 0
 
+    runtime_profile = LaunchProfile(
+        name=profile.name if profile is not None else "cli",
+        config=config,
+        monitor_window=monitor_options.enabled,
+        graceful_timeout_seconds=monitor_options.graceful_timeout_seconds,
+        window_monitor_config=monitor_options.window_monitor_config,
+    )
+    run_result = run_profile(
+        runtime_profile,
+        launcher=launcher,
+        platform_detector=context.platform_detector_factory(),
+        window_monitor_factory=context.window_monitor_factory,
+    )
+
     if monitor_options.enabled:
-        monitored_result = run_monitored_webapp(
-            launcher,
-            window_monitor_config=monitor_options.window_monitor_config,
-            graceful_timeout_seconds=monitor_options.graceful_timeout_seconds,
-            platform_detector=context.platform_detector_factory(),
-            window_monitor_factory=context.window_monitor_factory,
-        )
-        if monitored_result.session is not None and monitored_result.session.ok:
-            renderer.success(f"Runtime active at {monitored_result.session.url}")
-        if monitored_result.monitor_result is not None:
+        if run_result.session is not None and run_result.session.ok:
+            renderer.success(f"Runtime active at {run_result.session.url}")
+        if run_result.monitor_result is not None:
             _render_monitor_result_if_needed(
-                monitored_result.session,
+                run_result.session,
                 renderer,
-                monitored_result.monitor_result,
+                run_result.monitor_result,
             )
-        if not monitored_result.launched:
+        if not run_result.launched:
             renderer.failure_guidance(
-                monitored_result.message,
+                run_result.message,
                 next_steps=(
                     "Omit --monitor-window to launch without close detection.",
                     (
@@ -328,11 +335,14 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
                     ),
                 ),
             )
-        elif monitored_result.exit_code != 0:
-            renderer.failure_guidance(monitored_result.message)
-        return monitored_result.exit_code
+        elif run_result.exit_code != 0:
+            renderer.failure_guidance(run_result.message)
+        return run_result.exit_code
 
-    session = launcher.run()
+    session = run_result.session
+    if session is None:
+        renderer.failure_guidance(run_result.message)
+        return run_result.exit_code
     if not session.ok:
         renderer.failure_guidance(
             "Runtime launch failed.",

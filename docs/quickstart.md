@@ -81,6 +81,19 @@ CLI arguments override profile values:
 litlaunch run --profile my-webapp --port 8502
 ```
 
+Python integrations can use the same profile runtime path:
+
+```python
+from litlaunch import load_profile, run_profile
+
+profile = load_profile("my-webapp")
+result = run_profile(profile)
+```
+
+When `window_monitor.enabled = true`, `run_profile()` uses the monitored webapp
+runner and applies the profile's graceful timeout and monitor config. When
+monitoring is disabled, it uses the normal launcher runtime path.
+
 ## Python API
 
 ```python

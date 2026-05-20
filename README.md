@@ -112,6 +112,22 @@ litlaunch inspect --profile my-webapp
 Profiles can live in `litlaunch.toml` or under `[tool.litlaunch]` in
 `pyproject.toml`. Explicit CLI flags override profile values.
 
+Python integrations can run the same configured profile through `run_profile()`:
+
+```python
+from litlaunch import load_profile, run_profile
+
+profile = load_profile("my-webapp")
+result = run_profile(profile)
+
+if result.exit_code:
+    print(result.message)
+```
+
+If `profile.window_monitor` is enabled, `run_profile()` uses the monitored
+webapp runner. Otherwise it starts the normal `StreamlitLauncher` path and
+returns the same structured `MonitoredRunResult` shape.
+
 Use the Python API:
 
 ```python

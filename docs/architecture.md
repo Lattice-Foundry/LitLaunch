@@ -74,6 +74,12 @@ open a browser, monitor a window, or request shutdown. CLI commands apply
 profile values first and explicit CLI arguments second before constructing the
 same `LauncherConfig` and `LaunchPlan` used by non-profile flows.
 
+`run_profile()` connects a loaded `LaunchProfile` to runtime execution. If
+`profile.monitor_window` is enabled, it delegates to `run_monitored_webapp()`.
+If monitoring is disabled, it uses the normal `StreamlitLauncher.run()` path.
+Both paths return `MonitoredRunResult` so integrations can inspect launch,
+monitor, and exit status consistently.
+
 `RuntimeSession.wait()` with no timeout waits until the backend exits. Timed
 waits return `None` if the timeout expires and leave the backend running with
 the session state unchanged.

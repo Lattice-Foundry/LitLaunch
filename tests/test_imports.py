@@ -80,6 +80,7 @@ from litlaunch import (
     load_profile,
     load_profiles,
     run_monitored_webapp,
+    run_profile,
 )
 
 
@@ -158,6 +159,7 @@ def test_public_imports_are_available():
     assert load_profile
     assert load_profiles
     assert run_monitored_webapp
+    assert run_profile
 
 
 def test_public_all_is_explicit():
@@ -208,6 +210,7 @@ def test_public_all_is_explicit():
         "ProcessManager",
         "RuntimeSession",
         "run_monitored_webapp",
+        "run_profile",
         "SanitizedBundleRenderer",
         "ShutdownClient",
         "ShutdownConfig",
@@ -245,8 +248,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.51.0"
-    assert __version__ == "0.51.0"
+    assert litlaunch.__version__ == "0.61.0"
+    assert __version__ == "0.61.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

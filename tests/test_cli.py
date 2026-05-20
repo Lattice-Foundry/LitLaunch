@@ -430,7 +430,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.51.0"
+    assert data["litlaunch_version"] == "0.61.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -807,6 +807,38 @@ stable_polls = 3
     assert monitor_config.appear_timeout_seconds == 22.0
     assert monitor_config.poll_interval_seconds == 0.5
     assert monitor_config.stable_poll_count == 3
+
+
+def test_cli_run_profile_without_monitor_uses_normal_runtime_path():
+    with temporary_output_dir() as output_dir:
+        app = output_dir / "app.py"
+        app.write_text("print('hello')\n", encoding="utf-8")
+        config_path = output_dir / "litlaunch.toml"
+        config_path.write_text(
+            """
+[profiles.browser]
+app_path = "app.py"
+title = "Profile Browser"
+mode = "browser"
+""",
+            encoding="utf-8",
+        )
+        stream = StringIO()
+        session = FakeSession(ok=True, wait_return=7)
+
+        code = main(
+            ["run", "--config", str(config_path), "--profile", "browser"],
+            stream=stream,
+            launcher_factory=reset_fake_launcher(session),
+            platform_detector_factory=FakePlatformDetector,
+            window_monitor_factory=lambda platform_info: FakeCliMonitor(),
+        )
+
+    assert code == 7
+    assert FakeLauncher.instances[0].config.title == "Profile Browser"
+    assert FakeLauncher.instances[0].run_calls == 1
+    assert session.wait_calls == 1
+    assert session.monitor_calls == []
 
 
 def test_cli_inspect_profile_passes_profile_values_without_launching():

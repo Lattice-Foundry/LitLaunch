@@ -1,9 +1,9 @@
 import pytest
 
-from litlaunch import LauncherConfig, LaunchMode
+from litlaunch import LauncherConfig, LaunchMode, LaunchProfile
 from litlaunch.browsers import BrowserCapability, BrowserKind
 from litlaunch.exceptions import ConfigurationError
-from litlaunch.monitored import MonitoredRunResult, run_monitored_webapp
+from litlaunch.monitored import MonitoredRunResult, run_monitored_webapp, run_profile
 from litlaunch.windowing import (
     NoopWindowMonitor,
     WindowInfo,
@@ -282,3 +282,90 @@ def test_run_monitored_webapp_rejects_nonpositive_graceful_timeout():
             monitor=FakeMonitor(),
             graceful_timeout_seconds=0,
         )
+
+
+def test_run_profile_non_monitored_runs_normal_launcher():
+    session = FakeSession(monitor_result=closed_result())
+    launcher = FakeLauncher(
+        LauncherConfig(app_path="app.py", mode="browser"),
+        session,
+    )
+    profile = LaunchProfile(name="dev", config=launcher.config)
+
+    result = run_profile(profile, launcher=launcher)
+
+    assert result.exit_code == 0
+    assert result.session is session
+    assert result.monitor_result is None
+    assert result.launched is True
+    assert launcher.run_calls == 1
+    assert session.monitor_calls == []
+
+
+def test_run_profile_non_monitored_launch_failure_is_structured():
+    session = FakeSession(monitor_result=closed_result(), ok=False)
+    launcher = FakeLauncher(
+        LauncherConfig(app_path="app.py", mode="browser"),
+        session,
+    )
+    profile = LaunchProfile(name="dev", config=launcher.config)
+
+    result = run_profile(profile, launcher=launcher)
+
+    assert result.exit_code == 1
+    assert result.session is session
+    assert result.launched is False
+    assert result.message == "launch failed"
+
+
+def test_run_profile_monitored_uses_profile_runtime_settings():
+    session = FakeSession(monitor_result=closed_result())
+    launcher = FakeLauncher(
+        LauncherConfig(app_path="app.py", mode="webapp"),
+        session,
+    )
+    monitor_config = WindowMonitorConfig(
+        appear_timeout_seconds=30.0,
+        poll_interval_seconds=0.25,
+        stable_poll_count=4,
+    )
+    profile = LaunchProfile(
+        name="webapp",
+        config=launcher.config,
+        monitor_window=True,
+        graceful_timeout_seconds=11.0,
+        window_monitor_config=monitor_config,
+    )
+    monitor = FakeMonitor(baseline=(WindowInfo("old"),))
+
+    result = run_profile(profile, launcher=launcher, monitor=monitor)
+
+    assert result.exit_code == 0
+    assert launcher.run_calls == 1
+    assert monitor.capture_calls
+    assert session.monitor_calls[0][2]["config"] == monitor_config
+    assert session.monitor_calls[0][2]["graceful_timeout_seconds"] == 11.0
+    assert session.monitor_calls[0][1].baseline_handles == ("old",)
+
+
+def test_run_profile_can_create_launcher_from_profile_config():
+    session = FakeSession(monitor_result=closed_result())
+
+    class LauncherFactory(FakeLauncher):
+        def __init__(self, config):
+            super().__init__(config, session)
+
+    profile = LaunchProfile(
+        name="webapp",
+        config=LauncherConfig(app_path="app.py", mode="webapp"),
+        monitor_window=True,
+    )
+
+    result = run_profile(
+        profile,
+        monitor=FakeMonitor(),
+        launcher_factory=LauncherFactory,
+    )
+
+    assert result.exit_code == 0
+    assert result.session is session

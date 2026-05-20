@@ -9,6 +9,7 @@ from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector, PlatformInfo
+from litlaunch.profiles import LaunchProfile
 from litlaunch.session import RuntimeSession
 from litlaunch.windowing import (
     NoopWindowMonitor,
@@ -174,6 +175,41 @@ def run_monitored_webapp(
         message=result.message,
         launched=True,
         stopped_cleanly=not _session_is_running(session),
+    )
+
+
+def run_profile(
+    profile: LaunchProfile,
+    *,
+    launcher: StreamlitLauncher | None = None,
+    launcher_factory: type[StreamlitLauncher] = StreamlitLauncher,
+    platform_detector: PlatformDetector | None = None,
+    window_monitor_factory: Callable[
+        [PlatformInfo], WindowMonitor
+    ] = create_window_monitor,
+    monitor: WindowMonitor | None = None,
+) -> MonitoredRunResult:
+    """Run a launch profile through the normal or monitored runtime path."""
+
+    resolved_launcher = launcher or launcher_factory(profile.config)
+    if profile.monitor_window:
+        return run_monitored_webapp(
+            resolved_launcher,
+            window_monitor_config=profile.window_monitor_config,
+            graceful_timeout_seconds=profile.graceful_timeout_seconds,
+            platform_detector=platform_detector,
+            window_monitor_factory=window_monitor_factory,
+            monitor=monitor,
+        )
+
+    session = resolved_launcher.run()
+    return MonitoredRunResult(
+        exit_code=0 if session.ok else 1,
+        session=session,
+        monitor_result=None,
+        message=session.result.message,
+        launched=session.ok,
+        stopped_cleanly=session.process is None or not _session_is_running(session),
     )
 
 

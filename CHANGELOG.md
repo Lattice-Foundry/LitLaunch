@@ -3,6 +3,13 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.61.0
+
+- Added `run_profile()` for profile-driven runtime execution through the normal
+  or monitored webapp path.
+- Routed CLI `run --profile` through the profile runtime path while preserving
+  plan-only `command` and `inspect` behavior.
+
 ## 0.51.0
 
 - Added `MonitoredRunResult` and `run_monitored_webapp()` for reusable

@@ -169,6 +169,11 @@ Profile values load first. Explicit CLI arguments override profile values, so
 the port. If both `litlaunch.toml` and `pyproject.toml` contain profiles, use
 `--config` so LitLaunch does not guess.
 
+`run --profile` uses the profile runtime path. If the profile enables
+`window_monitor`, LitLaunch runs the monitored webapp flow; otherwise it uses
+the normal launcher runtime flow. `command --profile` and `inspect --profile`
+remain plan-oriented and do not launch the backend or browser.
+
 ## Example
 
 ```powershell

@@ -48,7 +48,7 @@ from litlaunch.inspect import (
 )
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchEvent, LaunchPlan, LaunchResult, LaunchState
-from litlaunch.monitored import MonitoredRunResult, run_monitored_webapp
+from litlaunch.monitored import MonitoredRunResult, run_monitored_webapp, run_profile
 from litlaunch.platforms import (
     Architecture,
     OperatingSystem,
@@ -137,6 +137,7 @@ __all__ = [
     "load_profile",
     "load_profiles",
     "RuntimeSession",
+    "run_profile",
     "run_monitored_webapp",
     "ShutdownClient",
     "ShutdownConfig",

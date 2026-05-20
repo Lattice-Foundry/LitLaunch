@@ -60,6 +60,8 @@ Window monitoring does not:
 - own browser PIDs
 - kill by process name
 - kill by port owner
+- inspect browser URLs
+- use browser automation, CDP, remote debugging, or address-bar scraping
 
 When a close is observed, `RuntimeSession.stop()` performs graceful shutdown and
 owned-backend fallback termination if needed.
@@ -79,6 +81,25 @@ window is treated as observed.
 
 If no stable app window is observed before timeout, the monitor reports timeout.
 The CLI treats explicit monitor failure as nonzero and stops the owned backend.
+
+## Matching Boundary
+
+LitLaunch currently matches monitored app-mode windows using:
+
+- window title
+- Chromium window class signals
+- browser process-name signals when available
+- baseline handle exclusion
+- stable polling
+
+It does not inspect browser URLs. URL inspection would require browser
+automation, remote debugging, accessibility scraping, or process command-line
+inspection, and those approaches are intentionally outside the current
+observational monitoring contract.
+
+Choose a stable `LauncherConfig.title` / `--title` for monitored webapp flows.
+If the visible app-mode window title differs significantly from the expected
+title, monitoring may time out.
 
 ## Future Work
 

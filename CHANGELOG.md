@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.31.1
+
+- Documented the window monitoring URL boundary: LitLaunch does not inspect
+  browser URLs and uses title, process/class signals, baseline handles, and
+  stable polling for monitored app-mode windows.
+
 ## 0.31.0
 
 - Added CLI tuning for opt-in window monitoring appearance timeout, poll

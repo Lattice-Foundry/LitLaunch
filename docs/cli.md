@@ -60,6 +60,10 @@ close triggers graceful shutdown.
 `--monitor-stable-polls` tune observational window detection only. They do not
 make LitLaunch own, close, or kill browser windows.
 
+Window monitoring matches title, Chromium window class/process signals,
+baseline handles, and stable polling. It does not inspect browser URLs; choose a
+stable `--title` for monitored webapp flows.
+
 ## Streamlit Passthrough
 
 Unknown arguments before `--` are forwarded to Streamlit:

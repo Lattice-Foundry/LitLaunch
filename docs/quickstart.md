@@ -41,6 +41,46 @@ With app arguments after Streamlit's separator:
 litlaunch run app.py --server.runOnSave true -- --workspace demo
 ```
 
+## Reusable Profiles
+
+Profiles store repeatable launch settings in `litlaunch.toml`:
+
+```toml
+[profiles.my-webapp]
+app_path = "app.py"
+title = "My App"
+mode = "webapp"
+browser = "edge"
+port = 8501
+auto_port = false
+headless = true
+graceful_timeout = 15
+
+[profiles.my-webapp.window_monitor]
+enabled = true
+appear_timeout = 60
+poll_interval = 1
+stable_polls = 2
+```
+
+Run, inspect, or preview the profile:
+
+```powershell
+litlaunch run --profile my-webapp
+litlaunch command --profile my-webapp
+litlaunch inspect --profile my-webapp
+```
+
+The same shape can live under `[tool.litlaunch.profiles.my-webapp]` in
+`pyproject.toml`. When both `litlaunch.toml` and `pyproject.toml` define
+profiles, use `--config` to choose one explicitly.
+
+CLI arguments override profile values:
+
+```powershell
+litlaunch run --profile my-webapp --port 8502
+```
+
 ## Python API
 
 ```python

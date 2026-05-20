@@ -16,7 +16,7 @@ import litlaunch.cli as cli
 from litlaunch import __version__
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.cli import build_parser, main
-from litlaunch.config import BrowserChoice
+from litlaunch.config import BrowserChoice, LaunchMode
 from litlaunch.inspect import (
     DiagnosticItem,
     DiagnosticSection,
@@ -430,7 +430,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.31.2"
+    assert data["litlaunch_version"] == "0.41.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -714,6 +714,148 @@ def test_cli_command_no_auto_port_busy_port_fails_clearly():
 
     assert code == 2
     assert "Port 8600 is already in use on 127.0.0.1." in stream.getvalue()
+
+
+def test_cli_command_loads_profile_and_cli_overrides_port():
+    with temporary_output_dir() as output_dir:
+        app = output_dir / "app.py"
+        app.write_text("print('hello')\n", encoding="utf-8")
+        config_path = output_dir / "litlaunch.toml"
+        config_path.write_text(
+            """
+[profiles.web]
+app_path = "app.py"
+title = "Profile App"
+mode = "webapp"
+browser = "edge"
+port = 8501
+auto_port = false
+headless = true
+streamlit_args = ["--server.runOnSave", "true"]
+app_args = ["--workspace", "demo"]
+""",
+            encoding="utf-8",
+        )
+        stream = StringIO()
+
+        code = main(
+            [
+                "command",
+                "--config",
+                str(config_path),
+                "--profile",
+                "web",
+                "--port",
+                "8502",
+            ],
+            stream=stream,
+            launcher_factory=reset_fake_launcher(FakeSession(ok=True)),
+        )
+
+    launcher = FakeLauncher.instances[0]
+    assert code == 0
+    assert launcher.config.app_path == app
+    assert launcher.config.title == "Profile App"
+    assert launcher.config.mode == LaunchMode.WEBAPP
+    assert launcher.config.browser == BrowserChoice.EDGE
+    assert launcher.config.port == 8502
+    assert launcher.config.auto_port is False
+    assert launcher.config.streamlit_args == ("--server.runOnSave", "true")
+    assert launcher.config.app_args == ("--workspace", "demo")
+    assert "--server.port 8502" in stream.getvalue()
+
+
+def test_cli_run_profile_uses_monitor_runtime_settings():
+    with temporary_output_dir() as output_dir:
+        app = output_dir / "app.py"
+        app.write_text("print('hello')\n", encoding="utf-8")
+        config_path = output_dir / "litlaunch.toml"
+        config_path.write_text(
+            """
+[profiles.web]
+app_path = "app.py"
+title = "Profile App"
+mode = "webapp"
+headless = true
+graceful_timeout = 12
+
+[profiles.web.window_monitor]
+enabled = true
+appear_timeout = 22
+poll_interval = 0.5
+stable_polls = 3
+""",
+            encoding="utf-8",
+        )
+        stream = StringIO()
+        session = FakeSession(ok=True)
+        monitor = FakeCliMonitor()
+
+        code = main(
+            ["run", "--config", str(config_path), "--profile", "web"],
+            stream=stream,
+            launcher_factory=reset_fake_launcher(session),
+            platform_detector_factory=FakePlatformDetector,
+            window_monitor_factory=lambda platform_info: monitor,
+        )
+
+    monitor_config = session.monitor_calls[0][2]["config"]
+    assert code == 0
+    assert FakeLauncher.instances[0].config.title == "Profile App"
+    assert session.monitor_calls[0][1].title == "Profile App"
+    assert session.monitor_calls[0][2]["graceful_timeout_seconds"] == 12.0
+    assert monitor_config.appear_timeout_seconds == 22.0
+    assert monitor_config.poll_interval_seconds == 0.5
+    assert monitor_config.stable_poll_count == 3
+
+
+def test_cli_inspect_profile_passes_profile_values_without_launching():
+    with temporary_output_dir() as output_dir:
+        app = output_dir / "app.py"
+        app.write_text("print('hello')\n", encoding="utf-8")
+        config_path = output_dir / "pyproject.toml"
+        config_path.write_text(
+            """
+[tool.litlaunch.profiles.default]
+app_path = "app.py"
+title = "Profile App"
+mode = "webapp"
+browser = "chrome"
+port = 8501
+auto_port = false
+allow_browser_fallback = false
+headless = true
+streamlit_args = ["--theme.base=dark"]
+""",
+            encoding="utf-8",
+        )
+
+        code, _output, collector = run_fake_inspect(
+            ["inspect", "--config", str(config_path), "--profile", "default"]
+        )
+
+    call = collector.collect_calls[0]
+    assert code == 0
+    assert call["app_path"] == app
+    assert call["mode"] == LaunchMode.WEBAPP
+    assert call["browser"] == BrowserChoice.CHROME
+    assert call["port"] == 8501
+    assert call["auto_port"] is False
+    assert call["allow_browser_fallback"] is False
+    assert call["streamlit_args"] == ("--theme.base=dark",)
+
+
+def test_cli_config_requires_profile():
+    stream = StringIO()
+
+    code = main(
+        ["command", "--config", "litlaunch.toml"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(FakeSession(ok=True)),
+    )
+
+    assert code == 2
+    assert "--config requires --profile" in stream.getvalue()
 
 
 def test_cli_run_returns_nonzero_on_failed_session():

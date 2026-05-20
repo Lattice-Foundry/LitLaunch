@@ -33,6 +33,7 @@ from litlaunch import (
     LaunchEvent,
     LaunchMode,
     LaunchPlan,
+    LaunchProfile,
     LaunchResult,
     LaunchState,
     LitLaunchError,
@@ -75,6 +76,8 @@ from litlaunch import (
     is_chromium_window,
     is_hex_color,
     is_theme_color_name,
+    load_profile,
+    load_profiles,
 )
 
 
@@ -106,6 +109,7 @@ def test_public_imports_are_available():
     assert LaunchState.CREATED.value == "created"
     assert LaunchEvent
     assert LaunchPlan
+    assert LaunchProfile
     assert LaunchResult
     assert OperatingSystem.WINDOWS.value == "windows"
     assert Architecture.X64.value == "x64"
@@ -148,6 +152,8 @@ def test_public_imports_are_available():
     assert is_chromium_window
     assert is_hex_color("#1c83e1")
     assert is_theme_color_name("streamlit_blue")
+    assert load_profile
+    assert load_profiles
 
 
 def test_public_all_is_explicit():
@@ -179,6 +185,7 @@ def test_public_all_is_explicit():
         "LaunchEvent",
         "LaunchMode",
         "LaunchPlan",
+        "LaunchProfile",
         "LaunchResult",
         "LaunchState",
         "LauncherConfig",
@@ -224,14 +231,16 @@ def test_public_all_is_explicit():
         "is_chromium_window",
         "is_hex_color",
         "is_theme_color_name",
+        "load_profile",
+        "load_profiles",
     ]
     assert sorted(litlaunch.__all__) == sorted(expected)
     assert not hasattr(litlaunch, "ConsoleColor")
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.31.2"
-    assert __version__ == "0.31.2"
+    assert litlaunch.__version__ == "0.41.0"
+    assert __version__ == "0.41.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

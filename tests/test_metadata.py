@@ -33,6 +33,14 @@ def test_pyproject_dev_extras_include_release_tools():
     assert "twine>=6" in dev_dependencies
 
 
+def test_pyproject_runtime_dependencies_are_profile_toml_only():
+    pyproject = tomllib.loads(
+        (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+
+    assert pyproject["project"]["dependencies"] == ["tomli>=2; python_version < '3.11'"]
+
+
 def test_pyproject_urls_use_canonical_repository_location():
     pyproject = tomllib.loads(
         (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
@@ -47,7 +55,7 @@ def test_pyproject_urls_use_canonical_repository_location():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert "## 0.31.2" in changelog
+    assert "## 0.41.0" in changelog
     assert "## 0.23.0" in changelog
     assert "## 0.22.0" in changelog
     assert "## 0.21.0" in changelog

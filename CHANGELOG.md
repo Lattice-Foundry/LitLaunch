@@ -3,12 +3,16 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
-## 0.31.2
+## 0.41.0
 
 - Aligned `StreamlitLauncher.build_command()` with launch planning so backend
   command providers are respected consistently.
 - Reused configured graceful timeout values on monitor-driven CLI stop paths.
 - Clarified editable reinstall and raw Streamlit passthrough guidance.
+- Added project launch profiles from `litlaunch.toml` and `[tool.litlaunch]`
+  `pyproject.toml` configuration, with CLI support for `run`, `command`, and
+  `inspect`.
+- Added a Python 3.10-only `tomli` runtime dependency for profile TOML loading.
 
 ## 0.31.1
 

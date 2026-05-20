@@ -30,7 +30,8 @@ LitLaunch is infrastructure, not magic orchestration.
 - Browser processes are launched but never owned, killed, or controlled.
 - Window monitoring is observational only.
 - Commands are argument tuples, never shell strings.
-- Runtime dependencies remain stdlib-only.
+- Runtime dependencies remain stdlib-first; Python 3.10 uses the lightweight
+  `tomli` backport for TOML profile loading.
 - Diagnostics are sanitized and avoid raw environment dumps.
 
 See [docs/philosophy.md](docs/philosophy.md) and
@@ -81,6 +82,35 @@ Inspect local readiness without launching:
 ```powershell
 litlaunch inspect examples/minimal_app/app.py
 ```
+
+Use a reusable project profile:
+
+```toml
+[profiles.my-webapp]
+app_path = "app.py"
+title = "My App"
+mode = "webapp"
+browser = "edge"
+port = 8501
+auto_port = false
+headless = true
+graceful_timeout = 15
+
+[profiles.my-webapp.window_monitor]
+enabled = true
+appear_timeout = 60
+poll_interval = 1
+stable_polls = 2
+```
+
+```powershell
+litlaunch run --profile my-webapp
+litlaunch command --profile my-webapp
+litlaunch inspect --profile my-webapp
+```
+
+Profiles can live in `litlaunch.toml` or under `[tool.litlaunch]` in
+`pyproject.toml`. Explicit CLI flags override profile values.
 
 Use the Python API:
 

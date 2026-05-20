@@ -3,6 +3,9 @@
 LitLaunch keeps launch orchestration separate from live runtime ownership.
 
 ```text
+litlaunch.toml / pyproject.toml profile (optional)
+      |
+      v
 LauncherConfig
       |
       v
@@ -58,6 +61,18 @@ may supply a different command tuple for packaged or embedded apps, but they do
 not start processes. LitLaunch still calls `ProcessManager.start()`, injects
 environment variables, performs health checks, launches browsers, and owns the
 returned session lifecycle.
+
+## Profiles
+
+`LaunchProfile` is a reusable project configuration wrapper around
+`LauncherConfig` plus runtime-only settings such as `monitor_window`,
+`graceful_timeout_seconds`, and `WindowMonitorConfig`. Profiles can be loaded
+from `litlaunch.toml` or `[tool.litlaunch]` in `pyproject.toml`.
+
+Profiles are declarative inputs. Loading a profile does not start a backend,
+open a browser, monitor a window, or request shutdown. CLI commands apply
+profile values first and explicit CLI arguments second before constructing the
+same `LauncherConfig` and `LaunchPlan` used by non-profile flows.
 
 `RuntimeSession.wait()` with no timeout waits until the backend exits. Timed
 waits return `None` if the timeout expires and leave the backend running with

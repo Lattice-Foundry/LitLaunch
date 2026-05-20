@@ -34,9 +34,10 @@ shutdown path.
 
 ## Stdlib-First
 
-Runtime code is stdlib-only by default. Dev tooling uses test, lint, and release
-tools, but the package avoids runtime dependencies unless a future capability
-clearly justifies one.
+Runtime code is stdlib-first by default. Dev tooling uses test, lint, and
+release tools. Runtime dependencies are avoided unless a capability clearly
+justifies one; profile loading uses the lightweight `tomli` backport on Python
+3.10 because `tomllib` enters the standard library in Python 3.11.
 
 ## Packaging-Agnostic
 
@@ -55,4 +56,3 @@ tokens, browser profile paths, and sensitive-looking values.
 LitLaunch should provide dependable primitives and a clean launch path. It
 should not become a hidden supervisor that guesses, mutates, or controls
 unrelated system state.
-

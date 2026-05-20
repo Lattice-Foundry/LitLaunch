@@ -56,6 +56,7 @@ from litlaunch.platforms import (
 )
 from litlaunch.ports import PortManager
 from litlaunch.process import ManagedProcess, ProcessManager
+from litlaunch.profiles import LaunchProfile, load_profile, load_profiles
 from litlaunch.session import RuntimeSession
 from litlaunch.shutdown import (
     LauncherRuntime,
@@ -114,6 +115,7 @@ __all__ = [
     "SanitizedBundleRenderer",
     "LaunchMode",
     "LauncherConfig",
+    "LaunchProfile",
     "LitLaunchError",
     "LaunchEvent",
     "LaunchPlan",
@@ -130,6 +132,8 @@ __all__ = [
     "PortError",
     "ProcessError",
     "ProcessManager",
+    "load_profile",
+    "load_profiles",
     "RuntimeSession",
     "ShutdownClient",
     "ShutdownConfig",

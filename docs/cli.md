@@ -36,6 +36,8 @@ litlaunch run app.py --port 8501 --host 127.0.0.1
 litlaunch run app.py --port 8501 --no-auto-port
 litlaunch run app.py --no-browser-fallback
 litlaunch run app.py --dry-run
+litlaunch run --profile my-webapp
+litlaunch run --config litlaunch.toml --profile my-webapp
 ```
 
 Window monitoring is explicit and webapp-only:
@@ -121,6 +123,51 @@ litlaunch inspect app.py --bundle --output litlaunch-report.txt --force
 
 Use `--no-auto-port` with `inspect` to validate fixed-port behavior before a
 launch.
+
+Profiles work with inspect too:
+
+```powershell
+litlaunch inspect --profile my-webapp
+litlaunch inspect --config pyproject.toml --profile my-webapp
+```
+
+## Profiles
+
+LitLaunch profiles are reusable launch/runtime settings loaded from either
+`litlaunch.toml`:
+
+```toml
+[profiles.my-webapp]
+app_path = "app.py"
+title = "My App"
+mode = "webapp"
+browser = "edge"
+host = "127.0.0.1"
+port = 8501
+auto_port = false
+headless = true
+allow_browser_fallback = false
+graceful_timeout = 15
+
+[profiles.my-webapp.window_monitor]
+enabled = true
+appear_timeout = 60
+poll_interval = 1
+stable_polls = 2
+```
+
+or the equivalent `pyproject.toml` table:
+
+```toml
+[tool.litlaunch.profiles.my-webapp]
+app_path = "app.py"
+title = "My App"
+```
+
+Profile values load first. Explicit CLI arguments override profile values, so
+`litlaunch run --profile my-webapp --port 8502` keeps the profile but changes
+the port. If both `litlaunch.toml` and `pyproject.toml` contain profiles, use
+`--config` so LitLaunch does not guess.
 
 ## Example
 

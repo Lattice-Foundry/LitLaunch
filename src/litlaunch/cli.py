@@ -22,6 +22,7 @@ from litlaunch.inspect import (
 )
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector
+from litlaunch.profiles import LaunchProfile, load_profile
 from litlaunch.version import __version__
 from litlaunch.windowing import (
     NoopWindowMonitor,
@@ -42,6 +43,13 @@ class _CliContext:
     launcher_factory: Any
     diagnostic_collector_factory: Any
     window_monitor_factory: Any
+
+
+@dataclass(frozen=True)
+class _MonitorOptions:
+    enabled: bool
+    graceful_timeout_seconds: float
+    window_monitor_config: WindowMonitorConfig
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -200,19 +208,46 @@ def _cmd_browsers(args: argparse.Namespace, context: _CliContext) -> int:
 
 def _cmd_inspect(args: argparse.Namespace, context: _CliContext) -> int:
     _validate_inspect_output_args(args)
+    profile = _load_cli_profile(args)
+    profile_config = profile.config if profile is not None else None
     collector = context.diagnostic_collector_factory(
         platform_detector=context.platform_detector_factory(),
         browser_registry=context.browser_registry_factory(),
         launcher_factory=context.launcher_factory,
     )
     report = collector.collect(
-        app_path=args.app_path,
-        mode=args.mode or LaunchMode.BROWSER,
-        browser=args.browser or BrowserChoice.AUTO,
-        host=args.host,
-        port=args.port,
-        auto_port=not args.no_auto_port,
-        allow_browser_fallback=not args.no_browser_fallback,
+        app_path=(
+            args.app_path
+            if args.app_path is not None
+            else profile_config.app_path
+            if profile_config is not None
+            else None
+        ),
+        mode=_profile_value(args.mode, profile_config, "mode", LaunchMode.BROWSER),
+        browser=_profile_value(
+            args.browser,
+            profile_config,
+            "browser",
+            BrowserChoice.AUTO,
+        ),
+        host=_profile_value(args.host, profile_config, "host", "127.0.0.1"),
+        port=_profile_value(args.port, profile_config, "port", None),
+        auto_port=_profile_value(args.auto_port, profile_config, "auto_port", True),
+        allow_browser_fallback=_profile_value(
+            args.allow_browser_fallback,
+            profile_config,
+            "allow_browser_fallback",
+            True,
+        ),
+        cwd=profile_config.cwd if profile_config is not None else None,
+        extra_env=profile_config.extra_env if profile_config is not None else None,
+        streamlit_flags=(
+            profile_config.streamlit_flags if profile_config is not None else None
+        ),
+        streamlit_args=(
+            profile_config.streamlit_args if profile_config is not None else ()
+        ),
+        app_args=profile_config.app_args if profile_config is not None else (),
     )
     if args.json:
         rendered = JSONDiagnosticsRenderer().render(report)
@@ -242,7 +277,8 @@ def _cmd_inspect(args: argparse.Namespace, context: _CliContext) -> int:
 
 def _cmd_command(args: argparse.Namespace, context: _CliContext) -> int:
     renderer = _renderer(args, context)
-    config = _runtime_config_from_args(args)
+    profile = _load_cli_profile(args)
+    config = _runtime_config_from_args(args, profile=profile)
     launcher = context.launcher_factory(config, console_renderer=renderer)
     plan = launcher.build_launch_plan(include_browser_resolution=False)
     _write(context.stream, plan.command_display)
@@ -251,7 +287,11 @@ def _cmd_command(args: argparse.Namespace, context: _CliContext) -> int:
 
 def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
     renderer = _renderer(args, context)
-    config = _runtime_config_from_args(args)
+    profile = _load_cli_profile(args)
+    config = _runtime_config_from_args(args, profile=profile)
+    monitor_options = _monitor_options_from_args(args, profile)
+    if monitor_options.enabled and config.mode != LaunchMode.WEBAPP:
+        raise LitLaunchError("--monitor-window is only valid with --mode webapp.")
     launcher = context.launcher_factory(config, console_renderer=renderer)
     if args.dry_run:
         plan = launcher.build_launch_plan()
@@ -263,7 +303,12 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
         _write(context.stream, plan.command_display)
         return 0
 
-    monitor_plan = _prepare_window_monitor(args, context, config)
+    monitor_plan = _prepare_window_monitor(
+        monitor_options,
+        context,
+        config,
+        renderer=renderer,
+    )
     if monitor_plan is _MONITOR_UNSUPPORTED:
         return 1
 
@@ -283,10 +328,10 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
     if session.process is None:
         return 0
 
-    if args.monitor_window:
+    if monitor_options.enabled:
         monitor, baseline_handles = monitor_plan
         return _monitor_session_window(
-            args,
+            monitor_options,
             config,
             session,
             renderer=renderer,
@@ -329,7 +374,8 @@ def _add_runtime_flags(
     *,
     include_dry_run: bool,
 ) -> None:
-    parser.add_argument("app_path")
+    parser.add_argument("app_path", nargs="?")
+    _add_profile_flags(parser)
     parser.add_argument(
         "--title",
         help="Set the runtime title used for browser/app-mode window matching.",
@@ -337,10 +383,12 @@ def _add_runtime_flags(
     parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
     parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
     parser.add_argument("--port", type=int)
-    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--host")
     parser.add_argument(
         "--no-auto-port",
-        action="store_true",
+        action="store_false",
+        dest="auto_port",
+        default=None,
         help="Fail if the requested port is unavailable instead of trying another.",
     )
     if include_dry_run:
@@ -352,12 +400,12 @@ def _add_runtime_flags(
         parser.add_argument(
             "--monitor-window",
             action="store_true",
+            default=None,
             help="Monitor the Chromium app-mode window and stop runtime on close.",
         )
         parser.add_argument(
             "--graceful-timeout",
             type=float,
-            default=3.0,
             help=(
                 "Seconds to wait for graceful app shutdown after monitored "
                 "window close."
@@ -366,24 +414,23 @@ def _add_runtime_flags(
         parser.add_argument(
             "--monitor-appear-timeout",
             type=float,
-            default=60.0,
             help="Seconds to wait for the app-mode window to appear.",
         )
         parser.add_argument(
             "--monitor-poll-interval",
             type=float,
-            default=1.0,
             help="Seconds between window monitor polls.",
         )
         parser.add_argument(
             "--monitor-stable-polls",
             type=int,
-            default=2,
             help="Matching polls required before a window is considered stable.",
         )
     parser.add_argument(
         "--no-browser-fallback",
-        action="store_true",
+        action="store_false",
+        dest="allow_browser_fallback",
+        default=None,
         help="Disable browser fallback when the requested browser is unavailable.",
     )
     parser.add_argument(
@@ -404,6 +451,7 @@ def _add_runtime_flags(
 
 def _add_inspect_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("app_path", nargs="?")
+    _add_profile_flags(parser)
     output_group = parser.add_mutually_exclusive_group()
     output_group.add_argument(
         "--json",
@@ -418,15 +466,19 @@ def _add_inspect_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
     parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
     parser.add_argument("--port", type=int)
-    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--host")
     parser.add_argument(
         "--no-auto-port",
-        action="store_true",
+        action="store_false",
+        dest="auto_port",
+        default=None,
         help="Fail if the requested port is unavailable instead of trying another.",
     )
     parser.add_argument(
         "--no-browser-fallback",
-        action="store_true",
+        action="store_false",
+        dest="allow_browser_fallback",
+        default=None,
         help="Disable browser fallback when the requested browser is unavailable.",
     )
     parser.add_argument(
@@ -437,6 +489,15 @@ def _add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         "--force",
         action="store_true",
         help="Overwrite an existing inspect output file.",
+    )
+
+
+def _add_profile_flags(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--profile", help="Load a named LitLaunch launch profile.")
+    parser.add_argument(
+        "--config",
+        dest="config_path",
+        help="Load profiles from an explicit litlaunch.toml or pyproject.toml file.",
     )
 
 
@@ -474,50 +535,169 @@ def _streamlit_flags_mapping(
     return {key: value for key, value in values}
 
 
-def _runtime_config_from_args(args: argparse.Namespace) -> LauncherConfig:
-    app_path = Path(args.app_path)
+def _runtime_config_from_args(
+    args: argparse.Namespace,
+    *,
+    profile: LaunchProfile | None = None,
+) -> LauncherConfig:
+    profile_config = profile.config if profile is not None else None
+    app_path_value = (
+        args.app_path
+        if args.app_path is not None
+        else profile_config.app_path
+        if profile_config is not None
+        else None
+    )
+    if app_path_value is None:
+        raise LitLaunchError("app_path is required unless --profile supplies one.")
+
+    app_path = Path(app_path_value)
     if not app_path.is_file():
         raise LitLaunchError(f"Streamlit app path does not exist: {app_path}")
 
     streamlit_args, app_args = _split_passthrough_args(args.passthrough_args)
     config = LauncherConfig(
         app_path=app_path,
-        title=args.title or "Streamlit App",
-        mode=args.mode or LaunchMode.BROWSER,
-        browser=args.browser or BrowserChoice.AUTO,
-        host=args.host,
-        port=args.port,
-        auto_port=not args.no_auto_port,
-        allow_browser_fallback=not args.no_browser_fallback,
-        streamlit_flags=_streamlit_flags_mapping(args.streamlit_flag),
-        streamlit_args=streamlit_args,
-        app_args=(*tuple(args.app_arg), *app_args),
+        title=_profile_value(args.title, profile_config, "title", "Streamlit App"),
+        mode=_profile_value(args.mode, profile_config, "mode", LaunchMode.BROWSER),
+        browser=_profile_value(
+            args.browser,
+            profile_config,
+            "browser",
+            BrowserChoice.AUTO,
+        ),
+        host=_profile_value(args.host, profile_config, "host", "127.0.0.1"),
+        port=_profile_value(args.port, profile_config, "port", None),
+        auto_port=_profile_value(args.auto_port, profile_config, "auto_port", True),
+        headless=_profile_value(None, profile_config, "headless", None),
+        allow_browser_fallback=_profile_value(
+            args.allow_browser_fallback,
+            profile_config,
+            "allow_browser_fallback",
+            True,
+        ),
+        cwd=profile_config.cwd if profile_config is not None else None,
+        extra_env=profile_config.extra_env if profile_config is not None else {},
+        streamlit_flags=_merge_streamlit_flags(
+            profile_config.streamlit_flags if profile_config is not None else {},
+            args.streamlit_flag,
+        ),
+        streamlit_args=(
+            *(profile_config.streamlit_args if profile_config is not None else ()),
+            *streamlit_args,
+        ),
+        app_args=(
+            *(profile_config.app_args if profile_config is not None else ()),
+            *tuple(args.app_arg),
+            *app_args,
+        ),
+        extra_browser_args=(
+            profile_config.extra_browser_args if profile_config is not None else ()
+        ),
     )
-    if getattr(args, "monitor_window", False) and config.mode != LaunchMode.WEBAPP:
-        raise LitLaunchError("--monitor-window is only valid with --mode webapp.")
-    if getattr(args, "graceful_timeout", 3.0) <= 0:
-        raise LitLaunchError("--graceful-timeout must be positive.")
-    if getattr(args, "monitor_appear_timeout", 60.0) <= 0:
-        raise LitLaunchError("--monitor-appear-timeout must be positive.")
-    if getattr(args, "monitor_poll_interval", 1.0) <= 0:
-        raise LitLaunchError("--monitor-poll-interval must be positive.")
-    if getattr(args, "monitor_stable_polls", 2) < 1:
-        raise LitLaunchError("--monitor-stable-polls must be at least 1.")
     return config
+
+
+def _monitor_options_from_args(
+    args: argparse.Namespace,
+    profile: LaunchProfile | None,
+) -> _MonitorOptions:
+    profile_monitor_config = (
+        profile.window_monitor_config if profile is not None else WindowMonitorConfig()
+    )
+    monitor_window = (
+        args.monitor_window
+        if getattr(args, "monitor_window", None) is not None
+        else profile.monitor_window
+        if profile is not None
+        else False
+    )
+    graceful_timeout = (
+        args.graceful_timeout
+        if getattr(args, "graceful_timeout", None) is not None
+        else profile.graceful_timeout_seconds
+        if profile is not None
+        else 3.0
+    )
+    appear_timeout = (
+        args.monitor_appear_timeout
+        if getattr(args, "monitor_appear_timeout", None) is not None
+        else profile_monitor_config.appear_timeout_seconds
+    )
+    poll_interval = (
+        args.monitor_poll_interval
+        if getattr(args, "monitor_poll_interval", None) is not None
+        else profile_monitor_config.poll_interval_seconds
+    )
+    stable_polls = (
+        args.monitor_stable_polls
+        if getattr(args, "monitor_stable_polls", None) is not None
+        else profile_monitor_config.stable_poll_count
+    )
+    if graceful_timeout <= 0:
+        raise LitLaunchError("--graceful-timeout must be positive.")
+    if appear_timeout <= 0:
+        raise LitLaunchError("--monitor-appear-timeout must be positive.")
+    if poll_interval <= 0:
+        raise LitLaunchError("--monitor-poll-interval must be positive.")
+    if stable_polls < 1:
+        raise LitLaunchError("--monitor-stable-polls must be at least 1.")
+    return _MonitorOptions(
+        enabled=bool(monitor_window),
+        graceful_timeout_seconds=float(graceful_timeout),
+        window_monitor_config=WindowMonitorConfig(
+            appear_timeout_seconds=float(appear_timeout),
+            poll_interval_seconds=float(poll_interval),
+            stable_poll_count=int(stable_polls),
+        ),
+    )
+
+
+def _load_cli_profile(args: argparse.Namespace) -> LaunchProfile | None:
+    config_path = getattr(args, "config_path", None)
+    profile_name = getattr(args, "profile", None)
+    if config_path and not profile_name:
+        raise LitLaunchError("--config requires --profile.")
+    if not profile_name:
+        return None
+    return load_profile(profile_name, config_path)
+
+
+def _profile_value(value, profile_config, field_name: str, default):
+    if value is not None:
+        return value
+    if profile_config is not None:
+        return getattr(profile_config, field_name)
+    return default
+
+
+def _merge_streamlit_flags(profile_flags, cli_values):
+    cli_flags = _streamlit_flags_mapping(cli_values)
+    if not cli_flags:
+        return profile_flags
+    if isinstance(profile_flags, Mapping):
+        return {**dict(profile_flags), **cli_flags}
+    formatted: list[str] = [str(item) for item in profile_flags]
+    for key, value in cli_flags.items():
+        formatted.append(key if str(key).startswith("--") else f"--{key}")
+        if value is not None:
+            formatted.append(value)
+    return tuple(formatted)
 
 
 _MONITOR_UNSUPPORTED = object()
 
 
 def _prepare_window_monitor(
-    args: argparse.Namespace,
+    monitor_options: _MonitorOptions,
     context: _CliContext,
     config: LauncherConfig,
+    *,
+    renderer: ConsoleRenderer,
 ) -> tuple[Any, tuple[str, ...]] | object:
-    if not getattr(args, "monitor_window", False):
+    if not monitor_options.enabled:
         return (None, ())
 
-    renderer = _renderer(args, context)
     platform_info = context.platform_detector_factory().detect()
     monitor = context.window_monitor_factory(platform_info)
     if isinstance(monitor, NoopWindowMonitor):
@@ -550,7 +730,7 @@ def _prepare_window_monitor(
 
 
 def _monitor_session_window(
-    args: argparse.Namespace,
+    monitor_options: _MonitorOptions,
     config: LauncherConfig,
     session: Any,
     *,
@@ -570,29 +750,25 @@ def _monitor_session_window(
         result = session.monitor_window(
             monitor,
             target,
-            config=WindowMonitorConfig(
-                appear_timeout_seconds=args.monitor_appear_timeout,
-                poll_interval_seconds=args.monitor_poll_interval,
-                stable_poll_count=args.monitor_stable_polls,
-            ),
-            graceful_timeout_seconds=args.graceful_timeout,
+            config=monitor_options.window_monitor_config,
+            graceful_timeout_seconds=monitor_options.graceful_timeout_seconds,
         )
     except KeyboardInterrupt:
         renderer.warning("Interrupt received; stopping runtime.")
-        session.stop(graceful_timeout_seconds=args.graceful_timeout)
+        session.stop(graceful_timeout_seconds=monitor_options.graceful_timeout_seconds)
         return 0
 
     if result.status == WindowMonitorStatus.UNSUPPORTED:
         _render_monitor_result_if_needed(session, renderer, result)
-        session.stop(graceful_timeout_seconds=args.graceful_timeout)
+        session.stop(graceful_timeout_seconds=monitor_options.graceful_timeout_seconds)
         return 1
     if result.status == WindowMonitorStatus.TIMEOUT:
         _render_monitor_result_if_needed(session, renderer, result)
-        session.stop(graceful_timeout_seconds=args.graceful_timeout)
+        session.stop(graceful_timeout_seconds=monitor_options.graceful_timeout_seconds)
         return 1
     if result.status == WindowMonitorStatus.ERROR:
         _render_monitor_result_if_needed(session, renderer, result)
-        session.stop(graceful_timeout_seconds=args.graceful_timeout)
+        session.stop(graceful_timeout_seconds=monitor_options.graceful_timeout_seconds)
         return 1
     if result.closed:
         _render_monitor_result_if_needed(session, renderer, result)

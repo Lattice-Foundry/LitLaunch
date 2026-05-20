@@ -3,6 +3,11 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.82.0
+
+- Split CLI command handling into focused parser, command, configuration, inspect,
+  and shared helper modules while preserving command behavior and entry points.
+
 ## 0.81.0
 
 - Split the inspect diagnostics implementation into focused model, collector,

@@ -1,0 +1,181 @@
+"""Inspect command helpers for the LitLaunch CLI."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from litlaunch.cli_common import CliContext, mode, write
+from litlaunch.cli_config import add_profile_flags, load_cli_profile, profile_value
+from litlaunch.config import BrowserChoice, LaunchMode
+from litlaunch.console import ConsoleMode
+from litlaunch.exceptions import LitLaunchError
+from litlaunch.inspect import (
+    HTMLDiagnosticsRenderer,
+    JSONDiagnosticsRenderer,
+    SanitizedBundleRenderer,
+    TextDiagnosticsRenderer,
+)
+
+
+def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
+    """Add flags for the ``inspect`` command."""
+
+    parser.add_argument("app_path", nargs="?")
+    add_profile_flags(parser)
+    output_group = parser.add_mutually_exclusive_group()
+    output_group.add_argument(
+        "--json",
+        action="store_true",
+        help="Render diagnostics as machine-readable JSON.",
+    )
+    output_group.add_argument(
+        "--bundle",
+        action="store_true",
+        help="Render a sanitized copyable support bundle.",
+    )
+    output_group.add_argument(
+        "--html",
+        action="store_true",
+        help="Render a sanitized standalone HTML diagnostics report.",
+    )
+    parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
+    parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
+    parser.add_argument("--port", type=int)
+    parser.add_argument("--host")
+    parser.add_argument(
+        "--no-auto-port",
+        action="store_false",
+        dest="auto_port",
+        default=None,
+        help="Fail if the requested port is unavailable instead of trying another.",
+    )
+    parser.add_argument(
+        "--no-browser-fallback",
+        action="store_false",
+        dest="allow_browser_fallback",
+        default=None,
+        help="Disable browser fallback when the requested browser is unavailable.",
+    )
+    parser.add_argument(
+        "--output",
+        help="Write JSON or bundle inspect output to a UTF-8 file.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing inspect output file.",
+    )
+
+
+def cmd_inspect(args: argparse.Namespace, context: CliContext) -> int:
+    """Run the ``inspect`` command."""
+
+    validate_inspect_output_args(args)
+    profile = load_cli_profile(args)
+    profile_config = profile.config if profile is not None else None
+    collector = context.diagnostic_collector_factory(
+        platform_detector=context.platform_detector_factory(),
+        browser_registry=context.browser_registry_factory(),
+        launcher_factory=context.launcher_factory,
+    )
+    report = collector.collect(
+        app_path=(
+            args.app_path
+            if args.app_path is not None
+            else profile_config.app_path
+            if profile_config is not None
+            else None
+        ),
+        mode=profile_value(args.mode, profile_config, "mode", LaunchMode.BROWSER),
+        browser=profile_value(
+            args.browser,
+            profile_config,
+            "browser",
+            BrowserChoice.AUTO,
+        ),
+        host=profile_value(args.host, profile_config, "host", "127.0.0.1"),
+        port=profile_value(args.port, profile_config, "port", None),
+        auto_port=profile_value(args.auto_port, profile_config, "auto_port", True),
+        allow_browser_fallback=profile_value(
+            args.allow_browser_fallback,
+            profile_config,
+            "allow_browser_fallback",
+            True,
+        ),
+        cwd=profile_config.cwd if profile_config is not None else None,
+        extra_env=profile_config.extra_env if profile_config is not None else None,
+        streamlit_flags=(
+            profile_config.streamlit_flags if profile_config is not None else None
+        ),
+        streamlit_args=(
+            profile_config.streamlit_args if profile_config is not None else ()
+        ),
+        app_args=profile_config.app_args if profile_config is not None else (),
+        profile_name=profile.name if profile is not None else None,
+        monitor_window=profile.monitor_window if profile is not None else None,
+        graceful_timeout_seconds=(
+            profile.graceful_timeout_seconds if profile is not None else None
+        ),
+        window_monitor_config=(
+            profile.window_monitor_config if profile is not None else None
+        ),
+    )
+    rendered = render_inspect_report(args, report)
+
+    if args.output:
+        output_path = write_inspect_output(
+            Path(args.output),
+            rendered,
+            force=args.force,
+        )
+        write(context.stream, f"Wrote inspect report to {output_path}")
+    else:
+        context.stream.write(rendered)
+        flush = getattr(context.stream, "flush", None)
+        if callable(flush):
+            flush()
+    return 0 if report.ok else 1
+
+
+def render_inspect_report(args: argparse.Namespace, report) -> str:
+    """Render a diagnostics report for parsed inspect args."""
+
+    include_details = mode(args) == ConsoleMode.VERBOSE
+    if args.json:
+        return JSONDiagnosticsRenderer().render(report)
+    if args.html:
+        return HTMLDiagnosticsRenderer(include_details=include_details).render(report)
+    if args.bundle:
+        return SanitizedBundleRenderer(include_details=include_details).render(report)
+    return TextDiagnosticsRenderer(include_details=include_details).render(report)
+
+
+def validate_inspect_output_args(args: argparse.Namespace) -> None:
+    """Validate inspect output path options."""
+
+    if args.output and not (args.json or args.bundle or args.html):
+        raise LitLaunchError("--output requires --json, --bundle, or --html.")
+    if args.force and not args.output:
+        raise LitLaunchError("--force requires --output.")
+
+
+def write_inspect_output(path: Path, rendered: str, *, force: bool) -> Path:
+    """Write rendered inspect output to a UTF-8 file."""
+
+    output_path = path.expanduser()
+    parent = output_path.parent
+    if parent and not parent.exists():
+        raise LitLaunchError(f"Output parent directory does not exist: {parent}")
+    if output_path.exists() and output_path.is_dir():
+        raise LitLaunchError(f"Output path is a directory: {output_path}")
+    if output_path.exists() and not force:
+        raise LitLaunchError(
+            f"Output file already exists: {output_path}. Use --force to overwrite."
+        )
+    try:
+        output_path.write_text(rendered, encoding="utf-8")
+    except OSError as exc:
+        message = f"Could not write output file {output_path}: {exc}"
+        raise LitLaunchError(message) from exc
+    return output_path

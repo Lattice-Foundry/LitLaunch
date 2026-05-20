@@ -9,6 +9,13 @@ from litlaunch._protocols import ClockProvider
 from litlaunch.console import ConsolePhase, ConsoleRenderer
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess, ProcessManager
+from litlaunch.runtime_console import (
+    render_failure_guidance,
+    render_phase_start,
+    render_phase_success,
+    render_phase_warning,
+    render_window_monitor_result,
+)
 from litlaunch.shutdown import ShutdownClient
 from litlaunch.windowing import (
     WindowMonitor,
@@ -123,7 +130,7 @@ class RuntimeSession:
             return
 
         stop_start_time = self.clock.monotonic()
-        self._render_phase_start(ConsolePhase.SHUTDOWN, "requested")
+        render_phase_start(self.console_renderer, ConsolePhase.SHUTDOWN, "requested")
 
         if self._shutdown_client is not None and self.is_running():
             self.add_event(
@@ -131,7 +138,11 @@ class RuntimeSession:
                 "Requesting graceful shutdown.",
                 render=False,
             )
-            self._render_phase_start(ConsolePhase.SHUTDOWN, "requesting app cleanup")
+            render_phase_start(
+                self.console_renderer,
+                ConsolePhase.SHUTDOWN,
+                "requesting app cleanup",
+            )
             request_result = self._shutdown_client.request_shutdown()
             if request_result.ok:
                 self.add_event(
@@ -139,7 +150,8 @@ class RuntimeSession:
                     "Graceful shutdown request accepted.",
                     render=False,
                 )
-                self._render_phase_success(
+                render_phase_success(
+                    self.console_renderer,
                     ConsolePhase.SHUTDOWN,
                     "app cleanup request accepted",
                 )
@@ -154,11 +166,13 @@ class RuntimeSession:
                         "Graceful shutdown timed out; using termination fallback.",
                         render=False,
                     )
-                    self._render_phase_warning(
+                    render_phase_warning(
+                        self.console_renderer,
                         ConsolePhase.STOPPING_BACKEND,
                         "graceful stop timed out; using termination fallback",
                     )
-                    self._render_failure_guidance(
+                    render_failure_guidance(
+                        self.console_renderer,
                         "Graceful shutdown timed out.",
                         likely_cause=(
                             "The app accepted the shutdown request but did not exit "
@@ -177,7 +191,8 @@ class RuntimeSession:
                         f"Owned backend process exited with code {returncode}.",
                         render=False,
                     )
-                    self._render_phase_success(
+                    render_phase_success(
+                        self.console_renderer,
                         ConsolePhase.SHUTDOWN,
                         f"complete; backend exited with code {returncode}",
                         elapsed_seconds=self.clock.monotonic() - stop_start_time,
@@ -189,11 +204,13 @@ class RuntimeSession:
                     "Graceful shutdown request failed; using termination fallback.",
                     render=False,
                 )
-                self._render_phase_warning(
+                render_phase_warning(
+                    self.console_renderer,
                     ConsolePhase.STOPPING_BACKEND,
                     "graceful request failed; using termination fallback",
                 )
-                self._render_failure_guidance(
+                render_failure_guidance(
+                    self.console_renderer,
                     "Graceful shutdown request failed.",
                     likely_cause=(
                         "The app-side shutdown endpoint did not accept the request."
@@ -215,7 +232,8 @@ class RuntimeSession:
                 "Owned backend process stopped.",
                 render=False,
             )
-            self._render_phase_success(
+            render_phase_success(
+                self.console_renderer,
                 ConsolePhase.SHUTDOWN,
                 "complete; backend already stopped",
                 elapsed_seconds=self.clock.monotonic() - stop_start_time,
@@ -227,11 +245,13 @@ class RuntimeSession:
             "Stopping owned backend process with termination fallback.",
             render=False,
         )
-        self._render_phase_warning(
+        render_phase_warning(
+            self.console_renderer,
             ConsolePhase.STOPPING_BACKEND,
             "terminating owned backend process",
         )
-        self._render_failure_guidance(
+        render_failure_guidance(
+            self.console_renderer,
             "Using backend termination fallback.",
             likely_cause="The backend did not stop through graceful shutdown.",
             next_steps=("LitLaunch will stop only the backend process it started.",),
@@ -248,7 +268,8 @@ class RuntimeSession:
             "Owned backend process stopped.",
             render=False,
         )
-        self._render_phase_success(
+        render_phase_success(
+            self.console_renderer,
             ConsolePhase.SHUTDOWN,
             "complete",
             elapsed_seconds=self.clock.monotonic() - stop_start_time,
@@ -299,7 +320,11 @@ class RuntimeSession:
             "Window monitoring started.",
             render=False,
         )
-        self._render_phase_start(ConsolePhase.MONITOR, "watching app window")
+        render_phase_start(
+            self.console_renderer,
+            ConsolePhase.MONITOR,
+            "watching app window",
+        )
         result = monitor.wait_for_close(
             target,
             backend_is_running=self.is_running,
@@ -311,20 +336,20 @@ class RuntimeSession:
                 result.message or "App-mode window closed.",
                 render=False,
             )
-            self._render_window_monitor_result(result)
+            render_window_monitor_result(self.console_renderer, result)
             self.stop(graceful_timeout_seconds=graceful_timeout_seconds)
         elif result.status == WindowMonitorStatus.BACKEND_EXITED:
             self._stopped = True
             self._state = LaunchState.TERMINATED
             self.add_event(LaunchState.TERMINATED, result.message, render=False)
-            self._render_window_monitor_result(result)
+            render_window_monitor_result(self.console_renderer, result)
         else:
             self.add_event(
                 LaunchState.WINDOW_MONITORING,
                 result.message,
                 render=False,
             )
-            self._render_window_monitor_result(result)
+            render_window_monitor_result(self.console_renderer, result)
         return result
 
     def add_event(
@@ -344,48 +369,6 @@ class RuntimeSession:
         self._events.append(event)
         if render and self.console_renderer is not None:
             self.console_renderer.render_launch_event(event)
-
-    def _render_phase_start(self, phase: ConsolePhase, message: str) -> None:
-        if self.console_renderer is not None:
-            self.console_renderer.phase_start(phase, message)
-
-    def _render_phase_success(
-        self,
-        phase: ConsolePhase,
-        message: str,
-        *,
-        elapsed_seconds: float | None = None,
-    ) -> None:
-        if self.console_renderer is not None:
-            self.console_renderer.phase_success(
-                phase,
-                message,
-                elapsed_seconds=elapsed_seconds,
-            )
-
-    def _render_phase_warning(self, phase: ConsolePhase, message: str) -> None:
-        if self.console_renderer is not None:
-            self.console_renderer.phase_warning(phase, message)
-
-    def _render_window_monitor_result(self, result: WindowMonitorResult) -> None:
-        if self.console_renderer is not None:
-            self.console_renderer.render_window_monitor_result(result)
-
-    def _render_failure_guidance(
-        self,
-        summary: str,
-        *,
-        likely_cause: str | None = None,
-        next_steps: tuple[str, ...] = (),
-        suggest_inspect: bool = False,
-    ) -> None:
-        if self.console_renderer is not None:
-            self.console_renderer.failure_guidance(
-                summary,
-                likely_cause=likely_cause,
-                next_steps=next_steps,
-                suggest_inspect=suggest_inspect,
-            )
 
     def __enter__(self) -> RuntimeSession:
         """Return this session for context manager ownership."""

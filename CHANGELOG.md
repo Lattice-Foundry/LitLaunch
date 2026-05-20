@@ -3,6 +3,11 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.83.0
+
+- Extracted runtime console presentation helpers from launcher/session
+  orchestration into a focused runtime console module.
+
 ## 0.82.0
 
 - Split CLI command handling into focused parser, command, configuration, inspect,

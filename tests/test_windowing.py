@@ -193,10 +193,27 @@ def test_polling_monitor_selects_title_match_and_records_events():
     ]
 
 
-def test_polling_monitor_rejects_transient_handle():
+def test_polling_monitor_treats_early_disappearing_candidate_as_closed():
+    transient = window("0x111")
+    monitor = monitor_for((transient,), ())
+
+    result = monitor.wait_for_close(
+        WindowTarget("Streamlit"),
+        backend_is_running=lambda: True,
+        config=config(stable_poll_count=2),
+    )
+
+    assert result.closed is True
+    assert result.observed is True
+    assert result.status == WindowMonitorStatus.WINDOW_CLOSED
+    assert result.target == transient
+    assert "before stable observation" in result.message
+
+
+def test_polling_monitor_keeps_waiting_when_candidate_handle_changes():
     transient = window("0x111")
     stable = window("0x222")
-    monitor = monitor_for((transient,), (), (stable,), (stable,), ())
+    monitor = monitor_for((transient,), (stable,), (stable,), ())
 
     result = monitor.wait_for_close(
         WindowTarget("Streamlit"),

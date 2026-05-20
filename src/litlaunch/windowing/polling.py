@@ -120,6 +120,22 @@ class PollingWindowMonitor:
 
             selected = candidates[-1] if candidates else None
             if selected is None:
+                if candidate is not None:
+                    self._add_event(
+                        events,
+                        WindowMonitorStatus.WINDOW_CLOSED,
+                        "App-mode window closed before stable observation.",
+                        candidate,
+                    )
+                    return self._result(
+                        WindowMonitorStatus.WINDOW_CLOSED,
+                        "App-mode window closed before stable observation.",
+                        events,
+                        supported=True,
+                        observed=True,
+                        closed=True,
+                        target=candidate,
+                    )
                 candidate = None
                 stable_count = 0
             elif candidate is not None and selected.handle == candidate.handle:

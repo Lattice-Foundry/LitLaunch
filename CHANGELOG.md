@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.81.0
+
+- Split the inspect diagnostics implementation into focused model, collector,
+  renderer, and Streamlit-check modules while preserving the public
+  `litlaunch.inspect` API.
+
 ## 0.71.0
 
 - Added sanitized standalone HTML diagnostics output for `litlaunch inspect`.

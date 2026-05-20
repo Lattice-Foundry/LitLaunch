@@ -214,17 +214,27 @@ launcher = StreamlitLauncher(
 Custom backend commands must bind the requested host/port and expose the
 Streamlit health endpoint used by LitLaunch.
 
+## Beta API Stability
+
+The beta-stable public surfaces are the configuration, launcher, launch-plan,
+profile, monitored-runner, backend-command-provider, app shutdown, and inspect
+diagnostics APIs documented in [docs/architecture.md](docs/architecture.md).
+Breaking changes remain possible before 1.0, but these APIs are intended to
+stabilize through the 0.9x beta band. Window provider internals, low-level
+browser/window matching details, and console presentation internals remain more
+experimental.
+
 ## Feature Status
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Streamlit backend launch | Alpha foundation | Shell-free command construction and owned backend process management. |
-| Backend command providers | Alpha foundation | Optional command-only seam for packaged/embedded integrations. |
-| Browser mode | Alpha foundation | Uses default browser or detected Chromium browser capability. |
-| Chromium app-mode | Alpha | Edge and Chrome/Chromium adapters first. |
-| Browser fallback | Alpha | Explicit browser choices can fall back unless disabled. |
-| Graceful shutdown hooks | Alpha | Opt-in app runtime, tokened loopback endpoint, optional app completion callback, fallback backend termination. |
-| Inspect diagnostics | Alpha foundation | Text, JSON, HTML, and sanitized bundle output. No app launch. |
+| Streamlit backend launch | Beta | Shell-free command construction and owned backend process management. |
+| Backend command providers | Beta | Optional command-only seam for packaged/embedded integrations. |
+| Browser mode | Beta | Uses default browser or detected Chromium browser capability. |
+| Chromium app-mode | Beta | Edge and Chrome/Chromium adapters first. |
+| Browser fallback | Beta | Explicit browser choices can fall back unless disabled. |
+| Graceful shutdown hooks | Beta | Opt-in app runtime, tokened loopback endpoint, optional app completion callback, fallback backend termination. |
+| Inspect diagnostics | Beta | Text, JSON, HTML, and sanitized bundle output. No app launch. |
 | Window monitoring | Experimental | Opt-in, Windows Chromium app-mode first, observational only. |
 | Packaging guidance | Notes only | LitLaunch supports packaged apps conceptually but does not own packaging. |
 | Diagnostics dashboard | Not implemented | Future work; no local diagnostics server exists today. |

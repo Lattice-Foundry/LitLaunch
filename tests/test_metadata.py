@@ -142,6 +142,25 @@ def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
     assert "essential errors and failure guidance" in cli
 
 
+def test_docs_clarify_beta_api_stability_policy():
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    architecture = (REPO_ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+
+    assert "## Beta API Stability" in readme
+    assert "## Beta API Stability" in architecture
+    assert "`LauncherConfig`" in architecture
+    assert (
+        "`BackendCommandProvider`, `BackendCommand`, and `BackendCommandContext`"
+        in architecture
+    )
+    assert "`HTMLDiagnosticsRenderer`" in architecture
+    assert "1.0.0-rc1" in architecture
+    assert "Window provider internals" in readme
+    assert "not a packager" in architecture
+    assert "packaging automation is not" in architecture
+    assert "part of the beta runtime API" in architecture
+
+
 def test_docs_clarify_redaction_limits_and_deferred_visual_placeholders():
     inspect_doc = (REPO_ROOT / "docs" / "inspect.md").read_text(encoding="utf-8")
     troubleshooting = (REPO_ROOT / "docs" / "troubleshooting.md").read_text(

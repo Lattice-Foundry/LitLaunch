@@ -24,6 +24,38 @@ StreamlitLauncher
 RuntimeSession owns backend process
 ```
 
+## Beta API Stability
+
+During the 0.9x beta band, these public surfaces are intended to stabilize:
+
+- `LauncherConfig`
+- `StreamlitLauncher`
+- `LaunchPlan`
+- `LaunchProfile`
+- `load_profile()` and `load_profiles()`
+- `run_profile()`
+- `run_monitored_webapp()`
+- `BackendCommandProvider`, `BackendCommand`, and `BackendCommandContext`
+- `LauncherRuntime` shutdown hooks and shutdown completion callback APIs
+- diagnostics report and rendering APIs, including `HTMLDiagnosticsRenderer`
+
+Breaking changes are still possible before 1.0. The stronger API freeze target
+is `1.0.0-rc1`.
+
+These surfaces remain experimental or implementation-oriented and may evolve
+faster:
+
+- windowing provider internals
+- Windows HWND/provider implementation details
+- low-level browser/window matching details
+- console/theme/presentation internals
+- private helper modules and modules not exported from `litlaunch.__all__`
+
+LitLaunch is a runtime platform, not a packager. Packaged apps should use the
+`BackendCommandProvider` seam when they need custom backend commands. Future
+packaging tooling may build on this contract, but packaging automation is not
+part of the beta runtime API.
+
 ## RuntimeSession
 
 `RuntimeSession` is the live runtime owner. It holds:

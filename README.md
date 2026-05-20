@@ -224,10 +224,10 @@ Streamlit health endpoint used by LitLaunch.
 | Chromium app-mode | Alpha | Edge and Chrome/Chromium adapters first. |
 | Browser fallback | Alpha | Explicit browser choices can fall back unless disabled. |
 | Graceful shutdown hooks | Alpha | Opt-in app runtime, tokened loopback endpoint, optional app completion callback, fallback backend termination. |
-| Inspect diagnostics | Alpha foundation | Text, JSON, and sanitized bundle output. No app launch. |
+| Inspect diagnostics | Alpha foundation | Text, JSON, HTML, and sanitized bundle output. No app launch. |
 | Window monitoring | Experimental | Opt-in, Windows Chromium app-mode first, observational only. |
 | Packaging guidance | Notes only | LitLaunch supports packaged apps conceptually but does not own packaging. |
-| HTML inspector/dashboard | Not implemented | Future work; no local diagnostics server exists today. |
+| Diagnostics dashboard | Not implemented | Future work; no local diagnostics server exists today. |
 
 ## Common CLI Examples
 
@@ -246,6 +246,7 @@ litlaunch run app.py --mode webapp --monitor-window --monitor-appear-timeout 90
 
 litlaunch inspect
 litlaunch inspect app.py --json
+litlaunch inspect app.py --html --output litlaunch-report.html
 litlaunch inspect app.py --bundle --output litlaunch-report.txt --force
 ```
 
@@ -268,11 +269,12 @@ See [docs/browser_support.md](docs/browser_support.md) and
 ## Inspect And Troubleshooting
 
 Use `litlaunch inspect` before launching or when a runtime fails. Inspect can
-render plain text, JSON, or a sanitized support bundle:
+render plain text, JSON, standalone HTML, or a sanitized support bundle:
 
 ```powershell
 litlaunch inspect app.py
 litlaunch inspect app.py --json --output litlaunch-report.json
+litlaunch inspect app.py --html --output litlaunch-report.html
 litlaunch inspect app.py --bundle --output litlaunch-report.txt
 ```
 
@@ -299,7 +301,7 @@ See [docs/inspect.md](docs/inspect.md) and
 - Owning, killing, or controlling browser processes.
 - Killing by process name, PID discovery, or port owner.
 - Replacing Streamlit's CLI/config system.
-- Running a local diagnostics dashboard or HTML inspector today.
+- Running a local diagnostics dashboard or diagnostics server today.
 - Owning PyInstaller, Nuitka, shortcut, or installer workflows.
 - Adding terminal UI frameworks or heavy runtime dependencies.
 

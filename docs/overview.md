@@ -34,14 +34,14 @@ Implemented:
 - Edge, Chrome/Chromium, and default-browser capability detection
 - Runtime session ownership
 - Graceful shutdown hooks
-- Text/JSON/bundle inspect diagnostics
+- Text/JSON/HTML/bundle inspect diagnostics
 - Lightweight console rendering
 - Argparse CLI
 - Optional Windows-first Chromium window monitoring
 
 Not implemented:
 
-- HTML diagnostics dashboard
+- Local diagnostics dashboard/server
 - Runtime log viewer
 - Background monitor threads
 - Packaging automation
@@ -52,4 +52,3 @@ Not implemented:
 Create: a one-page runtime flow from `LauncherConfig` to `RuntimeSession`.
 Show: backend process ownership, browser launch without ownership, optional
 inspect and shutdown paths.
-

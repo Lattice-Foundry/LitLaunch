@@ -27,6 +27,7 @@ from litlaunch import (
     DiagnosticsReport,
     DiagnosticStatus,
     HealthChecker,
+    HTMLDiagnosticsRenderer,
     JSONDiagnosticsRenderer,
     LauncherConfig,
     LauncherRuntime,
@@ -106,6 +107,7 @@ def test_public_imports_are_available():
     assert DiagnosticSection
     assert DiagnosticStatus.OK.value == "ok"
     assert DiagnosticsReport
+    assert HTMLDiagnosticsRenderer
     assert HealthChecker
     assert JSONDiagnosticsRenderer
     assert issubclass(ConfigurationError, LitLaunchError)
@@ -186,6 +188,7 @@ def test_public_all_is_explicit():
         "DiagnosticSection",
         "DiagnosticStatus",
         "DiagnosticsReport",
+        "HTMLDiagnosticsRenderer",
         "HealthChecker",
         "JSONDiagnosticsRenderer",
         "LaunchEvent",
@@ -248,8 +251,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.61.0"
-    assert __version__ == "0.61.0"
+    assert litlaunch.__version__ == "0.71.0"
+    assert __version__ == "0.71.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

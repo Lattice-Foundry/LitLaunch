@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+from html import escape
 from importlib import metadata
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from litlaunch.redaction import (
     sanitize_report_dict,  # noqa: F401 - re-exported for inspect consumers.
 )
 from litlaunch.version import __version__
+from litlaunch.windowing import WindowMonitorConfig
 
 SCHEMA_VERSION = 1
 
@@ -173,6 +175,10 @@ class DiagnosticCollector:
         streamlit_flags: StreamlitFlags | None = None,
         streamlit_args: Sequence[str] = (),
         app_args: Sequence[str] = (),
+        profile_name: str | None = None,
+        monitor_window: bool | None = None,
+        graceful_timeout_seconds: float | None = None,
+        window_monitor_config: WindowMonitorConfig | None = None,
     ) -> DiagnosticsReport:
         """Collect diagnostics for the current environment and optional app target."""
 
@@ -192,6 +198,15 @@ class DiagnosticCollector:
             self._streamlit_section(streamlit),
             self._browser_section(capabilities, resolution),
         ]
+        if profile_name is not None:
+            sections.append(
+                self._profile_section(
+                    profile_name,
+                    monitor_window=monitor_window,
+                    graceful_timeout_seconds=graceful_timeout_seconds,
+                    window_monitor_config=window_monitor_config,
+                )
+            )
         if app_path is not None:
             sections.append(
                 self._target_section(
@@ -314,6 +329,59 @@ class DiagnosticCollector:
             )
         )
         return DiagnosticSection("Browsers", tuple(items))
+
+    def _profile_section(
+        self,
+        profile_name: str,
+        *,
+        monitor_window: bool | None,
+        graceful_timeout_seconds: float | None,
+        window_monitor_config: WindowMonitorConfig | None,
+    ) -> DiagnosticSection:
+        items = [
+            DiagnosticItem(
+                "Profile",
+                DiagnosticStatus.INFO,
+                profile_name,
+            ),
+        ]
+        if monitor_window is not None:
+            items.append(
+                DiagnosticItem(
+                    "Window monitoring",
+                    DiagnosticStatus.INFO,
+                    "enabled" if monitor_window else "disabled",
+                )
+            )
+        if graceful_timeout_seconds is not None:
+            items.append(
+                DiagnosticItem(
+                    "Graceful timeout",
+                    DiagnosticStatus.INFO,
+                    f"{float(graceful_timeout_seconds):g} seconds",
+                )
+            )
+        if window_monitor_config is not None:
+            items.extend(
+                (
+                    DiagnosticItem(
+                        "Monitor appear timeout",
+                        DiagnosticStatus.INFO,
+                        f"{window_monitor_config.appear_timeout_seconds:g} seconds",
+                    ),
+                    DiagnosticItem(
+                        "Monitor poll interval",
+                        DiagnosticStatus.INFO,
+                        f"{window_monitor_config.poll_interval_seconds:g} seconds",
+                    ),
+                    DiagnosticItem(
+                        "Monitor stable polls",
+                        DiagnosticStatus.INFO,
+                        str(window_monitor_config.stable_poll_count),
+                    ),
+                )
+            )
+        return DiagnosticSection("Profile", tuple(items))
 
     def _target_section(
         self,
@@ -469,6 +537,105 @@ class JSONDiagnosticsRenderer:
         return json.dumps(report.to_dict(), indent=2, sort_keys=True) + "\n"
 
 
+class HTMLDiagnosticsRenderer:
+    """Render structured diagnostics to a sanitized standalone HTML report."""
+
+    SANITIZATION_NOTE = (
+        "This report is sanitized and does not include raw environment variables "
+        "or shutdown tokens."
+    )
+
+    def __init__(self, *, include_details: bool = True) -> None:
+        self.include_details = include_details
+
+    def render(self, report: DiagnosticsReport) -> str:
+        """Render a diagnostics report as dependency-free HTML."""
+
+        data = report.to_dict()
+        status_text = "OK" if data["ok"] else "Needs attention"
+        sections = data["sections"]
+        lines = [
+            "<!doctype html>",
+            '<html lang="en">',
+            "<head>",
+            '  <meta charset="utf-8">',
+            '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+            f"  <title>{_html(data['title'])}</title>",
+            "  <style>",
+            "    :root { color-scheme: light dark; }",
+            "    body { font-family: system-ui, -apple-system, Segoe UI, "
+            "sans-serif; margin: 2rem; line-height: 1.45; }",
+            "    main { max-width: 960px; }",
+            "    h1, h2 { line-height: 1.15; }",
+            "    .meta, .note, .detail { color: #666; }",
+            "    section { border-top: 1px solid #ccc; padding-top: 1rem; "
+            "margin-top: 1.5rem; }",
+            "    table { border-collapse: collapse; width: 100%; }",
+            "    th, td { border-bottom: 1px solid #ddd; padding: .5rem; "
+            "text-align: left; vertical-align: top; }",
+            "    .status-ok { color: #17803d; font-weight: 700; }",
+            "    .status-warning { color: #946200; font-weight: 700; }",
+            "    .status-error { color: #b42318; font-weight: 700; }",
+            "    .status-info { color: #1c83e1; font-weight: 700; }",
+            "    code { white-space: pre-wrap; word-break: break-word; }",
+            "  </style>",
+            "</head>",
+            "<body>",
+            "<main>",
+            f"  <h1>{_html(data['title'])}</h1>",
+            (
+                f'  <p class="meta">Generated by {_html(data["generated_by"])} '
+                f"{_html(data['litlaunch_version'])} at "
+                f"{_html(data['generated_at_utc'])}</p>"
+            ),
+            (
+                f"  <p><strong>Status:</strong> {_html(status_text)}. "
+                f"<strong>Errors:</strong> {_html(data['errors'])}. "
+                f"<strong>Warnings:</strong> {_html(data['warnings'])}.</p>"
+            ),
+            (
+                f'  <p class="note">{_html(self.SANITIZATION_NOTE)} '
+                "Review reports before sharing publicly.</p>"
+            ),
+        ]
+        for section in sections:
+            lines.extend(self._render_section(section))
+        lines.extend(["</main>", "</body>", "</html>", ""])
+        return "\n".join(lines)
+
+    def _render_section(self, section: object) -> list[str]:
+        section_data = section if isinstance(section, Mapping) else {}
+        title = section_data.get("title", "")
+        items = section_data.get("items", [])
+        lines = [
+            "  <section>",
+            f"    <h2>{_html(title)}</h2>",
+            "    <table>",
+            "      <thead><tr><th>Status</th><th>Name</th><th>Message</th>"
+            "<th>Detail</th></tr></thead>",
+            "      <tbody>",
+        ]
+        if isinstance(items, list):
+            for item in items:
+                lines.append(self._render_item(item))
+        lines.extend(["      </tbody>", "    </table>", "  </section>"])
+        return lines
+
+    def _render_item(self, item: object) -> str:
+        item_data = item if isinstance(item, Mapping) else {}
+        status = str(item_data.get("status", "info"))
+        detail = item_data.get("detail") if self.include_details else None
+        detail_text = "" if detail is None else str(detail)
+        return (
+            "        <tr>"
+            f'<td class="status-{_html_attr(status)}">{_html(status.upper())}</td>'
+            f"<td>{_html(item_data.get('name', ''))}</td>"
+            f"<td>{_html(item_data.get('message', ''))}</td>"
+            f"<td><code>{_html(detail_text)}</code></td>"
+            "</tr>"
+        )
+
+
 class SanitizedBundleRenderer:
     """Render a concise copyable support bundle."""
 
@@ -562,3 +729,13 @@ def _render_item(item: DiagnosticItem) -> str:
     name = redact_sensitive_text(item.name)
     message = redact_sensitive_text(item.message)
     return f"[{item.status.value.upper()}] {name}: {message}"
+
+
+def _html(value: object) -> str:
+    return escape(str(value), quote=True)
+
+
+def _html_attr(value: object) -> str:
+    text = str(value)
+    safe = "".join(char for char in text if char.isalnum() or char in {"-", "_"})
+    return escape(safe or "info", quote=True)

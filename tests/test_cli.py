@@ -430,7 +430,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.61.0"
+    assert data["litlaunch_version"] == "0.71.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -457,6 +457,18 @@ def test_cli_inspect_bundle_returns_sanitized_bundle():
     assert "This report is sanitized" in output
     assert "[OK] Platform: Windows x64 / Python 3.14.5" in output
     assert "PATH=" not in output
+
+
+def test_cli_inspect_html_returns_sanitized_html():
+    code, output, collector = run_fake_inspect(["inspect", "--html", "--quiet"])
+
+    assert code == 0
+    assert output.startswith("<!doctype html>")
+    assert "<html" in output
+    assert "LitLaunch Inspect" in output
+    assert "This report is sanitized" in output
+    assert collector.collect_calls[0]["app_path"] is None
+    assert "\033[" not in output
 
 
 def test_cli_inspect_app_bundle_quiet_still_outputs_bundle():
@@ -517,6 +529,21 @@ def test_cli_inspect_bundle_output_writes_file():
     assert code == 0
     assert "LitLaunch Support Bundle" in content
     assert "Generated at:" in content
+    assert "This report is sanitized" in content
+    assert output.startswith("Wrote inspect report to ")
+
+
+def test_cli_inspect_html_output_writes_file():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "litlaunch-report.html"
+        code, output, _collector = run_fake_inspect(
+            ["inspect", "--html", "--output", str(output_path)]
+        )
+        content = output_path.read_text(encoding="utf-8")
+
+    assert code == 0
+    assert content.startswith("<!doctype html>")
+    assert "LitLaunch Inspect" in content
     assert "This report is sanitized" in content
     assert output.startswith("Wrote inspect report to ")
 
@@ -599,7 +626,7 @@ def test_cli_inspect_output_without_json_or_bundle_fails_clearly():
         )
 
     assert code == 2
-    assert "--output requires --json or --bundle" in output
+    assert "--output requires --json, --bundle, or --html" in output
 
 
 def test_cli_inspect_force_without_output_fails_clearly():
@@ -875,6 +902,8 @@ streamlit_args = ["--theme.base=dark"]
     assert call["auto_port"] is False
     assert call["allow_browser_fallback"] is False
     assert call["streamlit_args"] == ("--theme.base=dark",)
+    assert call["profile_name"] == "default"
+    assert call["monitor_window"] is False
 
 
 def test_cli_config_requires_profile():

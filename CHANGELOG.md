@@ -3,6 +3,12 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.71.0
+
+- Added sanitized standalone HTML diagnostics output for `litlaunch inspect`.
+- Included profile runtime settings in diagnostics when inspecting a loaded
+  profile.
+
 ## 0.61.0
 
 - Added `run_profile()` for profile-driven runtime execution through the normal

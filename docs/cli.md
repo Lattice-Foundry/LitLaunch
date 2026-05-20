@@ -116,8 +116,10 @@ path exposed to Python integrations through
 litlaunch inspect
 litlaunch inspect app.py
 litlaunch inspect app.py --json
+litlaunch inspect app.py --html
 litlaunch inspect app.py --bundle
 litlaunch inspect app.py --json --output litlaunch-report.json
+litlaunch inspect app.py --html --output litlaunch-report.html
 litlaunch inspect app.py --bundle --output litlaunch-report.txt --force
 ```
 
@@ -129,6 +131,7 @@ Profiles work with inspect too:
 ```powershell
 litlaunch inspect --profile my-webapp
 litlaunch inspect --config pyproject.toml --profile my-webapp
+litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
 ```
 
 ## Profiles

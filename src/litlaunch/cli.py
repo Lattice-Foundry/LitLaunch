@@ -16,6 +16,7 @@ from litlaunch.console import ConsoleMode, ConsoleRenderer, ConsoleTheme
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.inspect import (
     DiagnosticCollector,
+    HTMLDiagnosticsRenderer,
     JSONDiagnosticsRenderer,
     SanitizedBundleRenderer,
     TextDiagnosticsRenderer,
@@ -246,9 +247,21 @@ def _cmd_inspect(args: argparse.Namespace, context: _CliContext) -> int:
             profile_config.streamlit_args if profile_config is not None else ()
         ),
         app_args=profile_config.app_args if profile_config is not None else (),
+        profile_name=profile.name if profile is not None else None,
+        monitor_window=profile.monitor_window if profile is not None else None,
+        graceful_timeout_seconds=(
+            profile.graceful_timeout_seconds if profile is not None else None
+        ),
+        window_monitor_config=(
+            profile.window_monitor_config if profile is not None else None
+        ),
     )
     if args.json:
         rendered = JSONDiagnosticsRenderer().render(report)
+    elif args.html:
+        rendered = HTMLDiagnosticsRenderer(
+            include_details=_mode(args) == ConsoleMode.VERBOSE
+        ).render(report)
     elif args.bundle:
         rendered = SanitizedBundleRenderer(
             include_details=_mode(args) == ConsoleMode.VERBOSE
@@ -482,6 +495,11 @@ def _add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Render a sanitized copyable support bundle.",
     )
+    output_group.add_argument(
+        "--html",
+        action="store_true",
+        help="Render a sanitized standalone HTML diagnostics report.",
+    )
     parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
     parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
     parser.add_argument("--port", type=int)
@@ -714,8 +732,8 @@ def _render_monitor_result_if_needed(
 
 
 def _validate_inspect_output_args(args: argparse.Namespace) -> None:
-    if args.output and not (args.json or args.bundle):
-        raise LitLaunchError("--output requires --json or --bundle.")
+    if args.output and not (args.json or args.bundle or args.html):
+        raise LitLaunchError("--output requires --json, --bundle, or --html.")
     if args.force and not args.output:
         raise LitLaunchError("--force requires --output.")
 

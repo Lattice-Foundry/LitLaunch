@@ -12,6 +12,7 @@ from litlaunch.inspect import (
     DiagnosticSection,
     DiagnosticsReport,
     DiagnosticStatus,
+    HTMLDiagnosticsRenderer,
     JSONDiagnosticsRenderer,
     SanitizedBundleRenderer,
     StreamlitAvailability,
@@ -23,6 +24,7 @@ from litlaunch.inspect import (
 from litlaunch.lifecycle import LaunchPlan
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
 from litlaunch.redaction import format_command_preview, format_env_preview
+from litlaunch.windowing import WindowMonitorConfig
 
 EXAMPLE_APP = Path("examples/minimal_app/app.py")
 MISSING_APP = Path("missing-inspect-app.py")
@@ -293,7 +295,7 @@ def test_diagnostics_report_to_dict_shape():
 
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.61.0"
+    assert data["litlaunch_version"] == "0.71.0"
     assert data["generated_at_utc"] == "2026-05-18T12:00:00Z"
     assert data["title"] == "Report"
     assert data["ok"] is True
@@ -369,6 +371,29 @@ def test_collector_with_valid_app_path_builds_previews():
     assert "Health URL preview: http://127.0.0.1:8600/_stcore/health" in rendered
     assert FakeLauncher.instances
     assert FakeLauncher.instances[0].run_calls == 0
+
+
+def test_collector_with_profile_metadata_adds_profile_section():
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        profile_name="webapp",
+        monitor_window=True,
+        graceful_timeout_seconds=15,
+        window_monitor_config=WindowMonitorConfig(
+            appear_timeout_seconds=90,
+            poll_interval_seconds=0.5,
+            stable_poll_count=3,
+        ),
+    )
+    rendered = TextDiagnosticsRenderer().render(report)
+
+    assert "Profile" in [section.title for section in report.sections]
+    assert "[INFO] Profile: webapp" in rendered
+    assert "[INFO] Window monitoring: enabled" in rendered
+    assert "[INFO] Graceful timeout: 15 seconds" in rendered
+    assert "[INFO] Monitor appear timeout: 90 seconds" in rendered
+    assert "[INFO] Monitor poll interval: 0.5 seconds" in rendered
+    assert "[INFO] Monitor stable polls: 3" in rendered
 
 
 def test_collector_target_section_redacts_sensitive_extra_env():
@@ -484,13 +509,64 @@ def test_json_renderer_outputs_parseable_sanitized_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.61.0"
+    assert data["litlaunch_version"] == "0.71.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["items"][0]["message"] == "token=<redacted>"
     assert data["sections"][0]["items"][0]["detail"] == "--api_key=<redacted>"
     assert "\033[" not in rendered
     assert "abc123secret" not in rendered
     assert "value" not in rendered
+
+
+def test_html_renderer_outputs_sanitized_standalone_html():
+    report = DiagnosticsReport(
+        "LitLaunch Inspect",
+        (
+            DiagnosticSection(
+                "Target",
+                (
+                    DiagnosticItem(
+                        "Command preview",
+                        DiagnosticStatus.OK,
+                        "token=abc123secret",
+                        detail='--api_key=value --name "<demo>"',
+                    ),
+                ),
+            ),
+        ),
+        generated_at_utc="2026-05-18T12:00:00Z",
+    )
+
+    rendered = HTMLDiagnosticsRenderer().render(report)
+
+    assert rendered.startswith("<!doctype html>")
+    assert "<html" in rendered
+    assert "LitLaunch Inspect" in rendered
+    assert "0.71.0" in rendered
+    assert "This report is sanitized" in rendered
+    assert "abc123secret" not in rendered
+    assert "value" not in rendered
+    assert "&lt;redacted&gt;" in rendered
+    assert "&lt;demo&gt;" in rendered
+    assert "\033[" not in rendered
+
+
+def test_html_renderer_can_omit_details():
+    report = DiagnosticsReport(
+        "Report",
+        (
+            DiagnosticSection(
+                "Section",
+                (DiagnosticItem("Name", DiagnosticStatus.INFO, "message", "secret"),),
+            ),
+        ),
+    )
+
+    rendered = HTMLDiagnosticsRenderer(include_details=False).render(report)
+
+    assert "Name" in rendered
+    assert "message" in rendered
+    assert "secret" not in rendered
 
 
 def test_bundle_renderer_includes_summary_sections_and_sanitization_note():
@@ -513,7 +589,7 @@ def test_bundle_renderer_includes_summary_sections_and_sanitization_note():
     rendered = SanitizedBundleRenderer().render(report)
 
     assert "LitLaunch Support Bundle" in rendered
-    assert "Version: 0.61.0" in rendered
+    assert "Version: 0.71.0" in rendered
     assert "Generated at:" in rendered
     assert "Summary: ok; 0 errors; 0 warnings" in rendered
     assert "This report is sanitized" in rendered
@@ -634,10 +710,11 @@ def test_all_renderers_hide_fake_shutdown_token():
     outputs = (
         TextDiagnosticsRenderer().render(report),
         JSONDiagnosticsRenderer().render(report),
+        HTMLDiagnosticsRenderer().render(report),
         SanitizedBundleRenderer().render(report),
     )
 
     for output in outputs:
         assert "abc123shutdown" not in output
-        assert "<redacted>" in output
+        assert "<redacted>" in output or "&lt;redacted&gt;" in output
         assert "PATH=" not in output

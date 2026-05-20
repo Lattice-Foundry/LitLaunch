@@ -38,6 +38,21 @@ litlaunch inspect app.py --bundle --output litlaunch-report.txt
 
 The support bundle is concise and copyable for issues or support requests.
 
+## HTML
+
+```powershell
+litlaunch inspect app.py --html
+litlaunch inspect app.py --html --output litlaunch-report.html
+litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
+```
+
+HTML output is a standalone, dependency-free diagnostics report rendered from
+the same structured report model as text, JSON, and bundle output. It includes
+LitLaunch version, platform capability, Streamlit availability, browser
+capability/resolution, target launch plan preview, and profile runtime settings
+when a profile is loaded. It does not start a local server, run JavaScript,
+inspect browser URLs, launch Streamlit, or open a browser.
+
 ## Sanitization
 
 Inspect output avoids:
@@ -57,7 +72,7 @@ always be detected. Review support bundles before sharing them publicly.
 
 ## Not Implemented
 
-There is no HTML inspector/dashboard or local diagnostics server today.
+There is no local diagnostics dashboard or diagnostics web server today.
 
 [screenshot needed]
 Capture: `litlaunch inspect examples/minimal_app/app.py --no-color` output.

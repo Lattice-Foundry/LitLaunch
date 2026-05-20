@@ -242,6 +242,7 @@ class StreamlitLauncher:
             mode=self.config.mode,
             title=self.config.title,
             extra_args=self.config.extra_browser_args,
+            allow_fallback=self.config.allow_browser_fallback,
         )
         browser_elapsed = self.clock.monotonic() - browser_start_time
 

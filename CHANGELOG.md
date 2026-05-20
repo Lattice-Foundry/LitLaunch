@@ -3,6 +3,14 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.30.0
+
+- Added launch-time browser fallback retry when fallback is allowed and the
+  selected browser fails to open.
+- Preserved strict browser behavior when fallback is disabled.
+- Kept webapp/app-mode fallback limited to app-mode capable browsers while
+  allowing browser mode to fall back to the default browser.
+
 ## 0.29.1
 
 - Tightened backend command provider validation for empty commands and

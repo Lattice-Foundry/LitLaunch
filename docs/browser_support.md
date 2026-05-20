@@ -24,7 +24,8 @@ Default browser mode does not provide Chromium app-mode semantics.
 
 ## Fallback Policy
 
-By default, LitLaunch may fall back when the requested browser is unavailable:
+By default, LitLaunch may fall back when the requested browser is unavailable
+or when the selected browser fails to launch:
 
 ```powershell
 litlaunch run app.py --browser edge
@@ -36,8 +37,12 @@ Disable fallback:
 litlaunch run app.py --browser edge --no-browser-fallback
 ```
 
-In webapp mode, fallback is limited to app-mode capable browsers. In browser
-mode, fallback can use the default browser.
+In webapp mode, fallback is limited to app-mode capable browsers. LitLaunch
+does not downgrade app-mode to the default browser. In browser mode, fallback
+can use the default browser.
+
+When `--no-browser-fallback` is set, LitLaunch tries only the selected browser
+capability and reports the launch failure without retrying alternatives.
 
 ## Limitations
 
@@ -49,4 +54,3 @@ mode, fallback can use the default browser.
 [diagram needed]
 Create: browser resolution decision tree for browser mode vs webapp mode.
 Show: requested browser, fallback allowed/disabled, default browser fallback.
-

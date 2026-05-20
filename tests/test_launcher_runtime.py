@@ -104,8 +104,8 @@ class FakeBrowserLauncher:
         self.ok = ok
         self.calls = []
 
-    def launch(self, resolution, *, url, mode, title, extra_args):
-        self.calls.append((resolution, url, mode, title, extra_args))
+    def launch(self, resolution, *, url, mode, title, extra_args, allow_fallback=True):
+        self.calls.append((resolution, url, mode, title, extra_args, allow_fallback))
         return BrowserLaunchResult(
             ok=self.ok,
             command=("browser", "--app=" + url) if self.ok else ("browser",),
@@ -681,6 +681,7 @@ def test_run_starts_backend_waits_health_resolves_and_launches_browser():
         LaunchMode.WEBAPP,
         "Streamlit App",
         ("--x",),
+        True,
     )
     assert process_manager.stopped == []
 
@@ -805,13 +806,14 @@ def test_run_browser_mode_can_use_default_browser_path():
 
 def test_run_respects_allow_browser_fallback_config():
     browser_registry = FakeBrowserRegistry(fake_browser())
+    browser_launcher = FakeBrowserLauncher(ok=True)
     launcher = StreamlitLauncher(
         LauncherConfig(app_path="app.py", allow_browser_fallback=False),
         port_manager=FakePortManager(8607),
         process_manager=FakeProcessManager(),
         health_checker=FakeHealthChecker(healthy=True),
         browser_registry=browser_registry,
-        browser_launcher=FakeBrowserLauncher(ok=True),
+        browser_launcher=browser_launcher,
         clock=FakeClock(),
     )
 
@@ -819,6 +821,7 @@ def test_run_respects_allow_browser_fallback_config():
 
     assert session.ok is True
     assert browser_registry.calls == [(BrowserChoice.AUTO, False, False)]
+    assert browser_launcher.calls[0][-1] is False
 
 
 def test_start_returns_runtime_session_without_blocking():

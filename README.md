@@ -134,6 +134,26 @@ finally:
 `run()` is the friendly common entry point. `start()` is the explicit lifecycle
 entry point; both return a `RuntimeSession`.
 
+For app-mode integrations that need close-to-shutdown behavior, LitLaunch also
+provides a high-level monitored runner:
+
+```python
+from litlaunch import LauncherConfig, LaunchMode, run_monitored_webapp
+
+result = run_monitored_webapp(
+    LauncherConfig(
+        app_path="app.py",
+        title="My Streamlit App",
+        mode=LaunchMode.WEBAPP,
+        browser="edge",
+    ),
+    graceful_timeout_seconds=15,
+)
+```
+
+The monitored runner observes the app window and returns a
+`MonitoredRunResult`. It does not own, kill, close, or control browser windows.
+
 Preview launch behavior without starting Streamlit or opening a browser:
 
 ```python

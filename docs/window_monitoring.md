@@ -77,6 +77,30 @@ window to appear, `poll_interval_seconds` controls polling cadence, and
 `stable_poll_count` controls how many matching polls are required before a
 window is treated as observed.
 
+For integrations that want LitLaunch to assemble the normal monitored webapp
+flow, use `run_monitored_webapp()`. It captures baseline windows before launch,
+starts the configured `StreamlitLauncher`, builds the `WindowTarget`, delegates
+close detection to `RuntimeSession.monitor_window()`, and returns a
+`MonitoredRunResult`. It still observes windows only; backend shutdown remains
+owned by the returned session.
+
+```python
+from litlaunch import LauncherConfig, LaunchMode, run_monitored_webapp
+
+result = run_monitored_webapp(
+    LauncherConfig(
+        app_path="app.py",
+        title="My Streamlit App",
+        mode=LaunchMode.WEBAPP,
+        browser="edge",
+    ),
+    graceful_timeout_seconds=15,
+)
+
+if result.exit_code:
+    print(result.message)
+```
+
 ## Timeout Behavior
 
 If no stable app window is observed before timeout, the monitor reports timeout.

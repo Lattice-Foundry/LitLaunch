@@ -21,15 +21,13 @@ from litlaunch.inspect import (
     TextDiagnosticsRenderer,
 )
 from litlaunch.launcher import StreamlitLauncher
+from litlaunch.monitored import run_monitored_webapp
 from litlaunch.platforms import PlatformDetector
 from litlaunch.profiles import LaunchProfile, load_profile
 from litlaunch.version import __version__
 from litlaunch.windowing import (
-    NoopWindowMonitor,
     WindowMonitorConfig,
     WindowMonitorResult,
-    WindowMonitorStatus,
-    WindowTarget,
     create_window_monitor,
 )
 
@@ -303,14 +301,36 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
         _write(context.stream, plan.command_display)
         return 0
 
-    monitor_plan = _prepare_window_monitor(
-        monitor_options,
-        context,
-        config,
-        renderer=renderer,
-    )
-    if monitor_plan is _MONITOR_UNSUPPORTED:
-        return 1
+    if monitor_options.enabled:
+        monitored_result = run_monitored_webapp(
+            launcher,
+            window_monitor_config=monitor_options.window_monitor_config,
+            graceful_timeout_seconds=monitor_options.graceful_timeout_seconds,
+            platform_detector=context.platform_detector_factory(),
+            window_monitor_factory=context.window_monitor_factory,
+        )
+        if monitored_result.session is not None and monitored_result.session.ok:
+            renderer.success(f"Runtime active at {monitored_result.session.url}")
+        if monitored_result.monitor_result is not None:
+            _render_monitor_result_if_needed(
+                monitored_result.session,
+                renderer,
+                monitored_result.monitor_result,
+            )
+        if not monitored_result.launched:
+            renderer.failure_guidance(
+                monitored_result.message,
+                next_steps=(
+                    "Omit --monitor-window to launch without close detection.",
+                    (
+                        "Use Chromium app-mode on Windows for the strongest "
+                        "supported path."
+                    ),
+                ),
+            )
+        elif monitored_result.exit_code != 0:
+            renderer.failure_guidance(monitored_result.message)
+        return monitored_result.exit_code
 
     session = launcher.run()
     if not session.ok:
@@ -327,17 +347,6 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
     renderer.success(f"Runtime active at {session.url}")
     if session.process is None:
         return 0
-
-    if monitor_options.enabled:
-        monitor, baseline_handles = monitor_plan
-        return _monitor_session_window(
-            monitor_options,
-            config,
-            session,
-            renderer=renderer,
-            monitor=monitor,
-            baseline_handles=baseline_handles,
-        )
 
     try:
         returncode = session.wait()
@@ -685,108 +694,12 @@ def _merge_streamlit_flags(profile_flags, cli_values):
     return tuple(formatted)
 
 
-_MONITOR_UNSUPPORTED = object()
-
-
-def _prepare_window_monitor(
-    monitor_options: _MonitorOptions,
-    context: _CliContext,
-    config: LauncherConfig,
-    *,
-    renderer: ConsoleRenderer,
-) -> tuple[Any, tuple[str, ...]] | object:
-    if not monitor_options.enabled:
-        return (None, ())
-
-    platform_info = context.platform_detector_factory().detect()
-    monitor = context.window_monitor_factory(platform_info)
-    if isinstance(monitor, NoopWindowMonitor):
-        renderer.failure_guidance(
-            "Window monitoring is unavailable.",
-            likely_cause=(
-                "This platform or monitor implementation does not support "
-                "window monitoring."
-            ),
-            next_steps=(
-                "Omit --monitor-window to launch without close detection.",
-                "Use Chromium app-mode on Windows for the strongest supported path.",
-            ),
-        )
-        return _MONITOR_UNSUPPORTED
-
-    try:
-        baseline = monitor.capture(WindowTarget(config.title, app_mode=True))
-    except Exception as exc:
-        renderer.failure_guidance(
-            "Window monitoring baseline capture failed.",
-            likely_cause=str(exc),
-            next_steps=(
-                "Omit --monitor-window to launch without close detection.",
-                "Use verbose mode for more monitor setup details.",
-            ),
-        )
-        return _MONITOR_UNSUPPORTED
-    return monitor, tuple(window.handle for window in baseline)
-
-
-def _monitor_session_window(
-    monitor_options: _MonitorOptions,
-    config: LauncherConfig,
-    session: Any,
-    *,
-    renderer: ConsoleRenderer,
-    monitor: Any,
-    baseline_handles: tuple[str, ...],
-) -> int:
-    target = WindowTarget(
-        config.title,
-        url=session.url,
-        browser_kind=getattr(session.browser, "kind", None),
-        app_mode=True,
-        baseline_handles=baseline_handles,
-    )
-
-    try:
-        result = session.monitor_window(
-            monitor,
-            target,
-            config=monitor_options.window_monitor_config,
-            graceful_timeout_seconds=monitor_options.graceful_timeout_seconds,
-        )
-    except KeyboardInterrupt:
-        renderer.warning("Interrupt received; stopping runtime.")
-        session.stop(graceful_timeout_seconds=monitor_options.graceful_timeout_seconds)
-        return 0
-
-    if result.status == WindowMonitorStatus.UNSUPPORTED:
-        _render_monitor_result_if_needed(session, renderer, result)
-        session.stop(graceful_timeout_seconds=monitor_options.graceful_timeout_seconds)
-        return 1
-    if result.status == WindowMonitorStatus.TIMEOUT:
-        _render_monitor_result_if_needed(session, renderer, result)
-        session.stop(graceful_timeout_seconds=monitor_options.graceful_timeout_seconds)
-        return 1
-    if result.status == WindowMonitorStatus.ERROR:
-        _render_monitor_result_if_needed(session, renderer, result)
-        session.stop(graceful_timeout_seconds=monitor_options.graceful_timeout_seconds)
-        return 1
-    if result.closed:
-        _render_monitor_result_if_needed(session, renderer, result)
-        return 0
-    if result.status == WindowMonitorStatus.BACKEND_EXITED:
-        _render_monitor_result_if_needed(session, renderer, result)
-        return 0
-
-    _render_monitor_result_if_needed(session, renderer, result)
-    return 1
-
-
 def _render_monitor_result_if_needed(
-    session: Any,
+    session: Any | None,
     renderer: ConsoleRenderer,
     result: WindowMonitorResult,
 ) -> None:
-    if getattr(session, "console_renderer", None) is None:
+    if session is None or getattr(session, "console_renderer", None) is None:
         renderer.render_window_monitor_result(result)
 
 

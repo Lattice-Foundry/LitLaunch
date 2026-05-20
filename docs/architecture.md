@@ -133,6 +133,13 @@ on close: RuntimeSession.stop()
 
 The monitor observes only. Shutdown remains a session responsibility.
 
+`run_monitored_webapp()` is the high-level helper for integrations that want the
+standard monitored app-mode flow without manually assembling platform detection,
+monitor creation, baseline capture, `WindowTarget` construction, session
+monitoring, and result interpretation. It returns a `MonitoredRunResult` and
+keeps the same ownership boundary: LitLaunch may stop the owned backend session,
+but it never owns, kills, closes, or controls browser windows.
+
 ## Inspect Architecture
 
 Inspect uses structured report types:

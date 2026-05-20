@@ -3,6 +3,13 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.51.0
+
+- Added `MonitoredRunResult` and `run_monitored_webapp()` for reusable
+  monitored Chromium app-mode orchestration.
+- Routed CLI `run --monitor-window` through the monitored webapp helper while
+  preserving explicit opt-in behavior and backend-only ownership.
+
 ## 0.41.0
 
 - Aligned `StreamlitLauncher.build_command()` with launch planning so backend

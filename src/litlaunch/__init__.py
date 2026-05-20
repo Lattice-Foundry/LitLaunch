@@ -48,6 +48,7 @@ from litlaunch.inspect import (
 )
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchEvent, LaunchPlan, LaunchResult, LaunchState
+from litlaunch.monitored import MonitoredRunResult, run_monitored_webapp
 from litlaunch.platforms import (
     Architecture,
     OperatingSystem,
@@ -126,6 +127,7 @@ __all__ = [
     "PlatformDetector",
     "PlatformInfo",
     "ManagedProcess",
+    "MonitoredRunResult",
     "NoopWindowMonitor",
     "PortManager",
     "PollingWindowMonitor",
@@ -135,6 +137,7 @@ __all__ = [
     "load_profile",
     "load_profiles",
     "RuntimeSession",
+    "run_monitored_webapp",
     "ShutdownClient",
     "ShutdownConfig",
     "ShutdownHook",

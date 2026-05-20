@@ -3,6 +3,14 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.29.1
+
+- Tightened backend command provider validation for empty commands and
+  arguments.
+- Added provider contract tests for invalid provider returns, provider start
+  failures, frozen command context behavior, and default command preservation.
+- Clarified packaged-backend provider documentation and metadata expectations.
+
 ## 0.29.0
 
 - Added public backend command provider types for packaged, frozen, and

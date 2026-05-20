@@ -118,6 +118,8 @@ print(plan.command_display)
 The custom executable must bind the requested `context.host`/`context.port` and
 expose Streamlit's health endpoint. LitLaunch still owns environment injection,
 health checking, browser launch, and `RuntimeSession` shutdown behavior.
+`description` is displayed in plans and diagnostics; `backend_kind` is optional
+metadata for integrations and should be a short stable identifier when used.
 
 `LauncherConfig.cwd` sets the backend process working directory.
 `LauncherConfig.extra_env` adds child-process environment variables without

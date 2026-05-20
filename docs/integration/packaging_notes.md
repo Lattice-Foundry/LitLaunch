@@ -31,6 +31,10 @@ configuration, then returns a shell-free command tuple. LitLaunch still starts
 the process, injects shutdown environment variables, waits for health, launches
 the browser target, and owns the `RuntimeSession`.
 
+This is not turnkey PyInstaller, Nuitka, or cx_Freeze support. It is the runtime
+extension seam those packaging workflows can use once the packaged executable
+has been built to behave like a Streamlit backend.
+
 The packaged executable must:
 
 - bind the requested host and port
@@ -40,6 +44,8 @@ The packaged executable must:
 
 Do not use a backend command provider to start background services or browser
 processes. It is a command construction seam, not a runner abstraction.
+`BackendCommand.description` is for human-readable diagnostics.
+`BackendCommand.backend_kind` is optional metadata, not behavior policy.
 
 ## PyInstaller / Nuitka
 

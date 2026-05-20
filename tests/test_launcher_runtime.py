@@ -142,6 +142,11 @@ class FailingBackendCommandProvider:
         raise RuntimeError("provider exploded")
 
 
+class BadReturnBackendCommandProvider:
+    def build_backend_command(self, context):
+        return ("not", "a", "backend-command")
+
+
 def fake_browser(kind=BrowserKind.EDGE):
     return BrowserCapability(
         kind=kind,
@@ -393,6 +398,39 @@ def test_build_launch_plan_wraps_provider_errors_as_command_build_error():
         assert "Backend command provider failed: provider exploded" in str(exc)
     else:
         raise AssertionError("expected provider failure to raise CommandBuildError")
+
+
+def test_build_launch_plan_rejects_invalid_provider_return_value():
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        backend_command_provider=BadReturnBackendCommandProvider(),
+    )
+
+    try:
+        launcher.build_launch_plan()
+    except CommandBuildError as exc:
+        assert "must return a BackendCommand" in str(exc)
+    else:
+        raise AssertionError("expected bad provider return to raise CommandBuildError")
+
+
+def test_start_backend_reports_provider_errors_clearly():
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        backend_command_provider=FailingBackendCommandProvider(),
+    )
+
+    session = launcher.start_backend()
+
+    assert session.ok is False
+    assert session.command is None
+    assert (
+        "Backend command provider failed: provider exploded" in session.result.message
+    )
 
 
 def test_start_backend_uses_custom_provider_command_and_litlaunch_runtime_contract(

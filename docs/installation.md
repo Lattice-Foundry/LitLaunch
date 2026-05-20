@@ -1,7 +1,6 @@
 # Installation
 
-LitLaunch is currently in alpha internal integration and TestPyPI rehearsal
-readiness.
+LitLaunch is currently in beta stabilization and TestPyPI rehearsal readiness.
 
 ## Source Checkout
 

@@ -1,7 +1,14 @@
 # Changelog
 
-LitLaunch is pre-alpha. Entries are intentionally concise until the public API
-settles.
+LitLaunch is in beta stabilization. Entries are intentionally concise while the
+public API finishes settling.
+
+## 0.91.0b0
+
+- Entered the 0.9x beta stabilization band with beta package metadata and
+  classifier alignment.
+- Reflected the profiles/runtime, diagnostics, backend-provider, monitoring, and
+  organization milestones completed before TestPyPI rehearsal.
 
 ## 0.85.0
 

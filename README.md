@@ -8,9 +8,9 @@ and exposes diagnostics without hiding ownership or process behavior.
 LitLaunch is developed and maintained by LatticeFoundry, a software division of
 Sierra Cognitive Group, LLC. LitLaunch is not affiliated with Streamlit.
 
-Current status: alpha internal integration and TestPyPI rehearsal readiness.
-The runtime is usable for early integration work, but public API stability is
-still being hardened.
+Current status: beta stabilization and TestPyPI rehearsal readiness. The
+runtime is usable for integration work, with the public API intended to
+stabilize through the beta band.
 
 ## What It Solves
 

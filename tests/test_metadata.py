@@ -14,7 +14,8 @@ def test_pyproject_metadata_includes_console_and_typing_classifiers():
     )
 
     classifiers = set(pyproject["project"]["classifiers"])
-    assert "Development Status :: 3 - Alpha" in classifiers
+    assert "Development Status :: 4 - Beta" in classifiers
+    assert "Development Status :: 3 - Alpha" not in classifiers
     assert "Development Status :: 2 - Pre-Alpha" not in classifiers
     assert "Environment :: Console" in classifiers
     assert "Topic :: Utilities" in classifiers
@@ -55,6 +56,7 @@ def test_pyproject_urls_use_canonical_repository_location():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
+    assert "## 0.91.0b0" in changelog
     assert "## 0.85.0" in changelog
     assert "## 0.23.0" in changelog
     assert "## 0.22.0" in changelog
@@ -128,9 +130,9 @@ def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
 
     assert "source checkout" in readme
     assert "own Streamlit app path" in readme
-    assert "alpha internal integration" in (
-        REPO_ROOT / "docs" / "installation.md"
-    ).read_text(encoding="utf-8")
+    assert "beta stabilization" in (REPO_ROOT / "docs" / "installation.md").read_text(
+        encoding="utf-8"
+    )
     assert "source-tree fixture" in quickstart
     assert "`StreamlitLauncher.run()` is the friendly" in architecture
     assert "waits return `None`" in architecture

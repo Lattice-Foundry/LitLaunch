@@ -89,6 +89,11 @@ Avoid specifying the same Streamlit option through both structured
 its own built-in defaults, but it does not deduplicate repeated user-supplied
 Streamlit options.
 
+Prefer explicit LitLaunch flags such as `--host`, `--port`, `--no-auto-port`,
+and `--mode` for LitLaunch-owned behavior. Raw Streamlit passthrough remains an
+escape hatch and may duplicate those values if callers provide overlapping
+Streamlit config flags manually.
+
 ## Command Preview
 
 ```powershell

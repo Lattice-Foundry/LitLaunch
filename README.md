@@ -44,6 +44,11 @@ From a source checkout:
 python -m pip install -e .[dev]
 ```
 
+After changing versions or build metadata in a source checkout, rerun the
+editable install command above. Python import metadata is produced during
+installation, so stale editable installs can report an older package metadata
+version even when `litlaunch.__version__` has changed in the source tree.
+
 After package publication, normal installs will use:
 
 ```powershell

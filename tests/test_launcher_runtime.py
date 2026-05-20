@@ -317,6 +317,7 @@ def test_default_backend_provider_preserves_current_command_output():
     plan = launcher.build_launch_plan()
 
     assert plan.command == launcher.command_builder.build(port=8600)
+    assert launcher.build_command() == plan.command
 
 
 def test_build_launch_plan_uses_custom_backend_provider_without_starting():
@@ -351,6 +352,37 @@ def test_build_launch_plan_uses_custom_backend_provider_without_starting():
     assert provider.contexts[0].health_url == "http://127.0.0.1:8600/_stcore/health"
     assert process_manager.started == []
     assert browser_launcher.calls == []
+
+
+def test_build_command_uses_custom_backend_provider():
+    provider = FakeBackendCommandProvider(("packaged-app.exe", "--serve", "8600"))
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        backend_command_provider=provider,
+    )
+
+    command = launcher.build_command()
+    plan = launcher.build_launch_plan(include_browser_resolution=False)
+
+    assert command == ("packaged-app.exe", "--serve", "8600")
+    assert command == plan.command
+    assert provider.contexts[0].port == 8600
+
+
+def test_build_command_wraps_provider_errors_as_command_build_error():
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        backend_command_provider=FailingBackendCommandProvider(),
+    )
+
+    try:
+        launcher.build_command()
+    except CommandBuildError as exc:
+        assert "Backend command provider failed: provider exploded" in str(exc)
+    else:
+        raise AssertionError("expected provider failure to raise CommandBuildError")
 
 
 def test_build_launch_plan_can_skip_browser_resolution():

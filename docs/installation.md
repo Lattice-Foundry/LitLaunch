@@ -13,6 +13,11 @@ cd litlaunch
 python -m pip install -e .[dev]
 ```
 
+Rerun the editable install after changing package versions or build metadata.
+Editable-install metadata is generated during installation, so stale local
+metadata can make `importlib.metadata.version("litlaunch")` report an older
+version than `litlaunch.__version__` until the package is reinstalled.
+
 Run checks:
 
 ```powershell

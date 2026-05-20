@@ -430,7 +430,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.31.1"
+    assert data["litlaunch_version"] == "0.31.2"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1083,7 +1083,15 @@ def test_cli_run_monitor_window_unsupported_returns_nonzero_and_stops_runtime():
     )
 
     code = main(
-        ["run", str(EXAMPLE_APP), "--mode", "webapp", "--monitor-window"],
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--mode",
+            "webapp",
+            "--monitor-window",
+            "--graceful-timeout",
+            "9.5",
+        ],
         stream=stream,
         launcher_factory=reset_fake_launcher(session),
         platform_detector_factory=FakePlatformDetector,
@@ -1092,6 +1100,7 @@ def test_cli_run_monitor_window_unsupported_returns_nonzero_and_stops_runtime():
 
     assert code == 1
     assert session.stop_calls == 1
+    assert session.stop_args == [((), {"graceful_timeout_seconds": 9.5})]
     assert "window monitoring unsupported" in stream.getvalue()
 
 
@@ -1153,7 +1162,15 @@ def test_cli_run_monitor_window_timeout_returns_nonzero_and_stops_runtime():
     )
 
     code = main(
-        ["run", str(EXAMPLE_APP), "--mode", "webapp", "--monitor-window"],
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--mode",
+            "webapp",
+            "--monitor-window",
+            "--graceful-timeout",
+            "8.0",
+        ],
         stream=stream,
         launcher_factory=reset_fake_launcher(session),
         platform_detector_factory=FakePlatformDetector,
@@ -1162,7 +1179,43 @@ def test_cli_run_monitor_window_timeout_returns_nonzero_and_stops_runtime():
 
     assert code == 1
     assert session.stop_calls == 1
+    assert session.stop_args == [((), {"graceful_timeout_seconds": 8.0})]
     assert "timed out" in stream.getvalue()
+
+
+def test_cli_run_monitor_window_error_uses_configured_graceful_timeout():
+    stream = StringIO()
+    session = FakeSession(
+        ok=True,
+        monitor_result=WindowMonitorResult(
+            supported=True,
+            observed=False,
+            closed=False,
+            status=WindowMonitorStatus.ERROR,
+            message="monitor failed",
+        ),
+    )
+
+    code = main(
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--mode",
+            "webapp",
+            "--monitor-window",
+            "--graceful-timeout",
+            "7.0",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: FakeCliMonitor(),
+    )
+
+    assert code == 1
+    assert session.stop_calls == 1
+    assert session.stop_args == [((), {"graceful_timeout_seconds": 7.0})]
+    assert "monitor failed" in stream.getvalue()
 
 
 def test_cli_quiet_suppresses_run_success_message():

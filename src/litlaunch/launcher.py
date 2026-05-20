@@ -72,9 +72,14 @@ class StreamlitLauncher:
         self.clock = clock
 
     def build_command(self) -> tuple[str, ...]:
-        """Build the Streamlit command without starting a process."""
+        """Build the backend command without starting a process.
 
-        return self.command_builder.build()
+        This is a compatibility wrapper over :meth:`build_launch_plan` so
+        custom backend command providers see the same resolved launch context
+        used by planning and process start.
+        """
+
+        return self.build_launch_plan(include_browser_resolution=False).command
 
     def resolve_port(self) -> int:
         """Resolve the concrete backend port for this launcher."""

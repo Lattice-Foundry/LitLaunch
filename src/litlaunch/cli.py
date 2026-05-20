@@ -579,20 +579,20 @@ def _monitor_session_window(
         )
     except KeyboardInterrupt:
         renderer.warning("Interrupt received; stopping runtime.")
-        session.stop()
+        session.stop(graceful_timeout_seconds=args.graceful_timeout)
         return 0
 
     if result.status == WindowMonitorStatus.UNSUPPORTED:
         _render_monitor_result_if_needed(session, renderer, result)
-        session.stop()
+        session.stop(graceful_timeout_seconds=args.graceful_timeout)
         return 1
     if result.status == WindowMonitorStatus.TIMEOUT:
         _render_monitor_result_if_needed(session, renderer, result)
-        session.stop()
+        session.stop(graceful_timeout_seconds=args.graceful_timeout)
         return 1
     if result.status == WindowMonitorStatus.ERROR:
         _render_monitor_result_if_needed(session, renderer, result)
-        session.stop()
+        session.stop(graceful_timeout_seconds=args.graceful_timeout)
         return 1
     if result.closed:
         _render_monitor_result_if_needed(session, renderer, result)

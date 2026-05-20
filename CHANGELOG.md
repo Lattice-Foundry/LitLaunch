@@ -3,6 +3,13 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.31.2
+
+- Aligned `StreamlitLauncher.build_command()` with launch planning so backend
+  command providers are respected consistently.
+- Reused configured graceful timeout values on monitor-driven CLI stop paths.
+- Clarified editable reinstall and raw Streamlit passthrough guidance.
+
 ## 0.31.1
 
 - Documented the window monitoring URL boundary: LitLaunch does not inspect

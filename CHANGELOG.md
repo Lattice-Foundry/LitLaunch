@@ -3,6 +3,11 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.84.0
+
+- Split launch planning and backend startup mechanics out of the public
+  launcher facade while preserving launcher behavior and public APIs.
+
 ## 0.83.0
 
 - Extracted runtime console presentation helpers from launcher/session

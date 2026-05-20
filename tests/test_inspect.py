@@ -20,7 +20,9 @@ from litlaunch.inspect import (
     redact_sensitive_args,
     redact_sensitive_text,
 )
+from litlaunch.lifecycle import LaunchPlan
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
+from litlaunch.redaction import format_command_preview, format_env_preview
 
 EXAMPLE_APP = Path("examples/minimal_app/app.py")
 MISSING_APP = Path("missing-inspect-app.py")
@@ -154,6 +156,36 @@ class FakeLauncher:
             message="Selected Edge.",
         )
 
+    def build_launch_plan(self):
+        resolved_port = self.resolve_port()
+        command = self.command_builder.build(port=resolved_port)
+        return LaunchPlan(
+            command=command,
+            command_display=format_command_preview(command),
+            cwd=self.config.cwd,
+            app_url=f"http://{self.config.host}:{resolved_port}",
+            health_url=f"http://{self.config.host}:{resolved_port}/_stcore/health",
+            host=self.config.host,
+            port=self.config.port,
+            resolved_port=resolved_port,
+            auto_port=self.config.auto_port,
+            mode=self.config.mode,
+            headless=False,
+            browser_requested=self.config.browser,
+            browser_resolution=self.resolve_browser(
+                prefer_app_mode=self.config.mode.value == "webapp"
+            ),
+            allow_browser_fallback=self.config.allow_browser_fallback,
+            app_args=self.config.app_args,
+            streamlit_flags=self.config.streamlit_flags,
+            streamlit_args=self.config.streamlit_args,
+            extra_env_preview=(
+                format_env_preview(self.config.extra_env)
+                if self.config.extra_env
+                else "none"
+            ),
+        )
+
     def run(self):
         self.run_calls += 1
         raise AssertionError("inspect must not start the backend")
@@ -259,7 +291,7 @@ def test_diagnostics_report_to_dict_shape():
 
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.27.0"
+    assert data["litlaunch_version"] == "0.28.0"
     assert data["generated_at_utc"] == "2026-05-18T12:00:00Z"
     assert data["title"] == "Report"
     assert data["ok"] is True
@@ -450,7 +482,7 @@ def test_json_renderer_outputs_parseable_sanitized_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.27.0"
+    assert data["litlaunch_version"] == "0.28.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["items"][0]["message"] == "token=<redacted>"
     assert data["sections"][0]["items"][0]["detail"] == "--api_key=<redacted>"
@@ -479,7 +511,7 @@ def test_bundle_renderer_includes_summary_sections_and_sanitization_note():
     rendered = SanitizedBundleRenderer().render(report)
 
     assert "LitLaunch Support Bundle" in rendered
-    assert "Version: 0.27.0" in rendered
+    assert "Version: 0.28.0" in rendered
     assert "Generated at:" in rendered
     assert "Summary: ok; 0 errors; 0 warnings" in rendered
     assert "This report is sanitized" in rendered

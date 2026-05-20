@@ -66,6 +66,21 @@ The returned `RuntimeSession` owns the backend process. Stop it explicitly.
 `run()` is the friendly entry point; `start()` is the explicit lifecycle entry
 point. Both return a live `RuntimeSession`.
 
+Preview the resolved launch behavior without starting the backend or opening a
+browser:
+
+```python
+plan = StreamlitLauncher(config).build_launch_plan()
+
+print(plan.command_display)
+print(plan.app_url)
+print(plan.health_url)
+```
+
+`build_launch_plan()` is intended for diagnostics, integration tests, and
+configuration parity checks. It resolves ports and browser strategy but does
+not launch Streamlit or a browser.
+
 `LauncherConfig.cwd` sets the backend process working directory.
 `LauncherConfig.extra_env` adds child-process environment variables without
 mutating `os.environ`. LitLaunch shutdown endpoint variables are injected after

@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TextIO
 
-from litlaunch.browsers import BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.console import ConsoleMode, ConsoleRenderer, ConsoleTheme
@@ -23,7 +22,6 @@ from litlaunch.inspect import (
 )
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector
-from litlaunch.redaction import format_command_preview
 from litlaunch.version import __version__
 from litlaunch.windowing import (
     NoopWindowMonitor,
@@ -245,8 +243,8 @@ def _cmd_command(args: argparse.Namespace, context: _CliContext) -> int:
     renderer = _renderer(args, context)
     config = _runtime_config_from_args(args)
     launcher = context.launcher_factory(config, console_renderer=renderer)
-    command = _build_resolved_command(launcher)
-    _write(context.stream, _format_command(command))
+    plan = launcher.build_launch_plan(include_browser_resolution=False)
+    _write(context.stream, plan.command_display)
     return 0
 
 
@@ -255,13 +253,13 @@ def _cmd_run(args: argparse.Namespace, context: _CliContext) -> int:
     config = _runtime_config_from_args(args)
     launcher = context.launcher_factory(config, console_renderer=renderer)
     if args.dry_run:
-        plan = _build_launch_plan(launcher)
+        plan = launcher.build_launch_plan()
         renderer.info("Dry run: backend and browser were not started.")
         renderer.info(f"App URL: {plan.app_url}")
         renderer.info(f"Mode: {config.mode.value}")
         if plan.browser_resolution is not None:
             renderer.info(f"Browser: {plan.browser_resolution.message}")
-        _write(context.stream, _format_command(plan.command))
+        _write(context.stream, plan.command_display)
         return 0
 
     monitor_plan = _prepare_window_monitor(args, context, config)
@@ -620,31 +618,6 @@ def _split_passthrough_args(
         return items, ()
     separator_index = items.index("--")
     return items[:separator_index], items[separator_index + 1 :]
-
-
-def _build_resolved_command(launcher: StreamlitLauncher) -> tuple[str, ...]:
-    port = launcher.resolve_port()
-    return launcher.command_builder.build(port=port)
-
-
-@dataclass(frozen=True)
-class _LaunchPlan:
-    command: tuple[str, ...]
-    app_url: str
-    browser_resolution: BrowserResolution | None
-
-
-def _build_launch_plan(launcher: StreamlitLauncher) -> _LaunchPlan:
-    port = launcher.resolve_port()
-    return _LaunchPlan(
-        command=launcher.command_builder.build(port=port),
-        app_url=launcher.build_app_url(port),
-        browser_resolution=launcher.resolve_browser(),
-    )
-
-
-def _format_command(command: Sequence[str]) -> str:
-    return format_command_preview(tuple(str(part) for part in command))
 
 
 def _write(stream: TextIO, message: str) -> None:

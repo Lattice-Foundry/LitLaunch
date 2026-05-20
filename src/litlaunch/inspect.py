@@ -13,12 +13,9 @@ from pathlib import Path
 from litlaunch.browsers import BrowserCapability, BrowserResolution
 from litlaunch.browsers.registry import BrowserRegistry, create_default_browser_registry
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, StreamlitFlags
-from litlaunch.health import build_streamlit_app_url, build_streamlit_health_url
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector, PlatformInfo
 from litlaunch.redaction import (
-    format_command_preview,
-    format_env_preview,
     redact_sensitive_args,  # noqa: F401 - re-exported for inspect consumers.
     redact_sensitive_text,
     sanitize_report_dict,  # noqa: F401 - re-exported for inspect consumers.
@@ -381,13 +378,7 @@ class DiagnosticCollector:
                 app_args=app_args,
             )
             launcher = self.launcher_factory(config)
-            resolved_port = launcher.resolve_port()
-            command = launcher.command_builder.build(port=resolved_port)
-            app_url = build_streamlit_app_url(config.host, resolved_port)
-            health_url = build_streamlit_health_url(config.host, resolved_port)
-            target_resolution = launcher.resolve_browser(
-                prefer_app_mode=config.mode == LaunchMode.WEBAPP
-            )
+            plan = launcher.build_launch_plan()
         except Exception as exc:
             items.append(
                 DiagnosticItem(
@@ -404,40 +395,41 @@ class DiagnosticCollector:
                     "Command preview",
                     DiagnosticStatus.OK,
                     "Streamlit command can be built.",
-                    detail=format_command_preview(command),
+                    detail=plan.command_display,
                 ),
                 DiagnosticItem(
                     "App URL preview",
                     DiagnosticStatus.INFO,
-                    app_url,
+                    plan.app_url,
                 ),
                 DiagnosticItem(
                     "Health URL preview",
                     DiagnosticStatus.INFO,
-                    health_url,
+                    plan.health_url,
                 ),
                 DiagnosticItem(
                     "Working directory",
                     DiagnosticStatus.INFO,
-                    str(config.cwd) if config.cwd is not None else "not set",
+                    str(plan.cwd) if plan.cwd is not None else "not set",
                 ),
                 DiagnosticItem(
                     "Environment overrides",
                     DiagnosticStatus.INFO,
-                    (
-                        format_env_preview(config.extra_env)
-                        if config.extra_env
-                        else "none"
-                    ),
+                    plan.extra_env_preview,
                 ),
                 DiagnosticItem(
                     "Browser resolution",
                     (
                         DiagnosticStatus.OK
-                        if target_resolution.selected is not None
+                        if plan.browser_resolution is not None
+                        and plan.browser_resolution.selected is not None
                         else DiagnosticStatus.WARNING
                     ),
-                    target_resolution.message,
+                    (
+                        plan.browser_resolution.message
+                        if plan.browser_resolution is not None
+                        else "Browser resolution skipped."
+                    ),
                 ),
             )
         )

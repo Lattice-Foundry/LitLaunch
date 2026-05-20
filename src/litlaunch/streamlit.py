@@ -40,9 +40,7 @@ class StreamlitCommandBuilder:
         if "server.address" not in user_flag_names:
             command.extend(("--server.address", self.config.host))
         if "server.headless" not in user_flag_names:
-            command.extend(
-                ("--server.headless", _format_bool(self._resolve_headless()))
-            )
+            command.extend(("--server.headless", _format_bool(self.resolve_headless())))
 
         resolved_port = self.config.port if port is None else port
         if resolved_port is not None and "server.port" not in user_flag_names:
@@ -57,7 +55,9 @@ class StreamlitCommandBuilder:
 
         return tuple(command)
 
-    def _resolve_headless(self) -> bool:
+    def resolve_headless(self) -> bool:
+        """Return the LitLaunch headless value before raw Streamlit overrides."""
+
         if self.config.headless is not None:
             return bool(self.config.headless)
         return self.config.mode == LaunchMode.WEBAPP

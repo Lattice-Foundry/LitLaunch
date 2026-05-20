@@ -12,7 +12,8 @@ from litlaunch.config import BrowserChoice
 from litlaunch.console import ConsoleRenderer, ConsoleTheme
 from litlaunch.health import build_streamlit_app_url, build_streamlit_health_url
 from litlaunch.launcher import StreamlitLauncher
-from litlaunch.lifecycle import LaunchState
+from litlaunch.lifecycle import LaunchPlan, LaunchState
+from litlaunch.ports import PortError
 from litlaunch.process import ManagedProcess
 from litlaunch.session import RuntimeSession
 
@@ -210,6 +211,89 @@ def test_start_backend_resolves_port_builds_command_and_waits_for_health():
         LaunchState.HEALTH_CHECKING,
         LaunchState.HEALTHY,
     ]
+
+
+def test_build_launch_plan_resolves_fixed_port_without_starting_or_launching():
+    process_manager = FakeProcessManager()
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    browser_registry = FakeBrowserRegistry(fake_browser())
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            port=8600,
+            auto_port=False,
+            cwd="workspace",
+            extra_env={"APP_TOKEN": "super-secret-token", "APP_MODE": "demo"},
+            streamlit_flags={"server.maxUploadSize": 20},
+            streamlit_args=("--server.cookieSecret", "secret-value"),
+            app_args=("--workspace", "demo"),
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        browser_registry=browser_registry,
+        browser_launcher=browser_launcher,
+    )
+
+    plan = launcher.build_launch_plan()
+
+    assert isinstance(plan, LaunchPlan)
+    assert plan.command[1:4] == ("-m", "streamlit", "run")
+    assert "--server.port" in plan.command
+    assert plan.command[plan.command.index("--server.port") + 1] == "8600"
+    assert plan.command_display
+    assert "secret-value" not in plan.command_display
+    assert "<redacted>" in plan.command_display
+    assert str(plan.cwd) == "workspace"
+    assert plan.app_url == "http://127.0.0.1:8600"
+    assert plan.health_url == "http://127.0.0.1:8600/_stcore/health"
+    assert plan.host == "127.0.0.1"
+    assert plan.port == 8600
+    assert plan.resolved_port == 8600
+    assert plan.auto_port is False
+    assert plan.mode == LaunchMode.BROWSER
+    assert plan.headless is False
+    assert plan.browser_requested == BrowserChoice.AUTO
+    assert plan.browser_resolution is not None
+    assert plan.browser_resolution.selected == fake_browser()
+    assert plan.allow_browser_fallback is True
+    assert plan.app_args == ("--workspace", "demo")
+    assert plan.streamlit_flags == {"server.maxUploadSize": 20}
+    assert plan.streamlit_args == ("--server.cookieSecret", "secret-value")
+    assert plan.extra_env_preview == "APP_MODE=demo, APP_TOKEN=<redacted>"
+    assert process_manager.started == []
+    assert browser_launcher.calls == []
+
+
+def test_build_launch_plan_can_skip_browser_resolution():
+    browser_registry = FakeBrowserRegistry(fake_browser())
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        browser_registry=browser_registry,
+    )
+
+    plan = launcher.build_launch_plan(include_browser_resolution=False)
+
+    assert plan.browser_resolution is None
+    assert browser_registry.calls == []
+
+
+def test_build_launch_plan_busy_fixed_port_raises_clear_port_error():
+    class BusyPortManager(FakePortManager):
+        def resolve_port(self, config):
+            raise PortError("Port 8600 is already in use on 127.0.0.1.")
+
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600, auto_port=False),
+        port_manager=BusyPortManager(8600),
+    )
+
+    try:
+        launcher.build_launch_plan()
+    except PortError as exc:
+        assert "Port 8600 is already in use" in str(exc)
+    else:
+        raise AssertionError("expected busy fixed port to raise")
 
 
 def test_start_backend_passes_cwd_and_extra_env_without_mutating_global_env(

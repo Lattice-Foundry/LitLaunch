@@ -88,6 +88,10 @@ This prints the backend command and does not launch Streamlit or a browser.
 Use `--no-auto-port` with `command` when you want fixed-port availability
 checked instead of allowing automatic port selection.
 
+`litlaunch command` and `litlaunch run --dry-run` use the same launch planning
+path exposed to Python integrations through
+`StreamlitLauncher.build_launch_plan()`.
+
 ## Inspect
 
 ```powershell

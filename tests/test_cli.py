@@ -23,9 +23,10 @@ from litlaunch.inspect import (
     DiagnosticsReport,
     DiagnosticStatus,
 )
-from litlaunch.lifecycle import LaunchResult, LaunchState
+from litlaunch.lifecycle import LaunchPlan, LaunchResult, LaunchState
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
 from litlaunch.ports import PortError
+from litlaunch.redaction import format_command_preview
 from litlaunch.windowing import (
     NoopWindowMonitor,
     WindowMonitorResult,
@@ -193,6 +194,32 @@ class FakeLauncher:
             selected=None,
             fallback_chain=(),
             message="Selected default browser.",
+        )
+
+    def build_launch_plan(self, *, include_browser_resolution=True):
+        port = self.resolve_port()
+        command = self.command_builder.build(port=port)
+        return LaunchPlan(
+            command=command,
+            command_display=format_command_preview(command),
+            cwd=self.config.cwd,
+            app_url=self.build_app_url(port),
+            health_url=f"http://{self.config.host}:{port}/_stcore/health",
+            host=self.config.host,
+            port=self.config.port,
+            resolved_port=port,
+            auto_port=self.config.auto_port,
+            mode=self.config.mode,
+            headless=self.config.mode.value == "webapp",
+            browser_requested=self.config.browser,
+            browser_resolution=(
+                self.resolve_browser() if include_browser_resolution else None
+            ),
+            allow_browser_fallback=self.config.allow_browser_fallback,
+            app_args=self.config.app_args,
+            streamlit_flags=self.config.streamlit_flags,
+            streamlit_args=self.config.streamlit_args,
+            extra_env_preview="none",
         )
 
     def run(self):
@@ -401,7 +428,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.27.0"
+    assert data["litlaunch_version"] == "0.28.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

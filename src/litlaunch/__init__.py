@@ -41,7 +41,7 @@ from litlaunch.inspect import (
     TextDiagnosticsRenderer,
 )
 from litlaunch.launcher import StreamlitLauncher
-from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
+from litlaunch.lifecycle import LaunchEvent, LaunchPlan, LaunchResult, LaunchState
 from litlaunch.platforms import (
     Architecture,
     OperatingSystem,
@@ -107,6 +107,7 @@ __all__ = [
     "LauncherConfig",
     "LitLaunchError",
     "LaunchEvent",
+    "LaunchPlan",
     "LaunchResult",
     "LaunchState",
     "LauncherRuntime",

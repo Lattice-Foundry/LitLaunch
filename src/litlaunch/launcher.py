@@ -18,10 +18,10 @@ from litlaunch.health import (
     build_streamlit_app_url,
     build_streamlit_health_url,
 )
-from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
+from litlaunch.lifecycle import LaunchEvent, LaunchPlan, LaunchResult, LaunchState
 from litlaunch.ports import PortManager
 from litlaunch.process import ManagedProcess, ProcessManager
-from litlaunch.redaction import format_command_preview
+from litlaunch.redaction import format_command_preview, format_env_preview
 from litlaunch.session import RuntimeSession
 from litlaunch.shutdown import DEFAULT_SHUTDOWN_HOST, ShutdownClient, ShutdownConfig
 from litlaunch.streamlit import StreamlitCommandBuilder
@@ -96,6 +96,42 @@ class StreamlitLauncher:
                 resolved_preference if prefer_app_mode is None else prefer_app_mode
             ),
             allow_fallback=self.config.allow_browser_fallback,
+        )
+
+    def build_launch_plan(
+        self,
+        *,
+        include_browser_resolution: bool = True,
+    ) -> LaunchPlan:
+        """Build a resolved launch plan without starting backend or browser."""
+
+        resolved_port = self.resolve_port()
+        command = self.command_builder.build(port=resolved_port)
+        return LaunchPlan(
+            command=command,
+            command_display=format_command_preview(command),
+            cwd=self.config.cwd,
+            app_url=build_streamlit_app_url(self.config.host, resolved_port),
+            health_url=build_streamlit_health_url(self.config.host, resolved_port),
+            host=self.config.host,
+            port=self.config.port,
+            resolved_port=resolved_port,
+            auto_port=self.config.auto_port,
+            mode=self.config.mode,
+            headless=self.command_builder.resolve_headless(),
+            browser_requested=self.config.browser,
+            browser_resolution=(
+                self.resolve_browser() if include_browser_resolution else None
+            ),
+            allow_browser_fallback=self.config.allow_browser_fallback,
+            app_args=self.config.app_args,
+            streamlit_flags=_copy_streamlit_flags(self.config.streamlit_flags),
+            streamlit_args=self.config.streamlit_args,
+            extra_env_preview=(
+                format_env_preview(self.config.extra_env)
+                if self.config.extra_env
+                else "none"
+            ),
         )
 
     def start_backend(
@@ -664,3 +700,11 @@ class StreamlitLauncher:
     def _render_runtime_ready(self, url: str | None) -> None:
         if self.console_renderer is not None:
             self.console_renderer.runtime_ready(url)
+
+
+def _copy_streamlit_flags(flags):
+    if isinstance(flags, dict):
+        return dict(flags)
+    if hasattr(flags, "items"):
+        return dict(flags.items())
+    return tuple(flags)

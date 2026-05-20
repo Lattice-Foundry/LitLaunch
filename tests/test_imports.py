@@ -29,6 +29,7 @@ from litlaunch import (
     LauncherRuntime,
     LaunchEvent,
     LaunchMode,
+    LaunchPlan,
     LaunchResult,
     LaunchState,
     LitLaunchError,
@@ -97,6 +98,7 @@ def test_public_imports_are_available():
     assert issubclass(ConfigurationError, LitLaunchError)
     assert LaunchState.CREATED.value == "created"
     assert LaunchEvent
+    assert LaunchPlan
     assert LaunchResult
     assert OperatingSystem.WINDOWS.value == "windows"
     assert Architecture.X64.value == "x64"
@@ -165,6 +167,7 @@ def test_public_all_is_explicit():
         "JSONDiagnosticsRenderer",
         "LaunchEvent",
         "LaunchMode",
+        "LaunchPlan",
         "LaunchResult",
         "LaunchState",
         "LauncherConfig",
@@ -215,8 +218,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.27.0"
-    assert __version__ == "0.27.0"
+    assert litlaunch.__version__ == "0.28.0"
+    assert __version__ == "0.28.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

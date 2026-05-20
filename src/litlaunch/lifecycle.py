@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
-from litlaunch.browsers.base import BrowserCapability
+from litlaunch.browsers.base import BrowserCapability, BrowserResolution
+from litlaunch.config import BrowserChoice, LaunchMode
 
 
 class LaunchState(str, Enum):
@@ -52,3 +55,27 @@ class LaunchResult:
     browser: BrowserCapability | None = None
     browser_command: tuple[str, ...] | None = None
     browser_launched: bool = False
+
+
+@dataclass(frozen=True)
+class LaunchPlan:
+    """Resolved launch preview that does not start backend or browser processes."""
+
+    command: tuple[str, ...]
+    command_display: str
+    cwd: Path | None
+    app_url: str
+    health_url: str
+    host: str
+    port: int | None
+    resolved_port: int
+    auto_port: bool
+    mode: LaunchMode
+    headless: bool
+    browser_requested: BrowserChoice
+    browser_resolution: BrowserResolution | None
+    allow_browser_fallback: bool
+    app_args: tuple[str, ...]
+    streamlit_flags: Mapping[str, str | int | float | bool | None] | tuple[str, ...]
+    streamlit_args: tuple[str, ...]
+    extra_env_preview: str

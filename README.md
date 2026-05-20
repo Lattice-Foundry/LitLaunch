@@ -99,6 +99,18 @@ finally:
 `run()` is the friendly common entry point. `start()` is the explicit lifecycle
 entry point; both return a `RuntimeSession`.
 
+Preview launch behavior without starting Streamlit or opening a browser:
+
+```python
+plan = StreamlitLauncher(config).build_launch_plan()
+print(plan.command_display)
+print(plan.app_url)
+```
+
+`build_launch_plan()` is useful for diagnostics, integration tests, and
+configuration parity checks. Sensitive command and environment values are
+redacted in display fields.
+
 ## Feature Status
 
 | Area | Status | Notes |

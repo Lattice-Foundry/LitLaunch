@@ -3,6 +3,16 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.28.0
+
+- Added public `LaunchPlan` and `StreamlitLauncher.build_launch_plan()` for
+  inspecting resolved launch behavior without starting Streamlit or opening a
+  browser.
+- Aligned CLI command previews, dry runs, and inspect target previews around
+  the shared launch planning path.
+- Included redacted command and environment previews for integration-safe
+  diagnostics.
+
 ## 0.27.0
 
 - Added `LauncherConfig.cwd` and `LauncherConfig.extra_env` for backend process

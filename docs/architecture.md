@@ -10,6 +10,7 @@ StreamlitLauncher
       |
       +--> PortManager
       +--> StreamlitCommandBuilder
+      +--> build_launch_plan() previews resolved behavior
       +--> ProcessManager starts backend
       +--> HealthChecker waits for Streamlit health
       +--> BrowserRegistry resolves capability
@@ -44,6 +45,12 @@ explicit lifecycle entry point. Both return a `RuntimeSession`.
 `with_port(port)` returns a new launcher with the same injected dependencies
 and a fixed port, leaving the original launcher unchanged.
 
+`build_launch_plan()` returns a `LaunchPlan` for diagnostics, tests, and
+integration previews. It resolves the backend port, command, URLs, browser
+resolution, working directory, app args, Streamlit flags, passthrough args, and
+redacted environment preview without starting a backend process or opening a
+browser.
+
 `RuntimeSession.wait()` with no timeout waits until the backend exits. Timed
 waits return `None` if the timeout expires and leave the backend running with
 the session state unchanged.
@@ -51,6 +58,7 @@ the session state unchanged.
 ## Backend Lifecycle
 
 ```text
+optional build_launch_plan() preview
 resolve port
 build command
 start backend process with configured cwd/env

@@ -5,6 +5,9 @@ import litlaunch
 from litlaunch import (
     THEME_COLORS,
     Architecture,
+    BackendCommand,
+    BackendCommandContext,
+    BackendCommandProvider,
     BrowserCapability,
     BrowserChoice,
     BrowserError,
@@ -52,6 +55,7 @@ from litlaunch import (
     ShutdownHookResult,
     ShutdownRequestResult,
     ShutdownResult,
+    StreamlitBackendCommandProvider,
     StreamlitCommandBuilder,
     StreamlitLauncher,
     TextDiagnosticsRenderer,
@@ -76,6 +80,9 @@ from litlaunch import (
 
 def test_public_imports_are_available():
     assert LauncherConfig(app_path="app.py").mode == LaunchMode.BROWSER
+    assert BackendCommand(("python",)).command == ("python",)
+    assert BackendCommandContext
+    assert BackendCommandProvider
     assert BrowserChoice.AUTO.value == "auto"
     assert BrowserKind.EDGE.value == "edge"
     assert BrowserCapability
@@ -121,6 +128,7 @@ def test_public_imports_are_available():
     assert ShutdownHookResult
     assert ShutdownRequestResult
     assert ShutdownResult
+    assert StreamlitBackendCommandProvider
     assert StreamlitCommandBuilder
     assert StreamlitLauncher
     assert THEME_COLORS["streamlit_blue"].hex == "#1c83e1"
@@ -145,6 +153,9 @@ def test_public_imports_are_available():
 def test_public_all_is_explicit():
     expected = [
         "Architecture",
+        "BackendCommand",
+        "BackendCommandContext",
+        "BackendCommandProvider",
         "BrowserCapability",
         "BrowserChoice",
         "BrowserError",
@@ -192,6 +203,7 @@ def test_public_all_is_explicit():
         "ShutdownHookResult",
         "ShutdownRequestResult",
         "ShutdownResult",
+        "StreamlitBackendCommandProvider",
         "StreamlitCommandBuilder",
         "StreamlitLauncher",
         "THEME_COLORS",
@@ -218,8 +230,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.28.0"
-    assert __version__ == "0.28.0"
+    assert litlaunch.__version__ == "0.29.0"
+    assert __version__ == "0.29.0"
     assert re.fullmatch(r"\d+\.\d+\.\d+", litlaunch.__version__)
 
 

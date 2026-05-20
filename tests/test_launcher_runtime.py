@@ -2,6 +2,7 @@ import os
 from io import StringIO
 
 from litlaunch import LauncherConfig, LaunchMode
+from litlaunch.backend import BackendCommand, BackendCommandContext
 from litlaunch.browsers import (
     BrowserCapability,
     BrowserKind,
@@ -10,6 +11,7 @@ from litlaunch.browsers import (
 )
 from litlaunch.config import BrowserChoice
 from litlaunch.console import ConsoleRenderer, ConsoleTheme
+from litlaunch.exceptions import CommandBuildError
 from litlaunch.health import build_streamlit_app_url, build_streamlit_health_url
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchPlan, LaunchState
@@ -113,6 +115,33 @@ class FakeBrowserLauncher:
         )
 
 
+class FakeBackendCommandProvider:
+    def __init__(
+        self,
+        command=("packaged-app", "--serve"),
+        *,
+        description="packaged backend",
+        backend_kind="packaged",
+    ):
+        self.command = command
+        self.description = description
+        self.backend_kind = backend_kind
+        self.contexts = []
+
+    def build_backend_command(self, context: BackendCommandContext):
+        self.contexts.append(context)
+        return BackendCommand(
+            self.command,
+            description=self.description,
+            backend_kind=self.backend_kind,
+        )
+
+
+class FailingBackendCommandProvider:
+    def build_backend_command(self, context):
+        raise RuntimeError("provider exploded")
+
+
 def fake_browser(kind=BrowserKind.EDGE):
     return BrowserCapability(
         kind=kind,
@@ -140,6 +169,7 @@ def test_with_port_preserves_injected_dependencies():
     health_checker = FakeHealthChecker(healthy=True)
     browser_registry = FakeBrowserRegistry(fake_browser())
     browser_launcher = FakeBrowserLauncher(ok=True)
+    backend_command_provider = FakeBackendCommandProvider()
     console_renderer = ConsoleRenderer()
     clock = FakeClock()
     launcher = StreamlitLauncher(
@@ -149,6 +179,7 @@ def test_with_port_preserves_injected_dependencies():
         health_checker=health_checker,
         browser_registry=browser_registry,
         browser_launcher=browser_launcher,
+        backend_command_provider=backend_command_provider,
         console_renderer=console_renderer,
         clock=clock,
     )
@@ -166,6 +197,7 @@ def test_with_port_preserves_injected_dependencies():
     assert updated.health_checker is health_checker
     assert updated.browser_registry is browser_registry
     assert updated.browser_launcher is browser_launcher
+    assert updated.backend_command_provider is backend_command_provider
     assert updated.console_renderer is console_renderer
     assert updated.clock is clock
 
@@ -238,6 +270,8 @@ def test_build_launch_plan_resolves_fixed_port_without_starting_or_launching():
 
     assert isinstance(plan, LaunchPlan)
     assert plan.command[1:4] == ("-m", "streamlit", "run")
+    assert plan.backend_description == "Streamlit backend"
+    assert plan.backend_kind == "streamlit"
     assert "--server.port" in plan.command
     assert plan.command[plan.command.index("--server.port") + 1] == "8600"
     assert plan.command_display
@@ -260,6 +294,56 @@ def test_build_launch_plan_resolves_fixed_port_without_starting_or_launching():
     assert plan.streamlit_flags == {"server.maxUploadSize": 20}
     assert plan.streamlit_args == ("--server.cookieSecret", "secret-value")
     assert plan.extra_env_preview == "APP_MODE=demo, APP_TOKEN=<redacted>"
+    assert process_manager.started == []
+    assert browser_launcher.calls == []
+
+
+def test_default_backend_provider_preserves_current_command_output():
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            port=8600,
+            streamlit_args=("--server.runOnSave", "true"),
+            app_args=("--workspace", "demo"),
+        ),
+        port_manager=FakePortManager(8600),
+    )
+
+    plan = launcher.build_launch_plan()
+
+    assert plan.command == launcher.command_builder.build(port=8600)
+
+
+def test_build_launch_plan_uses_custom_backend_provider_without_starting():
+    process_manager = FakeProcessManager()
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    provider = FakeBackendCommandProvider(
+        ("packaged-app.exe", "--token", "secret-value", "--port", "8600")
+    )
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        browser_launcher=browser_launcher,
+        backend_command_provider=provider,
+    )
+
+    plan = launcher.build_launch_plan()
+
+    assert plan.command == (
+        "packaged-app.exe",
+        "--token",
+        "secret-value",
+        "--port",
+        "8600",
+    )
+    assert plan.backend_description == "packaged backend"
+    assert plan.backend_kind == "packaged"
+    assert "secret-value" not in plan.command_display
+    assert "<redacted>" in plan.command_display
+    assert provider.contexts[0].port == 8600
+    assert provider.contexts[0].app_url == "http://127.0.0.1:8600"
+    assert provider.contexts[0].health_url == "http://127.0.0.1:8600/_stcore/health"
     assert process_manager.started == []
     assert browser_launcher.calls == []
 
@@ -294,6 +378,58 @@ def test_build_launch_plan_busy_fixed_port_raises_clear_port_error():
         assert "Port 8600 is already in use" in str(exc)
     else:
         raise AssertionError("expected busy fixed port to raise")
+
+
+def test_build_launch_plan_wraps_provider_errors_as_command_build_error():
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        backend_command_provider=FailingBackendCommandProvider(),
+    )
+
+    try:
+        launcher.build_launch_plan()
+    except CommandBuildError as exc:
+        assert "Backend command provider failed: provider exploded" in str(exc)
+    else:
+        raise AssertionError("expected provider failure to raise CommandBuildError")
+
+
+def test_start_backend_uses_custom_provider_command_and_litlaunch_runtime_contract(
+    monkeypatch,
+):
+    monkeypatch.setenv("LITLAUNCH_SHUTDOWN_TOKEN", "global-token")
+    provider = FakeBackendCommandProvider(("packaged-app.exe", "--port", "8600"))
+    process_manager = FakeProcessManager()
+    health_checker = FakeHealthChecker(healthy=True)
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            port=8600,
+            cwd="workspace",
+            extra_env={"APP_SECRET": "secret", "LITLAUNCH_SHUTDOWN_TOKEN": "app"},
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        health_checker=health_checker,
+        backend_command_provider=provider,
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend(health_timeout_seconds=3.0)
+    started_command, start_kwargs = process_manager.started[0]
+    env = start_kwargs["env"]
+
+    assert session.ok is True
+    assert started_command == ("packaged-app.exe", "--port", "8600")
+    assert session.command == ("packaged-app.exe", "--port", "8600")
+    assert start_kwargs["cwd"] == launcher.config.cwd
+    assert env["APP_SECRET"] == "secret"
+    assert env["LITLAUNCH_SHUTDOWN_TOKEN"] != "app"
+    assert env["LITLAUNCH_SHUTDOWN_TOKEN"] != "global-token"
+    assert health_checker.calls == [("http://127.0.0.1:8600/_stcore/health", 3.0, 0.25)]
+    assert provider.contexts[0].host == "127.0.0.1"
+    assert provider.contexts[0].port == 8600
 
 
 def test_start_backend_passes_cwd_and_extra_env_without_mutating_global_env(

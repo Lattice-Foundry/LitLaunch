@@ -1,5 +1,11 @@
 """Public API for LitLaunch."""
 
+from litlaunch.backend import (
+    BackendCommand,
+    BackendCommandContext,
+    BackendCommandProvider,
+    StreamlitBackendCommandProvider,
+)
 from litlaunch.browsers import (
     BrowserCapability,
     BrowserKind,
@@ -88,6 +94,9 @@ __all__ = [
     "BrowserLauncher",
     "BrowserResolution",
     "BrowserError",
+    "BackendCommand",
+    "BackendCommandContext",
+    "BackendCommandProvider",
     "CommandBuildError",
     "ConfigurationError",
     "ConsoleMode",
@@ -130,6 +139,7 @@ __all__ = [
     "ShutdownRequestResult",
     "ShutdownResult",
     "StreamlitCommandBuilder",
+    "StreamlitBackendCommandProvider",
     "StreamlitLauncher",
     "TextDiagnosticsRenderer",
     "WindowsChromiumWindowMonitor",

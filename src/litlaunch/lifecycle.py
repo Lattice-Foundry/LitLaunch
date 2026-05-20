@@ -63,6 +63,8 @@ class LaunchPlan:
 
     command: tuple[str, ...]
     command_display: str
+    backend_description: str
+    backend_kind: str | None
     cwd: Path | None
     app_url: str
     health_url: str

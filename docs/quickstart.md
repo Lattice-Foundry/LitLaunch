@@ -81,6 +81,44 @@ print(plan.health_url)
 configuration parity checks. It resolves ports and browser strategy but does
 not launch Streamlit or a browser.
 
+## Custom Backend Commands
+
+The default source-app command path is unchanged. Advanced integrations can
+provide a command-only backend provider for packaged, frozen, or embedded
+Streamlit apps:
+
+```python
+from litlaunch import BackendCommand, LauncherConfig, StreamlitLauncher
+
+
+class PackagedBackend:
+    def build_backend_command(self, context):
+        return BackendCommand(
+            (
+                "dist/MyApp/MyApp.exe",
+                "--host",
+                context.host,
+                "--port",
+                str(context.port),
+            ),
+            description="packaged Streamlit backend",
+            backend_kind="packaged",
+        )
+
+
+launcher = StreamlitLauncher(
+    LauncherConfig(app_path="app.py"),
+    backend_command_provider=PackagedBackend(),
+)
+
+plan = launcher.build_launch_plan()
+print(plan.command_display)
+```
+
+The custom executable must bind the requested `context.host`/`context.port` and
+expose Streamlit's health endpoint. LitLaunch still owns environment injection,
+health checking, browser launch, and `RuntimeSession` shutdown behavior.
+
 `LauncherConfig.cwd` sets the backend process working directory.
 `LauncherConfig.extra_env` adds child-process environment variables without
 mutating `os.environ`. LitLaunch shutdown endpoint variables are injected after

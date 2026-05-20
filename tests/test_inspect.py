@@ -162,6 +162,8 @@ class FakeLauncher:
         return LaunchPlan(
             command=command,
             command_display=format_command_preview(command),
+            backend_description="Streamlit backend",
+            backend_kind="streamlit",
             cwd=self.config.cwd,
             app_url=f"http://{self.config.host}:{resolved_port}",
             health_url=f"http://{self.config.host}:{resolved_port}/_stcore/health",
@@ -291,7 +293,7 @@ def test_diagnostics_report_to_dict_shape():
 
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.28.0"
+    assert data["litlaunch_version"] == "0.29.0"
     assert data["generated_at_utc"] == "2026-05-18T12:00:00Z"
     assert data["title"] == "Report"
     assert data["ok"] is True
@@ -482,7 +484,7 @@ def test_json_renderer_outputs_parseable_sanitized_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.28.0"
+    assert data["litlaunch_version"] == "0.29.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["items"][0]["message"] == "token=<redacted>"
     assert data["sections"][0]["items"][0]["detail"] == "--api_key=<redacted>"
@@ -511,7 +513,7 @@ def test_bundle_renderer_includes_summary_sections_and_sanitization_note():
     rendered = SanitizedBundleRenderer().render(report)
 
     assert "LitLaunch Support Bundle" in rendered
-    assert "Version: 0.28.0" in rendered
+    assert "Version: 0.29.0" in rendered
     assert "Generated at:" in rendered
     assert "Summary: ok; 0 errors; 0 warnings" in rendered
     assert "This report is sanitized" in rendered

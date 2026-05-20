@@ -111,11 +111,44 @@ print(plan.app_url)
 configuration parity checks. Sensitive command and environment values are
 redacted in display fields.
 
+Advanced integrations can inject a backend command provider when a packaged or
+embedded app needs a custom backend executable while LitLaunch still owns env
+injection, health checks, browser launch, and `RuntimeSession` lifecycle:
+
+```python
+from litlaunch import BackendCommand, LauncherConfig, StreamlitLauncher
+
+
+class PackagedBackend:
+    def build_backend_command(self, context):
+        return BackendCommand(
+            (
+                "dist/MyApp/MyApp.exe",
+                "--host",
+                context.host,
+                "--port",
+                str(context.port),
+            ),
+            description="packaged Streamlit backend",
+            backend_kind="packaged",
+        )
+
+
+launcher = StreamlitLauncher(
+    LauncherConfig(app_path="app.py"),
+    backend_command_provider=PackagedBackend(),
+)
+```
+
+Custom backend commands must bind the requested host/port and expose the
+Streamlit health endpoint used by LitLaunch.
+
 ## Feature Status
 
 | Area | Status | Notes |
 | --- | --- | --- |
 | Streamlit backend launch | Alpha foundation | Shell-free command construction and owned backend process management. |
+| Backend command providers | Alpha foundation | Optional command-only seam for packaged/embedded integrations. |
 | Browser mode | Alpha foundation | Uses default browser or detected Chromium browser capability. |
 | Chromium app-mode | Alpha | Edge and Chrome/Chromium adapters first. |
 | Browser fallback | Alpha | Explicit browser choices can fall back unless disabled. |

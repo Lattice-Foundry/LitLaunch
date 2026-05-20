@@ -9,10 +9,17 @@ from dataclasses import replace
 from typing import NamedTuple
 
 from litlaunch._protocols import ClockProvider
+from litlaunch.backend import (
+    BackendCommand,
+    BackendCommandContext,
+    BackendCommandProvider,
+    StreamlitBackendCommandProvider,
+)
 from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.console import ConsolePhase, ConsoleRenderer
+from litlaunch.exceptions import CommandBuildError
 from litlaunch.health import (
     HealthChecker,
     build_streamlit_app_url,
@@ -45,11 +52,15 @@ class StreamlitLauncher:
         health_checker: HealthChecker | None = None,
         browser_registry: BrowserRegistry | None = None,
         browser_launcher: BrowserLauncher | None = None,
+        backend_command_provider: BackendCommandProvider | None = None,
         console_renderer: ConsoleRenderer | None = None,
         clock: ClockProvider = time,
     ) -> None:
         self.config = config
         self.command_builder = StreamlitCommandBuilder(config)
+        self.backend_command_provider = (
+            backend_command_provider or StreamlitBackendCommandProvider()
+        )
         self.port_manager = port_manager or PortManager(config.host)
         self.process_manager = process_manager or ProcessManager()
         self.health_checker = health_checker or HealthChecker()
@@ -106,19 +117,22 @@ class StreamlitLauncher:
         """Build a resolved launch plan without starting backend or browser."""
 
         resolved_port = self.resolve_port()
-        command = self.command_builder.build(port=resolved_port)
+        context = self._build_backend_command_context(resolved_port)
+        backend_command = self._build_backend_command(context)
         return LaunchPlan(
-            command=command,
-            command_display=format_command_preview(command),
+            command=backend_command.command,
+            command_display=format_command_preview(backend_command.command),
+            backend_description=backend_command.description,
+            backend_kind=backend_command.backend_kind,
             cwd=self.config.cwd,
-            app_url=build_streamlit_app_url(self.config.host, resolved_port),
-            health_url=build_streamlit_health_url(self.config.host, resolved_port),
+            app_url=context.app_url,
+            health_url=context.health_url,
             host=self.config.host,
             port=self.config.port,
             resolved_port=resolved_port,
             auto_port=self.config.auto_port,
             mode=self.config.mode,
-            headless=self.command_builder.resolve_headless(),
+            headless=context.headless,
             browser_requested=self.config.browser,
             browser_resolution=(
                 self.resolve_browser() if include_browser_resolution else None
@@ -357,11 +371,13 @@ class StreamlitLauncher:
                 render=False,
             )
             self._render_detail(f"Backend port: {port}")
-            command = self.command_builder.build(port=port)
+            context = self._build_backend_command_context(port)
+            backend_command = self._build_backend_command(context)
+            command = backend_command.command
             self._record(
                 events,
                 LaunchState.COMMAND_BUILT,
-                "Streamlit command built.",
+                f"{backend_command.description} command built.",
                 render=False,
             )
             self._render_detail(f"Command: {format_command_preview(command)}")
@@ -378,7 +394,10 @@ class StreamlitLauncher:
                 "Starting Streamlit backend.",
                 render=False,
             )
-            self._render_phase_start(ConsolePhase.BACKEND, "starting Streamlit")
+            self._render_phase_start(
+                ConsolePhase.BACKEND,
+                _backend_start_message(backend_command.description),
+            )
             backend_start_time = self.clock.monotonic()
             managed_process = self.process_manager.start(
                 command,
@@ -387,8 +406,8 @@ class StreamlitLauncher:
             )
             backend_elapsed = self.clock.monotonic() - backend_start_time
             pid = getattr(managed_process.popen, "pid", None)
-            app_url = build_streamlit_app_url(self.config.host, port)
-            health_url = build_streamlit_health_url(self.config.host, port)
+            app_url = context.app_url
+            health_url = context.health_url
             self._record(
                 events,
                 LaunchState.PROCESS_RUNNING,
@@ -524,9 +543,39 @@ class StreamlitLauncher:
             health_checker=self.health_checker,
             browser_registry=self.browser_registry,
             browser_launcher=self.browser_launcher,
+            backend_command_provider=self.backend_command_provider,
             console_renderer=self.console_renderer,
             clock=self.clock,
         )
+
+    def _build_backend_command_context(self, port: int) -> BackendCommandContext:
+        return BackendCommandContext(
+            config=self.config,
+            host=self.config.host,
+            port=port,
+            app_url=build_streamlit_app_url(self.config.host, port),
+            health_url=build_streamlit_health_url(self.config.host, port),
+            headless=self.command_builder.resolve_headless(),
+        )
+
+    def _build_backend_command(
+        self,
+        context: BackendCommandContext,
+    ) -> BackendCommand:
+        try:
+            backend_command = self.backend_command_provider.build_backend_command(
+                context
+            )
+        except CommandBuildError:
+            raise
+        except Exception as exc:
+            raise CommandBuildError(f"Backend command provider failed: {exc}") from exc
+
+        if not isinstance(backend_command, BackendCommand):
+            raise CommandBuildError(
+                "Backend command provider must return a BackendCommand."
+            )
+        return backend_command
 
     def _health_failure_message(
         self,
@@ -708,3 +757,9 @@ def _copy_streamlit_flags(flags):
     if hasattr(flags, "items"):
         return dict(flags.items())
     return tuple(flags)
+
+
+def _backend_start_message(description: str) -> str:
+    if description == "Streamlit backend":
+        return "starting Streamlit"
+    return f"starting {description}"

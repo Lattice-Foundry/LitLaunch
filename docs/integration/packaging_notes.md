@@ -8,6 +8,7 @@ it should not own packaging workflows.
 Implemented:
 
 - runtime command construction
+- backend command provider seam
 - backend process ownership
 - browser/app-mode launch
 - graceful shutdown hooks
@@ -21,6 +22,24 @@ Not implemented:
 - shortcut generation
 - packaged resource discovery helpers
 - TestPyPI/PyPI publishing automation
+
+## Backend Command Providers
+
+Packaged, frozen, or embedded apps can provide a command-only backend provider
+to `StreamlitLauncher`. The provider receives the resolved host, port, URLs, and
+configuration, then returns a shell-free command tuple. LitLaunch still starts
+the process, injects shutdown environment variables, waits for health, launches
+the browser target, and owns the `RuntimeSession`.
+
+The packaged executable must:
+
+- bind the requested host and port
+- expose Streamlit's health endpoint at `/_stcore/health`
+- exit when LitLaunch requests graceful shutdown or terminates the owned
+  backend process
+
+Do not use a backend command provider to start background services or browser
+processes. It is a command construction seam, not a runner abstraction.
 
 ## PyInstaller / Nuitka
 
@@ -54,4 +73,3 @@ Future notes should cover:
 
 LitLaunch should remain the runtime layer beneath those workflows, not the
 installer framework.
-

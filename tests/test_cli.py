@@ -202,6 +202,8 @@ class FakeLauncher:
         return LaunchPlan(
             command=command,
             command_display=format_command_preview(command),
+            backend_description="Streamlit backend",
+            backend_kind="streamlit",
             cwd=self.config.cwd,
             app_url=self.build_app_url(port),
             health_url=f"http://{self.config.host}:{port}/_stcore/health",
@@ -428,7 +430,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.28.0"
+    assert data["litlaunch_version"] == "0.29.0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

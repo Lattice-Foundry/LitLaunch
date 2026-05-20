@@ -3,6 +3,15 @@
 LitLaunch is pre-alpha. Entries are intentionally concise until the public API
 settles.
 
+## 0.29.0
+
+- Added public backend command provider types for packaged, frozen, and
+  embedded backend command customization.
+- Wired custom backend commands into launch plans and backend process start
+  while preserving LitLaunch-owned env injection, health checks, browser
+  launch, and session lifecycle.
+- Documented the generic packaged-backend command contract.
+
 ## 0.28.0
 
 - Added public `LaunchPlan` and `StreamlitLauncher.build_launch_plan()` for

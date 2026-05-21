@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.16b0
+
+- Added `litlaunch help` workflow guidance for launch, diagnostics, profiles,
+  examples, and developer tooling.
+- Kept argparse `--help` behavior as command/reference help while making
+  `litlaunch help ...` focused on practical workflows.
+- Documented the new help workflow without changing runtime, diagnostics, or
+  browser behavior.
+
 ## 0.91.15b0
 
 - Added `litlaunch report` as an ergonomic standalone HTML diagnostics workflow

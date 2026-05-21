@@ -338,6 +338,7 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "version" in help_text
     assert "platform" in help_text
     assert "browsers" in help_text
+    assert "help" in help_text
     assert "inspect" in help_text
     assert "report" in help_text
     assert "command" in help_text
@@ -347,6 +348,121 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "litlaunch --profile my-webapp" in help_text
     assert re.search(r"litlaunch\s+report --profile my-webapp", help_text)
     assert "console-preview" not in help_text
+
+
+def test_cli_workflow_help_menu_lists_topics():
+    stream = StringIO()
+
+    code = main(["help"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "LitLaunch workflow help" in output
+    assert "Use --help for command reference" in output
+    assert "launch" in output
+    assert "diagnostics" in output
+    assert "profiles" in output
+    assert "examples" in output
+    assert "dev" in output
+
+
+def test_cli_workflow_help_launch_topic():
+    stream = StringIO()
+
+    code = main(["help", "launch"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "Launch workflows" in output
+    assert "litlaunch app.py" in output
+    assert "litlaunch --profile rolethread-webapp" in output
+    assert "litlaunch run app.py" in output
+    assert "litlaunch run --profile rolethread-webapp" in output
+    assert "--monitor-window" in output
+    assert "Bare profile names are not supported" in output
+
+
+def test_cli_workflow_help_diagnostics_topic():
+    stream = StringIO()
+
+    code = main(["help", "diagnostics"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "Diagnostics workflows" in output
+    assert "litlaunch report --profile rolethread-webapp" in output
+    assert "litlaunch report --profile rolethread-webapp --open" in output
+    assert "litlaunch inspect --json" in output
+    assert "litlaunch inspect --bundle" in output
+    assert "report for shareable human diagnostics" in output
+
+
+def test_cli_workflow_help_profiles_topic():
+    stream = StringIO()
+
+    code = main(["help", "profiles"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "Profile workflows" in output
+    assert "litlaunch --profile my-webapp" in output
+    assert "litlaunch run --profile my-webapp" in output
+    assert "--config litlaunch.toml" in output
+    assert "pyproject.toml under [tool.litlaunch]" in output
+
+
+def test_cli_workflow_help_examples_topic():
+    stream = StringIO()
+
+    code = main(["help", "examples"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "Examples" in output
+    assert "litlaunch app.py" in output
+    assert "litlaunch report --profile my-webapp" in output
+    assert "litlaunch command app.py" in output
+    assert "litlaunch browsers --verbose" in output
+    assert "litlaunch example" in output
+
+
+def test_cli_workflow_help_dev_topic_frames_internal_preview_tooling():
+    stream = StringIO()
+
+    code = main(["help", "dev"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "Developer tooling" in output
+    assert "internal developer-facing" in output
+    assert "litlaunch console-preview --all" in output
+    assert "litlaunch console-preview --normal" in output
+    assert "litlaunch console-preview --verbose" in output
+    assert "not a stable public workflow contract" in output
+
+
+def test_cli_workflow_help_all_includes_main_topics():
+    stream = StringIO()
+
+    code = main(["help", "all"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "Launch workflows" in output
+    assert "Diagnostics workflows" in output
+    assert "Profile workflows" in output
+    assert "Developer tooling" in output
+
+
+def test_cli_workflow_help_unknown_topic_fails_cleanly():
+    stream = StringIO()
+
+    code = main(["help", "unknown"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 2
+    assert "Unknown help topic: unknown" in output
+    assert "launch" in output
 
 
 def test_cli_console_preview_command_exists_and_exits_zero():
@@ -647,7 +763,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.15b0"
+    assert data["litlaunch_version"] == "0.91.16b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

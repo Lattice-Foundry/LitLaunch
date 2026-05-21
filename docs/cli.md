@@ -9,6 +9,7 @@ runtime APIs.
 litlaunch version
 litlaunch platform
 litlaunch browsers
+litlaunch help [topic]
 litlaunch inspect [app_path]
 litlaunch report [app_path]
 litlaunch command <app_path>
@@ -28,6 +29,31 @@ litlaunch example
 
 Quiet suppresses routine output, but essential errors and failure guidance may
 still be emitted. Verbose adds sanitized details.
+
+## Help
+
+Use argparse help for command reference:
+
+```powershell
+litlaunch --help
+litlaunch run --help
+litlaunch report --help
+```
+
+Use workflow help for practical guidance:
+
+```powershell
+litlaunch help
+litlaunch help launch
+litlaunch help diagnostics
+litlaunch help profiles
+litlaunch help examples
+litlaunch help dev
+```
+
+`litlaunch help dev` documents internal developer-facing console preview
+tooling. It is useful for contributors, but it is not a stable public workflow
+contract.
 
 ## Run
 

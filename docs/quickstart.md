@@ -25,6 +25,16 @@ Inspect first:
 litlaunch report examples/minimal_app/app.py
 ```
 
+For workflow guidance, use:
+
+```powershell
+litlaunch help
+litlaunch help launch
+litlaunch help diagnostics
+```
+
+Use `litlaunch --help` or a command-specific `--help` flag for reference help.
+
 ## Use Your Own App
 
 ```powershell

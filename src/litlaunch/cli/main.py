@@ -22,6 +22,7 @@ from litlaunch.cli.common import (
     write,
 )
 from litlaunch.cli.config import add_runtime_flags
+from litlaunch.cli.help import add_workflow_help_flags, cmd_workflow_help
 from litlaunch.cli.inspect import (
     add_inspect_flags,
     add_report_flags,
@@ -37,6 +38,7 @@ _COMMAND_NAMES = frozenset(
         "version",
         "platform",
         "browsers",
+        "help",
         "inspect",
         "report",
         "command",
@@ -105,7 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(
         dest="command",
-        metavar="{version,platform,browsers,inspect,report,command,run,example}",
+        metavar="{version,platform,browsers,help,inspect,report,command,run,example}",
     )
 
     version_parser = subparsers.add_parser(
@@ -131,6 +133,15 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=LitLaunchHelpFormatter,
     )
     browsers_parser.set_defaults(handler=cmd_browsers)
+
+    help_parser = subparsers.add_parser(
+        "help",
+        parents=[parent],
+        help="Show workflow-oriented guidance.",
+        formatter_class=LitLaunchHelpFormatter,
+    )
+    add_workflow_help_flags(help_parser)
+    help_parser.set_defaults(handler=cmd_workflow_help)
 
     inspect_parser = subparsers.add_parser(
         "inspect",

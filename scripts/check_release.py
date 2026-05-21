@@ -358,6 +358,7 @@ def run_installed_wheel_smoke(wheel_path: Path, version: str) -> None:
         run_command(
             (str(litlaunch), "browsers", "--no-color"), cwd=Path(temp_dir), env=env
         )
+        run_command((str(litlaunch), "help"), cwd=Path(temp_dir), env=env)
         run_command(
             (str(litlaunch), "inspect", "--no-color"),
             cwd=Path(temp_dir),

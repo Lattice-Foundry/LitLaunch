@@ -56,7 +56,7 @@ def test_pyproject_urls_use_canonical_repository_location():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert "## 0.91.15b0" in changelog
+    assert "## 0.91.16b0" in changelog
     assert "## 0.91.0b0" in changelog
     assert "## 0.85.0" in changelog
     assert "## 0.23.0" in changelog
@@ -144,6 +144,10 @@ def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
     assert "litlaunch console-preview --all" in cli
     assert "litlaunch console-preview --normal" in cli
     assert "litlaunch console-preview --verbose" in cli
+    assert "litlaunch help launch" in cli
+    assert "litlaunch help diagnostics" in cli
+    assert "litlaunch --help" in cli
+    assert "not a stable public workflow" in cli
     assert "Some values are simulated" in cli
     assert "orange `Hook:` category" in quickstart
     assert "hook message text stays unstyled" in quickstart

@@ -73,6 +73,17 @@ users should point LitLaunch at their own Streamlit app path. The explicit
 `litlaunch run examples/minimal_app/app.py` form remains available for scripts
 and power-user workflows.
 
+Use workflow help when you want guidance instead of command reference:
+
+```powershell
+litlaunch help
+litlaunch help launch
+litlaunch help diagnostics
+```
+
+Use `litlaunch --help` or `litlaunch run --help` for argparse command and flag
+reference.
+
 Run in Chromium app-mode:
 
 ```powershell

@@ -7,6 +7,12 @@ from html import escape
 
 from litlaunch.inspect.models import DiagnosticsReport
 
+PATH_VALUE_NAMES = {
+    "Python executable",
+    "Resolved app path",
+    "Working directory",
+}
+
 
 class HTMLDiagnosticsRenderer:
     """Render structured diagnostics to a sanitized standalone HTML report."""
@@ -30,6 +36,7 @@ class HTMLDiagnosticsRenderer:
         status_text = "OK" if data["ok"] else "Needs attention"
         status_class = "summary-ok" if data["ok"] else "summary-error"
         sections = data["sections"]
+        profile_name = _find_profile_name(sections)
         lines = [
             "<!doctype html>",
             '<html lang="en">',
@@ -47,7 +54,7 @@ class HTMLDiagnosticsRenderer:
             "      --border: #d9dee7;",
             "      --blue: #1c83e1;",
             "      --green: #17803d;",
-            "      --yellow: #8a6a00;",
+            "      --warning: #8a7700;",
             "      --red: #c50f1f;",
             "      --code-bg: #f1f4f8;",
             "    }",
@@ -58,6 +65,7 @@ class HTMLDiagnosticsRenderer:
             "        --text: #e7ecf3;",
             "        --muted: #a8b3c2;",
             "        --border: #303741;",
+            "        --warning: #f9f1a5;",
             "        --code-bg: #202631;",
             "      }",
             "    }",
@@ -128,7 +136,7 @@ class HTMLDiagnosticsRenderer:
             "      border: 1px solid currentColor;",
             "    }",
             "    .status-ok { color: var(--green); }",
-            "    .status-warning { color: var(--yellow); }",
+            "    .status-warning { color: var(--warning); }",
             "    .status-error { color: var(--red); }",
             "    .status-info { color: var(--blue); }",
             "    code {",
@@ -177,12 +185,22 @@ class HTMLDiagnosticsRenderer:
                 "Warnings</span>"
                 f'<span class="summary-value">{_html(data["warnings"])}</span></div>'
             ),
-            "  </div>",
-            '  <div class="note-card">',
-            f"    <p>{_html(self.SANITIZATION_NOTE)}</p>",
-            f"    <p>{_html(self.PRIVACY_NOTE)}</p>",
-            "  </div>",
         ]
+        if profile_name is not None:
+            lines.append(
+                '    <div class="summary-card"><span class="summary-label">'
+                "Profile</span>"
+                f'<span class="summary-value">{_html(profile_name)}</span></div>'
+            )
+        lines.extend(
+            [
+                "  </div>",
+                '  <div class="note-card">',
+                f"    <p>{_html(self.SANITIZATION_NOTE)}</p>",
+                f"    <p>{_html(self.PRIVACY_NOTE)}</p>",
+                "  </div>",
+            ]
+        )
         for section in sections:
             lines.extend(self._render_section(section))
         lines.extend(["</main>", "</body>", "</html>", ""])
@@ -210,15 +228,17 @@ class HTMLDiagnosticsRenderer:
     def _render_item(self, item: object) -> str:
         item_data = item if isinstance(item, Mapping) else {}
         status = str(item_data.get("status", "info"))
+        name = str(item_data.get("name", ""))
+        message = str(item_data.get("message", ""))
         detail = item_data.get("detail") if self.include_details else None
-        detail_text = "" if detail is None else str(detail)
+        detail_text = None if detail is None else str(detail)
         return (
             "        <tr>"
             f'<td><span class="status status-{_html_attr(status)}">'
             f"{_html(_status_label(status))}</span></td>"
-            f"<td>{_html(item_data.get('name', ''))}</td>"
-            f"<td>{_html(item_data.get('message', ''))}</td>"
-            f"<td><code>{_html(detail_text)}</code></td>"
+            f"<td>{_html(name)}</td>"
+            f"<td>{_render_message(name, message)}</td>"
+            f"<td>{_render_detail(detail_text)}</td>"
             "</tr>"
         )
 
@@ -237,3 +257,32 @@ def _status_label(status: str) -> str:
     if status == "warning":
         return "WARNING"
     return status.upper()
+
+
+def _find_profile_name(sections: object) -> str | None:
+    if not isinstance(sections, list):
+        return None
+    for section in sections:
+        if not isinstance(section, Mapping) or section.get("title") != "Profile":
+            continue
+        items = section.get("items")
+        if not isinstance(items, list):
+            return None
+        for item in items:
+            if not isinstance(item, Mapping) or item.get("name") != "Profile":
+                continue
+            message = str(item.get("message", "")).strip()
+            return message or None
+    return None
+
+
+def _render_message(name: str, message: str) -> str:
+    if name in PATH_VALUE_NAMES and message not in {"", "not set", "none"}:
+        return f'<code class="value-code">{_html(message)}</code>'
+    return _html(message)
+
+
+def _render_detail(detail_text: str | None) -> str:
+    if detail_text is None or detail_text == "":
+        return '<span class="empty-detail" aria-label="No detail">&mdash;</span>'
+    return f"<code>{_html(detail_text)}</code>"

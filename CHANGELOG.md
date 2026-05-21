@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.11b0
+
+- Polished HTML diagnostics empty-detail cells so they render as intentional
+  placeholders instead of empty code elements.
+- Added top-level profile context to HTML diagnostics reports when a profile is
+  present.
+- Tuned HTML warning badge colors and path-heavy value readability without
+  changing diagnostics collection or JSON schema.
+
 ## 0.91.10b0
 
 - Corrected `inspect --output` help so it accurately covers JSON, HTML, and

@@ -27,8 +27,16 @@ def test_app_path_with_spaces_remains_one_argument():
     assert command.count(app_arg) == 1
 
 
-def test_browser_mode_uses_expected_headless_default():
+def test_browser_mode_suppresses_streamlit_native_browser_by_default():
     command = StreamlitCommandBuilder(LauncherConfig(app_path="app.py")).build()
+
+    assert command[command.index("--server.headless") + 1] == "true"
+
+
+def test_browser_mode_allows_explicit_streamlit_native_browser_opt_in():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(app_path="app.py", headless=False),
+    ).build()
 
     assert command[command.index("--server.headless") + 1] == "false"
 

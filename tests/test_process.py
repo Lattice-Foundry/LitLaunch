@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 import pytest
@@ -70,12 +71,31 @@ def test_start_passes_args_without_shell_true():
     process = manager.start(("python", "-m", "streamlit"), cwd="X:/app", env={"A": "1"})
 
     assert process == ManagedProcess(fake, ("python", "-m", "streamlit"))
-    assert calls == [
-        (
-            ("python", "-m", "streamlit"),
-            {"cwd": "X:/app", "env": {"A": "1"}, "shell": False},
-        )
-    ]
+    command, kwargs = calls[0]
+    assert command == ("python", "-m", "streamlit")
+    assert kwargs["cwd"] == "X:/app"
+    assert kwargs["env"] == {"A": "1"}
+    assert kwargs["shell"] is False
+
+
+def test_start_isolates_backend_from_parent_terminal_interrupts():
+    calls = []
+    fake = FakePopen()
+
+    def popen_factory(command, **kwargs):
+        calls.append((command, kwargs))
+        return fake
+
+    manager = ProcessManager(popen_factory=popen_factory)
+    manager.start(("python", "-m", "streamlit"))
+
+    kwargs = calls[0][1]
+    if os.name == "nt":
+        assert kwargs["creationflags"] == subprocess.CREATE_NEW_PROCESS_GROUP
+        assert "start_new_session" not in kwargs
+    else:
+        assert kwargs["start_new_session"] is True
+        assert "creationflags" not in kwargs
 
 
 def test_fake_popen_matches_managed_popen_protocol():

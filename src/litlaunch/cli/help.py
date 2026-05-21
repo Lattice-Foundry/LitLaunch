@@ -99,6 +99,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  --trust-mode development|strict_local|internal_network",
             "  --allow-network-exposure",
             "  --monitor-window",
+            "  --no-monitor-window",
             "  --verbose",
             "",
             style.warning(

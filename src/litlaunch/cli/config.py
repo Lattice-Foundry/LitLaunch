@@ -19,6 +19,7 @@ class MonitorOptions:
     """Resolved window-monitoring options from profile and CLI values."""
 
     enabled: bool
+    explicit: bool
     graceful_timeout_seconds: float
     window_monitor_config: WindowMonitorConfig
 
@@ -61,8 +62,16 @@ def add_runtime_flags(
         parser.add_argument(
             "--monitor-window",
             action="store_true",
+            dest="monitor_window",
             default=None,
             help="Monitor the Chromium app-mode window and stop runtime on close.",
+        )
+        parser.add_argument(
+            "--no-monitor-window",
+            action="store_false",
+            dest="monitor_window",
+            default=None,
+            help="Disable app-mode window close monitoring.",
         )
         parser.add_argument(
             "--graceful-timeout",
@@ -222,6 +231,7 @@ def runtime_config_from_args(
 def monitor_options_from_args(
     args: argparse.Namespace,
     profile: LaunchProfile | None,
+    config: LauncherConfig,
 ) -> MonitorOptions:
     """Resolve window-monitoring options from CLI/profile values."""
 
@@ -233,7 +243,7 @@ def monitor_options_from_args(
         if getattr(args, "monitor_window", None) is not None
         else profile.monitor_window
         if profile is not None
-        else False
+        else config.mode == LaunchMode.WEBAPP
     )
     graceful_timeout = (
         args.graceful_timeout
@@ -267,6 +277,7 @@ def monitor_options_from_args(
         raise LitLaunchError("--monitor-stable-polls must be at least 1.")
     return MonitorOptions(
         enabled=bool(monitor_window),
+        explicit=getattr(args, "monitor_window", None) is not None,
         graceful_timeout_seconds=float(graceful_timeout),
         window_monitor_config=WindowMonitorConfig(
             appear_timeout_seconds=float(appear_timeout),

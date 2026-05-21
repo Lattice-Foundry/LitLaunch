@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -38,11 +39,10 @@ class ProcessManager:
         """Start a command sequence without shell execution."""
 
         normalized = self._normalize_command(command)
+        popen_kwargs = self._build_popen_kwargs(cwd=cwd, env=env)
         popen = self.popen_factory(
             normalized,
-            cwd=str(cwd) if cwd is not None else None,
-            env=dict(env) if env is not None else None,
-            shell=False,
+            **popen_kwargs,
         )
         return ManagedProcess(popen=popen, command=normalized)
 
@@ -96,3 +96,20 @@ class ProcessManager:
         if any(not part for part in normalized):
             raise ProcessError("Command arguments cannot be empty.")
         return normalized
+
+    def _build_popen_kwargs(
+        self,
+        *,
+        cwd: str | Path | None,
+        env: Mapping[str, str] | None,
+    ) -> dict[str, object]:
+        kwargs: dict[str, object] = {
+            "cwd": str(cwd) if cwd is not None else None,
+            "env": dict(env) if env is not None else None,
+            "shell": False,
+        }
+        if os.name == "nt":
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs["start_new_session"] = True
+        return kwargs

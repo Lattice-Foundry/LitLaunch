@@ -12,6 +12,7 @@ from litlaunch.cli.common import (
     write,
 )
 from litlaunch.cli.config import (
+    MonitorOptions,
     load_cli_profile,
     monitor_options_from_args,
     runtime_config_from_args,
@@ -121,9 +122,21 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
     cli_renderer = renderer(args, context)
     profile = load_cli_profile(args)
     config = runtime_config_from_args(args, profile=profile)
-    monitor_options = monitor_options_from_args(args, profile)
+    monitor_options = monitor_options_from_args(args, profile, config)
     if monitor_options.enabled and config.mode != LaunchMode.WEBAPP:
         raise LitLaunchError("--monitor-window is only valid with --mode webapp.")
+    platform_detector = context.platform_detector_factory()
+    if (
+        monitor_options.enabled
+        and not monitor_options.explicit
+        and not platform_detector.detect().supports_window_monitoring
+    ):
+        monitor_options = MonitorOptions(
+            enabled=False,
+            explicit=False,
+            graceful_timeout_seconds=monitor_options.graceful_timeout_seconds,
+            window_monitor_config=monitor_options.window_monitor_config,
+        )
     launcher = context.launcher_factory(config, console_renderer=cli_renderer)
     if args.dry_run:
         plan = launcher.build_launch_plan()
@@ -145,7 +158,7 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
     run_result = run_profile(
         runtime_profile,
         launcher=launcher,
-        platform_detector=context.platform_detector_factory(),
+        platform_detector=platform_detector,
         window_monitor_factory=context.window_monitor_factory,
     )
 

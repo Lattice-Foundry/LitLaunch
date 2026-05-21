@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Mapping, Sequence
 
-from litlaunch.config import LauncherConfig, LaunchMode
+from litlaunch.config import LauncherConfig
 from litlaunch.exceptions import CommandBuildError
 
 
@@ -60,7 +60,10 @@ class StreamlitCommandBuilder:
 
         if self.config.headless is not None:
             return bool(self.config.headless)
-        return self.config.mode == LaunchMode.WEBAPP
+        # LitLaunch owns browser launch in both browser and webapp modes. Keep
+        # Streamlit's native browser opener suppressed unless users explicitly
+        # opt back into it with headless=False or a raw server.headless flag.
+        return True
 
 
 def _format_streamlit_flags(

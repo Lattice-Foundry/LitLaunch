@@ -1,26 +1,28 @@
 # Window Monitoring
 
-Window monitoring is experimental, opt-in, and observational.
+Window monitoring is experimental and observational.
 
 It is intended for Chromium app-mode flows where closing the app window should
-trigger graceful backend shutdown.
+trigger graceful backend shutdown. CLI `--mode webapp` launches enable it by
+default where supported; profile launches follow the profile's
+`window_monitor.enabled` setting.
 
 ## Use
 
 ```powershell
-litlaunch run app.py --mode webapp --monitor-window --browser edge
+litlaunch run app.py --mode webapp --browser edge
 ```
 
 If app cleanup needs more time after the window closes:
 
 ```powershell
-litlaunch run app.py --mode webapp --monitor-window --graceful-timeout 15
+litlaunch run app.py --mode webapp --graceful-timeout 15
 ```
 
 If the app window appears slowly or title matching is noisy, tune the monitor:
 
 ```powershell
-litlaunch run app.py --mode webapp --monitor-window `
+litlaunch run app.py --mode webapp `
   --monitor-appear-timeout 90 `
   --monitor-poll-interval 0.5 `
   --monitor-stable-polls 3
@@ -29,8 +31,11 @@ litlaunch run app.py --mode webapp --monitor-window `
 If the browser window title differs from the default title:
 
 ```powershell
-litlaunch run app.py --mode webapp --monitor-window --title "My Streamlit App"
+litlaunch run app.py --mode webapp --title "My Streamlit App"
 ```
+
+Use `--no-monitor-window` when you intentionally want a webapp/app-window
+launch that keeps running until Ctrl+C or the backend exits on its own.
 
 ## Supported Path
 
@@ -41,8 +46,7 @@ Strongest current path:
 - Chromium app-mode
 - visible top-level app window
 
-Unsupported platforms fail clearly when `--monitor-window` is explicitly
-requested.
+Unsupported platforms fail clearly when monitoring is enabled.
 
 ## Ownership Model
 

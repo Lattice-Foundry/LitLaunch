@@ -68,6 +68,12 @@ litlaunch report --profile rolethread-webapp
 litlaunch create shortcut --profile rolethread-webapp
 ```
 
+Use the profile path when validating RoleThread's app-window lifecycle.
+Generic `litlaunch app.py` remains useful as a smoke test, but it does not apply
+RoleThread's profile settings such as app-window mode, fixed browser policy, or
+window monitoring. Close-to-shutdown behavior requires an explicit monitored
+webapp launch path.
+
 RoleThread still owns product policy, app-specific settings, packaged resource
 layout, and user-facing support text. LitLaunch owns the generic Streamlit
 runtime mechanics and returns `RuntimeSession` ownership for the backend process

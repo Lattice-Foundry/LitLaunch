@@ -75,6 +75,26 @@ class FakePlatformDetector:
         return fake_platform_info()
 
 
+class FakeUnsupportedWindowMonitorPlatformDetector:
+    def detect(self):
+        return PlatformInfo(
+            os=OperatingSystem.LINUX,
+            architecture=Architecture.X64,
+            python_version="3.14.5",
+            python_executable="/usr/bin/python",
+            machine="x86_64",
+            system="Linux",
+            release="6",
+            is_windows=False,
+            is_macos=False,
+            is_linux=True,
+            supports_chromium_app_mode=True,
+            supports_window_monitoring=False,
+            supports_default_browser_open=True,
+            notes=(),
+        )
+
+
 class FakeBrowserRegistry:
     def __init__(self):
         self.detect_calls = []
@@ -388,6 +408,7 @@ def test_cli_workflow_help_launch_topic():
     assert "litlaunch run app.py" in output
     assert "litlaunch run --profile NAME" in output
     assert "--monitor-window" in output
+    assert "--no-monitor-window" in output
     assert "Bare profile names are intentionally not supported" in output
     assert "litlaunch NAME" not in output
     assert "python -m litlaunch.cli" not in output
@@ -1459,7 +1480,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.32b0"
+    assert data["litlaunch_version"] == "0.91.35b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1863,6 +1884,7 @@ def test_cli_run_builds_config_and_waits_for_backend():
             "--trust-mode",
             "strict_local",
             "--no-browser-fallback",
+            "--no-monitor-window",
             "--streamlit-flag",
             "server.maxUploadSize=20",
             "--app-arg",
@@ -1903,6 +1925,7 @@ def test_cli_root_app_path_shorthand_uses_run_pipeline():
             "edge",
             "--port",
             "8600",
+            "--no-monitor-window",
         ],
         stream=stream,
         launcher_factory=reset_fake_launcher(session),
@@ -2407,6 +2430,87 @@ def test_cli_run_monitor_window_requires_webapp_mode():
 
     assert code == 2
     assert "--monitor-window is only valid with --mode webapp" in stream.getvalue()
+
+
+def test_cli_run_webapp_monitors_window_by_default():
+    stream = StringIO()
+    session = FakeSession(
+        ok=True,
+        monitor_result=WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=True,
+            status=WindowMonitorStatus.WINDOW_CLOSED,
+            message="window closed",
+        ),
+    )
+    monitor = FakeCliMonitor()
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--mode", "webapp"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: monitor,
+    )
+
+    assert code == 0
+    assert session.wait_calls == 0
+    assert session.stop_calls == 1
+    assert session.monitor_calls[0][0] is monitor
+    assert "window closed" in stream.getvalue()
+
+
+def test_cli_run_webapp_no_monitor_window_opt_out_waits_for_backend():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--mode", "webapp", "--no-monitor-window"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: FakeCliMonitor(),
+    )
+
+    assert code == 0
+    assert session.wait_calls == 1
+    assert session.monitor_calls == []
+    assert "Runtime active at http://127.0.0.1:8501" in stream.getvalue()
+
+
+def test_cli_run_webapp_default_monitoring_skips_unsupported_platform():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--mode", "webapp"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakeUnsupportedWindowMonitorPlatformDetector,
+        window_monitor_factory=lambda platform_info: NoopWindowMonitor(),
+    )
+
+    assert code == 0
+    assert session.wait_calls == 1
+    assert session.monitor_calls == []
+
+
+def test_cli_run_browser_mode_does_not_monitor_by_default():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+
+    code = main(
+        ["run", str(EXAMPLE_APP)],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: FakeCliMonitor(),
+    )
+
+    assert code == 0
+    assert session.wait_calls == 1
+    assert session.monitor_calls == []
 
 
 def test_cli_run_monitor_window_closure_stops_runtime():

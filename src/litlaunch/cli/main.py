@@ -65,6 +65,7 @@ _LAUNCH_OPTION_NAMES = frozenset(
         "--no-auto-port",
         "--dry-run",
         "--monitor-window",
+        "--no-monitor-window",
         "--graceful-timeout",
         "--monitor-appear-timeout",
         "--monitor-poll-interval",

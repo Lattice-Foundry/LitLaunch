@@ -3,6 +3,32 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.35b0
+
+- Enabled window monitoring by default for direct CLI `--mode webapp` launches
+  where supported so app-window close events can initiate graceful shutdown.
+- Added `--no-monitor-window` as an explicit app-window monitoring opt-out.
+- Updated window-monitoring docs to reflect the default app-window lifecycle
+  behavior.
+
+## 0.91.34b0
+
+- Isolated LitLaunch-owned backend subprocesses from parent terminal interrupts
+  so Ctrl+C is handled by LitLaunch first and can request app-side graceful
+  shutdown hooks before falling back to backend termination.
+- Kept backend ownership scoped to the process LitLaunch starts while
+  preserving existing fallback stop behavior.
+
+## 0.91.33b0
+
+- Changed LitLaunch-owned browser launches to suppress Streamlit's native
+  browser opener by default, preventing duplicate tabs/windows in generic
+  `litlaunch app.py` runs.
+- Preserved explicit opt-in to Streamlit-native browser opening through
+  `headless = false` or raw `server.headless=false` Streamlit flags.
+- Documented the RoleThread integration finding that profile/app-window paths
+  should use `rolethread-webapp` for monitored close-to-shutdown behavior.
+
 ## 0.91.32b0
 
 - Aligned public docs, workflow help, and argparse help with the completed

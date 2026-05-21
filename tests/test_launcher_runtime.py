@@ -294,7 +294,7 @@ def test_build_launch_plan_resolves_fixed_port_without_starting_or_launching():
     assert plan.resolved_port == 8600
     assert plan.auto_port is False
     assert plan.mode == LaunchMode.BROWSER
-    assert plan.headless is False
+    assert plan.headless is True
     assert plan.browser_requested == BrowserChoice.AUTO
     assert plan.browser_resolution is not None
     assert plan.browser_resolution.selected == fake_browser()

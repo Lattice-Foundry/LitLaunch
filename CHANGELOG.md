@@ -3,6 +3,20 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.2b0
+
+- Aligned runtime console phase and guidance lines under fixed-width status
+  labels while preserving console behavior and beta color roles.
+- Updated failure guidance labels to bracketed `Cause`/`Next` lines for cleaner
+  terminal alignment.
+
+## 0.91.1b0
+
+- Added a temporary beta `console-preview` developer command for visually
+  reviewing runtime terminal output styles.
+- Polished runtime console status formatting, startup header styling, beta color
+  roles, and label/body color separation without changing runtime behavior.
+
 ## 0.91.0b0
 
 - Entered the 0.9x beta stabilization band with beta package metadata and

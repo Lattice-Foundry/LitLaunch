@@ -22,6 +22,7 @@ from litlaunch.cli.common import (
 )
 from litlaunch.cli.config import add_runtime_flags
 from litlaunch.cli.inspect import add_inspect_flags, cmd_inspect
+from litlaunch.cli.test import cmd_console_preview
 from litlaunch.exceptions import LitLaunchError
 
 _source_checkout_example_path = source_checkout_example_path
@@ -38,7 +39,10 @@ def build_parser() -> argparse.ArgumentParser:
         description="Lightweight Streamlit launcher/runtime tooling.",
         parents=[parent],
     )
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(
+        dest="command",
+        metavar="{version,platform,browsers,inspect,command,run,example}",
+    )
 
     version_parser = subparsers.add_parser(
         "version",
@@ -91,6 +95,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show the source-checkout minimal example app path.",
     )
     example_parser.set_defaults(handler=_cmd_example)
+
+    # TEMP TEST: beta-only console design preview hook. Delete when the runtime
+    # terminal language is stable enough to remove the dev preview command.
+    console_preview_parser = subparsers.add_parser(
+        "console-preview",
+        parents=[parent],
+        help=argparse.SUPPRESS,
+    )
+    console_preview_parser.set_defaults(handler=cmd_console_preview)
+    subparsers._choices_actions = [  # type: ignore[attr-defined]  # TEMP TEST
+        action
+        for action in subparsers._choices_actions  # type: ignore[attr-defined]
+        if action.dest != "console-preview"
+    ]
 
     return parser
 

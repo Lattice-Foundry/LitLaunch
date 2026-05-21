@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
 import sys
 import tempfile
 from contextlib import contextmanager
@@ -17,6 +18,7 @@ from litlaunch import __version__
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.cli import build_parser, main
 from litlaunch.config import BrowserChoice, LaunchMode
+from litlaunch.console import strip_ansi
 from litlaunch.inspect import (
     DiagnosticItem,
     DiagnosticSection,
@@ -329,6 +331,88 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "command" in help_text
     assert "run" in help_text
     assert "source-checkout minimal example" in help_text
+    assert "console-preview" not in help_text
+
+
+def test_cli_console_preview_command_exists_and_exits_zero():
+    parser = build_parser()
+    args = parser.parse_args(["console-preview", "--no-color"])
+
+    assert args.command == "console-preview"
+    assert callable(args.handler)
+
+
+def test_cli_console_preview_outputs_representative_no_color_messages():
+    stream = StringIO()
+
+    code = main(["console-preview", "--no-color"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "\033[" not in output
+    assert "[   ok   ] LitLaunch Starting runtime" in output
+    assert "== Backend ==" in output
+    assert "[   ok   ] Backend: starting Streamlit" in output
+    assert "[   ok   ] Backend: started Streamlit with PID 12345 in 0.3s" in output
+    assert "[   ok   ] Health: waiting for Streamlit" in output
+    assert "Streamlit backend did not become healthy before timeout." in output
+    assert "[   ok   ] Browser: opening Microsoft Edge app window" in output
+    assert "Microsoft Edge unavailable; using Chrome" in output
+    assert "Runtime ready at http://127.0.0.1:8501" in output
+    assert "[   ok   ] Monitor: watching app window" in output
+    assert "Window monitoring timed out before an app window was observed." in output
+    assert "[   ok   ] Shutdown: requesting app cleanup" in output
+    assert "Stopping backend: terminating owned backend process" in output
+    assert "Likely cause" not in output
+    assert "[   ok   ] Cause " in output
+    assert "[   ok   ] Next " in output
+    assert "Cause:" not in output
+    assert "Next:" not in output
+
+
+def test_cli_console_preview_status_labels_are_fixed_width():
+    stream = StringIO()
+
+    code = main(["console-preview", "--no-color"], stream=stream)
+
+    assert code == 0
+    labels = re.findall(r"^\[[^\]]+\]", stream.getvalue(), flags=re.MULTILINE)
+    assert {"[   ok   ]", "[  warn  ]", "[ error  ]"} <= set(labels)
+    assert {len(label) for label in labels} == {10}
+
+
+def test_cli_console_preview_color_and_no_color_modes():
+    color_stream = StringIO()
+    plain_stream = StringIO()
+
+    color_code = main(["console-preview"], stream=color_stream, env={})
+    plain_code = main(["console-preview", "--no-color"], stream=plain_stream, env={})
+
+    assert color_code == 0
+    assert plain_code == 0
+    assert "\033[" in color_stream.getvalue()
+    assert "\033[" not in plain_stream.getvalue()
+    assert strip_ansi(color_stream.getvalue()) == plain_stream.getvalue()
+
+
+def test_cli_console_preview_does_not_call_runtime_factories():
+    def fail_factory(*args, **kwargs):
+        raise AssertionError("console-preview should not touch runtime factories")
+
+    stream = StringIO()
+
+    code = main(
+        ["console-preview", "--no-color"],
+        stream=stream,
+        platform_detector_factory=fail_factory,
+        browser_registry_factory=fail_factory,
+        launcher_factory=fail_factory,
+        diagnostic_collector_factory=fail_factory,
+        window_monitor_factory=fail_factory,
+    )
+
+    assert code == 0
+    assert "[   ok   ] LitLaunch Starting runtime" in stream.getvalue()
 
 
 def test_cli_version_returns_zero_and_prints_version():
@@ -431,7 +515,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.0b0"
+    assert data["litlaunch_version"] == "0.91.2b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1349,7 +1433,7 @@ def test_cli_run_monitor_window_backend_exit_returns_zero_without_extra_stop():
     assert code == 0
     assert session.wait_calls == 0
     assert session.stop_calls == 0
-    assert "backend exited" in stream.getvalue()
+    assert "Backend exited before monitored window closed" in stream.getvalue()
 
 
 def test_cli_run_monitor_window_timeout_returns_nonzero_and_stops_runtime():

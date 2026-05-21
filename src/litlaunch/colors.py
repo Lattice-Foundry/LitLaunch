@@ -55,7 +55,7 @@ THEME_COLORS = MappingProxyType(
         ),
         powershell_red: ThemeColor(
             name=powershell_red,
-            hex="#c50f1f",
+            hex="#C50F1F",
             ansi="\033[38;2;197;15;31m",
         ),
         muted_amber: ThemeColor(

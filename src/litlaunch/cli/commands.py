@@ -96,11 +96,11 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
     launcher = context.launcher_factory(config, console_renderer=cli_renderer)
     if args.dry_run:
         plan = launcher.build_launch_plan()
-        cli_renderer.info("Dry run: backend and browser were not started.")
-        cli_renderer.info(f"App URL: {plan.app_url}")
-        cli_renderer.info(f"Mode: {config.mode.value}")
+        cli_renderer.success("Dry run: backend and browser were not started.")
+        cli_renderer.success(f"App URL: {plan.app_url}")
+        cli_renderer.success(f"Mode: {config.mode.value}")
         if plan.browser_resolution is not None:
-            cli_renderer.info(f"Browser: {plan.browser_resolution.message}")
+            cli_renderer.success(f"Browser: {plan.browser_resolution.message}")
         write(context.stream, plan.command_display)
         return 0
 

@@ -45,7 +45,7 @@ def test_named_theme_colors_exist_and_are_hex():
 def test_console_theme_defaults_use_litlaunch_color_roles():
     theme = ConsoleTheme(use_color=False)
 
-    assert theme.prefix == "[LitLaunch]"
+    assert theme.prefix == "LitLaunch"
     assert theme.primary == terminal_green
     assert theme.brand == terminal_green
     assert theme.accent == streamlit_blue
@@ -54,6 +54,7 @@ def test_console_theme_defaults_use_litlaunch_color_roles():
     assert theme.warning == muted_amber
     assert theme.muted == muted_gray
     assert theme.success == success_green
+    assert THEME_COLORS[powershell_red].hex == "#C50F1F"
     assert ANSI_COLORS[streamlit_blue]
     assert theme.use_color is False
 
@@ -101,9 +102,9 @@ def test_console_renderer_status_methods_use_injected_stream():
     renderer.blank()
 
     output = stream.getvalue()
-    assert "ok Ready" in output
-    assert "warn Careful" in output
-    assert "error Failed" in output
+    assert "[   ok   ] Ready" in output
+    assert "[  warn  ] Careful" in output
+    assert "[ error  ] Failed" in output
     assert "Plain" in output
 
 
@@ -120,11 +121,41 @@ def test_console_renderer_phase_and_elapsed_shape():
     renderer.runtime_ready("http://127.0.0.1:8501")
 
     output = stream.getvalue()
-    assert "[LitLaunch] Starting runtime" in output
-    assert "[LitLaunch]   Backend: starting Streamlit" in output
-    assert "Health: ready in 1.2s" in output
-    assert "[LitLaunch] Runtime ready at http://127.0.0.1:8501" in output
+    assert "[   ok   ] LitLaunch Starting runtime" in output
+    assert "[LitLaunch]" not in output
+    assert "[   ok   ] Backend: starting Streamlit" in output
+    assert "[   ok   ] Health: ready in 1.2s" in output
+    assert "[   ok   ] Runtime ready at http://127.0.0.1:8501" in output
     assert format_elapsed(0.04) == "0.0s"
+
+
+def test_console_renderer_color_roles_for_runtime_header_status_and_phase():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=True),
+        stream=stream,
+        env={},
+    )
+
+    renderer.runtime_start()
+    renderer.phase_start(ConsolePhase.BACKEND, "starting Streamlit")
+    renderer.phase_success(ConsolePhase.HEALTH, "ready")
+    renderer.error("Failed")
+
+    output = stream.getvalue()
+    assert THEME_COLORS[success_green].ansi in output
+    assert THEME_COLORS[streamlit_blue].ansi in output
+    assert THEME_COLORS[powershell_red].ansi in output
+    assert THEME_COLORS[streamlit_blue_light].ansi not in output
+    assert output.count(THEME_COLORS[streamlit_blue].ansi) == 3
+    assert f"{THEME_COLORS[streamlit_blue].ansi}starting Streamlit" not in output
+    assert f"{THEME_COLORS[streamlit_blue].ansi}ready" not in output
+    assert strip_ansi(output).splitlines() == [
+        "[   ok   ] LitLaunch Starting runtime",
+        "[   ok   ] Backend: starting Streamlit",
+        "[   ok   ] Health: ready",
+        "[ error  ] Failed",
+    ]
 
 
 def test_console_renderer_quiet_suppresses_normal_output_but_not_errors():
@@ -148,8 +179,8 @@ def test_console_renderer_quiet_suppresses_normal_output_but_not_errors():
     assert "Ready" not in output
     assert "opening" not in output
     assert "Info" not in output
-    assert "warn Warning" in output
-    assert "error Failure" in output
+    assert "[  warn  ] Warning" in output
+    assert "[ error  ] Failure" in output
 
 
 def test_failure_guidance_respects_quiet_normal_and_verbose_modes():
@@ -180,10 +211,17 @@ def test_failure_guidance_respects_quiet_normal_and_verbose_modes():
     )
 
     normal_output = normal_stream.getvalue()
-    assert "Likely cause: Streamlit exited." in normal_output
-    assert "Next: Run Streamlit directly." in normal_output
-    assert 'Run "litlaunch inspect" for local diagnostics.' in normal_output
-    assert "Use verbose mode for more runtime details." in normal_output
+    assert "Likely cause" not in normal_output
+    assert "[   ok   ] Cause Streamlit exited." in normal_output
+    assert "[   ok   ] Next Run Streamlit directly." in normal_output
+    assert '[   ok   ] Next Run "litlaunch inspect" for local diagnostics.' in (
+        normal_output
+    )
+    assert "[   ok   ] Next Use verbose mode for more runtime details." in (
+        normal_output
+    )
+    assert "Cause:" not in normal_output
+    assert "Next:" not in normal_output
     assert "hidden in normal mode" not in normal_output
 
     verbose_stream = StringIO()
@@ -284,8 +322,8 @@ def test_console_renderer_lifecycle_event_rendering():
     renderer.render_launch_event(LaunchEvent(LaunchState.FAILED, "Failed", 2.0))
 
     output = stream.getvalue()
-    assert "ok Healthy" in output
-    assert "error Failed" in output
+    assert "[   ok   ] Healthy" in output
+    assert "[ error  ] Failed" in output
 
 
 def test_console_renderer_has_no_dead_shutdown_hook_render_surface():
@@ -362,9 +400,10 @@ def test_console_renderer_monitor_status_rendering():
     )
 
     output = stream.getvalue()
-    assert "Monitor: Window closed." in output
+    assert "[   ok   ] Monitor: Window closed; requesting shutdown" in output
     assert "Window monitoring is unavailable." in output
-    assert "Likely cause: Unsupported." in output
+    assert "[   ok   ] Cause Unsupported." in output
+    assert "Likely cause" not in output
 
 
 def test_console_renderer_redacts_registered_values():

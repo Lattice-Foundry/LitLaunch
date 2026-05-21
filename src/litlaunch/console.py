@@ -58,12 +58,14 @@ ANSI_COLORS: Mapping[str, str] = {
     "reset": "\033[0m",
 }
 
+STATUS_LABEL_WIDTH = 8
+
 
 @dataclass(frozen=True)
 class ConsoleTheme:
     """Named color choices for LitLaunch console output."""
 
-    prefix: ClassVar[str] = "[LitLaunch]"
+    prefix: ClassVar[str] = "LitLaunch"
 
     primary: str = terminal_green
     accent: str = streamlit_blue
@@ -122,8 +124,8 @@ class ConsoleRenderer:
 
         if self.mode == ConsoleMode.QUIET:
             return
-        prefix = self._style(self.theme.prefix, self.theme.brand)
-        self._emit(f"{prefix} {message}")
+        prefix = self._style(self.theme.prefix, self.theme.success)
+        self.success(f"{prefix} {self._style(message, self.theme.accent)}")
 
     def step(self, message: str) -> None:
         """Render a normal runtime milestone."""
@@ -151,7 +153,7 @@ class ConsoleRenderer:
             if elapsed_seconds is not None
             else ""
         )
-        line = f"{self.theme.prefix}   {label_text} {message}{elapsed}"
+        line = f"{label_text} {message}{elapsed}"
         if level == "warning":
             self.warning(line)
         elif level == "error":
@@ -159,7 +161,7 @@ class ConsoleRenderer:
         elif level == "success":
             self.success(line)
         else:
-            self._emit(line)
+            self.success(line)
 
     def phase_start(self, phase: ConsolePhase | str, message: str) -> None:
         """Render a phase start line."""
@@ -227,7 +229,7 @@ class ConsoleRenderer:
         """Render a concise runtime-ready message."""
 
         message = "Runtime ready" if url is None else f"Runtime ready at {url}"
-        self.success(f"{self.theme.prefix} {message}")
+        self.success(message)
 
     def render_browser_resolution(
         self,
@@ -297,16 +299,17 @@ class ConsoleRenderer:
                 ),
             )
         elif result.closed:
+            message = _strip_sentence_punctuation(result.message) or "Window closed"
             self.phase_success(
                 ConsolePhase.MONITOR,
-                f"{result.message}; requesting shutdown",
+                f"{message}; requesting shutdown",
             )
         elif result.status == WindowMonitorStatus.WINDOW_OBSERVED:
             self.phase_success(ConsolePhase.MONITOR, result.message)
         elif result.status == WindowMonitorStatus.BACKEND_EXITED:
             self.phase_warning(
                 ConsolePhase.MONITOR,
-                f"{result.message}; backend exited before the window close signal.",
+                "Backend exited before monitored window closed",
             )
         else:
             self.phase(ConsolePhase.MONITOR, result.message)
@@ -316,17 +319,17 @@ class ConsoleRenderer:
 
         if self.mode == ConsoleMode.QUIET:
             return
-        self._emit(f"{self._style('ok', self.theme.success)} {message}")
+        self._emit(f"{self._status_prefix('ok', self.theme.success)} {message}")
 
     def warning(self, message: str) -> None:
         """Render a warning message."""
 
-        self._emit(f"{self._style('warn', self.theme.warning)} {message}")
+        self._emit(f"{self._status_prefix('warn', self.theme.warning)} {message}")
 
     def error(self, message: str) -> None:
         """Render an error message."""
 
-        self._emit(f"{self._style('error', self.theme.error)} {message}")
+        self._emit(f"{self._status_prefix('error', self.theme.error)} {message}")
 
     def info(self, message: str) -> None:
         """Render an informational message."""
@@ -381,6 +384,10 @@ class ConsoleRenderer:
         reset = ANSI_COLORS["reset"]
         return f"{color}{text}{reset}" if color else text
 
+    def _status_prefix(self, status: str, color_name: str) -> str:
+        padded = f"{status:^{STATUS_LABEL_WIDTH}}"
+        return f"[{self._style(padded, color_name)}]"
+
     def _with_optional_label_color(self, message: str, color: str | None) -> str:
         if color is None:
             return message
@@ -396,8 +403,9 @@ class ConsoleRenderer:
         return redacted
 
     def _guidance_line(self, label: str, message: str) -> None:
-        label_text = self._style(f"{label}:", self.theme.label)
-        self._emit(f"{self.theme.prefix}   {label_text} {message}")
+        display_label = "Cause" if label == "Likely cause" else label
+        label_text = self._style(display_label, self.theme.label)
+        self.success(f"{label_text} {message}")
 
 
 def strip_ansi(text: str) -> str:
@@ -420,3 +428,7 @@ def _normalize_mode(mode: ConsoleMode | str) -> ConsoleMode:
 
 def _mentions_verbose(messages: Sequence[str]) -> bool:
     return any("verbose" in message.lower() for message in messages)
+
+
+def _strip_sentence_punctuation(message: str) -> str:
+    return message.strip().rstrip(".;:")

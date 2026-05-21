@@ -281,7 +281,8 @@ When run from an app root, the wizard uses detected values such as `app.py`, the
 project folder name, and an existing `litlaunch.toml` as visible prompt
 defaults. Users still confirm or change each value before anything is written.
 Type `back` to return to the previous step, or `quit` to cancel cleanly. Wizard
-shortcut integration is planned separately.
+offers to create the same project-local shortcut that
+`litlaunch create shortcut --profile NAME` creates.
 
 Create a project-local launch shortcut for an existing profile:
 

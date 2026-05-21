@@ -14,9 +14,15 @@ from litlaunch.colors import (
 )
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
+from litlaunch.platforms import PlatformInfo
 from litlaunch.profile_detection import AppRootDetection, detect_app_root
 from litlaunch.profile_writer import ProfileWriteResult, write_litlaunch_profile
 from litlaunch.profiles import LaunchProfile, load_profiles
+from litlaunch.shortcut_writer import (
+    ShortcutRequest,
+    build_shortcut_plan,
+    write_shortcut,
+)
 from litlaunch.windowing import WindowMonitorConfig
 
 InputFunc = Callable[[], str]
@@ -99,6 +105,7 @@ def run_profile_wizard(
     *,
     stream: TextIO,
     platform_is_windows: bool,
+    platform_info: PlatformInfo | None = None,
     input_func: InputFunc | None = None,
 ) -> ProfileWriteResult | None:
     """Run the interactive profile wizard."""
@@ -111,7 +118,12 @@ def run_profile_wizard(
         use_color=options.use_color,
     )
     try:
-        return _run_profile_wizard(options, io, platform_is_windows=platform_is_windows)
+        return _run_profile_wizard(
+            options,
+            io,
+            platform_is_windows=platform_is_windows,
+            platform_info=platform_info,
+        )
     except (KeyboardInterrupt, _WizardQuit) as exc:
         _write_warning_status(stream, "Profile creation cancelled.")
         raise ProfileWizardCancelled from exc
@@ -122,6 +134,7 @@ def _run_profile_wizard(
     io: _WizardIo,
     *,
     platform_is_windows: bool,
+    platform_info: PlatformInfo | None,
 ) -> ProfileWriteResult | None:
     detection = detect_app_root()
     config_path = (
@@ -173,8 +186,13 @@ def _run_profile_wizard(
         _write(io.stream, result.toml.rstrip())
         _write(io.stream, "")
         _write(io.stream, "Dry run complete; no files were written.")
+        _write(
+            io.stream,
+            "Shortcut creation would be offered after writing the profile.",
+        )
     else:
         _write(io.stream, f"Wrote profile {profile.name!r} to {result.path}.")
+        _offer_shortcut_creation(io, result.profile, state, platform_info)
     return result
 
 
@@ -581,6 +599,38 @@ def _build_profile(state: _WizardState) -> LaunchProfile:
     )
 
 
+def _offer_shortcut_creation(
+    io: _WizardIo,
+    profile: LaunchProfile,
+    state: _WizardState,
+    platform_info: PlatformInfo | None,
+) -> None:
+    if not _ask_bool(io, "Create a shortcut for this profile now", default=False):
+        return
+    if platform_info is None:
+        _write(io.stream, "Shortcut creation skipped; platform information missing.")
+        return
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info,
+            config_path=state.config_path.resolve(),
+        )
+    )
+    force = False
+    if plan.output_path.exists():
+        force = _ask_bool(
+            io,
+            f"Shortcut already exists at {plan.output_path}. Overwrite",
+            default=False,
+        )
+        if not force:
+            _write(io.stream, "Shortcut creation skipped.")
+            return
+    write_shortcut(plan, force=force)
+    _write(io.stream, f"Created shortcut: {plan.output_path}.")
+
+
 def _existing_profile_names(config_path: Path, detection: AppRootDetection) -> set[str]:
     if config_path == detection.config_path:
         return set(detection.existing_profile_names)
@@ -928,7 +978,7 @@ def _style(text: str, color_name: str, use_color: bool) -> str:
 def _style_help_magenta(text: str, use_color: bool) -> str:
     if not use_color:
         return text
-    return f"\033[35m{text}\033[0m"
+    return f"\033[95m{text}\033[0m"
 
 
 def _write_warning_status(stream: TextIO, message: str) -> None:

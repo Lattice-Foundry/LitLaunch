@@ -488,7 +488,7 @@ def test_cli_workflow_help_tools_topic():
     assert "litlaunch create profile" in output
     assert "litlaunch create profile --dry-run" in output
     assert "litlaunch create shortcut --profile my-webapp" in output
-    assert "Wizard shortcut integration is planned separately" in output
+    assert "Wizard shortcut integration is planned separately" not in output
 
 
 def test_cli_workflow_help_uses_approved_palette():
@@ -541,7 +541,7 @@ def test_cli_create_profile_simple_mode_writes_webapp_profile(monkeypatch):
     with temporary_output_dir() as output_dir, monkeypatch.context() as m:
         m.chdir(output_dir)
         (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
-        answers = iter(["", "", "", "", "", "", "", "", ""])
+        answers = iter(["", "", "", "", "", "", "", "", "", "n"])
         m.setattr("builtins.input", lambda: next(answers))
         stream = StringIO()
 
@@ -568,6 +568,7 @@ def test_cli_create_profile_simple_mode_writes_webapp_profile(monkeypatch):
         assert "Step 1 of" in output
         assert "Current profile:" in output
         assert "Profile preview" in output
+        assert not (output_dir / f"{output_dir.name}.bat").exists()
 
 
 def test_cli_create_profile_keyboard_interrupt_cancels_cleanly(monkeypatch):
@@ -588,6 +589,52 @@ def test_cli_create_profile_keyboard_interrupt_cancels_cleanly(monkeypatch):
     assert "[  warn  ] Profile creation cancelled." in output
     assert "Traceback" not in output
     assert "KeyboardInterrupt" not in output
+
+
+def test_cli_create_profile_simple_mode_accepts_shortcut(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        answers = iter(["", "web", "", "", "", "", "", "", "", "y"])
+        m.setattr("builtins.input", lambda: next(answers))
+        stream = StringIO()
+
+        code = main(
+            ["create", "profile"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+            launcher_factory=_failing_launcher_factory,
+        )
+
+        shortcut = output_dir / "web.bat"
+        assert code == 0
+        assert shortcut.is_file()
+        content = shortcut.read_text(encoding="utf-8")
+        assert '"litlaunch" "--profile" "web"' in content
+        assert '"--config"' in content
+        assert f'"{(output_dir / "litlaunch.toml").resolve()}"' in content
+        assert "Created shortcut" in stream.getvalue()
+
+
+def test_cli_create_profile_shortcut_existing_can_be_skipped(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        shortcut = output_dir / "web.bat"
+        shortcut.write_text("old", encoding="utf-8")
+        answers = iter(["", "web", "", "", "", "", "", "", "", "y", "n"])
+        m.setattr("builtins.input", lambda: next(answers))
+        stream = StringIO()
+
+        code = main(
+            ["create", "profile"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        assert code == 0
+        assert shortcut.read_text(encoding="utf-8") == "old"
+        assert "Shortcut creation skipped" in stream.getvalue()
 
 
 def test_cli_create_profile_quit_commands_cancel_cleanly(monkeypatch):
@@ -626,6 +673,7 @@ def test_cli_create_profile_back_navigation_preserves_values(monkeypatch):
                 "",
                 "",
                 "",
+                "n",
             ]
         )
         m.setattr("builtins.input", lambda: next(answers))
@@ -671,7 +719,7 @@ def test_cli_create_profile_options_prefill_name_and_app(monkeypatch):
     with temporary_output_dir() as output_dir, monkeypatch.context() as m:
         m.chdir(output_dir)
         (output_dir / "custom.py").write_text("print('hello')\n", encoding="utf-8")
-        answers = iter(["", "", "", "", "", "", "", "", ""])
+        answers = iter(["", "", "", "", "", "", "", "", "", "n"])
         m.setattr("builtins.input", lambda: next(answers))
         stream = StringIO()
 
@@ -690,7 +738,7 @@ def test_cli_create_profile_browser_tab_maps_to_browser_mode(monkeypatch):
     with temporary_output_dir() as output_dir, monkeypatch.context() as m:
         m.chdir(output_dir)
         (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
-        answers = iter(["", "browser-profile", "", "", "2", "", "", ""])
+        answers = iter(["", "browser-profile", "", "", "2", "", "", "", "n"])
         m.setattr("builtins.input", lambda: next(answers))
         stream = StringIO()
 
@@ -722,8 +770,10 @@ def test_cli_create_profile_dry_run_does_not_write(monkeypatch):
 
         assert code == 0
         assert not (output_dir / "litlaunch.toml").exists()
+        assert not (output_dir / "dry-run.bat").exists()
         assert '[profiles."dry-run"]' in stream.getvalue()
         assert "Dry run complete" in stream.getvalue()
+        assert "Shortcut creation would be offered" in stream.getvalue()
 
 
 def test_cli_create_profile_collision_and_force_behavior(monkeypatch):
@@ -738,7 +788,9 @@ title = "Old"
 """,
             encoding="utf-8",
         )
-        blocked_answers = iter(["", "existing", "new-name", "", "", "", "", "", "", ""])
+        blocked_answers = iter(
+            ["", "existing", "new-name", "", "", "", "", "", "", "", "n"]
+        )
         m.setattr("builtins.input", lambda: next(blocked_answers))
         blocked_stream = StringIO()
 
@@ -752,7 +804,7 @@ title = "Old"
         assert "already exists" in blocked_stream.getvalue()
         assert load_profile("new-name", output_dir / "litlaunch.toml")
 
-        forced_answers = iter(["", "", "", "", "", "", "", "", ""])
+        forced_answers = iter(["", "", "", "", "", "", "", "", "", "n"])
         m.setattr("builtins.input", lambda: next(forced_answers))
         forced_stream = StringIO()
         forced_code = main(
@@ -803,6 +855,7 @@ def test_cli_create_profile_advanced_mode_writes_full_profile(monkeypatch):
                 "",
                 "",
                 "",
+                "y",
             ]
         )
         m.setattr("builtins.input", lambda: next(answers))
@@ -835,9 +888,15 @@ def test_cli_create_profile_advanced_mode_writes_full_profile(monkeypatch):
         assert profile.window_monitor_config.appear_timeout_seconds == 70
         assert profile.window_monitor_config.poll_interval_seconds == 2
         assert profile.window_monitor_config.stable_poll_count == 3
+        shortcut = output_dir / "advanced-profile.bat"
+        assert shortcut.is_file()
+        assert '"litlaunch" "--profile" "advanced-profile"' in shortcut.read_text(
+            encoding="utf-8"
+        )
         output = stream.getvalue()
         assert "Advanced" in output
         assert "Streamlit flags: 2" in output
+        assert "Created shortcut" in output
 
 
 def test_cli_create_profile_advanced_mode_dry_run_does_not_write(monkeypatch):
@@ -1317,7 +1376,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.22b0"
+    assert data["litlaunch_version"] == "0.91.23b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

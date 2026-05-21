@@ -163,6 +163,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             ),
             "  Simple mode covers common app-window profiles.",
             "  Advanced mode exposes network, browser, monitor, args, cwd, and env.",
+            "  After writing, the wizard can optionally create a launch shortcut.",
             "",
             style.label("Shortcuts:"),
             *style.commands(
@@ -170,8 +171,6 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
                 "litlaunch create shortcut --profile my-webapp --dry-run",
             ),
             "  Shortcut files are written to the app root by default.",
-            "",
-            style.warning("Wizard shortcut integration is planned separately."),
         )
     if topic == "examples":
         return _join(

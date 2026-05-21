@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.23b0
+
+- Added optional shortcut creation after successful `litlaunch create profile`
+  writes.
+- Reused the standalone shortcut writer internals from the profile wizard
+  without launching apps or duplicating shortcut generation logic.
+- Preserved dry-run behavior so previewing a profile never writes shortcut
+  files.
+
 ## 0.91.22b0
 
 - Added standalone `litlaunch create shortcut --profile NAME` workflow.

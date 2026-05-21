@@ -33,7 +33,8 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
         description=(
             "Create a LitLaunch launch profile interactively. Simple mode covers "
             "guided app-window defaults; Advanced mode exposes runtime profile "
-            "fields such as host, port, monitor tuning, args, cwd, and env."
+            "fields such as host, port, monitor tuning, args, cwd, and env. "
+            "After writing, the wizard can optionally create a launch shortcut."
         ),
         formatter_class=parser.formatter_class,
     )
@@ -119,6 +120,7 @@ def cmd_create_profile(args: argparse.Namespace, context: CliContext) -> int:
             ),
             stream=context.stream,
             platform_is_windows=bool(platform_info.is_windows),
+            platform_info=platform_info,
         )
     except ProfileWizardCancelled:
         return 130

@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.14b0
+
+- Added root launch shorthand so `litlaunch app.py` and
+  `litlaunch --profile my-webapp` route through the same internal launch path
+  as `litlaunch run`.
+- Preserved explicit `litlaunch run ...` workflows and kept bare profile names
+  unsupported to avoid command/path ambiguity.
+- Updated CLI docs with the friendly shorthand and explicit power-user forms.
+
 ## 0.91.13b0
 
 - Polished `platform` and `browsers` informational CLI output with aligned

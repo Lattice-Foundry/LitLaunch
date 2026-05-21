@@ -12,6 +12,8 @@ litlaunch browsers
 litlaunch inspect [app_path]
 litlaunch command <app_path>
 litlaunch run <app_path>
+litlaunch <app_path>
+litlaunch --profile <profile>
 litlaunch example
 ```
 
@@ -28,6 +30,17 @@ still be emitted. Verbose adds sanitized details.
 
 ## Run
 
+Friendly shorthand:
+
+```powershell
+litlaunch app.py
+litlaunch app.py --mode webapp --browser edge
+litlaunch --profile my-webapp
+litlaunch --profile my-webapp --port 8502
+```
+
+Explicit launch form:
+
 ```powershell
 litlaunch run app.py
 litlaunch run app.py --mode browser
@@ -39,6 +52,10 @@ litlaunch run app.py --dry-run
 litlaunch run --profile my-webapp
 litlaunch run --config litlaunch.toml --profile my-webapp
 ```
+
+Both forms use the same internal launch pipeline. Bare profile names such as
+`litlaunch my-webapp` are intentionally unsupported; use `--profile` to keep
+profile launches distinct from paths and future commands.
 
 Window monitoring is explicit and webapp-only:
 

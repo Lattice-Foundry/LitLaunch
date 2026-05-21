@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, TextIO
@@ -26,6 +27,39 @@ from litlaunch.cli.preview import add_console_preview_flags, cmd_console_preview
 from litlaunch.exceptions import LitLaunchError
 
 _source_checkout_example_path = source_checkout_example_path
+_COMMAND_NAMES = frozenset(
+    {
+        "version",
+        "platform",
+        "browsers",
+        "inspect",
+        "command",
+        "run",
+        "example",
+        "console-preview",
+    }
+)
+_LAUNCH_OPTION_NAMES = frozenset(
+    {
+        "--profile",
+        "--config",
+        "--title",
+        "--mode",
+        "--browser",
+        "--port",
+        "--host",
+        "--no-auto-port",
+        "--dry-run",
+        "--monitor-window",
+        "--graceful-timeout",
+        "--monitor-appear-timeout",
+        "--monitor-poll-interval",
+        "--monitor-stable-polls",
+        "--no-browser-fallback",
+        "--streamlit-flag",
+        "--app-arg",
+    }
+)
 
 
 class LitLaunchHelpFormatter(argparse.HelpFormatter):
@@ -56,6 +90,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="litlaunch",
         description="Lightweight Streamlit launcher/runtime tooling.",
+        epilog=(
+            "Common launch shorthand: litlaunch app.py | litlaunch --profile my-webapp"
+        ),
         parents=[parent],
         formatter_class=LitLaunchHelpFormatter,
     )
@@ -153,7 +190,10 @@ def main(
     """Run the LitLaunch CLI."""
 
     parser = build_parser()
-    args, extra_args = parser.parse_known_args(argv)
+    normalized_argv = _normalize_launch_shorthand(
+        sys.argv[1:] if argv is None else argv
+    )
+    args, extra_args = parser.parse_known_args(normalized_argv)
     if not hasattr(args, "handler"):
         if extra_args:
             parser.error(f"unrecognized arguments: {' '.join(extra_args)}")
@@ -208,6 +248,56 @@ def _configure_argparse_help_colors() -> None:
                 label=ANSIColors.INTENSE_YELLOW,
             )
         )
+    )
+
+
+def _normalize_launch_shorthand(argv: Sequence[str]) -> list[str]:
+    """Route root launch shorthand through the explicit ``run`` command."""
+
+    args = list(argv)
+    if not args:
+        return args
+    if args == ["--help"] or args == ["-h"]:
+        return args
+    first_token = _first_non_option_token(args)
+    if first_token in _COMMAND_NAMES:
+        return args
+    if _has_root_launch_option(args) or _has_root_app_path_launch(args):
+        return ["run", *args]
+    return args
+
+
+def _has_root_launch_option(args: Sequence[str]) -> bool:
+    return any(token.partition("=")[0] in _LAUNCH_OPTION_NAMES for token in args)
+
+
+def _has_root_app_path_launch(args: Sequence[str]) -> bool:
+    token = _first_non_option_token(args)
+    if token is None or token in _COMMAND_NAMES:
+        return False
+    return _looks_like_app_path(token)
+
+
+def _first_non_option_token(args: Sequence[str]) -> str | None:
+    for token in args:
+        if token == "--":
+            return None
+        if token.startswith("-"):
+            continue
+        return token
+    return None
+
+
+def _looks_like_app_path(token: str) -> bool:
+    if token.startswith("-"):
+        return False
+    path = Path(token)
+    return (
+        path.is_file()
+        or path.suffix.lower() == ".py"
+        or "/" in token
+        or "\\" in token
+        or (len(token) > 1 and token[1] == ":")
     )
 
 

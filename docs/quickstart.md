@@ -5,16 +5,18 @@
 From a source checkout:
 
 ```powershell
-litlaunch run examples/minimal_app/app.py
+litlaunch examples/minimal_app/app.py
 ```
 
 The minimal example is a source-tree fixture. If LitLaunch is installed from a
-wheel, point commands at your own Streamlit app instead.
+wheel, point commands at your own Streamlit app instead. The explicit
+`litlaunch run examples/minimal_app/app.py` form remains supported when you want
+the command name in scripts or documentation.
 
 Run as a Chromium app-mode window:
 
 ```powershell
-litlaunch run examples/minimal_app/app.py --mode webapp --browser auto
+litlaunch examples/minimal_app/app.py --mode webapp --browser auto
 ```
 
 Inspect first:
@@ -26,19 +28,19 @@ litlaunch inspect examples/minimal_app/app.py --html --output litlaunch-report.h
 ## Use Your Own App
 
 ```powershell
-litlaunch run app.py
+litlaunch app.py
 ```
 
 With Streamlit flags:
 
 ```powershell
-litlaunch run app.py --server.runOnSave true --theme.base=dark
+litlaunch app.py --server.runOnSave true --theme.base=dark
 ```
 
 With app arguments after Streamlit's separator:
 
 ```powershell
-litlaunch run app.py --server.runOnSave true -- --workspace demo
+litlaunch app.py --server.runOnSave true -- --workspace demo
 ```
 
 ## Reusable Profiles
@@ -66,7 +68,7 @@ stable_polls = 2
 Run, inspect, or preview the profile:
 
 ```powershell
-litlaunch run --profile my-webapp
+litlaunch --profile my-webapp
 litlaunch command --profile my-webapp
 litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
 ```
@@ -78,8 +80,12 @@ profiles, use `--config` to choose one explicitly.
 CLI arguments override profile values:
 
 ```powershell
-litlaunch run --profile my-webapp --port 8502
+litlaunch --profile my-webapp --port 8502
 ```
+
+Bare profile names such as `litlaunch my-webapp` are intentionally not
+supported. Use `--profile` for profile launches so they remain clear and do not
+conflict with paths or future commands.
 
 Python integrations can use the same profile runtime path:
 

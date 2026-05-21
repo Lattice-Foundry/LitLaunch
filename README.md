@@ -65,16 +65,18 @@ allows Python 3.10 and newer, and CI currently tests Python 3.10, 3.12, and
 Run an app from the CLI:
 
 ```powershell
-litlaunch run examples/minimal_app/app.py
+litlaunch examples/minimal_app/app.py
 ```
 
 The `examples/minimal_app` path exists in a source checkout. Installed package
-users should point LitLaunch at their own Streamlit app path.
+users should point LitLaunch at their own Streamlit app path. The explicit
+`litlaunch run examples/minimal_app/app.py` form remains available for scripts
+and power-user workflows.
 
 Run in Chromium app-mode:
 
 ```powershell
-litlaunch run examples/minimal_app/app.py --mode webapp --browser auto
+litlaunch examples/minimal_app/app.py --mode webapp --browser auto
 ```
 
 Inspect local readiness without launching:
@@ -104,13 +106,15 @@ stable_polls = 2
 ```
 
 ```powershell
-litlaunch run --profile my-webapp
+litlaunch --profile my-webapp
 litlaunch command --profile my-webapp
 litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
 ```
 
 Profiles can live in `litlaunch.toml` or under `[tool.litlaunch]` in
-`pyproject.toml`. Explicit CLI flags override profile values.
+`pyproject.toml`. Explicit CLI flags override profile values. Bare profile names
+such as `litlaunch my-webapp` are intentionally not launch shorthand; use
+`--profile` so profile-based launches stay unambiguous.
 
 Python integrations can run the same configured profile through `run_profile()`:
 

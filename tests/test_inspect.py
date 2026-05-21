@@ -302,7 +302,7 @@ def test_diagnostics_report_to_dict_shape():
 
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.13b0"
+    assert data["litlaunch_version"] == "0.91.14b0"
     assert data["generated_at_utc"] == "2026-05-18T12:00:00Z"
     assert data["title"] == "Report"
     assert data["ok"] is True
@@ -475,7 +475,7 @@ def test_json_renderer_outputs_parseable_sanitized_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.13b0"
+    assert data["litlaunch_version"] == "0.91.14b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["items"][0]["message"] == "token=<redacted>"
     assert data["sections"][0]["items"][0]["detail"] == "--api_key=<redacted>"
@@ -525,7 +525,7 @@ def test_html_renderer_outputs_sanitized_standalone_html():
     assert "<script" not in rendered.lower()
     assert "https://" not in rendered
     assert "LitLaunch Inspect" in rendered
-    assert "0.91.13b0" in rendered
+    assert "0.91.14b0" in rendered
     assert "This report is sanitized" in rendered
     assert "raw environment variables" in rendered
     assert "Pattern-based redaction" in rendered
@@ -621,7 +621,7 @@ def test_bundle_renderer_includes_summary_sections_and_sanitization_note():
     rendered = SanitizedBundleRenderer().render(report)
 
     assert "LitLaunch Support Bundle" in rendered
-    assert "Version: 0.91.13b0" in rendered
+    assert "Version: 0.91.14b0" in rendered
     assert "Generated at:" in rendered
     assert "Summary: ok; 0 errors; 0 warnings" in rendered
     assert "This report is sanitized" in rendered

@@ -341,6 +341,8 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "command" in help_text
     assert "run" in help_text
     assert "source-checkout minimal example" in help_text
+    assert "litlaunch app.py" in help_text
+    assert "litlaunch --profile my-webapp" in help_text
     assert "console-preview" not in help_text
 
 
@@ -642,7 +644,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.13b0"
+    assert data["litlaunch_version"] == "0.91.14b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -921,6 +923,104 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.console_renderer is not None
     assert session.wait_calls == 1
     assert "Runtime active at http://127.0.0.1:8501" in stream.getvalue()
+
+
+def test_cli_root_app_path_shorthand_uses_run_pipeline():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+
+    code = main(
+        [
+            str(EXAMPLE_APP),
+            "--mode",
+            "webapp",
+            "--browser",
+            "edge",
+            "--port",
+            "8600",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+    )
+
+    launcher = FakeLauncher.instances[0]
+    assert code == 0
+    assert launcher.config.app_path == EXAMPLE_APP
+    assert launcher.config.mode == LaunchMode.WEBAPP
+    assert launcher.config.browser == BrowserChoice.EDGE
+    assert launcher.config.port == 8600
+    assert launcher.run_calls == 1
+    assert session.wait_calls == 1
+
+
+def test_cli_root_profile_shorthand_uses_profile_runtime_path():
+    with temporary_output_dir() as output_dir:
+        app = output_dir / "app.py"
+        app.write_text("print('hello')\n", encoding="utf-8")
+        config_path = output_dir / "litlaunch.toml"
+        config_path.write_text(
+            """
+[profiles.web]
+app_path = "app.py"
+title = "Profile App"
+mode = "browser"
+port = 8501
+""",
+            encoding="utf-8",
+        )
+        stream = StringIO()
+        session = FakeSession(ok=True, wait_return=0)
+
+        code = main(
+            ["--config", str(config_path), "--profile", "web", "--port", "8502"],
+            stream=stream,
+            launcher_factory=reset_fake_launcher(session),
+            platform_detector_factory=FakePlatformDetector,
+            window_monitor_factory=lambda platform_info: FakeCliMonitor(),
+        )
+
+    launcher = FakeLauncher.instances[0]
+    assert code == 0
+    assert launcher.config.app_path == app
+    assert launcher.config.title == "Profile App"
+    assert launcher.config.port == 8502
+    assert launcher.run_calls == 1
+    assert session.wait_calls == 1
+
+
+def test_cli_root_shorthand_supports_dry_run_and_passthrough_args():
+    stream = StringIO()
+    session = FakeSession(ok=True)
+
+    code = main(
+        [
+            str(EXAMPLE_APP),
+            "--port",
+            "8600",
+            "--dry-run",
+            "--server.runOnSave",
+            "true",
+            "--",
+            "--workspace",
+            "demo",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+    )
+
+    launcher = FakeLauncher.instances[0]
+    output = stream.getvalue()
+    assert code == 0
+    assert launcher.run_calls == 0
+    assert launcher.config.streamlit_args == ("--server.runOnSave", "true")
+    assert launcher.config.app_args == ("--workspace", "demo")
+    assert "--server.runOnSave true -- --workspace demo" in output
+
+
+def test_cli_bare_profile_name_is_not_root_shorthand():
+    assert CLI_MAIN_MODULE._normalize_launch_shorthand(["rolethread-webapp"]) == [
+        "rolethread-webapp"
+    ]
 
 
 def test_cli_run_no_auto_port_maps_to_config_false():

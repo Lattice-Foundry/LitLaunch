@@ -3,6 +3,14 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.22b0
+
+- Added standalone `litlaunch create shortcut --profile NAME` workflow.
+- Added reusable shortcut planning/writing internals for `.bat`, `.sh`, and
+  `.command` profile launch files.
+- Added dry-run, overwrite protection, explicit output paths, and app-root
+  default placement without changing runtime launch behavior.
+
 ## 0.91.21b0
 
 - Implemented Advanced mode for `litlaunch create profile`.

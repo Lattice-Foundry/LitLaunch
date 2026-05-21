@@ -127,6 +127,10 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             *style.commands("litlaunch create profile"),
             "  Choose Simple for guided defaults, or Advanced for runtime fields.",
             "",
+            style.label("Create a launch shortcut:"),
+            *style.commands("litlaunch create shortcut --profile NAME"),
+            "  Writes a .bat, .sh, or .command file into the app root.",
+            "",
             style.label("Run a profile:"),
             *style.commands(
                 "litlaunch --profile NAME",
@@ -160,9 +164,14 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  Simple mode covers common app-window profiles.",
             "  Advanced mode exposes network, browser, monitor, args, cwd, and env.",
             "",
-            style.warning(
-                "Shortcut creation is planned separately and is not implemented yet."
+            style.label("Shortcuts:"),
+            *style.commands(
+                "litlaunch create shortcut --profile my-webapp",
+                "litlaunch create shortcut --profile my-webapp --dry-run",
             ),
+            "  Shortcut files are written to the app root by default.",
+            "",
+            style.warning("Wizard shortcut integration is planned separately."),
         )
     if topic == "examples":
         return _join(

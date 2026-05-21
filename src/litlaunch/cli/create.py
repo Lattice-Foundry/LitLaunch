@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from litlaunch.cli.common import CliContext
+from litlaunch.cli.config import add_profile_flags
 from litlaunch.profile_wizard import (
     ProfileWizardCancelled,
     ProfileWizardOptions,
     run_profile_wizard,
+)
+from litlaunch.profiles import load_profile
+from litlaunch.shortcut_writer import (
+    ShortcutRequest,
+    build_shortcut_plan,
+    write_shortcut,
 )
 
 
@@ -48,12 +56,46 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
     )
     profile_parser.set_defaults(create_handler=cmd_create_profile)
 
+    shortcut_parser = subparsers.add_parser(
+        "shortcut",
+        help="Create a launch shortcut for a LitLaunch profile.",
+        description=(
+            "Create an OS-appropriate launch shortcut file for a LitLaunch "
+            "profile. The shortcut is written to the app root by default."
+        ),
+        formatter_class=parser.formatter_class,
+    )
+    add_profile_flags(shortcut_parser)
+    shortcut_parser.add_argument(
+        "--output",
+        dest="output_path",
+        help="Write the shortcut to an explicit path.",
+    )
+    shortcut_parser.add_argument(
+        "--name",
+        help="Override the generated shortcut base filename.",
+    )
+    shortcut_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing shortcut file.",
+    )
+    shortcut_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview the shortcut path and content without writing it.",
+    )
+    shortcut_parser.set_defaults(create_handler=cmd_create_shortcut)
+
 
 def cmd_create(args: argparse.Namespace, context: CliContext) -> int:
     """Dispatch the ``create`` namespace."""
 
     if not hasattr(args, "create_handler"):
-        context.stream.write("Choose what to create. Try: litlaunch create profile\n")
+        context.stream.write(
+            "Choose what to create. Try: litlaunch create profile "
+            "or litlaunch create shortcut --profile NAME\n"
+        )
         return 2
     return int(args.create_handler(args, context))
 
@@ -80,4 +122,36 @@ def cmd_create_profile(args: argparse.Namespace, context: CliContext) -> int:
         )
     except ProfileWizardCancelled:
         return 130
+    return 0
+
+
+def cmd_create_shortcut(args: argparse.Namespace, context: CliContext) -> int:
+    """Create a profile launch shortcut."""
+
+    if not args.profile:
+        context.stream.write("Shortcut creation requires --profile NAME.\n")
+        return 2
+    platform_info = context.platform_detector_factory().detect()
+    config_path = Path(args.config_path).resolve() if args.config_path else None
+    profile = load_profile(args.profile, config_path)
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info,
+            config_path=config_path,
+            output_path=Path(args.output_path) if args.output_path else None,
+            name=args.name,
+        )
+    )
+    if args.dry_run:
+        context.stream.write("Shortcut dry run\n")
+        context.stream.write(f"Platform: {plan.platform.value}\n")
+        context.stream.write(f"Profile: {plan.profile_name}\n")
+        context.stream.write(f"Output: {plan.output_path}\n")
+        context.stream.write(f"Command: {' '.join(plan.command)}\n")
+        context.stream.write("\n")
+        context.stream.write(plan.content)
+        return 0
+    write_shortcut(plan, force=bool(args.force))
+    context.stream.write(f"Created shortcut: {plan.output_path}\n")
     return 0

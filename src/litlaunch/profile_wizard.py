@@ -9,7 +9,6 @@ from typing import TextIO
 
 from litlaunch.colors import (
     THEME_COLORS,
-    powershell_red,
     streamlit_blue,
     terminal_green,
 )
@@ -787,7 +786,7 @@ def _render_step_header(
     current = sum(1 for step in steps[:index] if not step.skip(state)) + 1
     title = steps[index].title
     mode = "Advanced" if state.setup_mode == "advanced" else "Simple"
-    mode_text = _style(mode, powershell_red, io.use_color)
+    mode_text = _style_help_magenta(mode, io.use_color)
     step_text = _style(
         f"Step {current} of {len(visible_steps)} - {title}",
         streamlit_blue,
@@ -924,6 +923,12 @@ def _style(text: str, color_name: str, use_color: bool) -> str:
         return text
     color = THEME_COLORS[color_name].ansi
     return f"{color}{text}\033[0m"
+
+
+def _style_help_magenta(text: str, use_color: bool) -> str:
+    if not use_color:
+        return text
+    return f"\033[35m{text}\033[0m"
 
 
 def _write_warning_status(stream: TextIO, message: str) -> None:

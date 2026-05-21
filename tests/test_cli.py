@@ -487,7 +487,8 @@ def test_cli_workflow_help_tools_topic():
     assert "Tools workflows" in output
     assert "litlaunch create profile" in output
     assert "litlaunch create profile --dry-run" in output
-    assert "Shortcut creation is planned separately" in output
+    assert "litlaunch create shortcut --profile my-webapp" in output
+    assert "Wizard shortcut integration is planned separately" in output
 
 
 def test_cli_workflow_help_uses_approved_palette():
@@ -524,6 +525,16 @@ def test_cli_create_profile_parser_exists():
     assert args.create_command == "profile"
     assert args.name == "web"
     assert args.app_path == "app.py"
+
+
+def test_cli_create_shortcut_parser_exists():
+    parser = build_parser()
+
+    args = parser.parse_args(["create", "shortcut", "--profile", "web"])
+
+    assert args.command == "create"
+    assert args.create_command == "shortcut"
+    assert args.profile == "web"
 
 
 def test_cli_create_profile_simple_mode_writes_webapp_profile(monkeypatch):
@@ -874,6 +885,140 @@ def test_cli_create_profile_advanced_mode_dry_run_does_not_write(monkeypatch):
         assert '[profiles."advanced-dry-run"]' in stream.getvalue()
 
 
+def test_cli_create_shortcut_dry_run_does_not_write(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        (output_dir / "litlaunch.toml").write_text(
+            """
+[profiles.web]
+app_path = "app.py"
+title = "Web"
+""",
+            encoding="utf-8",
+        )
+        stream = StringIO()
+
+        code = main(
+            ["create", "shortcut", "--profile", "web", "--dry-run"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        assert code == 0
+        assert not (output_dir / "web.bat").exists()
+        output = stream.getvalue()
+        assert "Shortcut dry run" in output
+        assert "web.bat" in output
+        assert 'litlaunch" "--profile" "web' in output
+
+
+def test_cli_create_shortcut_writes_and_respects_force(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        (output_dir / "litlaunch.toml").write_text(
+            """
+[profiles.web]
+app_path = "app.py"
+title = "Web"
+""",
+            encoding="utf-8",
+        )
+        stream = StringIO()
+
+        code = main(
+            ["create", "shortcut", "--profile", "web"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        shortcut = output_dir / "web.bat"
+        assert code == 0
+        assert shortcut.is_file()
+        assert "Created shortcut" in stream.getvalue()
+
+        blocked_stream = StringIO()
+        blocked_code = main(
+            ["create", "shortcut", "--profile", "web"],
+            stream=blocked_stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+        assert blocked_code == 2
+        assert "already exists" in blocked_stream.getvalue()
+
+        forced_stream = StringIO()
+        forced_code = main(
+            ["create", "shortcut", "--profile", "web", "--force"],
+            stream=forced_stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+        assert forced_code == 0
+
+
+def test_cli_create_shortcut_explicit_output_and_config(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        app_root = output_dir / "app root"
+        app_root.mkdir()
+        (app_root / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        config_path = output_dir / "litlaunch.toml"
+        output_path = output_dir / "custom.bat"
+        app_path = str(app_root / "app.py").replace("\\", "\\\\")
+        config_path.write_text(
+            f"""
+[profiles.web]
+app_path = "{app_path}"
+title = "Web"
+""",
+            encoding="utf-8",
+        )
+        stream = StringIO()
+
+        code = main(
+            [
+                "create",
+                "shortcut",
+                "--profile",
+                "web",
+                "--config",
+                str(config_path),
+                "--output",
+                str(output_path),
+            ],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        assert code == 0
+        content = output_path.read_text(encoding="utf-8")
+        assert f'"{config_path.resolve()}"' in content
+
+
+def test_cli_create_shortcut_requires_profile():
+    stream = StringIO()
+
+    code = main(["create", "shortcut"], stream=stream)
+
+    assert code == 2
+    assert "requires --profile" in stream.getvalue()
+
+
+def test_cli_create_shortcut_missing_profile_fails_cleanly(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        stream = StringIO()
+
+        code = main(
+            ["create", "shortcut", "--profile", "missing"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        assert code == 2
+        assert "was not found" in stream.getvalue()
+
+
 def test_cli_console_preview_command_exists_and_exits_zero():
     parser = build_parser()
     args = parser.parse_args(["console-preview"])
@@ -1172,7 +1317,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.21b0"
+    assert data["litlaunch_version"] == "0.91.22b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

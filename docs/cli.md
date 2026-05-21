@@ -280,8 +280,21 @@ Streamlit flags, app args, working directory, and extra environment variables.
 When run from an app root, the wizard uses detected values such as `app.py`, the
 project folder name, and an existing `litlaunch.toml` as visible prompt
 defaults. Users still confirm or change each value before anything is written.
-Type `back` to return to the previous step, or `quit` to cancel cleanly.
-Shortcut creation is planned separately.
+Type `back` to return to the previous step, or `quit` to cancel cleanly. Wizard
+shortcut integration is planned separately.
+
+Create a project-local launch shortcut for an existing profile:
+
+```powershell
+litlaunch create shortcut --profile my-webapp
+litlaunch create shortcut --profile my-webapp --dry-run
+litlaunch create shortcut --profile my-webapp --output Launch.bat --force
+```
+
+Shortcut creation writes a `.bat`, `.sh`, or `.command` file into the profile app
+root by default. It does not launch the app, modify the Desktop, or install Start
+Menu entries. The generated file uses the public `litlaunch --profile NAME`
+workflow so it remains easy to inspect and move.
 
 ## Example
 

@@ -14,7 +14,7 @@ from litlaunch.config import (
     StreamlitFlags,
     TrustMode,
 )
-from litlaunch.exposure import classify_host_exposure
+from litlaunch.exposure import assess_runtime_exposure, classify_host_exposure
 from litlaunch.inspect.models import (
     DiagnosticItem,
     DiagnosticSection,
@@ -86,6 +86,12 @@ class DiagnosticCollector:
             self._platform_section(platform_info),
             self._streamlit_section(streamlit),
             self._browser_section(capabilities, resolution),
+            self._runtime_exposure_section(
+                host=host,
+                trust_mode=trust_mode,
+                allow_network_exposure=allow_network_exposure,
+                extra_env=extra_env or {},
+            ),
         ]
         if profile_name is not None:
             sections.append(
@@ -274,6 +280,94 @@ class DiagnosticCollector:
             )
         return DiagnosticSection("Profile", tuple(items))
 
+    def _runtime_exposure_section(
+        self,
+        *,
+        host: str,
+        trust_mode: TrustMode | str,
+        allow_network_exposure: bool,
+        extra_env: Mapping[str, str],
+    ) -> DiagnosticSection:
+        assessment = assess_runtime_exposure(
+            host=host,
+            trust_mode=trust_mode,
+            allow_network_exposure=allow_network_exposure,
+        )
+        status = _posture_status(assessment.severity)
+        items = [
+            DiagnosticItem("Configured host", status, assessment.host),
+            DiagnosticItem(
+                "Exposure scope",
+                status,
+                assessment.scope.value,
+                detail=assessment.summary,
+            ),
+            DiagnosticItem(
+                "Trust mode",
+                DiagnosticStatus.INFO,
+                assessment.trust_mode.value,
+                detail=_trust_mode_message(assessment.trust_mode),
+            ),
+            DiagnosticItem(
+                "Network exposure acknowledgement",
+                (
+                    DiagnosticStatus.OK
+                    if assessment.acknowledged or not assessment.exposed
+                    else DiagnosticStatus.ERROR
+                ),
+                "acknowledged" if assessment.acknowledged else "not acknowledged",
+                detail=assessment.recommendation,
+            ),
+            DiagnosticItem(
+                "Exposure policy",
+                DiagnosticStatus.OK if assessment.allowed else DiagnosticStatus.ERROR,
+                "allowed by current trust mode"
+                if assessment.allowed
+                else "blocked by current trust mode",
+                detail=assessment.detail,
+            ),
+            DiagnosticItem(
+                "Shutdown endpoint scope",
+                DiagnosticStatus.OK,
+                "loopback-only",
+                detail=(
+                    "LitLaunch graceful shutdown hooks use a tokened loopback "
+                    "endpoint for owned app cleanup."
+                ),
+            ),
+            DiagnosticItem(
+                "Browser ownership boundary",
+                DiagnosticStatus.INFO,
+                "browser processes are not owned by LitLaunch",
+                detail=(
+                    "LitLaunch launches browser windows but does not kill or "
+                    "control browser processes."
+                ),
+            ),
+            DiagnosticItem(
+                "Diagnostics privacy",
+                DiagnosticStatus.WARNING,
+                "review diagnostics before sharing",
+                detail=(
+                    "Sanitization is pattern-based and may not catch encoded, "
+                    "URL-wrapped, reformatted, or app-specific secrets."
+                ),
+            ),
+        ]
+        if extra_env:
+            items.append(
+                DiagnosticItem(
+                    "Profile environment values",
+                    DiagnosticStatus.WARNING,
+                    "extra_env values are stored as plaintext profile TOML",
+                    detail=(
+                        "Avoid storing secrets directly in profile extra_env "
+                        "unless the profile file is protected appropriately."
+                    ),
+                )
+            )
+        return DiagnosticSection("Runtime Exposure", tuple(items))
+
     def _target_section(
         self,
         app_path: str | Path,
@@ -411,6 +505,22 @@ def _capability_status(supported: bool) -> DiagnosticStatus:
 
 def _supported_message(supported: bool) -> str:
     return "supported" if supported else "not supported"
+
+
+def _posture_status(severity: str) -> DiagnosticStatus:
+    if severity == "error":
+        return DiagnosticStatus.ERROR
+    if severity == "warning":
+        return DiagnosticStatus.WARNING
+    return DiagnosticStatus.OK
+
+
+def _trust_mode_message(trust_mode: TrustMode) -> str:
+    if trust_mode == TrustMode.STRICT_LOCAL:
+        return "strict_local enforces loopback-only runtime binding."
+    if trust_mode == TrustMode.INTERNAL_NETWORK:
+        return "internal_network is for intentional internal/LAN exposure."
+    return "development is the permissive local developer posture."
 
 
 def _host_binding_item(host: str, allow_network_exposure: bool) -> DiagnosticItem:

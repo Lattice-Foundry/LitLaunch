@@ -192,6 +192,7 @@ litlaunch report --profile my-webapp
 litlaunch report --profile my-webapp --output my-report.html
 litlaunch report --profile my-webapp --output my-report.html --force
 litlaunch report --profile my-webapp --open
+litlaunch report app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure
 ```
 
 By default, reports are written to `litlaunch-report.html` in the current

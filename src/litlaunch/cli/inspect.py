@@ -96,6 +96,16 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
         choices=[item.value for item in TrustMode],
         help="Set the operational trust mode for diagnostics.",
     )
+    parser.add_argument("--host")
+    parser.add_argument(
+        "--allow-network-exposure",
+        action="store_true",
+        default=None,
+        help=(
+            "Acknowledge that a non-loopback host may expose the app beyond "
+            "this machine."
+        ),
+    )
     parser.add_argument(
         "--output",
         default="litlaunch-report.html",

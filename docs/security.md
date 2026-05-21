@@ -81,6 +81,24 @@ trust_mode = "internal_network"
 allow_network_exposure = true
 ```
 
+## Runtime Exposure Diagnostics
+
+`litlaunch inspect` and `litlaunch report` include a runtime exposure posture
+section. It reports:
+
+- configured host
+- exposure scope, such as `loopback`, `wildcard_bind`, `local_network`, or
+  `public_or_unknown`
+- active trust mode
+- whether network exposure was explicitly acknowledged
+- whether the current trust mode allows or blocks the configured binding
+- practical reminders about shutdown hooks, diagnostics privacy, plaintext
+  profile environment values, and browser ownership boundaries
+
+This is operational visibility, not a subjective security score. A warning or
+error means the runtime configuration deserves attention; it does not mean
+LitLaunch has secured or failed to secure the Streamlit application.
+
 ## Internal Network Recommendations
 
 For internal dashboards and analyst tools:

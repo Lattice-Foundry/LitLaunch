@@ -3,6 +3,18 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.29b0
+
+- Added runtime exposure/posture diagnostics that summarize host binding scope,
+  trust mode, acknowledgement state, and whether current policy allows launch.
+- Expanded host exposure classification for localhost, loopback IPs, wildcard
+  binds, local-network addresses, and public or unknown hostnames.
+- Added operational posture reminders for loopback shutdown hooks, diagnostics
+  privacy, plaintext profile environment values, and browser ownership
+  boundaries.
+- Extended HTML, JSON, and support-bundle diagnostics with posture data without
+  adding TLS, auth, policy engines, or new runtime behavior.
+
 ## 0.91.28b0
 
 - Added a lightweight `trust_mode` foundation with `development`,

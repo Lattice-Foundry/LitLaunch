@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.6b0
+
+- Normalized runtime console category labels around Runtime, Backend, Health,
+  Browser, Monitor, and Shutdown.
+- Replaced action-phrase categories such as `Stopping backend:` with domain
+  categories and clearer wording.
+- Added backend/runtime categories to port release, dry-run, monitor, and launch
+  failure output without changing runtime behavior.
+
 ## 0.91.5b0
 
 - Reduced redundant console failure wording in browser launch paths.

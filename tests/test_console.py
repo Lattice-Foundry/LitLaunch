@@ -126,7 +126,7 @@ def test_console_renderer_phase_and_elapsed_shape():
     assert "[LitLaunch]" not in output
     assert "[   ok   ] Backend: starting Streamlit..." in output
     assert "[   ok   ] Health: ready in 1.2s." in output
-    assert "[   ok   ] Runtime ready at http://127.0.0.1:8501." in output
+    assert "[   ok   ] Runtime: ready at http://127.0.0.1:8501." in output
     assert format_elapsed(0.04) == "0.0s"
 
 
@@ -425,7 +425,7 @@ def test_console_renderer_monitor_status_rendering():
 
     output = stream.getvalue()
     assert "[   ok   ] Monitor: Window closed; requesting shutdown." in output
-    assert "Window monitoring is unavailable." in output
+    assert "Monitor: window monitoring is unavailable." in output
     assert "[ Cause  ] Unsupported." in output
     assert "Likely cause" not in output
 

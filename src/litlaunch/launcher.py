@@ -238,7 +238,7 @@ class StreamlitLauncher:
             )
             render_failure_guidance(
                 self.console_renderer,
-                "Browser launch failed; stopping backend.",
+                "Browser: launch failed; stopping backend.",
                 likely_cause=browser_result.message,
                 next_steps=(
                     "Check that the requested browser is installed and launchable.",
@@ -389,7 +389,7 @@ class StreamlitLauncher:
         except Exception:
             return
         if released:
-            self.console_renderer.success(f"Port {port} released")
+            self.console_renderer.success(f"Backend: port {port} released")
 
 
 def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:

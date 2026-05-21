@@ -59,6 +59,16 @@ ANSI_COLORS: Mapping[str, str] = {
 }
 
 STATUS_LABEL_WIDTH = 8
+CONSOLE_CATEGORY_LABELS = frozenset(
+    {
+        "Runtime",
+        "Backend",
+        "Health",
+        "Browser",
+        "Monitor",
+        "Shutdown",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -241,7 +251,7 @@ class ConsoleRenderer:
     def runtime_ready(self, url: str | None = None) -> None:
         """Render a concise runtime-ready message."""
 
-        message = "Runtime ready" if url is None else f"Runtime ready at {url}"
+        message = "Runtime: ready" if url is None else f"Runtime: ready at {url}"
         self.success(message)
 
     def render_browser_resolution(
@@ -287,7 +297,7 @@ class ConsoleRenderer:
             WindowMonitorStatus.UNAVAILABLE,
         }:
             self.failure_guidance(
-                "Window monitoring is unavailable.",
+                "Monitor: window monitoring is unavailable.",
                 likely_cause=result.message,
                 next_steps=(
                     "Omit --monitor-window to launch without close detection.",
@@ -299,7 +309,7 @@ class ConsoleRenderer:
             )
         elif result.status == WindowMonitorStatus.TIMEOUT:
             self.failure_guidance(
-                "Window monitoring timed out before an app window was observed.",
+                "Monitor: timed out before app window was observed.",
                 likely_cause=result.message,
                 next_steps=(
                     "Confirm the app-mode browser window opened and the title matches.",
@@ -308,7 +318,7 @@ class ConsoleRenderer:
             )
         elif result.status == WindowMonitorStatus.ERROR:
             self.failure_guidance(
-                "Window monitoring failed.",
+                "Monitor: window monitoring failed.",
                 likely_cause=result.message,
                 next_steps=(
                     "Omit --monitor-window to run without close detection.",
@@ -406,6 +416,7 @@ class ConsoleRenderer:
         return f"[{self._style(padded, color_name)}]"
 
     def _emit_status(self, status: str, color_name: str, message: str) -> None:
+        message = self._style_category_label(message)
         self._emit(
             f"{self._status_prefix(status, color_name)} "
             f"{_ensure_terminal_punctuation(message)}"
@@ -418,6 +429,14 @@ class ConsoleRenderer:
         if not separator:
             return self._style(message, color)
         return f"{self._style(label + separator, color)}{rest}"
+
+    def _style_category_label(self, message: str) -> str:
+        if ANSI_PATTERN.search(message):
+            return message
+        label, separator, rest = message.partition(":")
+        if not separator or label not in CONSOLE_CATEGORY_LABELS:
+            return message
+        return f"{self._style(label + separator, self.theme.label)}{rest}"
 
     def _redact(self, text: str) -> str:
         redacted = text

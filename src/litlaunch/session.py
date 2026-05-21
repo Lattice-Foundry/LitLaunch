@@ -173,12 +173,12 @@ class RuntimeSession:
                     if self._is_verbose_console():
                         render_phase_warning(
                             self.console_renderer,
-                            ConsolePhase.STOPPING_BACKEND,
-                            "graceful stop timed out; using termination fallback",
+                            ConsolePhase.BACKEND,
+                            "graceful shutdown timed out; using termination fallback",
                         )
                     render_failure_guidance(
                         self.console_renderer,
-                        "Graceful shutdown timed out.",
+                        "Shutdown: graceful request timed out.",
                         likely_cause=(
                             "The app accepted the shutdown request but did not exit "
                             "before the graceful timeout."
@@ -207,12 +207,12 @@ class RuntimeSession:
                 if self._is_verbose_console():
                     render_phase_warning(
                         self.console_renderer,
-                        ConsolePhase.STOPPING_BACKEND,
-                        "graceful request failed; using termination fallback",
+                        ConsolePhase.BACKEND,
+                        "graceful shutdown failed; using termination fallback",
                     )
                 render_failure_guidance(
                     self.console_renderer,
-                    "Graceful shutdown request failed.",
+                    "Shutdown: graceful request failed.",
                     likely_cause="The app did not accept the cleanup request.",
                     next_steps=(
                         (
@@ -248,8 +248,8 @@ class RuntimeSession:
         if self._is_verbose_console():
             render_phase_warning(
                 self.console_renderer,
-                ConsolePhase.STOPPING_BACKEND,
-                "terminating owned backend process",
+                ConsolePhase.BACKEND,
+                "terminating owned process",
             )
         render_failure_guidance(
             self.console_renderer,
@@ -393,7 +393,7 @@ class RuntimeSession:
             message = (
                 "Backend stopped cleanly"
                 if expected_shutdown
-                else "Backend exited cleanly"
+                else "Backend: exited cleanly"
             )
             self.add_event(LaunchState.TERMINATED, message, render=False)
             render_phase_success(
@@ -402,7 +402,7 @@ class RuntimeSession:
                 (
                     "complete; backend stopped cleanly"
                     if expected_shutdown
-                    else "backend exited cleanly"
+                    else "exited cleanly"
                 ),
                 elapsed_seconds=elapsed_seconds,
             )
@@ -415,7 +415,7 @@ class RuntimeSession:
         )
         render_failure_guidance(
             self.console_renderer,
-            f"Backend exited with code {code}.",
+            f"Backend: exited with code {code}.",
             likely_cause="The backend stopped with an error status.",
             next_steps=(
                 "Run the app directly with streamlit run to inspect the traceback.",
@@ -434,7 +434,7 @@ class RuntimeSession:
         except Exception:
             return
         if released:
-            self.console_renderer.success(f"Port {port} released")
+            self.console_renderer.success(f"Backend: port {port} released")
 
     def _is_verbose_console(self) -> bool:
         return (

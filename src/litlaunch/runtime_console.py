@@ -111,7 +111,7 @@ def render_backend_start_failure_guidance(
 
     render_failure_guidance(
         renderer,
-        "Backend startup failed.",
+        "Backend: startup failed.",
         likely_cause=(
             "Streamlit may be missing or the app may have crashed during startup."
         ),
@@ -135,7 +135,7 @@ def render_health_failure_guidance(
     if process_manager.is_running(process):
         render_failure_guidance(
             renderer,
-            "Streamlit backend did not become healthy before timeout.",
+            "Health: backend did not become healthy before timeout.",
             likely_cause="The app started but did not report ready in time.",
             next_steps=(
                 "Increase the health timeout if startup is expected to be slow.",
@@ -147,7 +147,7 @@ def render_health_failure_guidance(
 
     render_failure_guidance(
         renderer,
-        "Streamlit backend exited before becoming healthy.",
+        "Backend: exited before becoming healthy.",
         likely_cause=(
             "Streamlit may be missing or the app may have crashed during startup."
         ),

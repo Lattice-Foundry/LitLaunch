@@ -611,7 +611,7 @@ def test_health_timeout_console_guidance_is_actionable():
 
     output = stream.getvalue()
     assert session.ok is False
-    assert "Streamlit backend did not become healthy before timeout." in output
+    assert "Health: backend did not become healthy before timeout." in output
     assert "[ Cause  ] The app started but did not report ready in time." in output
     assert output.count("[  Next  ]") == 1
     assert "Run Streamlit directly to see any app traceback." not in output
@@ -657,7 +657,7 @@ def test_backend_early_exit_console_guidance_is_actionable():
 
     output = stream.getvalue()
     assert session.ok is False
-    assert "Streamlit backend exited before becoming healthy." in output
+    assert "Backend: exited before becoming healthy." in output
     assert (
         "Streamlit may be missing or the app may have crashed during startup." in output
     )
@@ -846,11 +846,11 @@ def test_browser_failure_console_guidance_is_actionable():
 
     output = stream.getvalue()
     assert session.ok is False
-    assert "Browser launch failed; stopping backend." in output
+    assert "Browser: launch failed; stopping backend." in output
     assert "Check that the requested browser is installed and launchable." not in output
     assert "--browser default" not in output
     assert output.count("[ error  ]") == 1
-    assert "[   ok   ] Port 8605 released." in output
+    assert "[   ok   ] Backend: port 8605 released." in output
 
 
 def test_run_browser_mode_can_use_default_browser_path():
@@ -942,7 +942,7 @@ def test_launcher_emits_high_level_console_messages_without_tokens():
     assert "Health: ready in" in output
     assert "Browser: opening Edge app window" in output
     assert "Browser: browser launched in" in output
-    assert "Runtime ready at http://127.0.0.1:8609" in output
+    assert "Runtime: ready at http://127.0.0.1:8609" in output
     assert token not in output
 
 

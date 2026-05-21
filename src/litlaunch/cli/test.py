@@ -61,10 +61,10 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     console.detail("Mode: webapp")
 
     _section(console, "Status Labels")
-    console.success("Runtime active at http://127.0.0.1:8501")
-    console.warning("Interrupt received; stopping runtime.")
-    console.error("Runtime launch failed.")
-    console.success("Dry run: backend and browser were not started.")
+    console.success("Runtime: active at http://127.0.0.1:8501")
+    console.warning("Runtime: interrupt received; stopping runtime.")
+    console.error("Runtime: launch failed.")
+    console.success("Runtime: dry run; backend and browser were not started.")
 
     _section(console, "Backend")
     console.phase_start(ConsolePhase.BACKEND, "starting Streamlit")
@@ -75,7 +75,7 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     )
     console.detail("Backend PID: 12345")
     console.failure_guidance(
-        "Backend startup failed.",
+        "Backend: startup failed.",
         likely_cause=(
             "Streamlit may be missing or the app may have crashed during startup."
         ),
@@ -91,7 +91,7 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     console.phase_start(ConsolePhase.HEALTH, "waiting for Streamlit")
     console.phase_success(ConsolePhase.HEALTH, "ready", elapsed_seconds=1.2)
     console.failure_guidance(
-        "Streamlit backend did not become healthy before timeout.",
+        "Health: backend did not become healthy before timeout.",
         likely_cause="The app started but did not report ready in time.",
         next_steps=(
             "Increase the health timeout if startup is expected to be slow.",
@@ -112,7 +112,7 @@ def render_console_preview(console: ConsoleRenderer) -> None:
         prefer_app_mode=True,
     )
     console.failure_guidance(
-        "Browser launch failed; stopping backend.",
+        "Browser: launch failed; stopping backend.",
         likely_cause="Microsoft Edge could not be started in app-mode.",
         next_steps=(
             "Check that the requested browser is installed and launchable.",
@@ -124,10 +124,10 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     _section(console, "Runtime")
     console.runtime_ready(EXAMPLE_URL)
     console.render_launch_event(
-        LaunchEvent(LaunchState.TERMINATED, "Backend exited cleanly", 0.0)
+        LaunchEvent(LaunchState.TERMINATED, "Backend: exited cleanly", 0.0)
     )
     console.failure_guidance(
-        "Backend exited with code 1.",
+        "Backend: exited with code 1.",
         likely_cause="The backend stopped with an error status.",
         next_steps=("Run Streamlit directly to inspect the traceback.",),
         suggest_inspect=False,
@@ -196,11 +196,11 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     console.phase_success(ConsolePhase.SHUTDOWN, "app cleanup request accepted")
     if console.mode == ConsoleMode.VERBOSE:
         console.phase_warning(
-            ConsolePhase.STOPPING_BACKEND,
-            "graceful request failed; using termination fallback",
+            ConsolePhase.BACKEND,
+            "graceful shutdown failed; using termination fallback",
         )
     console.failure_guidance(
-        "Graceful shutdown request failed.",
+        "Shutdown: graceful request failed.",
         likely_cause="The app did not accept the cleanup request.",
         next_steps=(
             "Confirm the app calls LauncherRuntime.enable_shutdown_endpoint().",
@@ -209,8 +209,8 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     )
     if console.mode == ConsoleMode.VERBOSE:
         console.phase_warning(
-            ConsolePhase.STOPPING_BACKEND,
-            "terminating owned backend process",
+            ConsolePhase.BACKEND,
+            "terminating owned process",
         )
     console.failure_guidance(
         "Shutdown: using backend termination fallback.",
@@ -224,7 +224,7 @@ def render_console_preview(console: ConsoleRenderer) -> None:
         "complete; backend stopped cleanly",
         elapsed_seconds=0.2,
     )
-    console.success("Port 8501 released")
+    console.success("Backend: port 8501 released")
     console.phase_success(
         ConsolePhase.SHUTDOWN,
         "complete; backend stopped through termination fallback",

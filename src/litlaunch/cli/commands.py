@@ -96,9 +96,9 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
     launcher = context.launcher_factory(config, console_renderer=cli_renderer)
     if args.dry_run:
         plan = launcher.build_launch_plan()
-        cli_renderer.success("Dry run: backend and browser were not started.")
-        cli_renderer.success(f"App URL: {plan.app_url}")
-        cli_renderer.success(f"Mode: {config.mode.value}")
+        cli_renderer.success("Runtime: dry run; backend and browser were not started.")
+        cli_renderer.success(f"Runtime: app URL: {plan.app_url}")
+        cli_renderer.success(f"Runtime: mode: {config.mode.value}")
         if plan.browser_resolution is not None:
             cli_renderer.success(f"Browser: {plan.browser_resolution.message}")
         write(context.stream, plan.command_display)
@@ -148,7 +148,7 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
         return run_result.exit_code
     if not session.ok:
         cli_renderer.failure_guidance(
-            "Runtime launch failed.",
+            "Runtime: launch failed.",
             likely_cause=session.result.message,
             next_steps=(
                 "Run the app directly with streamlit run to compare behavior.",
@@ -164,7 +164,7 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
     try:
         returncode = session.wait()
     except KeyboardInterrupt:
-        cli_renderer.warning("Interrupt received; stopping runtime.")
+        cli_renderer.warning("Runtime: interrupt received; stopping runtime.")
         session.stop()
         return 0
 

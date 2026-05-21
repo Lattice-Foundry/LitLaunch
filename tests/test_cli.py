@@ -361,21 +361,29 @@ def test_cli_console_preview_outputs_representative_no_color_messages():
     assert "== Backend ==" in output
     assert "[   ok   ] Backend: starting Streamlit..." in output
     assert "[   ok   ] Backend: started Streamlit in 0.3s." in output
+    assert "[ error  ] Backend: startup failed." in output
     assert "Backend PID: 12345" not in output
     assert "[   ok   ] Health: waiting for Streamlit..." in output
-    assert "Streamlit backend did not become healthy before timeout." in output
+    assert "[ error  ] Health: backend did not become healthy before timeout." in output
+    assert "Health: backend did not become healthy before timeout." in output
     assert "[   ok   ] Browser: opening Microsoft Edge app window..." in output
+    assert "[ error  ] Browser: launch failed; stopping backend." in output
     assert "[  warn  ] Browser: Microsoft Edge unavailable." in output
     assert "[  Next  ] Using Chrome app-mode instead." in output
     assert "[  Next  ] Use --browser to select a different browser." in output
-    assert "Runtime ready at http://127.0.0.1:8501" in output
+    assert "Runtime: ready at http://127.0.0.1:8501" in output
     assert "[   ok   ] Monitor: watching app window..." in output
-    assert "Window monitoring timed out before an app window was observed." in output
+    assert "[ error  ] Monitor: window monitoring is unavailable." in output
+    assert "Monitor: timed out before app window was observed." in output
     assert "[   ok   ] Shutdown: requesting app cleanup..." in output
     assert "Stopping backend: terminating owned backend process" not in output
+    assert "Stopping backend:" not in output
+    assert "Runtime launch failed." not in output
+    assert "Window monitoring failed." not in output
+    assert "Window monitoring is unavailable." not in output
     assert "Shutdown: using backend termination fallback." in output
-    assert "[   ok   ] Port 8501 released." in output
-    assert "Backend exited with code 1." in output
+    assert "[   ok   ] Backend: port 8501 released." in output
+    assert "Backend: exited with code 1." in output
     assert "exited with code 0" not in output
     assert "Likely cause" not in output
     assert "[ Cause  ] " in output
@@ -398,6 +406,8 @@ def test_cli_console_preview_verbose_keeps_detailed_guidance():
     assert "Backend PID: 12345" in output
     assert "Run the app directly with streamlit run to see the traceback." in output
     assert 'Run "litlaunch inspect" for local diagnostics.' in output
+    assert "Stopping backend:" not in output
+    assert "[  warn  ] Backend: terminating owned process." in output
 
 
 def test_cli_console_preview_all_shows_normal_and_verbose_modes():
@@ -562,7 +572,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.5b0"
+    assert data["litlaunch_version"] == "0.91.6b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1123,9 +1133,9 @@ def test_cli_run_dry_run_prints_command_without_starting_backend():
     assert launcher.run_calls == 0
     assert launcher.config.streamlit_args == ("--server.runOnSave", "true")
     assert launcher.config.app_args == ("--workspace", "demo")
-    assert "Dry run" in output
-    assert "App URL: http://127.0.0.1:8600" in output
-    assert "Mode: browser" in output
+    assert "Runtime: dry run; backend and browser were not started." in output
+    assert "Runtime: app URL: http://127.0.0.1:8600" in output
+    assert "Runtime: mode: browser" in output
     assert "Browser: Selected default browser." in output
     assert "--server.runOnSave true -- --workspace demo" in output
 
@@ -1217,7 +1227,7 @@ def test_cli_run_keyboard_interrupt_stops_session():
 
     assert code == 0
     assert session.stop_calls == 1
-    assert "Interrupt received; stopping runtime." in stream.getvalue()
+    assert "Runtime: interrupt received; stopping runtime." in stream.getvalue()
 
 
 def test_cli_run_monitor_window_requires_webapp_mode():
@@ -1452,7 +1462,7 @@ def test_cli_run_monitor_window_noop_monitor_fails_before_launch():
 
     assert code == 1
     assert FakeLauncher.instances[0].run_calls == 0
-    assert "Window monitoring is unavailable" in stream.getvalue()
+    assert "Monitor: window monitoring is unavailable" in stream.getvalue()
     assert "Use verbose mode for more runtime details." in stream.getvalue()
     assert "Omit --monitor-window" not in stream.getvalue()
 

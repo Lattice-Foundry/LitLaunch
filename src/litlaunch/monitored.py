@@ -75,7 +75,7 @@ def run_monitored_webapp(
             exit_code=1,
             session=None,
             monitor_result=result,
-            message="Window monitoring is unavailable.",
+            message="Monitor: window monitoring is unavailable.",
             launched=False,
             stopped_cleanly=True,
         )

@@ -1,4 +1,14 @@
-"""Temporary developer console-preview command for LitLaunch beta polish."""
+"""Internal console-preview tooling for LitLaunch developers.
+
+The preview command renders representative runtime console scenarios without
+starting a backend, opening a browser, touching ports, or collecting real
+diagnostics. It exists so LitLaunch contributors can review terminal alignment,
+colors, category labels, verbosity separation, and future screenshot candidates.
+
+This is intentionally internal developer tooling, not a stable public API. The
+preview scenarios and exact output may evolve as console wording and diagnostics
+rendering mature.
+"""
 
 from __future__ import annotations
 
@@ -17,14 +27,42 @@ EXAMPLE_URL = "http://127.0.0.1:8501"
 EXAMPLE_HEALTH_URL = "http://127.0.0.1:8501/_stcore/health"
 
 
+def add_console_preview_flags(parser: argparse.ArgumentParser) -> None:
+    """Add internal console-preview mode flags."""
+
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--all",
+        dest="preview_mode",
+        action="store_const",
+        const="all",
+        default="all",
+        help="Preview normal and verbose console output.",
+    )
+    group.add_argument(
+        "--normal",
+        dest="preview_mode",
+        action="store_const",
+        const="normal",
+        help="Preview normal-mode console output.",
+    )
+    group.add_argument(
+        "--verbose",
+        dest="preview_mode",
+        action="store_const",
+        const="verbose",
+        help="Preview verbose-mode console output.",
+    )
+
+
 def cmd_console_preview(args: argparse.Namespace, context: CliContext) -> int:
     """Render representative runtime console output without launching anything."""
 
-    command = str(getattr(args, "command", "console-preview"))
-    if command == "console-preview-norm":
+    preview_mode = str(getattr(args, "preview_mode", "all"))
+    if preview_mode == "normal":
         render_console_preview(_preview_renderer(args, context, ConsoleMode.NORMAL))
         return 0
-    if command == "console-preview-verb":
+    if preview_mode == "verbose":
         render_console_preview(_preview_renderer(args, context, ConsoleMode.VERBOSE))
         return 0
 
@@ -38,9 +76,7 @@ def _preview_renderer(
     context: CliContext,
     mode: ConsoleMode,
 ) -> ConsoleRenderer:
-    use_color = (
-        not bool(getattr(args, "no_color", False)) and "NO_COLOR" not in context.env
-    )
+    use_color = "NO_COLOR" not in context.env
     return ConsoleRenderer(
         mode=mode,
         theme=ConsoleTheme(use_color=use_color),

@@ -612,8 +612,8 @@ def test_health_timeout_console_guidance_is_actionable():
     output = stream.getvalue()
     assert session.ok is False
     assert "Health: backend did not become healthy before timeout." in output
-    assert "[ Cause  ] The app started but did not report ready in time." in output
-    assert output.count("[  Next  ]") == 1
+    assert "[ cause  ] The app started but did not report ready in time." in output
+    assert output.count("[  next  ]") == 1
     assert "Run Streamlit directly to see any app traceback." not in output
     assert 'Run "litlaunch inspect" for local diagnostics.' not in output
 
@@ -661,7 +661,7 @@ def test_backend_early_exit_console_guidance_is_actionable():
     assert (
         "Streamlit may be missing or the app may have crashed during startup." in output
     )
-    assert output.count("[  Next  ]") == 1
+    assert output.count("[  next  ]") == 1
     assert "Verify Streamlit is installed in this Python environment." not in output
     assert "Run the app directly with streamlit run" not in output
 

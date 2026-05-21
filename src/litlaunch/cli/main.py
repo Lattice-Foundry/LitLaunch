@@ -22,7 +22,7 @@ from litlaunch.cli.common import (
 )
 from litlaunch.cli.config import add_runtime_flags
 from litlaunch.cli.inspect import add_inspect_flags, cmd_inspect
-from litlaunch.cli.test import cmd_console_preview
+from litlaunch.cli.preview import add_console_preview_flags, cmd_console_preview
 from litlaunch.exceptions import LitLaunchError
 
 _source_checkout_example_path = source_checkout_example_path
@@ -96,23 +96,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     example_parser.set_defaults(handler=_cmd_example)
 
-    # TEMP TEST: beta-only console design preview hook. Delete when the runtime
-    # terminal language is stable enough to remove the dev preview command.
-    for preview_command in (
+    console_preview_parser = subparsers.add_parser(
         "console-preview",
-        "console-preview-norm",
-        "console-preview-verb",
-    ):
-        console_preview_parser = subparsers.add_parser(
-            preview_command,
-            parents=[parent],
-            help=argparse.SUPPRESS,
-        )
-        console_preview_parser.set_defaults(handler=cmd_console_preview)
-    subparsers._choices_actions = [  # type: ignore[attr-defined]  # TEMP TEST
+        help=argparse.SUPPRESS,
+    )
+    add_console_preview_flags(console_preview_parser)
+    console_preview_parser.set_defaults(handler=cmd_console_preview)
+    subparsers._choices_actions = [  # type: ignore[attr-defined]
         action
         for action in subparsers._choices_actions  # type: ignore[attr-defined]
-        if not action.dest.startswith("console-preview")
+        if action.dest != "console-preview"
     ]
 
     return parser

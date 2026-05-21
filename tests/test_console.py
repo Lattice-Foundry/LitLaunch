@@ -216,16 +216,16 @@ def test_failure_guidance_respects_quiet_normal_and_verbose_modes():
 
     normal_output = normal_stream.getvalue()
     assert "Likely cause" not in normal_output
-    assert "[ Cause  ] Streamlit exited." in normal_output
-    assert "[  Next  ] Use verbose mode for more runtime details." in (normal_output)
+    assert "[ cause  ] Streamlit exited." in normal_output
+    assert "[  next  ] Use verbose mode for more runtime details." in (normal_output)
     assert "Run Streamlit directly." not in normal_output
     assert 'Run "litlaunch inspect" for local diagnostics.' not in normal_output
-    assert normal_output.count("[ Cause  ]") == 1
-    assert normal_output.count("[  Next  ]") == 1
-    assert "[   ok   ] Cause" not in normal_output
-    assert "[   ok   ] Next" not in normal_output
-    assert "Cause:" not in normal_output
-    assert "Next:" not in normal_output
+    assert normal_output.count("[ cause  ]") == 1
+    assert normal_output.count("[  next  ]") == 1
+    assert "[   ok   ] cause" not in normal_output
+    assert "[   ok   ] next" not in normal_output
+    assert "cause:" not in normal_output
+    assert "next:" not in normal_output
     assert "hidden in normal mode" not in normal_output
 
     verbose_stream = StringIO()
@@ -244,8 +244,8 @@ def test_failure_guidance_respects_quiet_normal_and_verbose_modes():
 
     verbose_output = verbose_stream.getvalue()
     assert "Failure detail:" in verbose_output
-    assert "[  Next  ] Run a verbose-only check." in verbose_output
-    assert '[  Next  ] Run "litlaunch inspect" for local diagnostics.' in verbose_output
+    assert "[  next  ] Run a verbose-only check." in verbose_output
+    assert '[  next  ] Run "litlaunch inspect" for local diagnostics.' in verbose_output
     assert "secret-token" not in verbose_output
     assert "[redacted]" in verbose_output
 
@@ -262,8 +262,8 @@ def test_failure_guidance_can_render_warning_level():
 
     output = stream.getvalue()
     assert "[  warn  ] Shutdown: using backend termination fallback." in output
-    assert "[ Cause  ] The backend did not stop through graceful shutdown." in output
-    assert output.count("[  Next  ]") == 1
+    assert "[ cause  ] The backend did not stop through graceful shutdown." in output
+    assert output.count("[  next  ]") == 1
 
 
 def test_failure_guidance_does_not_duplicate_verbose_next_step():
@@ -396,8 +396,8 @@ def test_console_renderer_shutdown_hook_failure_is_redacted():
 
     output = stream.getvalue()
     assert "[ error  ] Hook: Saving [redacted] app state failed." in output
-    assert "[ Cause  ] The shutdown hook raised an exception." in output
-    assert "[  Next  ] Use verbose mode for more runtime details." in output
+    assert "[ cause  ] The shutdown hook raised an exception." in output
+    assert "[  next  ] Use verbose mode for more runtime details." in output
     assert "secret-token" not in output
 
 
@@ -502,8 +502,8 @@ def test_console_renderer_browser_fallback_summary():
 
     output = stream.getvalue()
     assert "[  warn  ] Browser: Microsoft Edge unavailable." in output
-    assert "[  Next  ] Using Chrome app-mode instead." in output
-    assert "[  Next  ] Use --browser to select a different browser." in output
+    assert "[  next  ] Using Chrome app-mode instead." in output
+    assert "[  next  ] Use --browser to select a different browser." in output
     assert "app-mode" in output
     assert "[   ok   ] Using Chrome" not in output
 
@@ -537,7 +537,7 @@ def test_console_renderer_monitor_status_rendering():
     output = stream.getvalue()
     assert "[   ok   ] Monitor: Window closed; requesting shutdown." in output
     assert "Monitor: window monitoring is unavailable." in output
-    assert "[ Cause  ] Unsupported." in output
+    assert "[ cause  ] Unsupported." in output
     assert "Likely cause" not in output
 
 

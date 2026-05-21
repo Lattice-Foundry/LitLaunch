@@ -271,8 +271,8 @@ def test_runtime_session_wait_renders_nonzero_backend_exit_code():
 
     output = stream.getvalue()
     assert "[ error  ] Backend: exited with code 2." in output
-    assert "[ Cause  ] The backend stopped with an error status." in output
-    assert output.count("[  Next  ]") == 1
+    assert "[ cause  ] The backend stopped with an error status." in output
+    assert output.count("[  next  ]") == 1
 
 
 def test_runtime_session_timed_wait_timeout_returns_none_and_keeps_running_state():

@@ -161,7 +161,9 @@ class ConsoleRenderer:
         if self.mode == ConsoleMode.QUIET and level not in {"warning", "error"}:
             return
         label = phase.value if isinstance(phase, ConsolePhase) else str(phase)
-        label_color = hook_orange if label == ConsolePhase.HOOK.value else self.theme.label
+        label_color = (
+            hook_orange if label == ConsolePhase.HOOK.value else self.theme.label
+        )
         label_text = self._style(f"{label}:", label_color)
         message_text = (
             (
@@ -453,10 +455,12 @@ class ConsoleRenderer:
         color_name: str,
         message: str,
     ) -> None:
-        self._emit(
-            f"{self._status_prefix(status, color_name)} "
-            f"{self._format_category_message('Hook', message, category_color=hook_orange)}"
+        hook_message = self._format_category_message(
+            "Hook",
+            message,
+            category_color=hook_orange,
         )
+        self._emit(f"{self._status_prefix(status, color_name)} {hook_message}")
 
     def _with_optional_label_color(self, message: str, color: str | None) -> str:
         if color is None:
@@ -496,7 +500,7 @@ class ConsoleRenderer:
         return redacted
 
     def _guidance_line(self, label: str, message: str) -> None:
-        display_label = "Cause" if label == "Likely cause" else label
+        display_label = "cause" if label == "Likely cause" else label.lower()
         self._emit_status(display_label, self.theme.label, message)
 
 

@@ -227,10 +227,10 @@ messages are app-owned presentation hints; console rendering uses the orange
 `Shutdown:` and `Backend:` lifecycle messages. Hook color metadata is preserved
 on hook results for integrations, but the runtime console keeps hook message text
 unstyled for readability. Hook failures are reported separately from core
-shutdown failures. The optional completion callback runs after the endpoint
-response is sent and is useful when an app needs to schedule its own final exit
-or post-response completion work. Duplicate shutdown requests do not rerun hooks
-or the completion callback.
+shutdown failures. The optional completion callback runs after the endpoint response is sent
+to LitLaunch and is useful when an app needs to schedule its own final exit or
+post-response completion work. Duplicate shutdown requests do not rerun hooks or
+the completion callback.
 
 [screenshot needed]
 Capture: normal `litlaunch run examples/minimal_app/app.py --no-color` output.

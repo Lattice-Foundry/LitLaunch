@@ -9,6 +9,8 @@ from contextlib import contextmanager
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
@@ -336,26 +338,43 @@ def test_cli_parser_builds_and_help_lists_commands():
 
 def test_cli_console_preview_command_exists_and_exits_zero():
     parser = build_parser()
-    args = parser.parse_args(["console-preview", "--no-color"])
-    normal_args = parser.parse_args(["console-preview-norm", "--no-color"])
-    verbose_args = parser.parse_args(["console-preview-verb", "--no-color"])
+    args = parser.parse_args(["console-preview"])
+    all_args = parser.parse_args(["console-preview", "--all"])
+    normal_args = parser.parse_args(["console-preview", "--normal"])
+    verbose_args = parser.parse_args(["console-preview", "--verbose"])
 
     assert args.command == "console-preview"
+    assert args.preview_mode == "all"
     assert callable(args.handler)
-    assert normal_args.command == "console-preview-norm"
+    assert all_args.command == "console-preview"
+    assert all_args.preview_mode == "all"
+    assert callable(all_args.handler)
+    assert normal_args.command == "console-preview"
+    assert normal_args.preview_mode == "normal"
     assert callable(normal_args.handler)
-    assert verbose_args.command == "console-preview-verb"
+    assert verbose_args.command == "console-preview"
+    assert verbose_args.preview_mode == "verbose"
     assert callable(verbose_args.handler)
 
 
-def test_cli_console_preview_outputs_representative_no_color_messages():
+def test_cli_console_preview_removes_obsolete_subcommands_and_local_no_color():
+    parser = build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["console-preview-norm"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["console-preview-verb"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["console-preview", "--no-color"])
+
+
+def test_cli_console_preview_outputs_representative_normal_messages():
     stream = StringIO()
 
-    code = main(["console-preview-norm", "--no-color"], stream=stream)
+    code = main(["console-preview", "--normal"], stream=stream)
 
-    output = stream.getvalue()
+    output = strip_ansi(stream.getvalue())
     assert code == 0
-    assert "\033[" not in output
     assert "== Normal mode ==" in output
     assert "[   ok   ] LitLaunch Starting runtime..." in output
     assert "== Backend ==" in output
@@ -369,8 +388,8 @@ def test_cli_console_preview_outputs_representative_no_color_messages():
     assert "[   ok   ] Browser: opening Microsoft Edge app window..." in output
     assert "[ error  ] Browser: launch failed; stopping backend." in output
     assert "[  warn  ] Browser: Microsoft Edge unavailable." in output
-    assert "[  Next  ] Using Chrome app-mode instead." in output
-    assert "[  Next  ] Use --browser to select a different browser." in output
+    assert "[  next  ] Using Chrome app-mode instead." in output
+    assert "[  next  ] Use --browser to select a different browser." in output
     assert "Runtime: ready at http://127.0.0.1:8501" in output
     assert "[   ok   ] Monitor: watching app window..." in output
     assert "[ error  ] Monitor: window monitoring is unavailable." in output
@@ -390,21 +409,21 @@ def test_cli_console_preview_outputs_representative_no_color_messages():
     assert "Backend: exited with code 1." in output
     assert "exited with code 0" not in output
     assert "Likely cause" not in output
-    assert "[ Cause  ] " in output
-    assert "[  Next  ] " in output
-    assert "[   ok   ] Cause " not in output
-    assert "[   ok   ] Next " not in output
+    assert "[ cause  ] " in output
+    assert "[  next  ] " in output
+    assert "[   ok   ] cause " not in output
+    assert "[   ok   ] next " not in output
     assert "Run the app directly with streamlit run to see the traceback." not in output
-    assert "Cause:" not in output
-    assert "Next:" not in output
+    assert "cause:" not in output
+    assert "next:" not in output
 
 
 def test_cli_console_preview_verbose_keeps_detailed_guidance():
     stream = StringIO()
 
-    code = main(["console-preview-verb", "--no-color"], stream=stream)
+    code = main(["console-preview", "--verbose"], stream=stream)
 
-    output = stream.getvalue()
+    output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "== Verbose mode ==" in output
     assert "Backend PID: 12345" in output
@@ -418,9 +437,9 @@ def test_cli_console_preview_verbose_keeps_detailed_guidance():
 def test_cli_console_preview_all_shows_normal_and_verbose_modes():
     stream = StringIO()
 
-    code = main(["console-preview", "--no-color"], stream=stream)
+    code = main(["console-preview", "--all"], stream=stream)
 
-    output = stream.getvalue()
+    output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "== Normal mode ==" in output
     assert "== Verbose mode ==" in output
@@ -429,29 +448,35 @@ def test_cli_console_preview_all_shows_normal_and_verbose_modes():
 def test_cli_console_preview_status_labels_are_fixed_width():
     stream = StringIO()
 
-    code = main(["console-preview-norm", "--no-color"], stream=stream)
+    code = main(["console-preview", "--normal"], stream=stream)
 
     assert code == 0
-    labels = re.findall(r"^\[[^\]]+\]", stream.getvalue(), flags=re.MULTILINE)
+    labels = re.findall(
+        r"^\[[^\]]+\]",
+        strip_ansi(stream.getvalue()),
+        flags=re.MULTILINE,
+    )
     assert {
         "[   ok   ]",
         "[  warn  ]",
         "[ error  ]",
-        "[ Cause  ]",
-        "[  Next  ]",
+        "[ cause  ]",
+        "[  next  ]",
     } <= set(labels)
     assert {len(label) for label in labels} == {10}
 
 
-def test_cli_console_preview_color_and_no_color_modes():
+def test_cli_console_preview_defaults_to_all_and_respects_no_color_env():
     color_stream = StringIO()
     plain_stream = StringIO()
 
     color_code = main(["console-preview"], stream=color_stream, env={})
-    plain_code = main(["console-preview", "--no-color"], stream=plain_stream, env={})
+    plain_code = main(["console-preview"], stream=plain_stream, env={"NO_COLOR": "1"})
 
     assert color_code == 0
     assert plain_code == 0
+    assert "== Normal mode ==" in strip_ansi(color_stream.getvalue())
+    assert "== Verbose mode ==" in strip_ansi(color_stream.getvalue())
     assert "\033[" in color_stream.getvalue()
     assert "\033[" not in plain_stream.getvalue()
     assert strip_ansi(color_stream.getvalue()) == plain_stream.getvalue()
@@ -464,8 +489,9 @@ def test_cli_console_preview_does_not_call_runtime_factories():
     stream = StringIO()
 
     code = main(
-        ["console-preview", "--no-color"],
+        ["console-preview", "--normal"],
         stream=stream,
+        env={"NO_COLOR": "1"},
         platform_detector_factory=fail_factory,
         browser_registry_factory=fail_factory,
         launcher_factory=fail_factory,
@@ -577,7 +603,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.7b0"
+    assert data["litlaunch_version"] == "0.91.8b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

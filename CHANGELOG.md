@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.8b0
+
+- Formalized `console-preview` as hidden internal developer tooling with
+  `--all`, `--normal`, and `--verbose` preview modes.
+- Moved console preview scenarios into the intentional `litlaunch.cli.preview`
+  module and removed temporary preview command naming.
+- Kept preview tooling out of standard user help and public docs; no runtime
+  behavior changed.
+
 ## 0.91.7b0
 
 - Added a distinct `Hook:` console category for developer-defined shutdown hook
@@ -23,14 +32,14 @@ public API finishes settling.
 ## 0.91.5b0
 
 - Reduced redundant console failure wording in browser launch paths.
-- Split browser fallback output into a concise warning plus structured `Next`
+- Split browser fallback output into a concise warning plus structured `next`
   guidance lines.
 - Kept long-line wrapping conservative and avoided runtime behavior changes.
 
 ## 0.91.4b0
 
-- Made normal-mode failure guidance concise with one summary, one `Cause`, and
-  one `Next` line while preserving deeper diagnostic steps in verbose mode.
+- Made normal-mode failure guidance concise with one summary, one `cause`, and
+  one `next` line while preserving deeper diagnostic steps in verbose mode.
 - Reduced redundant normal-mode browser and shutdown failure messages without
   changing runtime behavior.
 - Moved backend PID detail to verbose output and kept normal progress messages
@@ -45,7 +54,7 @@ public API finishes settling.
   non-zero-exit messages.
 - Added verified port-release console output when LitLaunch can safely confirm
   the configured backend port is available after the owned process stops.
-- Corrected console guidance labels so `Cause` and `Next` occupy the
+- Corrected console guidance labels so `cause` and `next` occupy the
   fixed-width bracket field instead of following an `ok` status label.
 - Tuned beta console warning/error colors toward true yellow and a brighter
   PowerShell-style red.
@@ -54,12 +63,12 @@ public API finishes settling.
 
 - Aligned runtime console phase and guidance lines under fixed-width status
   labels while preserving console behavior and beta color roles.
-- Updated failure guidance labels to bracketed `Cause`/`Next` lines for cleaner
+- Updated failure guidance labels to bracketed `cause`/`next` lines for cleaner
   terminal alignment.
 
 ## 0.91.1b0
 
-- Added a temporary beta `console-preview` developer command for visually
+- Added an internal beta `console-preview` developer command for visually
   reviewing runtime terminal output styles.
 - Polished runtime console status formatting, startup header styling, beta color
   roles, and label/body color separation without changing runtime behavior.

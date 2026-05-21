@@ -3,6 +3,7 @@ from io import StringIO
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.colors import (
     THEME_COLORS,
+    hook_orange,
     is_hex_color,
     muted_amber,
     muted_gray,
@@ -23,6 +24,7 @@ from litlaunch.console import (
     strip_ansi,
 )
 from litlaunch.lifecycle import LaunchEvent, LaunchState
+from litlaunch.shutdown import ShutdownHookResult
 from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
 
 
@@ -33,6 +35,7 @@ def test_named_theme_colors_exist_and_are_hex():
         terminal_green,
         powershell_red,
         muted_amber,
+        hook_orange,
         muted_gray,
         success_green,
     }
@@ -347,13 +350,121 @@ def test_console_renderer_lifecycle_event_rendering():
     assert "[ error  ] Failed." in output
 
 
-def test_console_renderer_has_no_dead_shutdown_hook_render_surface():
+def test_console_renderer_has_shutdown_hook_render_surface():
     renderer = ConsoleRenderer(theme=ConsoleTheme(use_color=False))
 
+    assert hasattr(renderer, "render_shutdown_hook_result")
     assert not hasattr(renderer, "render_shutdown_hook_start")
-    assert not hasattr(renderer, "render_shutdown_hook_result")
     assert not hasattr(renderer, "_render_shutdown_hook_start")
     assert not hasattr(renderer, "_render_shutdown_hook_result")
+
+
+def test_console_renderer_shutdown_hook_result_uses_hook_category():
+    stream = StringIO()
+    renderer = ConsoleRenderer(theme=ConsoleTheme(use_color=False), stream=stream)
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Closing database connections",
+            ok=True,
+            message="Closed database connections",
+            color=success_green,
+        )
+    )
+
+    output = stream.getvalue()
+    assert "[   ok   ] Hook: Closed database connections." in output
+    assert "Shutdown: Closed database connections" not in output
+
+
+def test_console_renderer_shutdown_hook_failure_is_redacted():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+        redacted_values=("secret-token",),
+    )
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Saving app state",
+            ok=False,
+            message="Saving secret-token app state failed",
+            error="secret-token raised",
+        )
+    )
+
+    output = stream.getvalue()
+    assert "[ error  ] Hook: Saving [redacted] app state failed." in output
+    assert "[ Cause  ] The shutdown hook raised an exception." in output
+    assert "[  Next  ] Use verbose mode for more runtime details." in output
+    assert "secret-token" not in output
+
+
+def test_console_renderer_shutdown_hook_color_metadata_does_not_style_message():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=True),
+        stream=stream,
+        env={},
+    )
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Cleanup",
+            ok=True,
+            message="Cleanup complete",
+            color=success_green,
+        )
+    )
+
+    output = stream.getvalue()
+    assert THEME_COLORS[hook_orange].ansi in output
+    assert THEME_COLORS[streamlit_blue].ansi not in output
+    assert strip_ansi(output) == "[   ok   ] Hook: Cleanup complete.\n"
+
+
+def test_console_renderer_shutdown_hook_uses_default_orange_message_color():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=True),
+        stream=stream,
+        env={},
+    )
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Cleanup",
+            ok=True,
+            message="Cleanup complete",
+        )
+    )
+
+    output = stream.getvalue()
+    assert THEME_COLORS[hook_orange].ansi in output
+    assert strip_ansi(output) == "[   ok   ] Hook: Cleanup complete.\n"
+
+
+def test_console_renderer_unknown_hook_color_falls_back_safely():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=True),
+        stream=stream,
+        env={},
+    )
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Cleanup",
+            ok=True,
+            message="Cleanup complete",
+            color="project_custom_color",
+        )
+    )
+
+    output = stream.getvalue()
+    assert "project_custom_color" not in output
+    assert strip_ansi(output) == "[   ok   ] Hook: Cleanup complete.\n"
 
 
 def test_console_renderer_browser_fallback_summary():

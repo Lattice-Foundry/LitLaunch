@@ -13,6 +13,7 @@ streamlit_blue_light = "streamlit_blue_light"
 terminal_green = "terminal_green"
 powershell_red = "powershell_red"
 muted_amber = "muted_amber"
+hook_orange = "hook_orange"
 muted_gray = "muted_gray"
 success_green = "success_green"
 
@@ -62,6 +63,11 @@ THEME_COLORS = MappingProxyType(
             name=muted_amber,
             hex="#F9F1A5",
             ansi="\033[38;2;249;241;165m",
+        ),
+        hook_orange: ThemeColor(
+            name=hook_orange,
+            hex="#F7630C",
+            ansi="\033[38;2;247;99;12m",
         ),
         muted_gray: ThemeColor(
             name=muted_gray,

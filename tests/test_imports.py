@@ -75,6 +75,7 @@ from litlaunch import (
     __version__,
     create_window_monitor,
     get_theme_color,
+    hook_orange,
     is_chromium_window,
     is_hex_color,
     is_theme_color_name,
@@ -142,6 +143,7 @@ def test_public_imports_are_available():
     assert StreamlitCommandBuilder
     assert StreamlitLauncher
     assert THEME_COLORS["streamlit_blue"].hex == "#1c83e1"
+    assert get_theme_color(hook_orange).hex == "#F7630C"
     assert TextDiagnosticsRenderer
     assert ThemeColor
     assert WindowsChromiumWindowMonitor
@@ -240,6 +242,7 @@ def test_public_all_is_explicit():
         "__version__",
         "create_window_monitor",
         "get_theme_color",
+        "hook_orange",
         "is_chromium_window",
         "is_hex_color",
         "is_theme_color_name",
@@ -251,8 +254,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.91.6b0"
-    assert __version__ == "0.91.6b0"
+    assert litlaunch.__version__ == "0.91.7b0"
+    assert __version__ == "0.91.7b0"
     assert re.fullmatch(r"\d+\.\d+\.\d+(?:b\d+)?", litlaunch.__version__)
 
 

@@ -6,9 +6,11 @@ import argparse
 
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.cli.common import CliContext
+from litlaunch.colors import streamlit_blue, success_green
 from litlaunch.config import BrowserChoice
 from litlaunch.console import ConsoleMode, ConsolePhase, ConsoleRenderer, ConsoleTheme
 from litlaunch.lifecycle import LaunchEvent, LaunchState
+from litlaunch.shutdown import ShutdownHookResult
 from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
 
 EXAMPLE_URL = "http://127.0.0.1:8501"
@@ -193,6 +195,25 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     _section(console, "Shutdown")
     console.phase_start(ConsolePhase.SHUTDOWN, "requested")
     console.phase_start(ConsolePhase.SHUTDOWN, "requesting app cleanup")
+    console.phase_start(ConsolePhase.HOOK, "closing database connections")
+    console.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Closing database connections",
+            ok=True,
+            message="Closed database connections",
+            color=success_green,
+        )
+    )
+    console.phase_start(ConsolePhase.HOOK, "saving app state")
+    console.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Saving app state",
+            ok=False,
+            message="Saving app state failed",
+            error="disk write failed",
+            color=streamlit_blue,
+        )
+    )
     console.phase_success(ConsolePhase.SHUTDOWN, "app cleanup request accepted")
     if console.mode == ConsoleMode.VERBOSE:
         console.phase_warning(

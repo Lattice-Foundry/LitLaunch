@@ -141,10 +141,15 @@ fallback.
 
 App code can register cleanup hooks with `LauncherRuntime`. Apps that need a
 post-response completion phase can also register a shutdown completion callback.
-The endpoint runs hooks, sends the HTTP response to LitLaunch, and then schedules
-the app-provided completion callback. Hooks and completion callbacks are
-idempotent for a single shutdown request sequence; duplicate shutdown requests
-return the stored result and do not rerun cleanup.
+Hook labels and messages are developer-defined presentation hints. Console
+output for those callbacks uses the orange `Hook:` category, not `Shutdown:` or
+`Backend:`, so app cleanup remains visually distinct from LitLaunch-owned
+lifecycle mechanics. Hook color metadata is preserved on hook results for
+integrations, while runtime console message text remains unstyled for
+readability. The endpoint runs hooks, sends the HTTP response to LitLaunch, and
+then schedules the app-provided completion callback. Hooks and completion
+callbacks are idempotent for a single shutdown request sequence; duplicate
+shutdown requests return the stored result and do not rerun cleanup.
 
 ## Browser Flow
 

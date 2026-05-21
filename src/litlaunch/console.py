@@ -13,6 +13,7 @@ from typing import ClassVar, TextIO
 from litlaunch.browsers import BrowserResolution
 from litlaunch.colors import (
     THEME_COLORS,
+    hook_orange,
     muted_amber,
     muted_gray,
     powershell_red,
@@ -21,6 +22,7 @@ from litlaunch.colors import (
     terminal_green,
 )
 from litlaunch.lifecycle import LaunchEvent, LaunchState
+from litlaunch.shutdown import ShutdownHookResult
 from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
 
 ANSI_PATTERN = re.compile(r"\033\[[0-9;]*m")
@@ -64,6 +66,7 @@ CONSOLE_CATEGORY_LABELS = frozenset(
         "Runtime",
         "Backend",
         "Health",
+        "Hook",
         "Browser",
         "Monitor",
         "Shutdown",
@@ -158,7 +161,8 @@ class ConsoleRenderer:
         if self.mode == ConsoleMode.QUIET and level not in {"warning", "error"}:
             return
         label = phase.value if isinstance(phase, ConsolePhase) else str(phase)
-        label_text = self._style(f"{label}:", self.theme.label)
+        label_color = hook_orange if label == ConsolePhase.HOOK.value else self.theme.label
+        label_text = self._style(f"{label}:", label_color)
         message_text = (
             (
                 f"{_strip_sentence_punctuation(message)} "
@@ -341,6 +345,27 @@ class ConsoleRenderer:
         else:
             self.phase(ConsolePhase.MONITOR, result.message)
 
+    def render_shutdown_hook_result(self, result: ShutdownHookResult) -> None:
+        """Render one developer-defined shutdown hook result."""
+
+        message = result.message or result.label
+        if result.ok:
+            if self.mode == ConsoleMode.QUIET:
+                return
+            self._emit_hook_status("ok", self.theme.success, message)
+            return
+
+        self._emit_hook_status("error", self.theme.error, message)
+        if self.mode == ConsoleMode.QUIET:
+            return
+        self._guidance_line("Likely cause", "The shutdown hook raised an exception.")
+        if self.mode == ConsoleMode.NORMAL:
+            self._guidance_line("Next", "Use verbose mode for more runtime details.")
+            return
+        self._guidance_line("Next", "Inspect the hook implementation.")
+        if result.error:
+            self.detail(f"Failure detail: {result.error}")
+
     def success(self, message: str) -> None:
         """Render a success message."""
 
@@ -422,6 +447,17 @@ class ConsoleRenderer:
             f"{_ensure_terminal_punctuation(message)}"
         )
 
+    def _emit_hook_status(
+        self,
+        status: str,
+        color_name: str,
+        message: str,
+    ) -> None:
+        self._emit(
+            f"{self._status_prefix(status, color_name)} "
+            f"{self._format_category_message('Hook', message, category_color=hook_orange)}"
+        )
+
     def _with_optional_label_color(self, message: str, color: str | None) -> str:
         if color is None:
             return message
@@ -436,7 +472,22 @@ class ConsoleRenderer:
         label, separator, rest = message.partition(":")
         if not separator or label not in CONSOLE_CATEGORY_LABELS:
             return message
-        return f"{self._style(label + separator, self.theme.label)}{rest}"
+        color = hook_orange if label == "Hook" else self.theme.label
+        return f"{self._style(label + separator, color)}{rest}"
+
+    def _format_category_message(
+        self,
+        category: str,
+        message: str,
+        *,
+        category_color: str | None = None,
+        message_color: str | None = None,
+    ) -> str:
+        category_text = self._style(f"{category}:", category_color or self.theme.label)
+        message_text = _ensure_terminal_punctuation(message)
+        if message_color is not None:
+            message_text = self._style(message_text, message_color)
+        return f"{category_text} {message_text}"
 
     def _redact(self, text: str) -> str:
         redacted = text
@@ -501,6 +552,8 @@ def _punctuate_phase_message(message: str) -> str:
             "starting ",
             "waiting ",
             "watching ",
+            "closing ",
+            "saving ",
         )
     ):
         return f"{_strip_sentence_punctuation(stripped)}..."

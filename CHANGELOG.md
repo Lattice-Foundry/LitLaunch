@@ -3,6 +3,14 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.7b0
+
+- Added a distinct `Hook:` console category for developer-defined shutdown hook
+  output.
+- Verified shutdown hook label/message/color metadata rendering without changing
+  shutdown execution semantics.
+- Added console preview examples for successful and failed developer cleanup hooks.
+
 ## 0.91.6b0
 
 - Normalized runtime console category labels around Runtime, Backend, Health,

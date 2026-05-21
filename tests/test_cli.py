@@ -381,6 +381,10 @@ def test_cli_console_preview_outputs_representative_no_color_messages():
     assert "Runtime launch failed." not in output
     assert "Window monitoring failed." not in output
     assert "Window monitoring is unavailable." not in output
+    assert "[   ok   ] Hook: closing database connections..." in output
+    assert "[   ok   ] Hook: Closed database connections." in output
+    assert "[   ok   ] Hook: saving app state..." in output
+    assert "[ error  ] Hook: Saving app state failed." in output
     assert "Shutdown: using backend termination fallback." in output
     assert "[   ok   ] Backend: port 8501 released." in output
     assert "Backend: exited with code 1." in output
@@ -408,6 +412,7 @@ def test_cli_console_preview_verbose_keeps_detailed_guidance():
     assert 'Run "litlaunch inspect" for local diagnostics.' in output
     assert "Stopping backend:" not in output
     assert "[  warn  ] Backend: terminating owned process." in output
+    assert "- Failure detail: disk write failed" in output
 
 
 def test_cli_console_preview_all_shows_normal_and_verbose_modes():
@@ -572,7 +577,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.6b0"
+    assert data["litlaunch_version"] == "0.91.7b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1129,14 +1134,15 @@ def test_cli_run_dry_run_prints_command_without_starting_backend():
 
     launcher = FakeLauncher.instances[0]
     output = stream.getvalue()
+    plain_output = strip_ansi(output)
     assert code == 0
     assert launcher.run_calls == 0
     assert launcher.config.streamlit_args == ("--server.runOnSave", "true")
     assert launcher.config.app_args == ("--workspace", "demo")
-    assert "Runtime: dry run; backend and browser were not started." in output
-    assert "Runtime: app URL: http://127.0.0.1:8600" in output
-    assert "Runtime: mode: browser" in output
-    assert "Browser: Selected default browser." in output
+    assert "Runtime: dry run; backend and browser were not started." in plain_output
+    assert "Runtime: app URL: http://127.0.0.1:8600" in plain_output
+    assert "Runtime: mode: browser" in plain_output
+    assert "Browser: Selected default browser." in plain_output
     assert "--server.runOnSave true -- --workspace demo" in output
 
 
@@ -1227,7 +1233,9 @@ def test_cli_run_keyboard_interrupt_stops_session():
 
     assert code == 0
     assert session.stop_calls == 1
-    assert "Runtime: interrupt received; stopping runtime." in stream.getvalue()
+    assert "Runtime: interrupt received; stopping runtime." in strip_ansi(
+        stream.getvalue()
+    )
 
 
 def test_cli_run_monitor_window_requires_webapp_mode():
@@ -1462,7 +1470,7 @@ def test_cli_run_monitor_window_noop_monitor_fails_before_launch():
 
     assert code == 1
     assert FakeLauncher.instances[0].run_calls == 0
-    assert "Monitor: window monitoring is unavailable" in stream.getvalue()
+    assert "Monitor: window monitoring is unavailable" in strip_ansi(stream.getvalue())
     assert "Use verbose mode for more runtime details." in stream.getvalue()
     assert "Omit --monitor-window" not in stream.getvalue()
 

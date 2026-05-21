@@ -17,6 +17,7 @@ from litlaunch.colors import (
     THEME_COLORS,
     ThemeColor,
     get_theme_color,
+    hook_orange,
     is_hex_color,
     is_theme_color_name,
 )
@@ -107,6 +108,7 @@ __all__ = [
     "ConsoleRenderer",
     "ConsoleTheme",
     "get_theme_color",
+    "hook_orange",
     "HealthChecker",
     "DiagnosticCollector",
     "DiagnosticItem",

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,6 +9,7 @@ from typing import TextIO
 
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
+from litlaunch.profile_detection import detect_app_root
 from litlaunch.profile_writer import ProfileWriteResult, write_litlaunch_profile
 from litlaunch.profiles import LaunchProfile, load_profiles
 from litlaunch.windowing import WindowMonitorConfig
@@ -39,9 +39,9 @@ def run_profile_wizard(
 
     if input_func is None:
         input_func = input
-    cwd = Path.cwd()
+    detection = detect_app_root()
     config_path = (
-        Path(options.config_path) if options.config_path else cwd / "litlaunch.toml"
+        Path(options.config_path) if options.config_path else detection.config_path
     )
     _write(stream, "LitLaunch create profile")
     _write(stream, "")
@@ -56,24 +56,23 @@ def run_profile_wizard(
         _write(stream, "Advanced mode is not implemented yet.")
         return None
 
-    existing = load_profiles(config_path) if config_path.is_file() else {}
     profile_name = _ask_profile_name(
         stream,
         input_func,
-        default=options.name or _slugify(cwd.name) or "my-webapp",
-        existing_names=set(existing),
+        default=options.name or detection.suggested_profile_name,
+        existing_names=_existing_profile_names(config_path, detection),
         force=options.force,
     )
     app_path = _ask_app_path(
         stream,
         input_func,
-        default=Path(options.app_path) if options.app_path else _detect_app_path(cwd),
+        default=Path(options.app_path) if options.app_path else detection.app_path,
     )
     title = _ask(
         stream,
         input_func,
         "App title",
-        default=_title_from_folder(cwd.name),
+        default=detection.suggested_title,
         validator=_nonempty,
     )
     launch_experience = _choose(
@@ -192,6 +191,14 @@ def _ask_profile_name(
         return value
 
 
+def _existing_profile_names(config_path: Path, detection) -> set[str]:
+    if config_path == detection.config_path:
+        return set(detection.existing_profile_names)
+    if not config_path.is_file():
+        return set()
+    return set(load_profiles(config_path))
+
+
 def _ask_app_path(
     stream: TextIO,
     input_func: InputFunc,
@@ -298,24 +305,6 @@ def _preview_profile(
     _write(stream, "Port: auto")
     _write(stream, "Browser fallback: enabled")
     _write(stream, "")
-
-
-def _detect_app_path(cwd: Path) -> Path | None:
-    for name in ("app.py", "streamlit_app.py", "main.py"):
-        path = cwd / name
-        if path.is_file():
-            return Path(name)
-    return None
-
-
-def _slugify(value: str) -> str:
-    slug = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip().lower()).strip("-")
-    return slug or "my-webapp"
-
-
-def _title_from_folder(value: str) -> str:
-    cleaned = re.sub(r"[_-]+", " ", value).strip()
-    return cleaned.title() if cleaned else "My App"
 
 
 def _nonempty(value: str) -> str:

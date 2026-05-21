@@ -3,6 +3,14 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.19b0
+
+- Added reusable app-root detection for profile creation defaults.
+- Improved `litlaunch create profile` Simple mode defaults for app path,
+  profile name, title, config path, and existing profile collision awareness.
+- Preserved the full interactive wizard flow while making app-root profile
+  creation faster and more transparent.
+
 ## 0.91.18b0
 
 - Added the `litlaunch create profile` command namespace with an interactive

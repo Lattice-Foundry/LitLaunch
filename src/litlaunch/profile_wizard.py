@@ -14,6 +14,7 @@ from litlaunch.colors import (
 )
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
+from litlaunch.exposure import classify_host_exposure
 from litlaunch.platforms import PlatformInfo
 from litlaunch.profile_detection import AppRootDetection, detect_app_root
 from litlaunch.profile_writer import ProfileWriteResult, write_litlaunch_profile
@@ -71,6 +72,7 @@ class _WizardState:
     auto_port: bool = True
     headless: bool | None = None
     allow_browser_fallback: bool = True
+    allow_network_exposure: bool = False
     cwd: Path | None = None
     streamlit_flags: dict[str, str | int | float | bool | None] = field(
         default_factory=dict
@@ -346,6 +348,25 @@ def _step_host(state: _WizardState, io: _WizardIo) -> None:
             _write(io.stream, f"Invalid host: {exc}")
             continue
         state.host = value
+        exposure = classify_host_exposure(value)
+        if exposure.exposed:
+            _write_warning_status(io.stream, exposure.warning or "")
+            state.allow_network_exposure = _ask_bool(
+                io,
+                "Acknowledge network exposure for this profile",
+                default=False,
+            )
+            if not state.allow_network_exposure:
+                _write(
+                    io.stream,
+                    (
+                        "Use a loopback host such as 127.0.0.1 unless exposure "
+                        "is intentional."
+                    ),
+                )
+                continue
+        else:
+            state.allow_network_exposure = False
         return
 
 
@@ -528,6 +549,10 @@ def _step_cwd(state: _WizardState, io: _WizardIo) -> None:
 
 
 def _step_extra_env(state: _WizardState, io: _WizardIo) -> None:
+    _write_warning_status(
+        io.stream,
+        "Extra environment values are stored as plaintext in litlaunch.toml.",
+    )
     state.extra_env = {
         key: str(value)
         for key, value in _ask_mapping(
@@ -583,6 +608,7 @@ def _build_profile(state: _WizardState) -> LaunchProfile:
         auto_port=state.auto_port,
         headless=state.headless,
         allow_browser_fallback=state.allow_browser_fallback,
+        allow_network_exposure=state.allow_network_exposure,
         cwd=state.cwd,
         extra_env=state.extra_env,
         streamlit_flags=state.streamlit_flags,
@@ -877,6 +903,8 @@ def _current_data_values(state: _WizardState) -> tuple[tuple[str, str], ...]:
         values.append(("Auto-port", "enabled" if state.auto_port else "disabled"))
         fallback = "enabled" if state.allow_browser_fallback else "disabled"
         values.append(("Browser fallback", fallback))
+        if state.allow_network_exposure:
+            values.append(("Network exposure", "acknowledged"))
         if state.headless is not None:
             values.append(("Headless", str(state.headless).lower()))
         if state.cwd is not None:
@@ -936,6 +964,8 @@ def _preview_profile(
     _write(stream, f"Auto-port: {auto_port}")
     fallback = "enabled" if profile.config.allow_browser_fallback else "disabled"
     _write(stream, f"Browser fallback: {fallback}")
+    if profile.config.allow_network_exposure:
+        _write(stream, "Network exposure: acknowledged")
     if profile.config.headless is not None:
         _write(stream, f"Headless: {str(profile.config.headless).lower()}")
     if profile.config.cwd is not None:

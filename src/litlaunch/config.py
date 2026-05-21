@@ -48,6 +48,7 @@ class LauncherConfig:
     auto_port: bool = True
     headless: bool | None = None
     allow_browser_fallback: bool = True
+    allow_network_exposure: bool = False
     cwd: str | Path | None = None
     extra_env: Mapping[str, str] = field(default_factory=dict)
     streamlit_flags: StreamlitFlags = field(default_factory=dict)
@@ -91,6 +92,9 @@ class LauncherConfig:
         object.__setattr__(self, "auto_port", auto_port)
         object.__setattr__(
             self, "allow_browser_fallback", bool(self.allow_browser_fallback)
+        )
+        object.__setattr__(
+            self, "allow_network_exposure", bool(self.allow_network_exposure)
         )
         object.__setattr__(self, "cwd", cwd)
         object.__setattr__(self, "extra_env", extra_env)

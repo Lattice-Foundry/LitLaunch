@@ -145,7 +145,17 @@ def _join_posix(parts: tuple[str, ...]) -> str:
 
 
 def _quote_windows(value: str) -> str:
-    escaped = value.replace('"', r"\"")
+    escaped = value
+    for raw, replacement in (
+        ("^", "^^"),
+        ("%", "%%"),
+        ('"', '^"'),
+        ("&", "^&"),
+        ("<", "^<"),
+        (">", "^>"),
+        ("|", "^|"),
+    ):
+        escaped = escaped.replace(raw, replacement)
     return f'"{escaped}"'
 
 

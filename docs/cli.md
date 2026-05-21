@@ -78,6 +78,7 @@ litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
 litlaunch run app.py --port 8501 --host 127.0.0.1
 litlaunch run app.py --port 8501 --no-auto-port
+litlaunch run app.py --host 0.0.0.0 --allow-network-exposure
 litlaunch run app.py --no-browser-fallback
 litlaunch run app.py --dry-run
 litlaunch run --profile my-webapp
@@ -143,6 +144,13 @@ Prefer explicit LitLaunch flags such as `--host`, `--port`, `--no-auto-port`,
 and `--mode` for LitLaunch-owned behavior. Raw Streamlit passthrough remains an
 escape hatch and may duplicate those values if callers provide overlapping
 Streamlit config flags manually.
+
+`127.0.0.1` is the default localhost-only host. Non-loopback hosts such as
+`0.0.0.0`, `::`, LAN IPs, or internal hostnames may expose the app beyond this
+machine depending on routing and firewall configuration. LitLaunch requires
+`--allow-network-exposure` or `allow_network_exposure = true` in a profile
+before launching with those bindings. LitLaunch does not add authentication or
+otherwise secure Streamlit applications.
 
 ## Command Preview
 
@@ -239,6 +247,7 @@ port = 8501
 auto_port = false
 headless = true
 allow_browser_fallback = false
+allow_network_exposure = false
 graceful_timeout = 15
 
 [profiles.my-webapp.window_monitor]
@@ -278,6 +287,8 @@ Simple mode defaults to the recommended app-window experience, while still
 allowing browser-tab profiles. Advanced mode exposes the fuller runtime profile
 surface, including network settings, browser fallback, monitor tuning,
 Streamlit flags, app args, working directory, and extra environment variables.
+Non-loopback hosts are called out during the wizard, and `extra_env` values are
+stored as plaintext in `litlaunch.toml`.
 When run from an app root, the wizard uses detected values such as `app.py`, the
 project folder name, and an existing `litlaunch.toml` as visible prompt
 defaults. Users still confirm or change each value before anything is written.

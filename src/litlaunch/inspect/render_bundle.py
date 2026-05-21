@@ -11,8 +11,10 @@ class SanitizedBundleRenderer:
     """Render a concise copyable support bundle."""
 
     SANITIZATION_NOTE = (
-        "This report is sanitized and does not include raw environment variables "
-        "or shutdown tokens."
+        "This report is sanitized with pattern-based redaction and avoids raw "
+        "environment dumps, raw environment variables, and shutdown tokens. "
+        "Review it before sharing; encoded, URL-wrapped, reformatted, or "
+        "app-specific secrets may not always be detected."
     )
 
     def __init__(self, *, include_details: bool = True) -> None:

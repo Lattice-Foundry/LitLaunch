@@ -90,6 +90,15 @@ def add_runtime_flags(
         help="Disable browser fallback when the requested browser is unavailable.",
     )
     parser.add_argument(
+        "--allow-network-exposure",
+        action="store_true",
+        default=None,
+        help=(
+            "Acknowledge that a non-loopback host may expose the app beyond "
+            "this machine."
+        ),
+    )
+    parser.add_argument(
         "--streamlit-flag",
         action="append",
         default=[],
@@ -168,6 +177,12 @@ def runtime_config_from_args(
             profile_config,
             "allow_browser_fallback",
             True,
+        ),
+        allow_network_exposure=profile_value(
+            args.allow_network_exposure,
+            profile_config,
+            "allow_network_exposure",
+            False,
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
         extra_env=profile_config.extra_env if profile_config is not None else {},

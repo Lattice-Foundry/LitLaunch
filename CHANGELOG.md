@@ -3,6 +3,17 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.25b0
+
+- Added explicit non-loopback host exposure detection, launch warnings, and
+  acknowledgement support through CLI/profile/env paths.
+- Surfaced host-binding exposure posture in diagnostics and strengthened
+  support-bundle privacy wording.
+- Hardened profile TOML escaping, validation-before-write, atomic profile file
+  replacement, and Windows shortcut batch quoting.
+- Added concise security/trust-boundary documentation without changing runtime
+  ownership behavior.
+
 ## 0.91.24b0
 
 - Added focused automated coverage for the profile wizard and LitLaunch profile

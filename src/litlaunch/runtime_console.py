@@ -10,6 +10,7 @@ from __future__ import annotations
 from litlaunch.browsers import BrowserResolution
 from litlaunch.config import LauncherConfig
 from litlaunch.console import ConsolePhase, ConsoleRenderer
+from litlaunch.exposure import HostExposure
 from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.windowing import WindowMonitorResult
 
@@ -25,6 +26,25 @@ def render_runtime_header(
     renderer.runtime_start("Starting runtime")
     renderer.detail(f"App: {config.title}")
     renderer.detail(f"Mode: {config.mode.value}")
+
+
+def render_network_exposure_warning(
+    renderer: ConsoleRenderer | None,
+    exposure: HostExposure,
+) -> None:
+    """Render an honest warning for non-loopback host binding."""
+
+    if renderer is None or exposure.warning is None:
+        return
+    renderer.failure_guidance(
+        "Runtime: network exposure requested.",
+        likely_cause=exposure.warning,
+        next_steps=(
+            "Use --host 127.0.0.1 for localhost-only development.",
+            ("Use --allow-network-exposure only when this binding is intentional."),
+        ),
+        level="warning",
+    )
 
 
 def render_detail(renderer: ConsoleRenderer | None, message: str) -> None:

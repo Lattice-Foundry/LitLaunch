@@ -35,6 +35,7 @@ CONFIG_FIELDS = {
     "auto_port",
     "headless",
     "allow_browser_fallback",
+    "allow_network_exposure",
     "cwd",
     "extra_env",
     "streamlit_flags",

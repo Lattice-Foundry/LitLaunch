@@ -8,6 +8,7 @@ from pathlib import Path
 from litlaunch.browsers import BrowserCapability, BrowserResolution
 from litlaunch.browsers.registry import BrowserRegistry, create_default_browser_registry
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, StreamlitFlags
+from litlaunch.exposure import classify_host_exposure
 from litlaunch.inspect.models import (
     DiagnosticItem,
     DiagnosticSection,
@@ -50,6 +51,7 @@ class DiagnosticCollector:
         port: int | None = None,
         auto_port: bool = True,
         allow_browser_fallback: bool = True,
+        allow_network_exposure: bool = False,
         cwd: str | Path | None = None,
         extra_env: Mapping[str, str] | None = None,
         streamlit_flags: StreamlitFlags | None = None,
@@ -97,6 +99,7 @@ class DiagnosticCollector:
                     port=port,
                     auto_port=auto_port,
                     allow_browser_fallback=allow_browser_fallback,
+                    allow_network_exposure=allow_network_exposure,
                     cwd=cwd,
                     extra_env=extra_env or {},
                     streamlit_flags=streamlit_flags or {},
@@ -273,6 +276,7 @@ class DiagnosticCollector:
         port: int | None,
         auto_port: bool,
         allow_browser_fallback: bool,
+        allow_network_exposure: bool,
         cwd: str | Path | None,
         extra_env: Mapping[str, str],
         streamlit_flags: StreamlitFlags,
@@ -319,6 +323,7 @@ class DiagnosticCollector:
                 port=port,
                 auto_port=auto_port,
                 allow_browser_fallback=allow_browser_fallback,
+                allow_network_exposure=allow_network_exposure,
                 cwd=cwd,
                 extra_env=extra_env,
                 streamlit_flags=streamlit_flags,
@@ -339,6 +344,7 @@ class DiagnosticCollector:
 
         items.extend(
             (
+                _host_binding_item(plan.host, config.allow_network_exposure),
                 DiagnosticItem(
                     "Command preview",
                     DiagnosticStatus.OK,
@@ -390,6 +396,33 @@ def _capability_status(supported: bool) -> DiagnosticStatus:
 
 def _supported_message(supported: bool) -> str:
     return "supported" if supported else "not supported"
+
+
+def _host_binding_item(host: str, allow_network_exposure: bool) -> DiagnosticItem:
+    exposure = classify_host_exposure(host)
+    if exposure.is_loopback:
+        return DiagnosticItem(
+            "Host binding",
+            DiagnosticStatus.OK,
+            f"{host} (loopback-only)",
+        )
+    detail = (
+        "Explicitly acknowledged for this profile or command."
+        if allow_network_exposure
+        else "Launch requires --allow-network-exposure or profile acknowledgement."
+    )
+    return DiagnosticItem(
+        "Host binding",
+        DiagnosticStatus.WARNING,
+        (
+            f"{host} may be reachable beyond this machine. "
+            "LitLaunch does not secure Streamlit."
+        ),
+        detail=(
+            "LitLaunch does not secure Streamlit applications. "
+            f"{exposure.warning} {detail}"
+        ),
+    )
 
 
 def _normalize_launch_mode(value: LaunchMode | str) -> LaunchMode:

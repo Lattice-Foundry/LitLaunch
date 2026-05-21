@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from litlaunch import profile_writer
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.profile_writer import write_litlaunch_profile
@@ -108,3 +109,47 @@ def test_profile_writer_preserves_other_profiles(tmp_path: Path):
 
     assert load_profile("web", config_path).name == "web"
     assert load_profile("browser", config_path).name == "browser"
+
+
+def test_profile_writer_escapes_control_characters_and_quotes(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(
+            app_path=app,
+            title='Line 1\nLine "2"\tTabbed\\Path',
+            extra_env={"TOKEN": "first\r\nsecond"},
+            allow_network_exposure=True,
+        ),
+    )
+    config_path = tmp_path / "litlaunch.toml"
+
+    result = write_litlaunch_profile(profile, config_path)
+    loaded = load_profile("web", config_path)
+
+    assert '\\nLine \\"2\\"\\tTabbed\\\\Path' in result.toml
+    assert "first\\r\\nsecond" in result.toml
+    assert "allow_network_exposure = true" in result.toml
+    assert loaded.config.title == 'Line 1\nLine "2"\tTabbed\\Path'
+    assert loaded.config.extra_env["TOKEN"] == "first\r\nsecond"
+    assert loaded.config.allow_network_exposure is True
+
+
+def test_profile_writer_keeps_existing_file_when_atomic_write_fails(
+    tmp_path: Path,
+    monkeypatch,
+):
+    config_path = tmp_path / "litlaunch.toml"
+    write_litlaunch_profile(make_profile(tmp_path, "web"), config_path)
+    original = config_path.read_text(encoding="utf-8")
+
+    def fail_write(path: Path, content: str) -> None:
+        raise OSError("simulated write failure")
+
+    monkeypatch.setattr(profile_writer, "_atomic_write_text", fail_write)
+
+    with pytest.raises(OSError, match="simulated write failure"):
+        write_litlaunch_profile(make_profile(tmp_path, "other"), config_path)
+
+    assert config_path.read_text(encoding="utf-8") == original

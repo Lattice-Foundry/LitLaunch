@@ -66,6 +66,7 @@ _LAUNCH_OPTION_NAMES = frozenset(
         "--monitor-poll-interval",
         "--monitor-stable-polls",
         "--no-browser-fallback",
+        "--allow-network-exposure",
         "--streamlit-flag",
         "--app-arg",
     }

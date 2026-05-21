@@ -97,6 +97,7 @@ def test_profile_wizard_advanced_mode_writes_profile(
             "",
             "chrome",
             "0.0.0.0",
+            "y",
             "8502",
             "n",
             "n",

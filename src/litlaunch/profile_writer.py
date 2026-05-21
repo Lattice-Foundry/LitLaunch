@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from collections.abc import Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -52,12 +54,11 @@ def write_litlaunch_profile(
         )
     profiles = {**existing_profiles, profile.name: profile}
     toml = render_litlaunch_profiles_toml(profiles, base_dir=config_path.parent)
+    _validate_rendered_profile(profile.name, toml, config_path)
     if not dry_run:
         config_path.parent.mkdir(parents=True, exist_ok=True)
-        config_path.write_text(toml, encoding="utf-8")
+        _atomic_write_text(config_path, toml)
         load_profile(profile.name, config_path)
-    else:
-        _validate_rendered_profile(profile.name, toml, config_path)
     return ProfileWriteResult(path=config_path, toml=toml, profile=profile)
 
 
@@ -117,6 +118,10 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
         lines.append(
             f"allow_browser_fallback = {_toml_bool(config.allow_browser_fallback)}"
         )
+    if config.allow_network_exposure is not False:
+        lines.append(
+            f"allow_network_exposure = {_toml_bool(config.allow_network_exposure)}"
+        )
     if config.cwd is not None:
         lines.append(f"cwd = {_toml_string(_display_path(config.cwd, base_dir))}")
     if config.streamlit_args:
@@ -160,6 +165,27 @@ def _validate_rendered_profile(name: str, toml: str, path: Path) -> None:
         load_profile(name, preview_path)
 
 
+def _atomic_write_text(path: Path, content: str) -> None:
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as file:
+            temporary_path = Path(file.name)
+            file.write(content)
+        temporary_path.replace(path)
+    except Exception:
+        if temporary_path is not None:
+            with suppress(OSError):
+                temporary_path.unlink(missing_ok=True)
+        raise
+
+
 def _display_path(path: Path, base_dir: Path) -> str:
     try:
         return os.path.relpath(path, base_dir)
@@ -192,5 +218,21 @@ def _toml_bool(value: bool) -> str:
 
 
 def _toml_string(value: str) -> str:
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    escaped = "".join(_toml_escape_char(char) for char in value)
     return f'"{escaped}"'
+
+
+def _toml_escape_char(char: str) -> str:
+    if char == "\\":
+        return "\\\\"
+    if char == '"':
+        return '\\"'
+    if char == "\n":
+        return "\\n"
+    if char == "\r":
+        return "\\r"
+    if char == "\t":
+        return "\\t"
+    if ord(char) < 0x20:
+        return f"\\u{ord(char):04x}"
+    return char

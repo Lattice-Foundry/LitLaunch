@@ -16,6 +16,11 @@ from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResoluti
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.console import ConsolePhase, ConsoleRenderer
+from litlaunch.exceptions import LitLaunchError
+from litlaunch.exposure import (
+    classify_host_exposure,
+    network_exposure_acknowledged,
+)
 from litlaunch.health import (
     HealthChecker,
     build_streamlit_app_url,
@@ -28,6 +33,7 @@ from litlaunch.process import ProcessManager
 from litlaunch.runtime_console import (
     render_browser_resolution,
     render_failure_guidance,
+    render_network_exposure_warning,
     render_phase_start,
     render_phase_success,
     render_runtime_header,
@@ -137,6 +143,7 @@ class StreamlitLauncher:
         """Start the Streamlit backend without launching a browser."""
 
         render_runtime_header(self.console_renderer, self.config)
+        self._enforce_network_exposure_acknowledgement()
         backend_start = self._start_backend(
             wait_for_health=wait_for_health,
             health_timeout_seconds=health_timeout_seconds,
@@ -166,6 +173,7 @@ class StreamlitLauncher:
         """
 
         render_runtime_header(self.console_renderer, self.config)
+        self._enforce_network_exposure_acknowledgement()
         backend_start = self._start_backend(
             wait_for_health=True,
             health_timeout_seconds=health_timeout_seconds,
@@ -390,6 +398,21 @@ class StreamlitLauncher:
             return
         if released:
             self.console_renderer.success(f"Backend: port {port} released")
+
+    def _enforce_network_exposure_acknowledgement(self) -> None:
+        exposure = classify_host_exposure(self.config.host)
+        if not exposure.exposed:
+            return
+        render_network_exposure_warning(self.console_renderer, exposure)
+        if network_exposure_acknowledged(
+            allow_network_exposure=self.config.allow_network_exposure
+        ):
+            return
+        raise LitLaunchError(
+            "Network exposure requires explicit acknowledgement. "
+            "Use --allow-network-exposure, set allow_network_exposure=true in "
+            "the profile, or bind to 127.0.0.1 for localhost-only use."
+        )
 
 
 def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:

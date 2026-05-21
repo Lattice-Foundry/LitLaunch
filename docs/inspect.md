@@ -39,6 +39,7 @@ launch Streamlit, or open a browser.
 With a target app, the report adds:
 
 - app path existence
+- host binding and network exposure posture
 - command preview
 - app URL preview
 - health URL preview
@@ -65,6 +66,9 @@ litlaunch inspect app.py --bundle --output litlaunch-report.txt
 ```
 
 The support bundle is concise and copyable for issues or support requests.
+It carries the same privacy warning as the HTML report: sanitization is
+pattern-based, avoids raw environment dumps, and still requires manual review
+before sharing.
 
 ## Sanitization
 

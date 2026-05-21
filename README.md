@@ -33,9 +33,12 @@ LitLaunch is infrastructure, not magic orchestration.
 - Runtime dependencies remain stdlib-first; Python 3.10 uses the lightweight
   `tomli` backport for TOML profile loading.
 - Diagnostics are sanitized and avoid raw environment dumps.
+- Localhost is the default. Non-loopback host bindings require explicit
+  acknowledgement because LitLaunch does not secure Streamlit itself.
 
 See [docs/philosophy.md](docs/philosophy.md) and
-[docs/architecture.md](docs/architecture.md) for the full ownership model.
+[docs/architecture.md](docs/architecture.md) for the full ownership model, and
+[docs/security.md](docs/security.md) for trust boundaries.
 
 ## Install
 
@@ -282,6 +285,7 @@ litlaunch command app.py --server.runOnSave true -- --workspace demo
 litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
 litlaunch run app.py --port 8501 --no-auto-port
+litlaunch run app.py --host 0.0.0.0 --allow-network-exposure
 litlaunch run app.py --mode webapp --monitor-window --title "My Streamlit App"
 litlaunch run app.py --mode webapp --monitor-window --graceful-timeout 15
 litlaunch run app.py --mode webapp --monitor-window --monitor-appear-timeout 90
@@ -330,6 +334,7 @@ See [docs/inspect.md](docs/inspect.md) and
 - [Installation](docs/installation.md)
 - [Quickstart](docs/quickstart.md)
 - [CLI](docs/cli.md)
+- [Security And Trust Boundaries](docs/security.md)
 - [Browser Support](docs/browser_support.md)
 - [Window Monitoring](docs/window_monitoring.md)
 - [Inspect](docs/inspect.md)

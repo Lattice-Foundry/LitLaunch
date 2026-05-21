@@ -18,12 +18,12 @@ class HTMLDiagnosticsRenderer:
     """Render structured diagnostics to a sanitized standalone HTML report."""
 
     SANITIZATION_NOTE = (
-        "This report is sanitized and does not include raw environment variables "
-        "or shutdown tokens."
+        "This report is sanitized with pattern-based redaction and avoids raw "
+        "environment dumps, raw environment variables, and shutdown tokens."
     )
     PRIVACY_NOTE = (
-        "Review this report before sharing publicly. Pattern-based redaction may "
-        "not catch encoded, URL-wrapped, or heavily reformatted secrets."
+        "Review this report before sharing. Pattern-based redaction may not "
+        "detect encoded, URL-wrapped, reformatted, or app-specific secrets."
     )
 
     def __init__(self, *, include_details: bool = True) -> None:

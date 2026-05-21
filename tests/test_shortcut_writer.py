@@ -124,3 +124,29 @@ def test_write_shortcut_force_and_executable_mode(tmp_path: Path):
     with pytest.raises(ConfigurationError):
         write_shortcut(plan)
     write_shortcut(plan, force=True)
+
+
+def test_windows_shortcut_escapes_cmd_sensitive_characters(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    app_root = tmp_path / 'App & Data % "Carets^"'
+    profile = LaunchProfile(
+        "web-profile",
+        LauncherConfig(app_path=app, cwd=app_root),
+    )
+    config = app_root / "litlaunch & config.toml"
+
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.WINDOWS),
+            config_path=config,
+        )
+    )
+
+    assert "%%" in plan.content
+    assert "^&" in plan.content
+    assert "^^" in plan.content
+    assert '^"' in plan.content
+    assert '"litlaunch" "--profile" "web-profile"' in plan.content
+    assert "litlaunch ^& config.toml" in plan.content

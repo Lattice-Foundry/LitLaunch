@@ -8,6 +8,7 @@ from litlaunch import (
     ConfigurationError,
     LaunchMode,
     LaunchProfile,
+    TrustMode,
     WindowMonitorConfig,
     load_profile,
     load_profiles,
@@ -35,6 +36,7 @@ app_path = "app.py"
 title = "My App"
 mode = "webapp"
 browser = "edge"
+trust_mode = "internal_network"
 host = "127.0.0.1"
 port = 8501
 auto_port = false
@@ -68,6 +70,7 @@ stable_polls = 2
     assert profile.config.title == "My App"
     assert profile.config.mode == LaunchMode.WEBAPP
     assert profile.config.browser == BrowserChoice.EDGE
+    assert profile.config.trust_mode == TrustMode.INTERNAL_NETWORK
     assert profile.config.port == 8501
     assert profile.config.auto_port is False
     assert profile.config.headless is True
@@ -105,6 +108,21 @@ browser = "default"
     assert profiles["default"].config.app_path == app
     assert profiles["default"].config.title == "Pyproject App"
     assert profiles["default"].config.browser == BrowserChoice.DEFAULT
+
+
+def test_invalid_profile_trust_mode_raises(tmp_path):
+    write(tmp_path / "app.py", "print('hello')\n")
+    config_path = write(
+        tmp_path / "litlaunch.toml",
+        """
+[profiles.web]
+app_path = "app.py"
+trust_mode = "public_internet"
+""",
+    )
+
+    with pytest.raises(ConfigurationError, match="Invalid trust_mode"):
+        load_profile("web", config_path)
 
 
 def test_discovers_single_profile_source(tmp_path):

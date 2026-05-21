@@ -76,6 +76,7 @@ app_path = "app.py"
 title = "My App"
 mode = "webapp"
 browser = "edge"
+trust_mode = "development"
 port = 8501
 auto_port = false
 headless = true

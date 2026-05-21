@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from litlaunch.cli.common import split_passthrough_args
-from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
+from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.profiles import LaunchProfile, load_profile
 from litlaunch.windowing import WindowMonitorConfig
@@ -38,6 +38,11 @@ def add_runtime_flags(
     )
     parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
     parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
+    parser.add_argument(
+        "--trust-mode",
+        choices=[item.value for item in TrustMode],
+        help="Set the operational trust mode for this launch.",
+    )
     parser.add_argument("--port", type=int)
     parser.add_argument("--host")
     parser.add_argument(
@@ -183,6 +188,12 @@ def runtime_config_from_args(
             profile_config,
             "allow_network_exposure",
             False,
+        ),
+        trust_mode=profile_value(
+            args.trust_mode,
+            profile_config,
+            "trust_mode",
+            TrustMode.DEVELOPMENT,
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
         extra_env=profile_config.extra_env if profile_config is not None else {},

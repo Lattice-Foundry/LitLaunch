@@ -21,7 +21,7 @@ from litlaunch import __version__
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.cli import build_parser, main
 from litlaunch.colors import THEME_COLORS, muted_amber, streamlit_blue, terminal_green
-from litlaunch.config import BrowserChoice, LaunchMode
+from litlaunch.config import BrowserChoice, LaunchMode, TrustMode
 from litlaunch.console import strip_ansi
 from litlaunch.inspect import (
     DiagnosticItem,
@@ -1405,6 +1405,21 @@ def test_cli_inspect_no_auto_port_maps_to_false():
     assert collector.collect_calls[0]["auto_port"] is False
 
 
+def test_cli_inspect_trust_mode_maps_to_diagnostics():
+    code, _output, collector = run_fake_inspect(
+        [
+            "inspect",
+            str(EXAMPLE_APP),
+            "--json",
+            "--trust-mode",
+            "internal_network",
+        ]
+    )
+
+    assert code == 0
+    assert collector.collect_calls[0]["trust_mode"] == "internal_network"
+
+
 def test_cli_inspect_returns_nonzero_for_report_errors():
     code, output, _collector = run_fake_inspect(["inspect", "missing.py", "--json"])
 
@@ -1422,7 +1437,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.27b0"
+    assert data["litlaunch_version"] == "0.91.28b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1609,6 +1624,7 @@ app_path = "app.py"
 title = "Profile App"
 mode = "webapp"
 browser = "edge"
+trust_mode = "internal_network"
 port = 8501
 auto_port = false
 """,
@@ -1799,6 +1815,8 @@ def test_cli_run_builds_config_and_waits_for_backend():
             "8600",
             "--host",
             "127.0.0.1",
+            "--trust-mode",
+            "strict_local",
             "--no-browser-fallback",
             "--streamlit-flag",
             "server.maxUploadSize=20",
@@ -1818,6 +1836,7 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.config.port == 8600
     assert launcher.config.auto_port is True
     assert launcher.config.allow_browser_fallback is False
+    assert launcher.config.trust_mode == TrustMode.STRICT_LOCAL
     assert launcher.config.streamlit_flags["server.maxUploadSize"] == "20"
     assert launcher.config.app_args == ("dataset.json",)
     assert launcher.config.streamlit_args == ()
@@ -1984,6 +2003,7 @@ app_path = "app.py"
 title = "Profile App"
 mode = "webapp"
 browser = "edge"
+trust_mode = "internal_network"
 port = 8501
 auto_port = false
 headless = true
@@ -2014,6 +2034,7 @@ app_args = ["--workspace", "demo"]
     assert launcher.config.title == "Profile App"
     assert launcher.config.mode == LaunchMode.WEBAPP
     assert launcher.config.browser == BrowserChoice.EDGE
+    assert launcher.config.trust_mode == TrustMode.INTERNAL_NETWORK
     assert launcher.config.port == 8502
     assert launcher.config.auto_port is False
     assert launcher.config.streamlit_args == ("--server.runOnSave", "true")

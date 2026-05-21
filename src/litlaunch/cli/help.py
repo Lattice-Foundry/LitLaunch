@@ -85,6 +85,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             style.label("Useful flags:"),
             "  --mode browser|webapp",
             "  --browser auto|edge|chrome|default",
+            "  --trust-mode development|strict_local|internal_network",
             "  --monitor-window",
             "  --verbose",
             "",

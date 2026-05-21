@@ -1,6 +1,12 @@
 import pytest
 
-from litlaunch import BrowserChoice, ConfigurationError, LauncherConfig, LaunchMode
+from litlaunch import (
+    BrowserChoice,
+    ConfigurationError,
+    LauncherConfig,
+    LaunchMode,
+    TrustMode,
+)
 
 
 def test_default_config_normalizes_correctly():
@@ -14,6 +20,7 @@ def test_default_config_normalizes_correctly():
     assert config.port is None
     assert config.auto_port is True
     assert config.allow_browser_fallback is True
+    assert config.trust_mode == TrustMode.DEVELOPMENT
 
 
 def test_string_mode_and_browser_normalize_to_enums():
@@ -31,6 +38,17 @@ def test_invalid_mode_raises_configuration_error():
 def test_invalid_browser_raises_configuration_error():
     with pytest.raises(ConfigurationError, match="Invalid browser"):
         LauncherConfig(app_path="app.py", browser="safari")
+
+
+def test_trust_mode_string_normalizes_to_enum():
+    config = LauncherConfig(app_path="app.py", trust_mode="strict_local")
+
+    assert config.trust_mode == TrustMode.STRICT_LOCAL
+
+
+def test_invalid_trust_mode_raises_configuration_error():
+    with pytest.raises(ConfigurationError, match="Invalid trust_mode"):
+        LauncherConfig(app_path="app.py", trust_mode="public_internet")
 
 
 def test_empty_app_path_raises_configuration_error():

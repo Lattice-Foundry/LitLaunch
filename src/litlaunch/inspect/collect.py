@@ -7,7 +7,13 @@ from pathlib import Path
 
 from litlaunch.browsers import BrowserCapability, BrowserResolution
 from litlaunch.browsers.registry import BrowserRegistry, create_default_browser_registry
-from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, StreamlitFlags
+from litlaunch.config import (
+    BrowserChoice,
+    LauncherConfig,
+    LaunchMode,
+    StreamlitFlags,
+    TrustMode,
+)
 from litlaunch.exposure import classify_host_exposure
 from litlaunch.inspect.models import (
     DiagnosticItem,
@@ -52,6 +58,7 @@ class DiagnosticCollector:
         auto_port: bool = True,
         allow_browser_fallback: bool = True,
         allow_network_exposure: bool = False,
+        trust_mode: TrustMode | str = TrustMode.DEVELOPMENT,
         cwd: str | Path | None = None,
         extra_env: Mapping[str, str] | None = None,
         streamlit_flags: StreamlitFlags | None = None,
@@ -100,6 +107,7 @@ class DiagnosticCollector:
                     auto_port=auto_port,
                     allow_browser_fallback=allow_browser_fallback,
                     allow_network_exposure=allow_network_exposure,
+                    trust_mode=trust_mode,
                     cwd=cwd,
                     extra_env=extra_env or {},
                     streamlit_flags=streamlit_flags or {},
@@ -277,6 +285,7 @@ class DiagnosticCollector:
         auto_port: bool,
         allow_browser_fallback: bool,
         allow_network_exposure: bool,
+        trust_mode: TrustMode | str,
         cwd: str | Path | None,
         extra_env: Mapping[str, str],
         streamlit_flags: StreamlitFlags,
@@ -324,6 +333,7 @@ class DiagnosticCollector:
                 auto_port=auto_port,
                 allow_browser_fallback=allow_browser_fallback,
                 allow_network_exposure=allow_network_exposure,
+                trust_mode=trust_mode,
                 cwd=cwd,
                 extra_env=extra_env,
                 streamlit_flags=streamlit_flags,
@@ -345,6 +355,11 @@ class DiagnosticCollector:
         items.extend(
             (
                 _host_binding_item(plan.host, config.allow_network_exposure),
+                DiagnosticItem(
+                    "Trust mode",
+                    DiagnosticStatus.INFO,
+                    config.trust_mode.value,
+                ),
                 DiagnosticItem(
                     "Command preview",
                     DiagnosticStatus.OK,

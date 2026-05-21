@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from litlaunch import profile_writer
-from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
+from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.profile_writer import write_litlaunch_profile
 from litlaunch.profiles import LaunchProfile, load_profile
@@ -134,6 +134,30 @@ def test_profile_writer_escapes_control_characters_and_quotes(tmp_path: Path):
     assert loaded.config.title == 'Line 1\nLine "2"\tTabbed\\Path'
     assert loaded.config.extra_env["TOKEN"] == "first\r\nsecond"
     assert loaded.config.allow_network_exposure is True
+
+
+def test_profile_writer_round_trips_non_default_trust_mode(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(app_path=app, trust_mode=TrustMode.STRICT_LOCAL),
+    )
+    config_path = tmp_path / "litlaunch.toml"
+
+    result = write_litlaunch_profile(profile, config_path)
+    loaded = load_profile("web", config_path)
+
+    assert 'trust_mode = "strict_local"' in result.toml
+    assert loaded.config.trust_mode == TrustMode.STRICT_LOCAL
+
+
+def test_profile_writer_omits_default_trust_mode(tmp_path: Path):
+    profile = make_profile(tmp_path)
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml", dry_run=True)
+
+    assert "trust_mode" not in result.toml
 
 
 def test_profile_writer_keeps_existing_file_when_atomic_write_fails(

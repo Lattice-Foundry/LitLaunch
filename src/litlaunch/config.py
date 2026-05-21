@@ -32,6 +32,14 @@ class BrowserChoice(str, Enum):
     DEFAULT = "default"
 
 
+class TrustMode(str, Enum):
+    """Operational trust posture for a LitLaunch runtime."""
+
+    DEVELOPMENT = "development"
+    STRICT_LOCAL = "strict_local"
+    INTERNAL_NETWORK = "internal_network"
+
+
 StreamlitFlags = Mapping[str, str | int | float | bool | None] | Sequence[str]
 
 
@@ -49,6 +57,7 @@ class LauncherConfig:
     headless: bool | None = None
     allow_browser_fallback: bool = True
     allow_network_exposure: bool = False
+    trust_mode: TrustMode | str = TrustMode.DEVELOPMENT
     cwd: str | Path | None = None
     extra_env: Mapping[str, str] = field(default_factory=dict)
     streamlit_flags: StreamlitFlags = field(default_factory=dict)
@@ -61,6 +70,7 @@ class LauncherConfig:
         title = _normalize_required_string(self.title, "title")
         mode = _normalize_enum(LaunchMode, self.mode, "mode")
         browser = _normalize_enum(BrowserChoice, self.browser, "browser")
+        trust_mode = _normalize_enum(TrustMode, self.trust_mode, "trust_mode")
         host = _normalize_host(self.host)
         port = _normalize_port(self.port)
         auto_port = True if port is None else bool(self.auto_port)
@@ -96,6 +106,7 @@ class LauncherConfig:
         object.__setattr__(
             self, "allow_network_exposure", bool(self.allow_network_exposure)
         )
+        object.__setattr__(self, "trust_mode", trust_mode)
         object.__setattr__(self, "cwd", cwd)
         object.__setattr__(self, "extra_env", extra_env)
         object.__setattr__(self, "streamlit_args", streamlit_args)
@@ -183,10 +194,10 @@ def _is_plausible_hostname(value: str) -> bool:
 
 
 def _normalize_enum(
-    enum_type: type[LaunchMode] | type[BrowserChoice],
-    value: LaunchMode | BrowserChoice | str,
+    enum_type: type[LaunchMode] | type[BrowserChoice] | type[TrustMode],
+    value: LaunchMode | BrowserChoice | TrustMode | str,
     field_name: str,
-) -> LaunchMode | BrowserChoice:
+) -> LaunchMode | BrowserChoice | TrustMode:
     if isinstance(value, enum_type):
         return value
     try:

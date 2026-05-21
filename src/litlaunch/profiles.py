@@ -36,6 +36,7 @@ CONFIG_FIELDS = {
     "headless",
     "allow_browser_fallback",
     "allow_network_exposure",
+    "trust_mode",
     "cwd",
     "extra_env",
     "streamlit_flags",

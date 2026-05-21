@@ -13,6 +13,7 @@ from litlaunch.exposure import (
     classify_host_exposure,
     is_loopback_host,
     network_exposure_acknowledged,
+    validate_host_exposure_policy,
 )
 from litlaunch.inspect import DiagnosticCollector
 from litlaunch.launcher import StreamlitLauncher
@@ -49,6 +50,54 @@ def test_network_exposure_acknowledgement_accepts_flag_or_env():
     assert not network_exposure_acknowledged(env={})
 
 
+def test_development_requires_acknowledgement_for_non_loopback():
+    with pytest.raises(ValueError, match="Network exposure requires"):
+        validate_host_exposure_policy(
+            host="0.0.0.0",
+            trust_mode="development",
+            allow_network_exposure=False,
+            env={},
+        )
+
+    exposure = validate_host_exposure_policy(
+        host="0.0.0.0",
+        trust_mode="development",
+        allow_network_exposure=True,
+        env={},
+    )
+
+    assert exposure.exposed is True
+
+
+def test_strict_local_refuses_non_loopback_even_when_acknowledged():
+    with pytest.raises(ValueError, match="strict_local requires loopback-only"):
+        validate_host_exposure_policy(
+            host="0.0.0.0",
+            trust_mode="strict_local",
+            allow_network_exposure=True,
+            env={"LITLAUNCH_ALLOW_NETWORK_EXPOSURE": "1"},
+        )
+
+
+def test_internal_network_requires_acknowledgement_for_non_loopback():
+    with pytest.raises(ValueError, match="Network exposure requires"):
+        validate_host_exposure_policy(
+            host="0.0.0.0",
+            trust_mode="internal_network",
+            allow_network_exposure=False,
+            env={},
+        )
+
+    exposure = validate_host_exposure_policy(
+        host="0.0.0.0",
+        trust_mode="internal_network",
+        allow_network_exposure=False,
+        env={"LITLAUNCH_ALLOW_NETWORK_EXPOSURE": "1"},
+    )
+
+    assert exposure.exposed is True
+
+
 def test_launcher_blocks_unacknowledged_network_exposure(tmp_path: Path):
     app = tmp_path / "app.py"
     app.write_text("print('hi')\n", encoding="utf-8")
@@ -66,6 +115,25 @@ def test_launcher_blocks_unacknowledged_network_exposure(tmp_path: Path):
     assert "0.0.0.0" in output
 
 
+def test_launcher_strict_local_blocks_even_acknowledged_network_exposure(
+    tmp_path: Path,
+):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path=app,
+            host="0.0.0.0",
+            trust_mode="strict_local",
+            allow_network_exposure=True,
+        ),
+        console_renderer=ConsoleRenderer(stream=io.StringIO(), env={"NO_COLOR": "1"}),
+    )
+
+    with pytest.raises(LitLaunchError, match="strict_local requires loopback-only"):
+        launcher.start_backend()
+
+
 def test_diagnostics_warn_about_non_loopback_host(tmp_path: Path):
     app = tmp_path / "app.py"
     app.write_text("print('hi')\n", encoding="utf-8")
@@ -81,6 +149,21 @@ def test_diagnostics_warn_about_non_loopback_host(tmp_path: Path):
     assert host_item.status.value == "warning"
     assert "0.0.0.0 may be reachable" in host_item.message
     assert "does not secure Streamlit" in (host_item.detail or "")
+
+
+def test_diagnostics_report_trust_mode(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    report = DiagnosticCollector(
+        platform_detector=FakePlatformDetector(),
+        browser_registry=FakeBrowserRegistry(),
+        streamlit_checker=lambda: FakeStreamlitAvailability(),
+    ).collect(app_path=app, trust_mode="internal_network")
+
+    target = next(section for section in report.sections if section.title == "Target")
+    trust_item = next(item for item in target.items if item.name == "Trust mode")
+
+    assert trust_item.message == "internal_network"
 
 
 class FakePlatformDetector:

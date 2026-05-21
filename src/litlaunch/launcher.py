@@ -19,7 +19,7 @@ from litlaunch.console import ConsolePhase, ConsoleRenderer
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.exposure import (
     classify_host_exposure,
-    network_exposure_acknowledged,
+    validate_host_exposure_policy,
 )
 from litlaunch.health import (
     HealthChecker,
@@ -404,15 +404,14 @@ class StreamlitLauncher:
         if not exposure.exposed:
             return
         render_network_exposure_warning(self.console_renderer, exposure)
-        if network_exposure_acknowledged(
-            allow_network_exposure=self.config.allow_network_exposure
-        ):
-            return
-        raise LitLaunchError(
-            "Network exposure requires explicit acknowledgement. "
-            "Use --allow-network-exposure, set allow_network_exposure=true in "
-            "the profile, or bind to 127.0.0.1 for localhost-only use."
-        )
+        try:
+            validate_host_exposure_policy(
+                host=self.config.host,
+                trust_mode=self.config.trust_mode,
+                allow_network_exposure=self.config.allow_network_exposure,
+            )
+        except ValueError as exc:
+            raise LitLaunchError(str(exc)) from exc
 
 
 def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:

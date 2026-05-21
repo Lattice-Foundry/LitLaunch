@@ -49,6 +49,38 @@ For automation environments, `LITLAUNCH_ALLOW_NETWORK_EXPOSURE=1` can provide
 the same acknowledgement. Use that only where the deployment boundary is already
 understood.
 
+## Trust Modes
+
+Trust modes declare the operational intent for a launch. They govern LitLaunch
+runtime behavior and diagnostics; they do not add authentication, TLS, or
+application security to Streamlit.
+
+- `development`: default mode for local development. Loopback launches are
+  smooth; non-loopback launches still require explicit exposure acknowledgement.
+- `strict_local`: hard localhost-only mode. Non-loopback hosts are refused even
+  when `--allow-network-exposure`, profile acknowledgement, or environment
+  acknowledgement is present.
+- `internal_network`: intended for deliberate LAN/internal deployment. Loopback
+  launches work normally; non-loopback hosts require explicit exposure
+  acknowledgement and still render the network-exposure warning.
+
+CLI usage:
+
+```powershell
+litlaunch app.py --trust-mode strict_local
+litlaunch app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure
+```
+
+Profile usage:
+
+```toml
+[profiles.internal-dashboard]
+app_path = "app.py"
+host = "0.0.0.0"
+trust_mode = "internal_network"
+allow_network_exposure = true
+```
+
 ## Internal Network Recommendations
 
 For internal dashboards and analyst tools:

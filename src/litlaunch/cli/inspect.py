@@ -9,7 +9,7 @@ from pathlib import Path
 
 from litlaunch.cli.common import CliContext, mode, renderer, write
 from litlaunch.cli.config import add_profile_flags, load_cli_profile, profile_value
-from litlaunch.config import BrowserChoice, LaunchMode
+from litlaunch.config import BrowserChoice, LaunchMode, TrustMode
 from litlaunch.console import ConsoleMode
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.inspect import (
@@ -42,6 +42,11 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
     parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
+    parser.add_argument(
+        "--trust-mode",
+        choices=[item.value for item in TrustMode],
+        help="Set the operational trust mode for diagnostics.",
+    )
     parser.add_argument("--port", type=int)
     parser.add_argument("--host")
     parser.add_argument(
@@ -86,6 +91,11 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
 
     parser.add_argument("app_path", nargs="?")
     add_profile_flags(parser)
+    parser.add_argument(
+        "--trust-mode",
+        choices=[item.value for item in TrustMode],
+        help="Set the operational trust mode for diagnostics.",
+    )
     parser.add_argument(
         "--output",
         default="litlaunch-report.html",
@@ -208,6 +218,12 @@ def collect_diagnostics_report(
             profile_config,
             "allow_network_exposure",
             False,
+        ),
+        trust_mode=profile_value(
+            getattr(args, "trust_mode", None),
+            profile_config,
+            "trust_mode",
+            TrustMode.DEVELOPMENT,
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
         extra_env=profile_config.extra_env if profile_config is not None else None,

@@ -3,6 +3,17 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.28b0
+
+- Added a lightweight `trust_mode` foundation with `development`,
+  `strict_local`, and `internal_network` operational postures.
+- Wired trust mode through `LauncherConfig`, profiles, CLI runtime/diagnostics
+  flags, profile writing, and diagnostics target output.
+- Integrated trust mode with existing network exposure guardrails so
+  `strict_local` refuses non-loopback hosts even when exposure is acknowledged.
+- Documented trust modes as runtime governance settings, not application
+  security or authentication.
+
 ## 0.91.27b0
 
 - Made port availability checks address-family aware, including bracketed IPv6

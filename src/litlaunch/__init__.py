@@ -21,7 +21,7 @@ from litlaunch.colors import (
     is_hex_color,
     is_theme_color_name,
 )
-from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
+from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
 from litlaunch.console import (
     ConsoleMode,
     ConsolePhase,
@@ -168,4 +168,5 @@ __all__ = [
     "is_theme_color_name",
     "THEME_COLORS",
     "ThemeColor",
+    "TrustMode",
 ]

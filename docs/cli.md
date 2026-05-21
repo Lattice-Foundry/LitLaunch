@@ -152,6 +152,19 @@ machine depending on routing and firewall configuration. LitLaunch requires
 before launching with those bindings. LitLaunch does not add authentication or
 otherwise secure Streamlit applications.
 
+Use `--trust-mode` to declare the operational intent for a launch:
+
+```powershell
+litlaunch app.py --trust-mode development
+litlaunch app.py --trust-mode strict_local
+litlaunch app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure
+```
+
+`strict_local` refuses non-loopback hosts even when exposure is acknowledged.
+`internal_network` allows deliberate non-loopback use only with explicit
+acknowledgement. Trust modes govern LitLaunch runtime behavior; they do not
+secure the Streamlit application.
+
 ## Command Preview
 
 ```powershell
@@ -229,6 +242,7 @@ Profiles work with inspect too:
 ```powershell
 litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
 litlaunch inspect --config pyproject.toml --profile my-webapp --json
+litlaunch inspect app.py --trust-mode internal_network --html
 ```
 
 ## Profiles
@@ -248,6 +262,7 @@ auto_port = false
 headless = true
 allow_browser_fallback = false
 allow_network_exposure = false
+trust_mode = "development"
 graceful_timeout = 15
 
 [profiles.my-webapp.window_monitor]

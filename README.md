@@ -35,6 +35,8 @@ LitLaunch is infrastructure, not magic orchestration.
 - Diagnostics are sanitized and avoid raw environment dumps.
 - Localhost is the default. Non-loopback host bindings require explicit
   acknowledgement because LitLaunch does not secure Streamlit itself.
+- Trust modes declare operational intent: `development`, `strict_local`, or
+  `internal_network`.
 
 See [docs/philosophy.md](docs/philosophy.md) and
 [docs/architecture.md](docs/architecture.md) for the full ownership model, and
@@ -119,6 +121,7 @@ app_path = "app.py"
 title = "My App"
 mode = "webapp"
 browser = "edge"
+trust_mode = "development"
 port = 8501
 auto_port = false
 headless = true

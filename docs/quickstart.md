@@ -67,7 +67,8 @@ as `app.py` and the current folder name when they are available, while still
 letting you confirm or change every prompt. Type `back` to revisit a previous
 step, or `quit` to cancel. Choose Advanced mode when you need profile fields
 such as host, port, monitor tuning, Streamlit flags, app args, working
-directory, or extra environment variables.
+directory, or extra environment variables. After saving a profile, the wizard
+can optionally create a project-local launch shortcut.
 
 ```toml
 [profiles.my-webapp]
@@ -93,6 +94,7 @@ Run, inspect, or preview the profile:
 litlaunch --profile my-webapp
 litlaunch command --profile my-webapp
 litlaunch report --profile my-webapp
+litlaunch create shortcut --profile my-webapp
 ```
 
 The same shape can live under `[tool.litlaunch.profiles.my-webapp]` in

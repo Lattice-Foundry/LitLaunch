@@ -100,7 +100,15 @@ Use a reusable project profile:
 
 ```powershell
 litlaunch create profile
+litlaunch create shortcut --profile my-webapp
 ```
+
+The profile wizard offers Simple and Advanced modes. Simple mode defaults to
+LitLaunch's recommended app-window experience, detects common app-root defaults
+such as `app.py`, writes `litlaunch.toml`, and can optionally create a
+project-local launch shortcut after the profile is saved. Advanced mode exposes
+the fuller runtime surface for network, browser, monitor, args, cwd, and env
+settings.
 
 ```toml
 [profiles.my-webapp]

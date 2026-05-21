@@ -56,7 +56,7 @@ def test_pyproject_urls_use_canonical_repository_location():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert "## 0.91.23b0" in changelog
+    assert "## 0.91.23b1" in changelog
     assert "## 0.91.0b0" in changelog
     assert "## 0.85.0" in changelog
     assert "## 0.23.0" in changelog
@@ -151,6 +151,25 @@ def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
     assert "Some values are simulated" in cli
     assert "orange `Hook:` category" in quickstart
     assert "hook message text stays unstyled" in quickstart
+
+
+def test_docs_document_current_cli_tools_workflows():
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    quickstart = (REPO_ROOT / "docs" / "quickstart.md").read_text(encoding="utf-8")
+    cli = (REPO_ROOT / "docs" / "cli.md").read_text(encoding="utf-8")
+
+    for text in (readme, quickstart, cli):
+        assert "litlaunch create profile" in text
+        assert "litlaunch create shortcut --profile" in text
+        assert "litlaunch report" in text
+        assert "litlaunch --profile" in text
+        assert "plain text inspect" not in text.lower()
+        assert "console-preview-norm" not in text
+        assert "console-preview-verb" not in text
+
+    assert "litlaunch create shortcut --profile <profile>" in cli
+    assert "can optionally create" in readme
+    assert "can optionally create" in quickstart
 
 
 def test_docs_clarify_beta_api_stability_policy():

@@ -3,6 +3,14 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.23b1
+
+- Finalized CLI Tools documentation for profile and shortcut creation workflows.
+- Normalized workflow help and argparse help around `litlaunch create profile`
+  and `litlaunch create shortcut --profile NAME`.
+- Updated public docs to present shorthand launch, report, profile creation, and
+  shortcut creation as the current ergonomic command system.
+
 ## 0.91.23b0
 
 - Added optional shortcut creation after successful `litlaunch create profile`

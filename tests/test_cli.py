@@ -537,6 +537,42 @@ def test_cli_create_shortcut_parser_exists():
     assert args.profile == "web"
 
 
+def test_cli_create_help_describes_tools_namespace(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["create", "--help"])
+
+    output = strip_ansi(capsys.readouterr().out)
+    assert exc_info.value.code == 0
+    assert "{profile,shortcut}" in output
+    assert "profile" in output
+    assert "shortcut" in output
+
+
+def test_cli_create_profile_help_describes_wizard_and_shortcut_offer(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["create", "profile", "--help"])
+
+    output = strip_ansi(capsys.readouterr().out)
+    assert exc_info.value.code == 0
+    assert "Simple mode" in output
+    assert "Advanced mode" in output
+    assert "optionally create a launch shortcut" in output
+    assert "litlaunch create profile --dry-run" in output
+    assert "python -m litlaunch.cli" not in output
+
+
+def test_cli_create_shortcut_help_describes_profile_shortcuts(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["create", "shortcut", "--help"])
+
+    output = strip_ansi(capsys.readouterr().out)
+    assert exc_info.value.code == 0
+    assert "OS-appropriate launch shortcut" in output
+    assert "--profile" in output
+    assert "litlaunch create shortcut --profile my-webapp" in output
+    assert "python -m litlaunch.cli" not in output
+
+
 def test_cli_create_profile_simple_mode_writes_webapp_profile(monkeypatch):
     with temporary_output_dir() as output_dir, monkeypatch.context() as m:
         m.chdir(output_dir)
@@ -1376,7 +1412,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.23b0"
+    assert data["litlaunch_version"] == "0.91.23b1"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

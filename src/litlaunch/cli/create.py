@@ -25,7 +25,7 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
 
     subparsers = parser.add_subparsers(
         dest="create_command",
-        metavar="{profile}",
+        metavar="{profile,shortcut}",
     )
     profile_parser = subparsers.add_parser(
         "profile",
@@ -35,6 +35,11 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
             "guided app-window defaults; Advanced mode exposes runtime profile "
             "fields such as host, port, monitor tuning, args, cwd, and env. "
             "After writing, the wizard can optionally create a launch shortcut."
+        ),
+        epilog=(
+            "Examples: litlaunch create profile | "
+            "litlaunch create profile --name my-webapp --app app.py | "
+            "litlaunch create profile --dry-run"
         ),
         formatter_class=parser.formatter_class,
     )
@@ -63,6 +68,11 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
         description=(
             "Create an OS-appropriate launch shortcut file for a LitLaunch "
             "profile. The shortcut is written to the app root by default."
+        ),
+        epilog=(
+            "Examples: litlaunch create shortcut --profile my-webapp | "
+            "litlaunch create shortcut --profile my-webapp --dry-run | "
+            "litlaunch create shortcut --profile my-webapp --output Launch.bat --force"
         ),
         formatter_class=parser.formatter_class,
     )

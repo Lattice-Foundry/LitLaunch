@@ -98,7 +98,13 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     _section(console, "Runtime")
     console.runtime_ready(EXAMPLE_URL)
     console.render_launch_event(
-        LaunchEvent(LaunchState.TERMINATED, "Owned backend process stopped.", 0.0)
+        LaunchEvent(LaunchState.TERMINATED, "Backend exited cleanly", 0.0)
+    )
+    console.failure_guidance(
+        "Backend exited with code 1.",
+        likely_cause="The backend stopped but reported a non-zero exit code.",
+        next_steps=("Run Streamlit directly to inspect the traceback.",),
+        suggest_inspect=False,
     )
 
     _section(console, "Monitor")
@@ -186,10 +192,15 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     )
     console.phase_success(
         ConsolePhase.SHUTDOWN,
-        "complete; backend already stopped",
+        "complete; backend stopped cleanly",
         elapsed_seconds=0.2,
     )
-    console.phase_success(ConsolePhase.SHUTDOWN, "complete", elapsed_seconds=0.5)
+    console.success("Port 8501 released")
+    console.phase_success(
+        ConsolePhase.SHUTDOWN,
+        "complete; backend stopped through termination fallback",
+        elapsed_seconds=0.5,
+    )
 
 
 def _section(console: ConsoleRenderer, title: str) -> None:

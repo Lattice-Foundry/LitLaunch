@@ -46,6 +46,10 @@ class FakePortManager:
         self.available_port_calls.append((host, start_port, max_attempts))
         return start_port
 
+    def is_port_available(self, host, port):
+        self.available_port_calls.append((host, port, None))
+        return True
+
 
 class FakePopen:
     pid = 999
@@ -815,6 +819,7 @@ def test_browser_failure_console_guidance_is_actionable():
     assert "Browser launch failed; stopping the owned backend." in output
     assert "Check that the requested browser is installed and launchable." in output
     assert "--browser default" in output
+    assert "[   ok   ] Port 8605 released" in output
 
 
 def test_run_browser_mode_can_use_default_browser_path():

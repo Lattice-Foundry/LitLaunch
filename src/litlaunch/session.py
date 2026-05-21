@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import subprocess
 import time
+from collections.abc import Callable
+from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
 from litlaunch.console import ConsolePhase, ConsoleRenderer
@@ -41,6 +43,7 @@ class RuntimeSession:
         process_manager: ProcessManager,
         shutdown_client: ShutdownClient | None = None,
         console_renderer: ConsoleRenderer | None = None,
+        port_release_checker: Callable[[str, int], bool] | None = None,
         clock: ClockProvider = time,
     ) -> None:
         self.result = result
@@ -48,6 +51,7 @@ class RuntimeSession:
         self.process_manager = process_manager
         self._shutdown_client = shutdown_client
         self.console_renderer = console_renderer
+        self._port_release_checker = port_release_checker
         self.clock = clock
         self._events = list(result.events)
         self._state = result.state
@@ -186,17 +190,12 @@ class RuntimeSession:
                 else:
                     self._stopped = True
                     self._state = LaunchState.TERMINATED
-                    self.add_event(
-                        LaunchState.TERMINATED,
-                        f"Owned backend process exited with code {returncode}.",
-                        render=False,
-                    )
-                    render_phase_success(
-                        self.console_renderer,
-                        ConsolePhase.SHUTDOWN,
-                        f"complete; backend exited with code {returncode}",
+                    self._render_backend_exit(
+                        returncode,
                         elapsed_seconds=self.clock.monotonic() - stop_start_time,
+                        expected_shutdown=True,
                     )
+                    self._render_port_release_if_verified()
                     return
             else:
                 self.add_event(
@@ -238,6 +237,7 @@ class RuntimeSession:
                 "complete; backend already stopped",
                 elapsed_seconds=self.clock.monotonic() - stop_start_time,
             )
+            self._render_port_release_if_verified()
             return
 
         self.add_event(
@@ -271,9 +271,10 @@ class RuntimeSession:
         render_phase_success(
             self.console_renderer,
             ConsolePhase.SHUTDOWN,
-            "complete",
+            "complete; backend stopped through termination fallback",
             elapsed_seconds=self.clock.monotonic() - stop_start_time,
         )
+        self._render_port_release_if_verified()
 
     def wait(self, timeout_seconds: float | None = None) -> int | None:
         """Wait for the owned backend process to exit.
@@ -298,10 +299,8 @@ class RuntimeSession:
             return None
         self._stopped = True
         self._state = LaunchState.TERMINATED
-        self.add_event(
-            LaunchState.TERMINATED,
-            f"Owned backend process exited with code {returncode}.",
-        )
+        self._render_backend_exit(returncode, expected_shutdown=False)
+        self._render_port_release_if_verified()
         return returncode
 
     def monitor_window(
@@ -379,3 +378,67 @@ class RuntimeSession:
         """Stop the owned backend process on context exit."""
 
         self.stop()
+
+    def _render_backend_exit(
+        self,
+        returncode: int | None,
+        *,
+        elapsed_seconds: float | None = None,
+        expected_shutdown: bool,
+    ) -> None:
+        code = 0 if returncode is None else int(returncode)
+        if code == 0:
+            message = (
+                "Backend stopped cleanly"
+                if expected_shutdown
+                else "Backend exited cleanly"
+            )
+            self.add_event(LaunchState.TERMINATED, message, render=False)
+            render_phase_success(
+                self.console_renderer,
+                ConsolePhase.SHUTDOWN if expected_shutdown else ConsolePhase.BACKEND,
+                (
+                    "complete; backend stopped cleanly"
+                    if expected_shutdown
+                    else "backend exited cleanly"
+                ),
+                elapsed_seconds=elapsed_seconds,
+            )
+            return
+
+        self.add_event(
+            LaunchState.TERMINATED,
+            f"Owned backend process exited with code {code}.",
+            render=False,
+        )
+        render_failure_guidance(
+            self.console_renderer,
+            f"Backend exited with code {code}.",
+            likely_cause="The backend stopped but reported a non-zero exit code.",
+            next_steps=(
+                "Run the app directly with streamlit run to inspect the traceback.",
+            ),
+        )
+
+    def _render_port_release_if_verified(self) -> None:
+        if self.console_renderer is None or self._port_release_checker is None:
+            return
+        host_port = _parse_url_host_port(self.result.url)
+        if host_port is None:
+            return
+        host, port = host_port
+        try:
+            released = self._port_release_checker(host, port)
+        except Exception:
+            return
+        if released:
+            self.console_renderer.success(f"Port {port} released")
+
+
+def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:
+    if not url:
+        return None
+    parsed = urlparse(url)
+    if parsed.hostname is None or parsed.port is None:
+        return None
+    return parsed.hostname, parsed.port

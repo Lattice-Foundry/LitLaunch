@@ -229,6 +229,54 @@ def test_runtime_session_wait_without_timeout_remains_blocking_delegate():
     assert session.state == LaunchState.TERMINATED
 
 
+def test_runtime_session_wait_renders_clean_backend_exit_without_exit_code_zero():
+    stream = StringIO()
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        console_renderer=ConsoleRenderer(
+            theme=ConsoleTheme(use_color=False),
+            stream=stream,
+        ),
+        clock=FakeClock(),
+    )
+
+    assert session.wait() == 0
+
+    output = stream.getvalue()
+    assert "[   ok   ] Backend: backend exited cleanly" in output
+    assert "exited with code 0" not in output
+    assert "Exited with code" not in output
+
+
+def test_runtime_session_wait_renders_nonzero_backend_exit_code():
+    stream = StringIO()
+    process = make_process()
+    manager = FakeProcessManager(wait_return=2)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        console_renderer=ConsoleRenderer(
+            theme=ConsoleTheme(use_color=False),
+            stream=stream,
+        ),
+        clock=FakeClock(),
+    )
+
+    assert session.wait() == 2
+
+    output = stream.getvalue()
+    assert "[ error  ] Backend exited with code 2." in output
+    assert (
+        "[   ok   ] Cause The backend stopped but reported a non-zero exit code."
+        in output
+    )
+
+
 def test_runtime_session_timed_wait_timeout_returns_none_and_keeps_running_state():
     process = make_process()
     manager = FakeProcessManager(wait_timeout=True)
@@ -340,7 +388,58 @@ def test_runtime_session_stop_emits_console_shutdown_messages():
     assert "Shutdown: requested" in output
     assert "Shutdown: requesting app cleanup" in output
     assert "Shutdown: app cleanup request accepted" in output
-    assert "Shutdown: complete; backend exited with code 0 in" in output
+    assert "Shutdown: complete; backend stopped cleanly in" in output
+    assert "exited with code 0" not in output
+
+
+def test_runtime_session_reports_port_release_only_when_verified():
+    stream = StringIO()
+    calls = []
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    shutdown_client = FakeShutdownClient(ok=True)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        console_renderer=renderer,
+        port_release_checker=lambda host, port: calls.append((host, port)) or True,
+        clock=FakeClock(),
+    )
+
+    session.stop(graceful_timeout_seconds=0.5)
+
+    assert calls == [("127.0.0.1", 8501)]
+    assert "[   ok   ] Port 8501 released" in stream.getvalue()
+
+
+def test_runtime_session_does_not_claim_port_release_when_not_verified():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    shutdown_client = FakeShutdownClient(ok=True)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        console_renderer=renderer,
+        port_release_checker=lambda host, port: False,
+        clock=FakeClock(),
+    )
+
+    session.stop(graceful_timeout_seconds=0.5)
+
+    assert "Port 8501 released" not in stream.getvalue()
 
 
 def test_runtime_session_stop_uses_fallback_when_graceful_request_fails():

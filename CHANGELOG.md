@@ -3,6 +3,16 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.3b0
+
+- Reviewed RoleThread `main` launcher/runtime console wording and adapted
+  generic shutdown/exit phrasing into LitLaunch without changing ownership
+  behavior.
+- Replaced normal backend exit-code wording with cleaner clean-exit and
+  non-zero-exit messages.
+- Added verified port-release console output when LitLaunch can safely confirm
+  the configured backend port is available after the owned process stops.
+
 ## 0.91.2b0
 
 - Aligned runtime console phase and guidance lines under fixed-width status

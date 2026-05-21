@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import replace
+from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
 from litlaunch.backend import (
@@ -148,6 +149,7 @@ class StreamlitLauncher:
             process_manager=self.process_manager,
             shutdown_client=backend_start.shutdown_client,
             console_renderer=self.console_renderer,
+            port_release_checker=self.port_manager.is_port_available,
             clock=self.clock,
         )
 
@@ -183,6 +185,7 @@ class StreamlitLauncher:
                 process_manager=self.process_manager,
                 shutdown_client=None,
                 console_renderer=self.console_renderer,
+                port_release_checker=self.port_manager.is_port_available,
                 clock=self.clock,
             )
 
@@ -253,6 +256,7 @@ class StreamlitLauncher:
                 detail=browser_result.message,
             )
             self.process_manager.stop(managed_process)
+            self._render_port_release_if_verified(backend_result.url)
             self._record(
                 events,
                 LaunchState.FAILED,
@@ -277,6 +281,7 @@ class StreamlitLauncher:
                 process_manager=self.process_manager,
                 shutdown_client=None,
                 console_renderer=self.console_renderer,
+                port_release_checker=self.port_manager.is_port_available,
                 clock=self.clock,
             )
 
@@ -306,6 +311,7 @@ class StreamlitLauncher:
             process_manager=self.process_manager,
             shutdown_client=backend_start.shutdown_client,
             console_renderer=self.console_renderer,
+            port_release_checker=self.port_manager.is_port_available,
             clock=self.clock,
         )
 
@@ -376,3 +382,26 @@ class StreamlitLauncher:
         events.append(event)
         if render and self.console_renderer is not None:
             self.console_renderer.render_launch_event(event)
+
+    def _render_port_release_if_verified(self, url: str | None) -> None:
+        if self.console_renderer is None:
+            return
+        host_port = _parse_url_host_port(url)
+        if host_port is None:
+            return
+        host, port = host_port
+        try:
+            released = self.port_manager.is_port_available(host, port)
+        except Exception:
+            return
+        if released:
+            self.console_renderer.success(f"Port {port} released")
+
+
+def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:
+    if not url:
+        return None
+    parsed = urlparse(url)
+    if parsed.hostname is None or parsed.port is None:
+        return None
+    return parsed.hostname, parsed.port

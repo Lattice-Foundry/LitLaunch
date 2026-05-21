@@ -14,6 +14,7 @@ terminal_green = "terminal_green"
 powershell_red = "powershell_red"
 muted_amber = "muted_amber"
 hook_orange = "hook_orange"
+help_magenta = "help_magenta"
 muted_gray = "muted_gray"
 success_green = "success_green"
 
@@ -68,6 +69,11 @@ THEME_COLORS = MappingProxyType(
             name=hook_orange,
             hex="#F7630C",
             ansi="\033[38;2;247;99;12m",
+        ),
+        help_magenta: ThemeColor(
+            name=help_magenta,
+            hex="#FF00FF",
+            ansi="\033[38;2;255;0;255m",
         ),
         muted_gray: ThemeColor(
             name=muted_gray,

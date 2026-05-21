@@ -76,7 +76,9 @@ def _preview_renderer(
     context: CliContext,
     mode: ConsoleMode,
 ) -> ConsoleRenderer:
-    use_color = "NO_COLOR" not in context.env
+    use_color = (
+        not bool(getattr(args, "no_color", False)) and "NO_COLOR" not in context.env
+    )
     return ConsoleRenderer(
         mode=mode,
         theme=ConsoleTheme(use_color=use_color),

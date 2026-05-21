@@ -11,7 +11,8 @@ import argparse
 from dataclasses import dataclass
 
 from litlaunch.cli.common import CliContext, write
-from litlaunch.colors import THEME_COLORS, muted_amber, streamlit_blue, terminal_green
+from litlaunch.colors import muted_amber, streamlit_blue, terminal_green
+from litlaunch.console_style import style_text
 from litlaunch.exceptions import LitLaunchError
 
 HELP_TOPICS = ("launch", "diagnostics", "profiles", "tools", "examples", "dev", "all")
@@ -290,23 +291,16 @@ class _HelpStyle:
     use_color: bool = False
 
     def heading(self, text: str) -> str:
-        return self._style(text, streamlit_blue)
+        return style_text(text, streamlit_blue, use_color=self.use_color)
 
     def label(self, text: str) -> str:
-        return self._style(text, streamlit_blue)
+        return style_text(text, streamlit_blue, use_color=self.use_color)
 
     def command(self, text: str) -> str:
-        return self._style(text, terminal_green)
+        return style_text(text, terminal_green, use_color=self.use_color)
 
     def warning(self, text: str) -> str:
-        return self._style(text, muted_amber)
+        return style_text(text, muted_amber, use_color=self.use_color)
 
     def commands(self, *values: str) -> tuple[str, ...]:
         return tuple(f"  {self.command(value)}" for value in values)
-
-    def _style(self, text: str, color_name: str) -> str:
-        if not self.use_color:
-            return text
-        color = THEME_COLORS[color_name].ansi
-        reset = "\033[0m"
-        return f"{color}{text}{reset}"

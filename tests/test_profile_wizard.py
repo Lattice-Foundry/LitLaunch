@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from litlaunch.config import BrowserChoice, LaunchMode
+from litlaunch.console import strip_ansi
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
 from litlaunch.profile_wizard import (
     ProfileWizardCancelled,
@@ -148,6 +149,28 @@ def test_profile_wizard_quit_cancels_cleanly(
 
     assert "Profile creation cancelled." in stream.getvalue()
     assert not (tmp_path / "litlaunch.toml").exists()
+
+
+def test_profile_wizard_warning_status_uses_shared_colored_prefix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    stream = StringIO()
+
+    with pytest.raises(ProfileWizardCancelled):
+        run_profile_wizard(
+            ProfileWizardOptions(use_color=True),
+            stream=stream,
+            platform_is_windows=True,
+            platform_info=platform_info(),
+            input_func=lambda: "quit",
+        )
+
+    output = stream.getvalue()
+    assert "\033[" in output
+    assert "[  warn  ] Profile creation cancelled." in strip_ansi(output)
 
 
 def test_profile_wizard_back_navigation_preserves_values(

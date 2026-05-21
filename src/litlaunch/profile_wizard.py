@@ -7,12 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TextIO
 
-from litlaunch.colors import (
-    THEME_COLORS,
-    streamlit_blue,
-    terminal_green,
-)
+from litlaunch.colors import help_magenta, muted_amber, streamlit_blue, terminal_green
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
+from litlaunch.console_style import status_prefix, style_text
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.exposure import classify_host_exposure
 from litlaunch.platforms import PlatformInfo
@@ -127,7 +124,7 @@ def run_profile_wizard(
             platform_info=platform_info,
         )
     except (KeyboardInterrupt, _WizardQuit) as exc:
-        _write_warning_status(stream, "Profile creation cancelled.")
+        _write_warning_status(stream, "Profile creation cancelled.", io.use_color)
         raise ProfileWizardCancelled from exc
 
 
@@ -350,7 +347,7 @@ def _step_host(state: _WizardState, io: _WizardIo) -> None:
         state.host = value
         exposure = classify_host_exposure(value)
         if exposure.exposed:
-            _write_warning_status(io.stream, exposure.warning or "")
+            _write_warning_status(io.stream, exposure.warning or "", io.use_color)
             state.allow_network_exposure = _ask_bool(
                 io,
                 "Acknowledge network exposure for this profile",
@@ -552,6 +549,7 @@ def _step_extra_env(state: _WizardState, io: _WizardIo) -> None:
     _write_warning_status(
         io.stream,
         "Extra environment values are stored as plaintext in litlaunch.toml.",
+        io.use_color,
     )
     state.extra_env = {
         key: str(value)
@@ -846,7 +844,10 @@ def _read_answer(io: _WizardIo) -> str:
 
 
 def _render_header(io: _WizardIo) -> None:
-    _write(io.stream, _style("Create Profile Wizard", streamlit_blue, io.use_color))
+    _write(
+        io.stream,
+        style_text("Create Profile Wizard", streamlit_blue, use_color=io.use_color),
+    )
     _write(io.stream, "Choose Simple mode or Advanced mode.")
     _write(io.stream, "Type 'back' to revisit the previous step, or 'quit' to cancel.")
     _write(io.stream, "")
@@ -862,11 +863,11 @@ def _render_step_header(
     current = sum(1 for step in steps[:index] if not step.skip(state)) + 1
     title = steps[index].title
     mode = "Advanced" if state.setup_mode == "advanced" else "Simple"
-    mode_text = _style_help_magenta(mode, io.use_color)
-    step_text = _style(
+    mode_text = style_text(mode, help_magenta, use_color=io.use_color)
+    step_text = style_text(
         f"Step {current} of {len(visible_steps)} - {title}",
         streamlit_blue,
-        io.use_color,
+        use_color=io.use_color,
     )
     _write(io.stream, f"{mode_text} - {step_text}")
     _render_current_data(io, state)
@@ -878,8 +879,12 @@ def _render_current_data(io: _WizardIo, state: _WizardState) -> None:
         return
     _write(io.stream, "Current profile:")
     for label, value in values:
-        label_text = _style(f"  {label}:", streamlit_blue, io.use_color)
-        value_text = _style(str(value), terminal_green, io.use_color)
+        label_text = style_text(
+            f"  {label}:",
+            streamlit_blue,
+            use_color=io.use_color,
+        )
+        value_text = style_text(str(value), terminal_green, use_color=io.use_color)
         _write(io.stream, f"{label_text} {value_text}")
     _write(io.stream, "")
 
@@ -998,21 +1003,11 @@ def _litlaunch_toml_path(value: str) -> str:
     return value
 
 
-def _style(text: str, color_name: str, use_color: bool) -> str:
-    if not use_color:
-        return text
-    color = THEME_COLORS[color_name].ansi
-    return f"{color}{text}\033[0m"
-
-
-def _style_help_magenta(text: str, use_color: bool) -> str:
-    if not use_color:
-        return text
-    return f"\033[95m{text}\033[0m"
-
-
-def _write_warning_status(stream: TextIO, message: str) -> None:
-    _write(stream, f"[  warn  ] {message}")
+def _write_warning_status(
+    stream: TextIO, message: str, use_color: bool = False
+) -> None:
+    prefix = status_prefix("warn", muted_amber, use_color=use_color)
+    _write(stream, f"{prefix} {message}")
 
 
 def _write(stream: TextIO, message: str) -> None:

@@ -3,6 +3,7 @@ from io import StringIO
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.colors import (
     THEME_COLORS,
+    help_magenta,
     hook_orange,
     is_hex_color,
     muted_amber,
@@ -15,7 +16,6 @@ from litlaunch.colors import (
 )
 from litlaunch.config import BrowserChoice
 from litlaunch.console import (
-    ANSI_COLORS,
     ConsoleMode,
     ConsolePhase,
     ConsoleRenderer,
@@ -23,6 +23,7 @@ from litlaunch.console import (
     format_elapsed,
     strip_ansi,
 )
+from litlaunch.console_style import ANSI_COLORS, status_prefix, style_text
 from litlaunch.lifecycle import LaunchEvent, LaunchState
 from litlaunch.shutdown import ShutdownHookResult
 from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
@@ -36,6 +37,7 @@ def test_named_theme_colors_exist_and_are_hex():
         powershell_red,
         muted_amber,
         hook_orange,
+        help_magenta,
         muted_gray,
         success_green,
     }
@@ -59,8 +61,23 @@ def test_console_theme_defaults_use_litlaunch_color_roles():
     assert theme.success == success_green
     assert THEME_COLORS[powershell_red].hex == "#E74856"
     assert THEME_COLORS[muted_amber].hex == "#F9F1A5"
+    assert THEME_COLORS[help_magenta].hex == "#FF00FF"
     assert ANSI_COLORS[streamlit_blue]
+    assert "indigo" not in ANSI_COLORS
+    assert "cyan" not in ANSI_COLORS
     assert theme.use_color is False
+
+
+def test_shared_console_style_status_prefix_and_no_color():
+    assert status_prefix("warn", muted_amber, use_color=False) == "[  warn  ]"
+    assert style_text("hello", streamlit_blue, use_color=False) == "hello"
+
+
+def test_shared_console_style_applies_theme_color():
+    styled = style_text("hello", streamlit_blue, use_color=True)
+
+    assert THEME_COLORS[streamlit_blue].ansi in styled
+    assert strip_ansi(styled) == "hello"
 
 
 def test_console_theme_accepts_custom_accent():

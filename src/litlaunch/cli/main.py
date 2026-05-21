@@ -31,6 +31,10 @@ from litlaunch.cli.inspect import (
     cmd_report,
 )
 from litlaunch.cli.preview import add_console_preview_flags, cmd_console_preview
+from litlaunch.console_style import (
+    apply_argparse_help_formatter_colors,
+    configure_argparse_help_colors,
+)
 from litlaunch.exceptions import LitLaunchError
 
 _source_checkout_example_path = source_checkout_example_path
@@ -78,20 +82,13 @@ class LitLaunchHelpFormatter(argparse.HelpFormatter):
 
     def _set_color(self, color):
         super()._set_color(color)
-        try:
-            from _colorize import ANSIColors
-        except ImportError:  # pragma: no cover - older Python versions.
-            return
-        self._theme = self._theme.copy_with(
-            summary_label=ANSIColors.GREEN,
-            label=ANSIColors.INTENSE_YELLOW,
-        )
+        apply_argparse_help_formatter_colors(self)
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the LitLaunch argparse parser."""
 
-    _configure_argparse_help_colors()
+    configure_argparse_help_colors()
     parent = argparse.ArgumentParser(
         add_help=False,
         formatter_class=LitLaunchHelpFormatter,
@@ -271,25 +268,6 @@ def _add_global_flags(parser: argparse.ArgumentParser) -> None:
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--quiet", action="store_true", help="Suppress normal output.")
     group.add_argument("--verbose", action="store_true", help="Show detailed output.")
-
-
-def _configure_argparse_help_colors() -> None:
-    """Align Python 3.14 argparse metavars with LitLaunch's green help accent."""
-
-    try:
-        from _colorize import ANSIColors, get_theme, set_theme
-    except ImportError:  # pragma: no cover - older Python versions.
-        return
-
-    theme = get_theme(force_color=True)
-    set_theme(
-        theme.copy_with(
-            argparse=theme.argparse.copy_with(
-                summary_label=ANSIColors.GREEN,
-                label=ANSIColors.INTENSE_YELLOW,
-            )
-        )
-    )
 
 
 def _normalize_launch_shorthand(argv: Sequence[str]) -> list[str]:

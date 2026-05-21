@@ -3,6 +3,16 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.26b0
+
+- Centralized console ANSI styling and status-label formatting behind a shared
+  presentation helper used by runtime console, workflow help, argparse color
+  bridging, and profile wizard output.
+- Routed profile wizard warning/status coloring through the shared console
+  styling layer and removed local raw ANSI helpers.
+- Removed dead console phase enum members and unused ad hoc color aliases while
+  preserving current runtime, help, preview, and wizard output behavior.
+
 ## 0.91.25b0
 
 - Added explicit non-loopback host exposure detection, launch warnings, and

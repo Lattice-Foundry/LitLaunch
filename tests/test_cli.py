@@ -622,7 +622,7 @@ def test_cli_create_profile_keyboard_interrupt_cancels_cleanly(monkeypatch):
 
     output = stream.getvalue()
     assert code == 130
-    assert "[  warn  ] Profile creation cancelled." in output
+    assert "[  warn  ] Profile creation cancelled." in strip_ansi(output)
     assert "Traceback" not in output
     assert "KeyboardInterrupt" not in output
 
@@ -689,7 +689,7 @@ def test_cli_create_profile_quit_commands_cancel_cleanly(monkeypatch):
         )
 
         assert code == 130
-        assert "[  warn  ] Profile creation cancelled." in stream.getvalue()
+        assert "[  warn  ] Profile creation cancelled." in strip_ansi(stream.getvalue())
 
 
 def test_cli_create_profile_back_navigation_preserves_values(monkeypatch):
@@ -1261,6 +1261,15 @@ def test_cli_console_preview_defaults_to_all_and_respects_no_color_env():
     assert strip_ansi(color_stream.getvalue()) == plain_stream.getvalue()
 
 
+def test_cli_console_preview_respects_global_no_color_flag():
+    stream = StringIO()
+
+    code = main(["--no-color", "console-preview", "--normal"], stream=stream, env={})
+
+    assert code == 0
+    assert "\033[" not in stream.getvalue()
+
+
 def test_cli_console_preview_does_not_call_runtime_factories():
     def fail_factory(*args, **kwargs):
         raise AssertionError("console-preview should not touch runtime factories")
@@ -1413,7 +1422,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.25b0"
+    assert data["litlaunch_version"] == "0.91.26b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

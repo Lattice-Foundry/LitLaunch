@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import re
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -12,7 +11,6 @@ from typing import ClassVar, TextIO
 
 from litlaunch.browsers import BrowserResolution
 from litlaunch.colors import (
-    THEME_COLORS,
     hook_orange,
     muted_amber,
     muted_gray,
@@ -21,11 +19,15 @@ from litlaunch.colors import (
     success_green,
     terminal_green,
 )
+from litlaunch.console_style import (
+    ANSI_PATTERN,
+    status_prefix,
+    strip_ansi,
+    style_text,
+)
 from litlaunch.lifecycle import LaunchEvent, LaunchState
 from litlaunch.shutdown import ShutdownHookResult
 from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
-
-ANSI_PATTERN = re.compile(r"\033\[[0-9;]*m")
 
 
 class ConsoleMode(str, Enum):
@@ -43,24 +45,10 @@ class ConsolePhase(str, Enum):
     HEALTH = "Health"
     BROWSER = "Browser"
     MONITOR = "Monitor"
-    RUNTIME = "Runtime"
     SHUTDOWN = "Shutdown"
-    STOPPING_BACKEND = "Stopping backend"
     HOOK = "Hook"
 
 
-ANSI_COLORS: Mapping[str, str] = {
-    **{name: color.ansi for name, color in THEME_COLORS.items()},
-    "indigo": "\033[38;2;99;102;241m",
-    "cyan": "\033[38;2;6;182;212m",
-    "green": "\033[32m",
-    "yellow": "\033[33m",
-    "red": "\033[31m",
-    "gray": "\033[90m",
-    "reset": "\033[0m",
-}
-
-STATUS_LABEL_WIDTH = 8
 CONSOLE_CATEGORY_LABELS = frozenset(
     {
         "Runtime",
@@ -446,15 +434,10 @@ class ConsoleRenderer:
             flush()
 
     def _style(self, text: str, color_name: str) -> str:
-        if not self.use_color:
-            return text
-        color = ANSI_COLORS.get(color_name, "")
-        reset = ANSI_COLORS["reset"]
-        return f"{color}{text}{reset}" if color else text
+        return style_text(text, color_name, use_color=self.use_color)
 
     def _status_prefix(self, status: str, color_name: str) -> str:
-        padded = f"{status:^{STATUS_LABEL_WIDTH}}"
-        return f"[{self._style(padded, color_name)}]"
+        return status_prefix(status, color_name, use_color=self.use_color)
 
     def _emit_status(self, status: str, color_name: str, message: str) -> None:
         message = self._style_category_label(message)
@@ -516,12 +499,6 @@ class ConsoleRenderer:
     def _guidance_line(self, label: str, message: str) -> None:
         display_label = "cause" if label == "Likely cause" else label.lower()
         self._emit_status(display_label, self.theme.label, message)
-
-
-def strip_ansi(text: str) -> str:
-    """Remove ANSI escape sequences from console output."""
-
-    return ANSI_PATTERN.sub("", text)
 
 
 def format_elapsed(seconds: float) -> str:

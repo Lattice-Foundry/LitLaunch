@@ -16,6 +16,7 @@ litlaunch command <app_path>
 litlaunch run <app_path>
 litlaunch <app_path>
 litlaunch --profile <profile>
+litlaunch create profile
 litlaunch example
 ```
 
@@ -47,6 +48,7 @@ litlaunch help
 litlaunch help launch
 litlaunch help diagnostics
 litlaunch help profiles
+litlaunch help tools
 litlaunch help examples
 litlaunch help dev
 ```
@@ -262,6 +264,18 @@ the port. If both `litlaunch.toml` and `pyproject.toml` contain profiles, use
 `window_monitor`, LitLaunch runs the monitored webapp flow; otherwise it uses
 the normal launcher runtime flow. `command --profile` and `inspect --profile`
 remain plan-oriented and do not launch the backend or browser.
+
+Create a new `litlaunch.toml` profile interactively:
+
+```powershell
+litlaunch create profile
+litlaunch create profile --name my-webapp --app app.py
+litlaunch create profile --dry-run
+```
+
+The first wizard pass supports Simple mode. It defaults to the recommended
+app-window experience, while still allowing browser-tab profiles. Advanced mode
+and shortcut creation are planned separately.
 
 ## Example
 

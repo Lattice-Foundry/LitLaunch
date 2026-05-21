@@ -14,7 +14,7 @@ from litlaunch.cli.common import CliContext, write
 from litlaunch.colors import THEME_COLORS, muted_amber, streamlit_blue, terminal_green
 from litlaunch.exceptions import LitLaunchError
 
-HELP_TOPICS = ("launch", "diagnostics", "profiles", "examples", "dev", "all")
+HELP_TOPICS = ("launch", "diagnostics", "profiles", "tools", "examples", "dev", "all")
 
 
 def add_workflow_help_flags(parser: argparse.ArgumentParser) -> None:
@@ -53,6 +53,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  launch       Run Streamlit apps.",
             "  diagnostics  Generate reports and support diagnostics.",
             "  profiles     Reuse settings from litlaunch.toml or pyproject.toml.",
+            "  tools        Create profiles and project assets.",
             "  examples     Copy/paste common commands.",
             f"  dev          {style.warning('Internal developer preview tooling.')}",
             "",
@@ -122,6 +123,9 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "",
             "Profiles store reusable launch settings.",
             "",
+            style.label("Create a profile:"),
+            *style.commands("litlaunch create profile"),
+            "",
             style.label("Run a profile:"),
             *style.commands(
                 "litlaunch --profile NAME",
@@ -140,6 +144,23 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "",
             "CLI flags override profile values.",
         )
+    if topic == "tools":
+        return _join(
+            style.heading("Tools workflows"),
+            "",
+            "Create project assets without launching the app.",
+            "",
+            style.label("Profiles:"),
+            *style.commands(
+                "litlaunch create profile",
+                "litlaunch create profile --name my-webapp --app app.py",
+                "litlaunch create profile --dry-run",
+            ),
+            "",
+            style.warning(
+                "Shortcut creation is planned separately and is not implemented yet."
+            ),
+        )
     if topic == "examples":
         return _join(
             style.heading("Examples"),
@@ -149,6 +170,9 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "",
             style.label("Launch a profile:"),
             *style.commands("litlaunch --profile my-webapp"),
+            "",
+            style.label("Create a profile:"),
+            *style.commands("litlaunch create profile"),
             "",
             style.label("Generate a report:"),
             *style.commands(
@@ -219,6 +243,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             *style.commands(
                 "litlaunch command app.py",
                 "litlaunch command --profile NAME",
+                "litlaunch create profile",
                 "litlaunch browsers --verbose",
                 "litlaunch platform --verbose",
                 "litlaunch version",
@@ -229,6 +254,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
                 "litlaunch help launch",
                 "litlaunch help diagnostics",
                 "litlaunch help profiles",
+                "litlaunch help tools",
                 "litlaunch help examples",
                 "litlaunch help dev",
             ),

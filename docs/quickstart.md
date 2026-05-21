@@ -57,6 +57,13 @@ litlaunch app.py --server.runOnSave true -- --workspace demo
 
 Profiles store repeatable launch settings in `litlaunch.toml`:
 
+```powershell
+litlaunch create profile
+```
+
+The Simple wizard defaults to the recommended app-window experience and writes
+a `litlaunch.toml` profile after confirmation.
+
 ```toml
 [profiles.my-webapp]
 app_path = "app.py"

@@ -22,6 +22,7 @@ from litlaunch.cli.common import (
     write,
 )
 from litlaunch.cli.config import add_runtime_flags
+from litlaunch.cli.create import add_create_flags, cmd_create
 from litlaunch.cli.help import add_workflow_help_flags, cmd_workflow_help
 from litlaunch.cli.inspect import (
     add_inspect_flags,
@@ -43,6 +44,7 @@ _COMMAND_NAMES = frozenset(
         "report",
         "command",
         "run",
+        "create",
         "example",
         "console-preview",
     }
@@ -107,7 +109,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(
         dest="command",
-        metavar="{version,platform,browsers,help,inspect,report,command,run,example}",
+        metavar=(
+            "{version,platform,browsers,help,inspect,report,command,run,create,example}"
+        ),
     )
 
     version_parser = subparsers.add_parser(
@@ -178,6 +182,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_runtime_flags(run_parser, include_dry_run=True)
     run_parser.set_defaults(handler=cmd_run)
+
+    create_parser = subparsers.add_parser(
+        "create",
+        parents=[parent],
+        help="Create LitLaunch project assets.",
+        formatter_class=LitLaunchHelpFormatter,
+    )
+    add_create_flags(create_parser)
+    create_parser.set_defaults(handler=cmd_create)
 
     example_parser = subparsers.add_parser(
         "example",

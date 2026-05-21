@@ -98,6 +98,10 @@ litlaunch report examples/minimal_app/app.py
 
 Use a reusable project profile:
 
+```powershell
+litlaunch create profile
+```
+
 ```toml
 [profiles.my-webapp]
 app_path = "app.py"

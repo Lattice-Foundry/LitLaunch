@@ -32,6 +32,7 @@ from litlaunch.inspect import (
 from litlaunch.lifecycle import LaunchPlan, LaunchResult, LaunchState
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
 from litlaunch.ports import PortError
+from litlaunch.profiles import load_profile
 from litlaunch.redaction import format_command_preview
 from litlaunch.windowing import (
     NoopWindowMonitor,
@@ -116,6 +117,10 @@ class FakeBrowserRegistry:
             fallback_chain=(),
             message="Selected Edge.",
         )
+
+
+def _failing_launcher_factory(*args, **kwargs):
+    raise AssertionError("create profile should not launch or build runtime")
 
 
 class FakeSession:
@@ -344,6 +349,7 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "report" in help_text
     assert "command" in help_text
     assert "run" in help_text
+    assert "create" in help_text
     assert "source-checkout minimal example" in help_text
     assert "litlaunch app.py" in help_text
     assert "litlaunch --profile my-webapp" in help_text
@@ -363,6 +369,7 @@ def test_cli_workflow_help_menu_lists_topics():
     assert "launch" in output
     assert "diagnostics" in output
     assert "profiles" in output
+    assert "tools" in output
     assert "examples" in output
     assert "dev" in output
 
@@ -411,6 +418,7 @@ def test_cli_workflow_help_profiles_topic():
     output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "Profile workflows" in output
+    assert "litlaunch create profile" in output
     assert "litlaunch --profile NAME" in output
     assert "litlaunch run --profile NAME" in output
     assert "--config litlaunch.toml" in output
@@ -426,6 +434,7 @@ def test_cli_workflow_help_examples_topic():
     assert code == 0
     assert "Examples" in output
     assert "litlaunch app.py" in output
+    assert "litlaunch create profile" in output
     assert "litlaunch report --profile my-webapp" in output
     assert "litlaunch command app.py" in output
     assert "litlaunch command --profile my-webapp" in output
@@ -461,9 +470,24 @@ def test_cli_workflow_help_all_includes_main_topics():
     assert "LitLaunch workflow overview" in output
     assert "litlaunch app.py" in output
     assert "litlaunch report --profile NAME --open" in output
+    assert "litlaunch create profile" in output
     assert "litlaunch command --profile NAME" in output
+    assert "litlaunch help tools" in output
     assert "litlaunch help dev" in output
     assert "Bare profile names are intentionally not supported" in output
+
+
+def test_cli_workflow_help_tools_topic():
+    stream = StringIO()
+
+    code = main(["help", "tools"], stream=stream)
+
+    output = strip_ansi(stream.getvalue())
+    assert code == 0
+    assert "Tools workflows" in output
+    assert "litlaunch create profile" in output
+    assert "litlaunch create profile --dry-run" in output
+    assert "Shortcut creation is planned separately" in output
 
 
 def test_cli_workflow_help_uses_approved_palette():
@@ -489,6 +513,162 @@ def test_cli_workflow_help_unknown_topic_fails_cleanly():
     assert code == 2
     assert "Unknown help topic: unknown" in output
     assert "launch" in output
+
+
+def test_cli_create_profile_parser_exists():
+    parser = build_parser()
+
+    args = parser.parse_args(["create", "profile", "--name", "web", "--app", "app.py"])
+
+    assert args.command == "create"
+    assert args.create_command == "profile"
+    assert args.name == "web"
+    assert args.app_path == "app.py"
+
+
+def test_cli_create_profile_simple_mode_writes_webapp_profile(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        answers = iter(["", "", "", "", "", "", "", "", ""])
+        m.setattr("builtins.input", lambda: next(answers))
+        stream = StringIO()
+
+        code = main(
+            ["create", "profile"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+            launcher_factory=_failing_launcher_factory,
+        )
+
+        config_path = output_dir / "litlaunch.toml"
+        assert code == 0
+        assert config_path.is_file()
+        profile = load_profile(output_dir.name, config_path)
+        assert profile.config.app_path == output_dir / "app.py"
+        assert profile.config.mode == LaunchMode.WEBAPP
+        assert profile.config.browser == BrowserChoice.AUTO
+        assert profile.monitor_window is True
+        assert profile.graceful_timeout_seconds == 15.0
+        assert profile.window_monitor_config.stable_poll_count == 2
+        output = stream.getvalue()
+        assert "App window, recommended" in output
+        assert "Profile preview" in output
+
+
+def test_cli_create_profile_options_prefill_name_and_app(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "custom.py").write_text("print('hello')\n", encoding="utf-8")
+        answers = iter(["", "", "", "", "", "", "", "", ""])
+        m.setattr("builtins.input", lambda: next(answers))
+        stream = StringIO()
+
+        code = main(
+            ["create", "profile", "--name", "custom", "--app", "custom.py"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        profile = load_profile("custom", output_dir / "litlaunch.toml")
+        assert code == 0
+        assert profile.config.app_path == output_dir / "custom.py"
+
+
+def test_cli_create_profile_browser_tab_maps_to_browser_mode(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        answers = iter(["", "browser-profile", "", "", "2", "", "", ""])
+        m.setattr("builtins.input", lambda: next(answers))
+        stream = StringIO()
+
+        code = main(
+            ["create", "profile"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        profile = load_profile("browser-profile", output_dir / "litlaunch.toml")
+        assert code == 0
+        assert profile.config.mode == LaunchMode.BROWSER
+        assert profile.monitor_window is False
+
+
+def test_cli_create_profile_dry_run_does_not_write(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        answers = iter(["", "dry-run", "", "", "", "", "", "", ""])
+        m.setattr("builtins.input", lambda: next(answers))
+        stream = StringIO()
+
+        code = main(
+            ["create", "profile", "--dry-run"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        assert code == 0
+        assert not (output_dir / "litlaunch.toml").exists()
+        assert '[profiles."dry-run"]' in stream.getvalue()
+        assert "Dry run complete" in stream.getvalue()
+
+
+def test_cli_create_profile_collision_and_force_behavior(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        (output_dir / "litlaunch.toml").write_text(
+            """
+[profiles.existing]
+app_path = "app.py"
+title = "Old"
+""",
+            encoding="utf-8",
+        )
+        blocked_answers = iter(["", "existing", "new-name", "", "", "", "", "", "", ""])
+        m.setattr("builtins.input", lambda: next(blocked_answers))
+        blocked_stream = StringIO()
+
+        blocked_code = main(
+            ["create", "profile"],
+            stream=blocked_stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        assert blocked_code == 0
+        assert "already exists" in blocked_stream.getvalue()
+        assert load_profile("new-name", output_dir / "litlaunch.toml")
+
+        forced_answers = iter(["", "", "", "", "", "", "", "", ""])
+        m.setattr("builtins.input", lambda: next(forced_answers))
+        forced_stream = StringIO()
+        forced_code = main(
+            ["create", "profile", "--name", "existing", "--force"],
+            stream=forced_stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        assert forced_code == 0
+        assert load_profile("existing", output_dir / "litlaunch.toml").config.mode == (
+            LaunchMode.WEBAPP
+        )
+
+
+def test_cli_create_profile_advanced_mode_exits_cleanly(monkeypatch):
+    answers = iter(["2"])
+    monkeypatch.setattr("builtins.input", lambda: next(answers))
+    stream = StringIO()
+
+    code = main(
+        ["create", "profile"],
+        stream=stream,
+        platform_detector_factory=FakePlatformDetector,
+    )
+
+    assert code == 0
+    assert "Advanced mode is not implemented yet" in stream.getvalue()
 
 
 def test_cli_console_preview_command_exists_and_exits_zero():
@@ -789,7 +969,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.17b0"
+    assert data["litlaunch_version"] == "0.91.18b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1548,7 +1728,7 @@ def test_cli_run_rejects_missing_app_path_before_launching():
     )
 
     assert code == 2
-    assert "Streamlit app path does not exist" in stream.getvalue()
+    assert "App path does not exist" in stream.getvalue()
 
 
 def test_cli_run_rejects_invalid_host_before_launching():

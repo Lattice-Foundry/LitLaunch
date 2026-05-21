@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.18b0
+
+- Added the `litlaunch create profile` command namespace with an interactive
+  Simple mode profile wizard.
+- Made app-window/webapp profiles the recommended default while preserving
+  browser-tab profile creation.
+- Added a small LitLaunch-owned `litlaunch.toml` writer that validates generated
+  profiles through the existing profile loader without changing runtime behavior.
+
 ## 0.91.17b0
 
 - Normalized `litlaunch help` workflow topics around the finalized launch,

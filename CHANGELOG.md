@@ -3,6 +3,18 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.30b0
+
+- Added transport security diagnostics that detect Streamlit-native TLS
+  settings and report plaintext network-exposure risk.
+- Added TLS-aware runtime exposure guidance so non-loopback launch warnings
+  distinguish plaintext HTTP from Streamlit TLS-configured launches.
+- Extended inspect/report JSON, HTML, and support-bundle output with
+  `Transport Security` posture data without adding TLS termination,
+  certificate management, auth, or reverse-proxy behavior.
+- Documented LitLaunch's transport-security boundary and recommended
+  Streamlit-native or infrastructure-native TLS paths for internal deployments.
+
 ## 0.91.29b0
 
 - Added runtime exposure/posture diagnostics that summarize host binding scope,

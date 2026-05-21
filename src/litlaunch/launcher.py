@@ -403,7 +403,11 @@ class StreamlitLauncher:
         exposure = classify_host_exposure(self.config.host)
         if not exposure.exposed:
             return
-        render_network_exposure_warning(self.console_renderer, exposure)
+        render_network_exposure_warning(
+            self.console_renderer,
+            exposure,
+            config=self.config,
+        )
         try:
             validate_host_exposure_policy(
                 host=self.config.host,

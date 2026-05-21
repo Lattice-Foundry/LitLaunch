@@ -12,6 +12,7 @@ from litlaunch.config import LauncherConfig
 from litlaunch.console import ConsolePhase, ConsoleRenderer
 from litlaunch.exposure import HostExposure
 from litlaunch.process import ManagedProcess, ProcessManager
+from litlaunch.transport import evaluate_transport_posture
 from litlaunch.windowing import WindowMonitorResult
 
 
@@ -31,18 +32,50 @@ def render_runtime_header(
 def render_network_exposure_warning(
     renderer: ConsoleRenderer | None,
     exposure: HostExposure,
+    *,
+    config: LauncherConfig,
 ) -> None:
     """Render an honest warning for non-loopback host binding."""
 
     if renderer is None or exposure.warning is None:
         return
+    transport = evaluate_transport_posture(
+        host=config.host,
+        trust_mode=config.trust_mode,
+        allow_network_exposure=config.allow_network_exposure,
+        streamlit_flags=config.streamlit_flags,
+        streamlit_args=config.streamlit_args,
+    )
+    cause = exposure.warning
+    next_steps = [
+        "Use --host 127.0.0.1 for localhost-only development.",
+        "Use --allow-network-exposure only when this binding is intentional.",
+    ]
+    if transport.plaintext_network_risk:
+        cause = f"{cause} Traffic appears to use plaintext HTTP."
+        next_steps.append(
+            "Use Streamlit TLS settings or approved network infrastructure "
+            "for internal deployments."
+        )
+    elif transport.tls_status.value == "configured":
+        cause = (
+            f"{cause} Streamlit-native TLS appears configured, but LitLaunch "
+            "does not add authentication or secure the app itself."
+        )
+        next_steps.append(
+            "Confirm certificate handling, authentication, and network controls "
+            "outside LitLaunch."
+        )
+    elif transport.tls_status.value == "incomplete":
+        cause = f"{cause} Streamlit TLS settings appear incomplete."
+        next_steps.append(
+            "Set both server.sslCertFile and server.sslKeyFile, or remove "
+            "partial TLS settings."
+        )
     renderer.failure_guidance(
         "Runtime: network exposure requested.",
-        likely_cause=exposure.warning,
-        next_steps=(
-            "Use --host 127.0.0.1 for localhost-only development.",
-            ("Use --allow-network-exposure only when this binding is intentional."),
-        ),
+        likely_cause=cause,
+        next_steps=tuple(next_steps),
         level="warning",
     )
 

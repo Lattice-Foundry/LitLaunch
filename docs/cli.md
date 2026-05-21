@@ -165,6 +165,16 @@ litlaunch app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-ex
 acknowledgement. Trust modes govern LitLaunch runtime behavior; they do not
 secure the Streamlit application.
 
+For Streamlit-native TLS, pass Streamlit's cert/key settings through the same
+flag/profile path. LitLaunch reports these settings in diagnostics, but does
+not terminate TLS or manage certificates:
+
+```powershell
+litlaunch run app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure `
+  --streamlit-flag server.sslCertFile=cert.pem `
+  --streamlit-flag server.sslKeyFile=key.pem
+```
+
 ## Command Preview
 
 ```powershell

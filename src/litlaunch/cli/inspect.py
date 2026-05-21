@@ -8,7 +8,13 @@ from collections.abc import Callable
 from pathlib import Path
 
 from litlaunch.cli.common import CliContext, mode, renderer, write
-from litlaunch.cli.config import add_profile_flags, load_cli_profile, profile_value
+from litlaunch.cli.config import (
+    add_profile_flags,
+    load_cli_profile,
+    merge_streamlit_flags,
+    parse_streamlit_flag,
+    profile_value,
+)
 from litlaunch.config import BrowserChoice, LaunchMode, TrustMode
 from litlaunch.console import ConsoleMode
 from litlaunch.exceptions import LitLaunchError
@@ -73,6 +79,14 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--streamlit-flag",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        type=parse_streamlit_flag,
+        help="Add a Streamlit flag for diagnostics preview. Repeatable.",
+    )
+    parser.add_argument(
         "--output",
         help=(
             "Write inspect output to a UTF-8 file. Supports JSON, HTML, "
@@ -105,6 +119,14 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
             "Acknowledge that a non-loopback host may expose the app beyond "
             "this machine."
         ),
+    )
+    parser.add_argument(
+        "--streamlit-flag",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        type=parse_streamlit_flag,
+        help="Add a Streamlit flag for diagnostics preview. Repeatable.",
     )
     parser.add_argument(
         "--output",
@@ -237,8 +259,9 @@ def collect_diagnostics_report(
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
         extra_env=profile_config.extra_env if profile_config is not None else None,
-        streamlit_flags=(
-            profile_config.streamlit_flags if profile_config is not None else None
+        streamlit_flags=merge_streamlit_flags(
+            profile_config.streamlit_flags if profile_config is not None else {},
+            getattr(args, "streamlit_flag", []),
         ),
         streamlit_args=(
             profile_config.streamlit_args if profile_config is not None else ()

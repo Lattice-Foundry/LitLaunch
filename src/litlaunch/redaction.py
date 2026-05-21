@@ -98,6 +98,8 @@ def sanitize_report_dict(value: object) -> object:
 def _is_sensitive_argument_name(value: str) -> bool:
     lowered = value.lower().lstrip("-")
     name = lowered.split("=", 1)[0]
+    if name in {"server.sslcertfile", "server.sslkeyfile"}:
+        return True
     if any(marker in name for marker in SENSITIVE_MARKERS):
         return True
     return name == "key" or name.endswith((".key", "_key", "-key"))

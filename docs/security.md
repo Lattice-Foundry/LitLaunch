@@ -99,6 +99,37 @@ This is operational visibility, not a subjective security score. A warning or
 error means the runtime configuration deserves attention; it does not mean
 LitLaunch has secured or failed to secure the Streamlit application.
 
+## Transport Security Diagnostics
+
+`litlaunch inspect` and `litlaunch report` also include a transport security
+section. LitLaunch detects Streamlit-native TLS settings when they are provided
+through supported Streamlit flag/profile paths:
+
+```toml
+[profiles.internal-dashboard.streamlit_flags]
+"server.sslCertFile" = "cert.pem"
+"server.sslKeyFile" = "key.pem"
+```
+
+When both `server.sslCertFile` and `server.sslKeyFile` are present, LitLaunch
+reports Streamlit-native TLS as configured. When only one is present, LitLaunch
+reports incomplete TLS configuration. Certificate and key paths are summarized
+rather than printed into diagnostics.
+
+For non-loopback hosts without TLS settings, diagnostics warn that traffic
+appears to be network-visible plaintext HTTP. That warning is intentionally
+operational: LitLaunch does not terminate TLS, generate certificates, manage
+certificates, add authentication, or create a reverse proxy.
+
+Transport guidance:
+
+- local loopback development does not usually need TLS
+- internal-network apps should use approved infrastructure controls
+- Streamlit-native TLS can encrypt transport, but it does not authenticate users
+  or make the Streamlit app secure by itself
+- corporate/internal deployments often belong behind an approved reverse proxy,
+  VPN, gateway, or other platform-owned boundary
+
 ## Internal Network Recommendations
 
 For internal dashboards and analyst tools:
@@ -106,6 +137,7 @@ For internal dashboards and analyst tools:
 - keep loopback binding for local-only tools
 - expose only on trusted networks with known firewall/routing boundaries
 - put authentication, TLS, and access control outside LitLaunch when needed
+- treat non-loopback HTTP as network-visible plaintext
 - review generated HTML reports and support bundles before sharing
 - avoid storing secrets in profile `extra_env`; those values are plaintext TOML
 

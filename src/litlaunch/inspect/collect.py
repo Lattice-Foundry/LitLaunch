@@ -27,6 +27,7 @@ from litlaunch.inspect.streamlit_check import (
 )
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector, PlatformInfo
+from litlaunch.transport import TransportPosture, evaluate_transport_posture
 from litlaunch.version import __version__
 from litlaunch.windowing import WindowMonitorConfig
 
@@ -81,17 +82,27 @@ class DiagnosticCollector:
             allow_fallback=allow_browser_fallback,
         )
 
+        runtime_exposure = assess_runtime_exposure(
+            host=host,
+            trust_mode=trust_mode,
+            allow_network_exposure=allow_network_exposure,
+        )
+        transport_posture = evaluate_transport_posture(
+            exposure_assessment=runtime_exposure,
+            streamlit_flags=streamlit_flags or {},
+            streamlit_args=streamlit_args,
+        )
+
         sections = [
             self._litlaunch_section(),
             self._platform_section(platform_info),
             self._streamlit_section(streamlit),
             self._browser_section(capabilities, resolution),
             self._runtime_exposure_section(
-                host=host,
-                trust_mode=trust_mode,
-                allow_network_exposure=allow_network_exposure,
+                assessment=runtime_exposure,
                 extra_env=extra_env or {},
             ),
+            self._transport_security_section(transport_posture),
         ]
         if profile_name is not None:
             sections.append(
@@ -283,16 +294,9 @@ class DiagnosticCollector:
     def _runtime_exposure_section(
         self,
         *,
-        host: str,
-        trust_mode: TrustMode | str,
-        allow_network_exposure: bool,
+        assessment,
         extra_env: Mapping[str, str],
     ) -> DiagnosticSection:
-        assessment = assess_runtime_exposure(
-            host=host,
-            trust_mode=trust_mode,
-            allow_network_exposure=allow_network_exposure,
-        )
         status = _posture_status(assessment.severity)
         items = [
             DiagnosticItem("Configured host", status, assessment.host),
@@ -367,6 +371,61 @@ class DiagnosticCollector:
                 )
             )
         return DiagnosticSection("Runtime Exposure", tuple(items))
+
+    def _transport_security_section(
+        self,
+        posture: TransportPosture,
+    ) -> DiagnosticSection:
+        status = _posture_status(posture.severity)
+        tls_status = (
+            DiagnosticStatus.ERROR
+            if posture.tls_status.value == "incomplete"
+            else status
+            if posture.network_visible
+            else DiagnosticStatus.OK
+            if posture.tls_status.value == "configured"
+            else DiagnosticStatus.INFO
+        )
+        return DiagnosticSection(
+            "Transport Security",
+            (
+                DiagnosticItem(
+                    "TLS configuration",
+                    tls_status,
+                    posture.tls_status.value,
+                    detail=posture.detail,
+                ),
+                DiagnosticItem(
+                    "TLS source",
+                    DiagnosticStatus.INFO,
+                    _tls_source_message(posture),
+                    detail=(
+                        "LitLaunch detects Streamlit-native server.sslCertFile "
+                        "and server.sslKeyFile settings; certificate paths are "
+                        "not included in diagnostics."
+                    ),
+                ),
+                DiagnosticItem(
+                    "Network plaintext risk",
+                    (
+                        DiagnosticStatus.WARNING
+                        if posture.plaintext_network_risk
+                        else DiagnosticStatus.OK
+                    ),
+                    "present" if posture.plaintext_network_risk else "not detected",
+                    detail=posture.detail,
+                ),
+                DiagnosticItem(
+                    "Transport recommendation",
+                    status,
+                    posture.recommendation,
+                    detail=(
+                        "TLS encrypts transport but does not add application "
+                        "authentication or make Streamlit itself secure."
+                    ),
+                ),
+            ),
+        )
 
     def _target_section(
         self,
@@ -521,6 +580,16 @@ def _trust_mode_message(trust_mode: TrustMode) -> str:
     if trust_mode == TrustMode.INTERNAL_NETWORK:
         return "internal_network is for intentional internal/LAN exposure."
     return "development is the permissive local developer posture."
+
+
+def _tls_source_message(posture: TransportPosture) -> str:
+    if posture.cert_configured and posture.key_configured:
+        return "Streamlit TLS settings detected"
+    if posture.cert_configured:
+        return "Streamlit certificate setting detected without key"
+    if posture.key_configured:
+        return "Streamlit key setting detected without certificate"
+    return "no Streamlit TLS settings detected"
 
 
 def _host_binding_item(host: str, allow_network_exposure: bool) -> DiagnosticItem:

@@ -21,6 +21,8 @@ from litlaunch.exposure import (
 from litlaunch.inspect import DiagnosticCollector
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
+from litlaunch.runtime_console import render_network_exposure_warning
+from litlaunch.transport import TlsStatus, evaluate_transport_posture
 
 
 @pytest.fixture
@@ -150,6 +152,64 @@ def test_exposure_assessment_summarizes_posture():
     assert "strict_local" in blocked.summary
 
 
+def test_transport_posture_detects_absent_complete_and_incomplete_tls():
+    absent = evaluate_transport_posture(host="127.0.0.1", trust_mode="development")
+    complete = evaluate_transport_posture(
+        host="0.0.0.0",
+        trust_mode="internal_network",
+        allow_network_exposure=True,
+        streamlit_flags={
+            "server.sslCertFile": "cert.pem",
+            "server.sslKeyFile": "key.pem",
+        },
+    )
+    incomplete = evaluate_transport_posture(
+        host="0.0.0.0",
+        trust_mode="internal_network",
+        allow_network_exposure=True,
+        streamlit_flags={"server.sslCertFile": "cert.pem"},
+    )
+
+    assert absent.tls_status == TlsStatus.NOT_CONFIGURED
+    assert absent.plaintext_network_risk is False
+    assert complete.tls_status == TlsStatus.CONFIGURED
+    assert complete.plaintext_network_risk is False
+    assert "TLS appears configured" in complete.summary
+    assert incomplete.tls_status == TlsStatus.INCOMPLETE
+    assert incomplete.severity == "warning"
+    assert "server.sslKeyFile" in incomplete.detail
+
+
+def test_transport_posture_detects_tls_from_sequence_flags():
+    posture = evaluate_transport_posture(
+        host="0.0.0.0",
+        trust_mode="internal_network",
+        allow_network_exposure=True,
+        streamlit_flags=(
+            "--server.sslCertFile",
+            "cert.pem",
+            "--server.sslKeyFile=key.pem",
+        ),
+    )
+
+    assert posture.tls_status == TlsStatus.CONFIGURED
+    assert posture.plaintext_network_risk is False
+
+
+def test_transport_posture_warns_for_network_visible_plaintext():
+    posture = evaluate_transport_posture(
+        host="0.0.0.0",
+        trust_mode="internal_network",
+        allow_network_exposure=True,
+    )
+
+    assert posture.tls_status == TlsStatus.NOT_CONFIGURED
+    assert posture.network_visible is True
+    assert posture.plaintext_network_risk is True
+    assert posture.severity == "warning"
+    assert "plaintext HTTP" in posture.summary
+
+
 def test_launcher_blocks_unacknowledged_network_exposure(tmp_path: Path):
     app = tmp_path / "app.py"
     app.write_text("print('hi')\n", encoding="utf-8")
@@ -164,7 +224,35 @@ def test_launcher_blocks_unacknowledged_network_exposure(tmp_path: Path):
 
     output = stream.getvalue()
     assert "Runtime: network exposure requested." in output
+    assert "plaintext HTTP" in output
     assert "0.0.0.0" in output
+
+
+def test_launcher_network_exposure_warning_reflects_tls_configuration(
+    tmp_path: Path,
+):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    stream = io.StringIO()
+    config = LauncherConfig(
+        app_path=app,
+        host="0.0.0.0",
+        allow_network_exposure=True,
+        streamlit_flags={
+            "server.sslCertFile": "cert.pem",
+            "server.sslKeyFile": "key.pem",
+        },
+    )
+
+    render_network_exposure_warning(
+        ConsoleRenderer(stream=stream, env={"NO_COLOR": "1"}),
+        classify_host_exposure(config.host),
+        config=config,
+    )
+
+    output = stream.getvalue()
+    assert "Streamlit-native TLS appears configured" in output
+    assert "Traffic appears to use plaintext HTTP" not in output
 
 
 def test_launcher_strict_local_blocks_even_acknowledged_network_exposure(
@@ -271,6 +359,87 @@ def test_diagnostics_runtime_exposure_warns_for_plaintext_extra_env(
 
     assert env_item.status.value == "warning"
     assert "plaintext" in env_item.message
+
+
+def test_diagnostics_transport_security_section_reports_plaintext_network_risk(
+    tmp_path: Path,
+):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    report = DiagnosticCollector(
+        platform_detector=FakePlatformDetector(),
+        browser_registry=FakeBrowserRegistry(),
+        streamlit_checker=lambda: FakeStreamlitAvailability(),
+    ).collect(
+        app_path=app,
+        host="0.0.0.0",
+        trust_mode="internal_network",
+        allow_network_exposure=True,
+    )
+
+    section = next(
+        section for section in report.sections if section.title == "Transport Security"
+    )
+    items = {item.name: item for item in section.items}
+
+    assert items["TLS configuration"].message == "not_configured"
+    assert items["Network plaintext risk"].status.value == "warning"
+    assert items["Network plaintext risk"].message == "present"
+
+
+def test_diagnostics_transport_security_section_reports_tls_configured(
+    tmp_path: Path,
+):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    report = DiagnosticCollector(
+        platform_detector=FakePlatformDetector(),
+        browser_registry=FakeBrowserRegistry(),
+        streamlit_checker=lambda: FakeStreamlitAvailability(),
+    ).collect(
+        app_path=app,
+        host="0.0.0.0",
+        trust_mode="internal_network",
+        allow_network_exposure=True,
+        streamlit_flags={
+            "server.sslCertFile": "C:/certs/internal.pem",
+            "server.sslKeyFile": "C:/certs/internal-key.pem",
+        },
+    )
+
+    section = next(
+        section for section in report.sections if section.title == "Transport Security"
+    )
+    rendered = report.to_dict()
+    items = {item.name: item for item in section.items}
+
+    assert items["TLS configuration"].message == "configured"
+    assert items["Network plaintext risk"].message == "not detected"
+    assert "C:/certs/internal.pem" not in str(rendered)
+
+
+def test_diagnostics_transport_security_section_reports_incomplete_tls(
+    tmp_path: Path,
+):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    report = DiagnosticCollector(
+        platform_detector=FakePlatformDetector(),
+        browser_registry=FakeBrowserRegistry(),
+        streamlit_checker=lambda: FakeStreamlitAvailability(),
+    ).collect(
+        app_path=app,
+        streamlit_flags={"server.sslKeyFile": "key.pem"},
+    )
+
+    section = next(
+        section for section in report.sections if section.title == "Transport Security"
+    )
+    items = {item.name: item for item in section.items}
+
+    assert items["TLS configuration"].status.value == "error"
+    assert items["TLS configuration"].message == "incomplete"
+    assert "server.sslCertFile" in (items["TLS configuration"].detail or "")
 
 
 def test_diagnostics_report_trust_mode(tmp_path: Path):

@@ -42,6 +42,8 @@ With a target app, the report adds:
 - host binding and network exposure posture
 - runtime exposure scope, active trust mode, acknowledgement state, and whether
   the current trust mode allows the configured binding
+- transport security posture, including Streamlit-native TLS detection,
+  incomplete TLS configuration, and network-visible plaintext HTTP risk
 - operational posture reminders for loopback shutdown hooks, browser ownership,
   diagnostics privacy, and plaintext profile environment values when present
 - command preview
@@ -52,6 +54,9 @@ With a target app, the report adds:
 The posture section is operational, not a security score. It helps identify
 local-only versus network-visible runtime configuration, but LitLaunch does not
 authenticate users, terminate TLS, or secure the Streamlit app itself.
+Streamlit-native TLS settings can be detected when supplied through
+`streamlit_flags`, but certificate paths are summarized rather than included in
+diagnostics.
 
 Plain `litlaunch inspect` prints concise guidance for choosing HTML, JSON, or
 support bundle output. It no longer renders a full legacy text report.

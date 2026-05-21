@@ -1437,7 +1437,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.29b0"
+    assert data["litlaunch_version"] == "0.91.30b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1651,6 +1651,29 @@ auto_port = false
     assert call["browser"] == BrowserChoice.EDGE
     assert call["port"] == 8501
     assert call["auto_port"] is False
+
+
+def test_cli_report_passes_streamlit_flags_for_tls_diagnostics():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "tls-report.html"
+        code, _output, collector = run_fake_inspect(
+            [
+                "report",
+                "--output",
+                str(output_path),
+                "--streamlit-flag",
+                "server.sslCertFile=cert.pem",
+                "--streamlit-flag",
+                "server.sslKeyFile=key.pem",
+            ]
+        )
+
+    call = collector.collect_calls[0]
+    assert code == 0
+    assert call["streamlit_flags"] == {
+        "server.sslCertFile": "cert.pem",
+        "server.sslKeyFile": "key.pem",
+    }
 
 
 def test_cli_report_open_warns_without_failing(monkeypatch):

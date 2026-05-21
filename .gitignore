@@ -49,7 +49,6 @@ desktop.ini
 *.temp
 
 # ai tooling cache
-.claude/
 
 # dev personal files
 notes/

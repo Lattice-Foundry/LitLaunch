@@ -262,19 +262,19 @@ class ConsoleRenderer:
         mode_text = "app-mode" if selected.supports_app_mode else "full-browser"
         if fallback_used:
             preserved = selected.supports_app_mode if prefer_app_mode else True
-            downgrade = "" if preserved else "; app-mode was not preserved"
-            fallback_message = (
-                f"{first.name} unavailable; using {selected.name} "
-                f"{mode_text}{downgrade}"
-            )
             self.phase_warning(
                 ConsolePhase.BROWSER,
-                fallback_message,
+                f"{first.name} unavailable",
             )
-            self.detail(
-                "Browser fallback: preferred browser was unavailable; "
-                "use --browser or install the preferred browser to change this."
-            )
+            if self.mode != ConsoleMode.QUIET:
+                fallback_mode = f"{mode_text} instead"
+                if not preserved:
+                    fallback_mode = f"{mode_text} instead; app-mode was not preserved"
+                self._guidance_line("Next", f"Using {selected.name} {fallback_mode}.")
+                self._guidance_line(
+                    "Next",
+                    "Use --browser to select a different browser.",
+                )
             return
 
         self.detail(f"Browser strategy: {selected.name} ({mode_text}).")

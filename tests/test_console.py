@@ -390,8 +390,11 @@ def test_console_renderer_browser_fallback_summary():
     )
 
     output = stream.getvalue()
-    assert "Microsoft Edge unavailable; using Chrome" in output
+    assert "[  warn  ] Browser: Microsoft Edge unavailable." in output
+    assert "[  Next  ] Using Chrome app-mode instead." in output
+    assert "[  Next  ] Use --browser to select a different browser." in output
     assert "app-mode" in output
+    assert "[   ok   ] Using Chrome" not in output
 
 
 def test_console_renderer_monitor_status_rendering():

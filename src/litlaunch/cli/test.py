@@ -111,8 +111,6 @@ def render_console_preview(console: ConsoleRenderer) -> None:
         _browser_fallback_resolution(),
         prefer_app_mode=True,
     )
-    if console.mode == ConsoleMode.VERBOSE:
-        console.phase_error(ConsolePhase.BROWSER, "browser launch failed")
     console.failure_guidance(
         "Browser launch failed; stopping backend.",
         likely_cause="Microsoft Edge could not be started in app-mode.",

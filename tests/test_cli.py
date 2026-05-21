@@ -337,15 +337,21 @@ def test_cli_parser_builds_and_help_lists_commands():
 def test_cli_console_preview_command_exists_and_exits_zero():
     parser = build_parser()
     args = parser.parse_args(["console-preview", "--no-color"])
+    normal_args = parser.parse_args(["console-preview-norm", "--no-color"])
+    verbose_args = parser.parse_args(["console-preview-verb", "--no-color"])
 
     assert args.command == "console-preview"
     assert callable(args.handler)
+    assert normal_args.command == "console-preview-norm"
+    assert callable(normal_args.handler)
+    assert verbose_args.command == "console-preview-verb"
+    assert callable(verbose_args.handler)
 
 
 def test_cli_console_preview_outputs_representative_no_color_messages():
     stream = StringIO()
 
-    code = main(["console-preview", "--no-color"], stream=stream)
+    code = main(["console-preview-norm", "--no-color"], stream=stream)
 
     output = stream.getvalue()
     assert code == 0
@@ -359,7 +365,9 @@ def test_cli_console_preview_outputs_representative_no_color_messages():
     assert "[   ok   ] Health: waiting for Streamlit..." in output
     assert "Streamlit backend did not become healthy before timeout." in output
     assert "[   ok   ] Browser: opening Microsoft Edge app window..." in output
-    assert "Microsoft Edge unavailable; using Chrome" in output
+    assert "[  warn  ] Browser: Microsoft Edge unavailable." in output
+    assert "[  Next  ] Using Chrome app-mode instead." in output
+    assert "[  Next  ] Use --browser to select a different browser." in output
     assert "Runtime ready at http://127.0.0.1:8501" in output
     assert "[   ok   ] Monitor: watching app window..." in output
     assert "Window monitoring timed out before an app window was observed." in output
@@ -382,7 +390,7 @@ def test_cli_console_preview_outputs_representative_no_color_messages():
 def test_cli_console_preview_verbose_keeps_detailed_guidance():
     stream = StringIO()
 
-    code = main(["console-preview", "--no-color", "--verbose"], stream=stream)
+    code = main(["console-preview-verb", "--no-color"], stream=stream)
 
     output = stream.getvalue()
     assert code == 0
@@ -392,10 +400,21 @@ def test_cli_console_preview_verbose_keeps_detailed_guidance():
     assert 'Run "litlaunch inspect" for local diagnostics.' in output
 
 
-def test_cli_console_preview_status_labels_are_fixed_width():
+def test_cli_console_preview_all_shows_normal_and_verbose_modes():
     stream = StringIO()
 
     code = main(["console-preview", "--no-color"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "== Normal mode ==" in output
+    assert "== Verbose mode ==" in output
+
+
+def test_cli_console_preview_status_labels_are_fixed_width():
+    stream = StringIO()
+
+    code = main(["console-preview-norm", "--no-color"], stream=stream)
 
     assert code == 0
     labels = re.findall(r"^\[[^\]]+\]", stream.getvalue(), flags=re.MULTILINE)
@@ -543,7 +562,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.4b0"
+    assert data["litlaunch_version"] == "0.91.5b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

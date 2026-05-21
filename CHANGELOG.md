@@ -3,6 +3,13 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.5b0
+
+- Reduced redundant console failure wording in browser launch paths.
+- Split browser fallback output into a concise warning plus structured `Next`
+  guidance lines.
+- Kept long-line wrapping conservative and avoided runtime behavior changes.
+
 ## 0.91.4b0
 
 - Made normal-mode failure guidance concise with one summary, one `Cause`, and

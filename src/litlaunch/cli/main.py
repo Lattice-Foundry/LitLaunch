@@ -22,7 +22,12 @@ from litlaunch.cli.common import (
     write,
 )
 from litlaunch.cli.config import add_runtime_flags
-from litlaunch.cli.inspect import add_inspect_flags, cmd_inspect
+from litlaunch.cli.inspect import (
+    add_inspect_flags,
+    add_report_flags,
+    cmd_inspect,
+    cmd_report,
+)
 from litlaunch.cli.preview import add_console_preview_flags, cmd_console_preview
 from litlaunch.exceptions import LitLaunchError
 
@@ -33,6 +38,7 @@ _COMMAND_NAMES = frozenset(
         "platform",
         "browsers",
         "inspect",
+        "report",
         "command",
         "run",
         "example",
@@ -91,14 +97,15 @@ def build_parser() -> argparse.ArgumentParser:
         prog="litlaunch",
         description="Lightweight Streamlit launcher/runtime tooling.",
         epilog=(
-            "Common launch shorthand: litlaunch app.py | litlaunch --profile my-webapp"
+            "Common workflows: litlaunch app.py | litlaunch --profile my-webapp | "
+            "litlaunch report --profile my-webapp"
         ),
         parents=[parent],
         formatter_class=LitLaunchHelpFormatter,
     )
     subparsers = parser.add_subparsers(
         dest="command",
-        metavar="{version,platform,browsers,inspect,command,run,example}",
+        metavar="{version,platform,browsers,inspect,report,command,run,example}",
     )
 
     version_parser = subparsers.add_parser(
@@ -133,6 +140,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_inspect_flags(inspect_parser)
     inspect_parser.set_defaults(handler=cmd_inspect)
+
+    report_parser = subparsers.add_parser(
+        "report",
+        parents=[parent],
+        help="Generate a standalone HTML diagnostics report.",
+        formatter_class=LitLaunchHelpFormatter,
+    )
+    add_report_flags(report_parser)
+    report_parser.set_defaults(handler=cmd_report)
 
     command_parser = subparsers.add_parser(
         "command",

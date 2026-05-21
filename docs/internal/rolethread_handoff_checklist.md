@@ -1,4 +1,4 @@
-# RoleThread Handoff Checklist
+﻿# RoleThread Handoff Checklist
 
 > INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION
 >
@@ -12,7 +12,7 @@
   TestPyPI.
 - Start from a clean virtual environment when comparing launcher behavior.
 - Record Python version, OS, browser availability, and RoleThread branch.
-- Run `litlaunch inspect --html --output litlaunch-report.html` before any live
+- Run `litlaunch report` before any live
   app launch.
 
 ## Installation Paths
@@ -58,7 +58,7 @@ until the publish flow is finalized.
 - Build equivalent `LauncherConfig` values.
 - Preserve RoleThread app-specific configuration outside LitLaunch.
 - Confirm command preview with `litlaunch command`.
-- Confirm inspect output with `litlaunch inspect --html --output litlaunch-report.html`.
+- Confirm inspect output with `litlaunch report`.
 - Start with browser mode before webapp mode.
 - Add webapp/app-mode only after backend ownership is validated.
 - Add monitor-window last.

@@ -1,4 +1,4 @@
-# RoleThread Runtime Mapping
+﻿# RoleThread Runtime Mapping
 
 > INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION
 >
@@ -25,7 +25,7 @@ concepts so integration work does not duplicate responsibilities.
 | Shutdown cleanup | `LauncherRuntime` and shutdown hooks | Keep cleanup functions in RoleThread app code; use LitLaunch hook runtime. |
 | Graceful stop/fallback | `RuntimeSession.stop()` | Let LitLaunch request graceful shutdown and terminate only its owned backend if needed. |
 | Window close observation | windowing monitor plus `RuntimeSession.monitor_window()` | Use only for opt-in webapp app-mode flows. |
-| Runtime diagnostics | `litlaunch inspect --html`, `--json`, or `--bundle` | Use for prelaunch validation and support bundles. |
+| Runtime diagnostics | `litlaunch report`, `litlaunch inspect --json`, or `litlaunch inspect --bundle` | Use for prelaunch validation and support bundles. |
 | Console output | `ConsoleRenderer` | LitLaunch emits runtime mechanics; RoleThread owns product messaging. |
 
 ## What RoleThread Should Stop Owning

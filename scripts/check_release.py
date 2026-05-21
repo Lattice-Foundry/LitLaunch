@@ -364,6 +364,12 @@ def run_installed_wheel_smoke(wheel_path: Path, version: str) -> None:
             env=env,
             allowed_return_codes=(0, 1),
         )
+        run_command(
+            (str(litlaunch), "report", "--no-color"),
+            cwd=Path(temp_dir),
+            env=env,
+            allowed_return_codes=(0, 1),
+        )
         example_app = PROJECT_ROOT / "examples" / "minimal_app" / "app.py"
         if example_app.is_file():
             run_command(

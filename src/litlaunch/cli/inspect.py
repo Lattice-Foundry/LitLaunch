@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import webbrowser
+from collections.abc import Callable
 from pathlib import Path
 
 from litlaunch.cli.common import CliContext, mode, renderer, write
@@ -70,6 +72,28 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_report_flags(parser: argparse.ArgumentParser) -> None:
+    """Add flags for the ergonomic HTML diagnostics ``report`` command."""
+
+    parser.add_argument("app_path", nargs="?")
+    add_profile_flags(parser)
+    parser.add_argument(
+        "--output",
+        default="litlaunch-report.html",
+        help="Write the HTML diagnostics report to this file.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing diagnostics report file.",
+    )
+    parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Open the generated HTML report in the default browser.",
+    )
+
+
 def cmd_inspect(args: argparse.Namespace, context: CliContext) -> int:
     """Run the ``inspect`` command."""
 
@@ -79,32 +103,93 @@ def cmd_inspect(args: argparse.Namespace, context: CliContext) -> int:
         render_inspect_guidance(args, context)
         return 0
 
+    report = collect_diagnostics_report(args, context, profile=profile)
+    rendered = render_inspect_report(args, report)
+
+    if args.output:
+        output_path = write_inspect_output(
+            Path(args.output),
+            rendered,
+            force=args.force,
+        )
+        write(context.stream, f"Wrote inspect report to {output_path}")
+    else:
+        context.stream.write(rendered)
+        flush = getattr(context.stream, "flush", None)
+        if callable(flush):
+            flush()
+    return 0 if report.ok else 1
+
+
+def cmd_report(args: argparse.Namespace, context: CliContext) -> int:
+    """Run the ergonomic standalone HTML diagnostics report command."""
+
+    profile = load_cli_profile(args)
+    report = collect_diagnostics_report(args, context, profile=profile)
+    rendered = HTMLDiagnosticsRenderer(
+        include_details=mode(args) == ConsoleMode.VERBOSE
+    ).render(report)
+    output_path = write_inspect_output(
+        Path(args.output),
+        rendered,
+        force=args.force,
+    )
+    console = renderer(args, context)
+    console.success(f"Report: wrote HTML diagnostics report to {output_path}")
+    if args.open:
+        open_report_path(output_path, console=console)
+    return 0 if report.ok else 1
+
+
+def collect_diagnostics_report(
+    args: argparse.Namespace,
+    context: CliContext,
+    *,
+    profile=None,
+):
+    """Collect diagnostics using the shared inspect/report collection semantics."""
+
     profile_config = profile.config if profile is not None else None
     collector = context.diagnostic_collector_factory(
         platform_detector=context.platform_detector_factory(),
         browser_registry=context.browser_registry_factory(),
         launcher_factory=context.launcher_factory,
     )
-    report = collector.collect(
+    return collector.collect(
         app_path=(
             args.app_path
-            if args.app_path is not None
+            if getattr(args, "app_path", None) is not None
             else profile_config.app_path
             if profile_config is not None
             else None
         ),
-        mode=profile_value(args.mode, profile_config, "mode", LaunchMode.BROWSER),
+        mode=profile_value(
+            getattr(args, "mode", None),
+            profile_config,
+            "mode",
+            LaunchMode.BROWSER,
+        ),
         browser=profile_value(
-            args.browser,
+            getattr(args, "browser", None),
             profile_config,
             "browser",
             BrowserChoice.AUTO,
         ),
-        host=profile_value(args.host, profile_config, "host", "127.0.0.1"),
-        port=profile_value(args.port, profile_config, "port", None),
-        auto_port=profile_value(args.auto_port, profile_config, "auto_port", True),
+        host=profile_value(
+            getattr(args, "host", None),
+            profile_config,
+            "host",
+            "127.0.0.1",
+        ),
+        port=profile_value(getattr(args, "port", None), profile_config, "port", None),
+        auto_port=profile_value(
+            getattr(args, "auto_port", None),
+            profile_config,
+            "auto_port",
+            True,
+        ),
         allow_browser_fallback=profile_value(
-            args.allow_browser_fallback,
+            getattr(args, "allow_browser_fallback", None),
             profile_config,
             "allow_browser_fallback",
             True,
@@ -127,21 +212,6 @@ def cmd_inspect(args: argparse.Namespace, context: CliContext) -> int:
             profile.window_monitor_config if profile is not None else None
         ),
     )
-    rendered = render_inspect_report(args, report)
-
-    if args.output:
-        output_path = write_inspect_output(
-            Path(args.output),
-            rendered,
-            force=args.force,
-        )
-        write(context.stream, f"Wrote inspect report to {output_path}")
-    else:
-        context.stream.write(rendered)
-        flush = getattr(context.stream, "flush", None)
-        if callable(flush):
-            flush()
-    return 0 if report.ok else 1
 
 
 def render_inspect_report(args: argparse.Namespace, report) -> str:
@@ -199,3 +269,23 @@ def write_inspect_output(path: Path, rendered: str, *, force: bool) -> Path:
         message = f"Could not write output file {output_path}: {exc}"
         raise LitLaunchError(message) from exc
     return output_path
+
+
+def open_report_path(
+    path: Path,
+    *,
+    console,
+    browser_open: Callable[[str], bool] = webbrowser.open,
+) -> bool:
+    """Open a generated HTML diagnostics report with warning-only failures."""
+
+    try:
+        opened = bool(browser_open(path.resolve().as_uri()))
+    except Exception as exc:  # pragma: no cover - defensive stdlib boundary.
+        console.warning(f"Report: could not open generated report: {exc}")
+        return False
+    if not opened:
+        console.warning("Report: could not open generated report.")
+        return False
+    console.success("Report: opened generated report in the default browser")
+    return True

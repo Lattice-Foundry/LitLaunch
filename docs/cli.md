@@ -10,6 +10,7 @@ litlaunch version
 litlaunch platform
 litlaunch browsers
 litlaunch inspect [app_path]
+litlaunch report [app_path]
 litlaunch command <app_path>
 litlaunch run <app_path>
 litlaunch <app_path>
@@ -37,6 +38,7 @@ litlaunch app.py
 litlaunch app.py --mode webapp --browser edge
 litlaunch --profile my-webapp
 litlaunch --profile my-webapp --port 8502
+litlaunch report --profile my-webapp
 ```
 
 Explicit launch form:
@@ -126,6 +128,27 @@ checked instead of allowing automatic port selection.
 `litlaunch command` and `litlaunch run --dry-run` use the same launch planning
 path exposed to Python integrations through
 `StreamlitLauncher.build_launch_plan()`.
+
+## Report
+
+`litlaunch report` is the ergonomic human-readable diagnostics workflow. It
+generates the same sanitized standalone HTML diagnostics report as
+`litlaunch inspect --html`.
+
+```powershell
+litlaunch report
+litlaunch report app.py
+litlaunch report --profile my-webapp
+litlaunch report --profile my-webapp --output my-report.html
+litlaunch report --profile my-webapp --output my-report.html --force
+litlaunch report --profile my-webapp --open
+```
+
+By default, reports are written to `litlaunch-report.html` in the current
+working directory. Existing files are not overwritten unless `--force` is
+provided. `--open` opens the generated HTML file in the default browser after a
+successful write; if opening fails, report generation still succeeds and
+LitLaunch emits a warning.
 
 ## Developer Console Preview
 

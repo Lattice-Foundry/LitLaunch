@@ -7,6 +7,22 @@ variables.
 ## Human-Readable HTML Report
 
 ```powershell
+litlaunch report app.py
+litlaunch report --profile my-webapp
+litlaunch report --profile my-webapp --output my-report.html --force
+litlaunch report --profile my-webapp --open
+```
+
+`litlaunch report` is the recommended human-facing diagnostics workflow. It
+writes `litlaunch-report.html` in the current working directory unless
+`--output` is provided. Existing report files are not overwritten unless
+`--force` is supplied. `--open` opens the generated standalone HTML report in
+the default browser after writing it; if opening fails, the report still
+generates and LitLaunch emits a warning.
+
+The explicit inspect form remains available:
+
+```powershell
 litlaunch inspect app.py --html
 litlaunch inspect app.py --html --output litlaunch-report.html
 litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
@@ -72,5 +88,5 @@ always be detected. Review support bundles before sharing them publicly.
 There is no local diagnostics dashboard or diagnostics web server today.
 
 [screenshot needed]
-Capture: `litlaunch inspect examples/minimal_app/app.py --html --output litlaunch-report.html` output opened in a browser.
+Capture: `litlaunch report examples/minimal_app/app.py` output opened in a browser.
 Demonstrate: platform, Streamlit, browser, target, and summary sections.

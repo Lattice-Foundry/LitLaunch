@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.15b0
+
+- Added `litlaunch report` as an ergonomic standalone HTML diagnostics workflow
+  with default `litlaunch-report.html` output.
+- Added report `--output`, `--force`, and warning-only `--open` support while
+  preserving the explicit `litlaunch inspect --html|--json|--bundle` commands.
+- Routed report generation through the shared diagnostics collection and HTML
+  rendering path without changing diagnostics schema or collection behavior.
+
 ## 0.91.14b0
 
 - Added root launch shorthand so `litlaunch app.py` and

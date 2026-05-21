@@ -1,4 +1,4 @@
-# RoleThread Integration Plan
+﻿# RoleThread Integration Plan
 
 > INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION
 >
@@ -96,8 +96,7 @@ that fallback is acceptable for a given product workflow.
 
 ## Inspect Expectations
 
-Before replacing RoleThread launcher paths, run `litlaunch inspect --html
---output litlaunch-report.html` against the RoleThread app entrypoint. Inspect
+Before replacing RoleThread launcher paths, run `litlaunch report` against the RoleThread app entrypoint. Inspect
 should help identify:
 
 - missing Streamlit dependency.

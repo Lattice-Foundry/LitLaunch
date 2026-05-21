@@ -22,7 +22,7 @@ litlaunch examples/minimal_app/app.py --mode webapp --browser auto
 Inspect first:
 
 ```powershell
-litlaunch inspect examples/minimal_app/app.py --html --output litlaunch-report.html
+litlaunch report examples/minimal_app/app.py
 ```
 
 ## Use Your Own App
@@ -70,7 +70,7 @@ Run, inspect, or preview the profile:
 ```powershell
 litlaunch --profile my-webapp
 litlaunch command --profile my-webapp
-litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
+litlaunch report --profile my-webapp
 ```
 
 The same shape can live under `[tool.litlaunch.profiles.my-webapp]` in
@@ -86,6 +86,11 @@ litlaunch --profile my-webapp --port 8502
 Bare profile names such as `litlaunch my-webapp` are intentionally not
 supported. Use `--profile` for profile launches so they remain clear and do not
 conflict with paths or future commands.
+
+Use `litlaunch report --profile my-webapp` for the default human-readable HTML
+diagnostics report. It writes `litlaunch-report.html` unless `--output` is
+provided. Use `litlaunch inspect --json` or `litlaunch inspect --bundle` for
+machine-readable diagnostics and support bundles.
 
 Python integrations can use the same profile runtime path:
 

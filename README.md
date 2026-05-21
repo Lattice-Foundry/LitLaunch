@@ -82,7 +82,7 @@ litlaunch examples/minimal_app/app.py --mode webapp --browser auto
 Inspect local readiness without launching:
 
 ```powershell
-litlaunch inspect examples/minimal_app/app.py --html --output litlaunch-report.html
+litlaunch report examples/minimal_app/app.py
 ```
 
 Use a reusable project profile:
@@ -108,13 +108,18 @@ stable_polls = 2
 ```powershell
 litlaunch --profile my-webapp
 litlaunch command --profile my-webapp
-litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
+litlaunch report --profile my-webapp
 ```
 
 Profiles can live in `litlaunch.toml` or under `[tool.litlaunch]` in
 `pyproject.toml`. Explicit CLI flags override profile values. Bare profile names
 such as `litlaunch my-webapp` are intentionally not launch shorthand; use
 `--profile` so profile-based launches stay unambiguous.
+
+`litlaunch report` is the recommended human-facing diagnostics workflow. It
+writes `litlaunch-report.html` by default. The explicit `litlaunch inspect
+--html`, `--json`, and `--bundle` commands remain available for power-user and
+machine-readable diagnostics.
 
 Python integrations can run the same configured profile through `run_profile()`:
 

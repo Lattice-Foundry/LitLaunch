@@ -40,6 +40,7 @@ from litlaunch.windowing import (
 
 EXAMPLE_APP = Path("examples/minimal_app/app.py")
 CLI_MAIN_MODULE = importlib.import_module("litlaunch.cli.main")
+CLI_INSPECT_MODULE = importlib.import_module("litlaunch.cli.inspect")
 
 
 @contextmanager
@@ -338,11 +339,13 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "platform" in help_text
     assert "browsers" in help_text
     assert "inspect" in help_text
+    assert "report" in help_text
     assert "command" in help_text
     assert "run" in help_text
     assert "source-checkout minimal example" in help_text
     assert "litlaunch app.py" in help_text
     assert "litlaunch --profile my-webapp" in help_text
+    assert re.search(r"litlaunch\s+report --profile my-webapp", help_text)
     assert "console-preview" not in help_text
 
 
@@ -644,7 +647,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.14b0"
+    assert data["litlaunch_version"] == "0.91.15b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -760,6 +763,129 @@ def test_cli_inspect_html_output_writes_file():
     assert "LitLaunch Inspect" in content
     assert "This report is sanitized" in content
     assert output.startswith("Wrote inspect report to ")
+
+
+def test_cli_report_writes_default_html_report(monkeypatch):
+    with temporary_output_dir() as output_dir:
+        cwd = Path.cwd()
+        monkeypatch.chdir(output_dir)
+        output_path = output_dir / "litlaunch-report.html"
+        stream = StringIO()
+        try:
+            code = main(
+                ["report", "--no-color"],
+                stream=stream,
+                diagnostic_collector_factory=FakeDiagnosticCollector,
+                platform_detector_factory=FakePlatformDetector,
+                browser_registry_factory=FakeBrowserRegistry,
+                env={"NO_COLOR": "1"},
+            )
+            content = output_path.read_text(encoding="utf-8")
+        finally:
+            monkeypatch.chdir(cwd)
+
+    assert code == 0
+    assert content.startswith("<!doctype html>")
+    assert "LitLaunch Inspect" in content
+    assert "Report: wrote HTML diagnostics report to litlaunch-report.html" in (
+        stream.getvalue()
+    )
+
+
+def test_cli_report_custom_output_and_force():
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "custom-report.html"
+        output_path.write_text("existing", encoding="utf-8")
+        blocked_stream = StringIO()
+        blocked_code = main(
+            ["report", "--output", str(output_path), "--no-color"],
+            stream=blocked_stream,
+            diagnostic_collector_factory=FakeDiagnosticCollector,
+            platform_detector_factory=FakePlatformDetector,
+            browser_registry_factory=FakeBrowserRegistry,
+        )
+        forced_stream = StringIO()
+        forced_code = main(
+            ["report", "--output", str(output_path), "--force", "--no-color"],
+            stream=forced_stream,
+            diagnostic_collector_factory=FakeDiagnosticCollector,
+            platform_detector_factory=FakePlatformDetector,
+            browser_registry_factory=FakeBrowserRegistry,
+        )
+        content = output_path.read_text(encoding="utf-8")
+
+    assert blocked_code == 2
+    assert "already exists" in blocked_stream.getvalue()
+    assert forced_code == 0
+    assert content.startswith("<!doctype html>")
+    assert "Report: wrote HTML diagnostics report to" in forced_stream.getvalue()
+
+
+def test_cli_report_profile_passes_profile_values():
+    with temporary_output_dir() as output_dir:
+        app = output_dir / "app.py"
+        app.write_text("print('hello')\n", encoding="utf-8")
+        config_path = output_dir / "litlaunch.toml"
+        output_path = output_dir / "profile-report.html"
+        config_path.write_text(
+            """
+[profiles.web]
+app_path = "app.py"
+title = "Profile App"
+mode = "webapp"
+browser = "edge"
+port = 8501
+auto_port = false
+""",
+            encoding="utf-8",
+        )
+
+        code, _output, collector = run_fake_inspect(
+            [
+                "report",
+                "--config",
+                str(config_path),
+                "--profile",
+                "web",
+                "--output",
+                str(output_path),
+            ]
+        )
+
+    call = collector.collect_calls[0]
+    assert code == 0
+    assert call["app_path"] == app
+    assert call["profile_name"] == "web"
+    assert call["mode"] == LaunchMode.WEBAPP
+    assert call["browser"] == BrowserChoice.EDGE
+    assert call["port"] == 8501
+    assert call["auto_port"] is False
+
+
+def test_cli_report_open_warns_without_failing(monkeypatch):
+    with temporary_output_dir() as output_dir:
+        output_path = output_dir / "litlaunch-report.html"
+        stream = StringIO()
+        calls = []
+
+        def fake_open(path, *, console):
+            calls.append((path, console))
+            console.warning("Report: could not open generated report.")
+            return False
+
+        monkeypatch.setattr(CLI_INSPECT_MODULE, "open_report_path", fake_open)
+
+        code = main(
+            ["report", "--output", str(output_path), "--open", "--no-color"],
+            stream=stream,
+            diagnostic_collector_factory=FakeDiagnosticCollector,
+            platform_detector_factory=FakePlatformDetector,
+            browser_registry_factory=FakeBrowserRegistry,
+        )
+
+    assert code == 0
+    assert calls and calls[0][0] == output_path
+    assert "Report: could not open generated report." in stream.getvalue()
 
 
 def test_cli_inspect_app_bundle_output_writes_file():

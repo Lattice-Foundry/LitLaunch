@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from litlaunch.inspect.models import DiagnosticsReport
-from litlaunch.inspect.render_text import _render_item
+from litlaunch.inspect.models import DiagnosticItem, DiagnosticsReport
 from litlaunch.redaction import redact_sensitive_text
 from litlaunch.version import __version__
 
@@ -41,3 +40,9 @@ class SanitizedBundleRenderer:
                         lines.append(f"  {detail_line}")
             lines.append("")
         return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_item(item: DiagnosticItem) -> str:
+    name = redact_sensitive_text(item.name)
+    message = redact_sensitive_text(item.message)
+    return f"[{item.status.value.upper()}] {name}: {message}"

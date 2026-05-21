@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.12b0
+
+- Removed the legacy full text inspect report before public release.
+- Made plain `litlaunch inspect` print concise format guidance instead of a
+  redundant human report.
+- Kept HTML diagnostics as the human-readable report surface and preserved JSON
+  diagnostics and sanitized support bundle behavior without changing collection
+  semantics or schema.
+
 ## 0.91.11b0
 
 - Polished HTML diagnostics empty-detail cells so they render as intentional

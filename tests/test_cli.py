@@ -550,7 +550,7 @@ def test_cli_browsers_outputs_capabilities_without_launching():
     assert "\033[" not in output
 
 
-def test_cli_inspect_outputs_report_and_returns_zero_without_launching():
+def test_cli_inspect_without_format_outputs_guidance_without_collecting():
     stream = StringIO()
     FakeDiagnosticCollector.instances = []
 
@@ -566,21 +566,18 @@ def test_cli_inspect_outputs_report_and_returns_zero_without_launching():
         diagnostic_collector_factory=FakeDiagnosticCollector,
     )
 
-    collector = FakeDiagnosticCollector.instances[0]
     output = stream.getvalue()
     assert code == 0
-    assert "LitLaunch Inspect" in output
-    assert "[OK] Platform: Windows x64 / Python 3.14.5" in output
-    assert collector.collect_calls[0]["app_path"] is None
-    assert collector.collect_calls[0]["mode"] == "webapp"
-    assert collector.collect_calls[0]["browser"] == "edge"
-    assert collector.collect_calls[0]["port"] == 8600
-    assert collector.collect_calls[0]["auto_port"] is True
+    assert "Inspect reports are available as HTML, JSON, or support bundle." in output
+    assert "litlaunch inspect --html --output litlaunch-report.html" in output
+    assert "litlaunch inspect --json" in output
+    assert "litlaunch inspect --bundle" in output
+    assert FakeDiagnosticCollector.instances == []
 
 
 def test_cli_inspect_no_auto_port_maps_to_false():
     code, _output, collector = run_fake_inspect(
-        ["inspect", str(EXAMPLE_APP), "--port", "8600", "--no-auto-port"]
+        ["inspect", str(EXAMPLE_APP), "--json", "--port", "8600", "--no-auto-port"]
     )
 
     assert code == 0
@@ -589,10 +586,11 @@ def test_cli_inspect_no_auto_port_maps_to_false():
 
 
 def test_cli_inspect_returns_nonzero_for_report_errors():
-    code, output, _collector = run_fake_inspect(["inspect", "missing.py"])
+    code, output, _collector = run_fake_inspect(["inspect", "missing.py", "--json"])
 
     assert code == 1
-    assert "[ERROR] App path exists: missing.py does not exist;" in output
+    assert '"status": "error"' in output
+    assert "missing.py does not exist;" in output
     assert "abc123shutdown" not in output
 
 
@@ -604,7 +602,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.11b0"
+    assert data["litlaunch_version"] == "0.91.12b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1080,7 +1078,14 @@ streamlit_args = ["--theme.base=dark"]
         )
 
         code, _output, collector = run_fake_inspect(
-            ["inspect", "--config", str(config_path), "--profile", "default"]
+            [
+                "inspect",
+                "--config",
+                str(config_path),
+                "--profile",
+                "default",
+                "--json",
+            ]
         )
 
     call = collector.collect_calls[0]

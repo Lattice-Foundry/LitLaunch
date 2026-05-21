@@ -192,8 +192,8 @@ Inspect uses structured report types:
 - `DiagnosticSection`
 - `DiagnosticsReport`
 
-Renderers produce text, JSON, or bundle output from the same report. Collection
-does not start Streamlit or browsers.
+Renderers produce HTML, JSON, or support bundle output from the same report.
+Collection does not start Streamlit or browsers.
 
 ## Failure Handling
 

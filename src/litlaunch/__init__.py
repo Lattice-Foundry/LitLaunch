@@ -46,7 +46,6 @@ from litlaunch.inspect import (
     HTMLDiagnosticsRenderer,
     JSONDiagnosticsRenderer,
     SanitizedBundleRenderer,
-    TextDiagnosticsRenderer,
 )
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchEvent, LaunchPlan, LaunchResult, LaunchState
@@ -153,7 +152,6 @@ __all__ = [
     "StreamlitCommandBuilder",
     "StreamlitBackendCommandProvider",
     "StreamlitLauncher",
-    "TextDiagnosticsRenderer",
     "WindowsChromiumWindowMonitor",
     "WindowsWindowProvider",
     "WindowInfo",

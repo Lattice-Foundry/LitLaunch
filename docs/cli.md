@@ -132,14 +132,17 @@ fallbacks, monitor statuses, and shutdown hook results.
 
 ```powershell
 litlaunch inspect
-litlaunch inspect app.py
-litlaunch inspect app.py --json
 litlaunch inspect app.py --html
+litlaunch inspect app.py --json
 litlaunch inspect app.py --bundle
-litlaunch inspect app.py --json --output litlaunch-report.json
 litlaunch inspect app.py --html --output litlaunch-report.html
+litlaunch inspect app.py --json --output litlaunch-report.json
 litlaunch inspect app.py --bundle --output litlaunch-report.txt --force
 ```
+
+Plain `litlaunch inspect` prints concise guidance for choosing an output
+format. Use `--html` for the recommended human-readable diagnostics report,
+`--json` for tools, or `--bundle` for a copyable support artifact.
 
 Use `--no-auto-port` with `inspect` to validate fixed-port behavior before a
 launch.
@@ -147,9 +150,8 @@ launch.
 Profiles work with inspect too:
 
 ```powershell
-litlaunch inspect --profile my-webapp
-litlaunch inspect --config pyproject.toml --profile my-webapp
 litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
+litlaunch inspect --config pyproject.toml --profile my-webapp --json
 ```
 
 ## Profiles

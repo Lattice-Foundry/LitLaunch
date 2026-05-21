@@ -12,7 +12,6 @@ from litlaunch.inspect.models import (
 from litlaunch.inspect.render_bundle import SanitizedBundleRenderer
 from litlaunch.inspect.render_html import HTMLDiagnosticsRenderer
 from litlaunch.inspect.render_json import JSONDiagnosticsRenderer
-from litlaunch.inspect.render_text import TextDiagnosticsRenderer
 from litlaunch.inspect.streamlit_check import (
     StreamlitAvailability,
     check_streamlit_availability,
@@ -34,7 +33,6 @@ __all__ = [
     "JSONDiagnosticsRenderer",
     "SanitizedBundleRenderer",
     "StreamlitAvailability",
-    "TextDiagnosticsRenderer",
     "check_streamlit_availability",
     "current_utc_timestamp",
     "redact_sensitive_args",

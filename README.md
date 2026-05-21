@@ -80,7 +80,7 @@ litlaunch run examples/minimal_app/app.py --mode webapp --browser auto
 Inspect local readiness without launching:
 
 ```powershell
-litlaunch inspect examples/minimal_app/app.py
+litlaunch inspect examples/minimal_app/app.py --html --output litlaunch-report.html
 ```
 
 Use a reusable project profile:
@@ -106,7 +106,7 @@ stable_polls = 2
 ```powershell
 litlaunch run --profile my-webapp
 litlaunch command --profile my-webapp
-litlaunch inspect --profile my-webapp
+litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
 ```
 
 Profiles can live in `litlaunch.toml` or under `[tool.litlaunch]` in
@@ -234,7 +234,7 @@ experimental.
 | Chromium app-mode | Beta | Edge and Chrome/Chromium adapters first. |
 | Browser fallback | Beta | Explicit browser choices can fall back unless disabled. |
 | Graceful shutdown hooks | Beta | Opt-in app runtime, tokened loopback endpoint, optional app completion callback, fallback backend termination. |
-| Inspect diagnostics | Beta | Text, JSON, HTML, and sanitized bundle output. No app launch. |
+| Inspect diagnostics | Beta | HTML, JSON, and sanitized bundle output. No app launch. |
 | Window monitoring | Experimental | Opt-in, Windows Chromium app-mode first, observational only. |
 | Packaging guidance | Notes only | LitLaunch supports packaged apps conceptually but does not own packaging. |
 | Diagnostics dashboard | Not implemented | Future work; no local diagnostics server exists today. |
@@ -255,8 +255,8 @@ litlaunch run app.py --mode webapp --monitor-window --graceful-timeout 15
 litlaunch run app.py --mode webapp --monitor-window --monitor-appear-timeout 90
 
 litlaunch inspect
-litlaunch inspect app.py --json
 litlaunch inspect app.py --html --output litlaunch-report.html
+litlaunch inspect app.py --json
 litlaunch inspect app.py --bundle --output litlaunch-report.txt --force
 ```
 
@@ -278,13 +278,13 @@ See [docs/browser_support.md](docs/browser_support.md) and
 
 ## Inspect And Troubleshooting
 
-Use `litlaunch inspect` before launching or when a runtime fails. Inspect can
-render plain text, JSON, standalone HTML, or a sanitized support bundle:
+Use `litlaunch inspect` before launching or when a runtime fails. Plain
+`inspect` prints format guidance; HTML is the recommended human-readable
+diagnostics report, JSON is for tools, and bundle output is for support:
 
 ```powershell
-litlaunch inspect app.py
-litlaunch inspect app.py --json --output litlaunch-report.json
 litlaunch inspect app.py --html --output litlaunch-report.html
+litlaunch inspect app.py --json --output litlaunch-report.json
 litlaunch inspect app.py --bundle --output litlaunch-report.txt
 ```
 

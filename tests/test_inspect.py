@@ -16,7 +16,6 @@ from litlaunch.inspect import (
     JSONDiagnosticsRenderer,
     SanitizedBundleRenderer,
     StreamlitAvailability,
-    TextDiagnosticsRenderer,
     current_utc_timestamp,
     redact_sensitive_args,
     redact_sensitive_text,
@@ -220,6 +219,14 @@ def make_collector(*, streamlit_checker=streamlit_available, browser_selected=Tr
     )
 
 
+def report_item_messages(report):
+    return {
+        (section.title, item.name): item.message
+        for section in report.sections
+        for item in section.items
+    }
+
+
 def test_diagnostic_status_values():
     assert DiagnosticStatus.OK.value == "ok"
     assert DiagnosticStatus.WARNING.value == "warning"
@@ -295,7 +302,7 @@ def test_diagnostics_report_to_dict_shape():
 
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.11b0"
+    assert data["litlaunch_version"] == "0.91.12b0"
     assert data["generated_at_utc"] == "2026-05-18T12:00:00Z"
     assert data["title"] == "Report"
     assert data["ok"] is True
@@ -362,13 +369,16 @@ def test_collector_with_valid_app_path_builds_previews():
     FakeLauncher.instances = []
 
     report = make_collector().collect(app_path=EXAMPLE_APP, port=8600)
-    rendered = TextDiagnosticsRenderer().render(report)
+    messages = report_item_messages(report)
 
     assert report.ok is True
     assert "Target" in [section.title for section in report.sections]
-    assert "Command preview" in rendered
-    assert "App URL preview: http://127.0.0.1:8600" in rendered
-    assert "Health URL preview: http://127.0.0.1:8600/_stcore/health" in rendered
+    assert ("Target", "Command preview") in messages
+    assert messages[("Target", "App URL preview")] == "http://127.0.0.1:8600"
+    assert (
+        messages[("Target", "Health URL preview")]
+        == "http://127.0.0.1:8600/_stcore/health"
+    )
     assert FakeLauncher.instances
     assert FakeLauncher.instances[0].run_calls == 0
 
@@ -385,15 +395,15 @@ def test_collector_with_profile_metadata_adds_profile_section():
             stable_poll_count=3,
         ),
     )
-    rendered = TextDiagnosticsRenderer().render(report)
+    messages = report_item_messages(report)
 
     assert "Profile" in [section.title for section in report.sections]
-    assert "[INFO] Profile: webapp" in rendered
-    assert "[INFO] Window monitoring: enabled" in rendered
-    assert "[INFO] Graceful timeout: 15 seconds" in rendered
-    assert "[INFO] Monitor appear timeout: 90 seconds" in rendered
-    assert "[INFO] Monitor poll interval: 0.5 seconds" in rendered
-    assert "[INFO] Monitor stable polls: 3" in rendered
+    assert messages[("Profile", "Profile")] == "webapp"
+    assert messages[("Profile", "Window monitoring")] == "enabled"
+    assert messages[("Profile", "Graceful timeout")] == "15 seconds"
+    assert messages[("Profile", "Monitor appear timeout")] == "90 seconds"
+    assert messages[("Profile", "Monitor poll interval")] == "0.5 seconds"
+    assert messages[("Profile", "Monitor stable polls")] == "3"
 
 
 def test_collector_target_section_redacts_sensitive_extra_env():
@@ -402,7 +412,7 @@ def test_collector_target_section_redacts_sensitive_extra_env():
         cwd="workspace",
         extra_env={"APP_TOKEN": "super-secret-token", "APP_MODE": "demo"},
     )
-    rendered = TextDiagnosticsRenderer().render(report)
+    rendered = JSONDiagnosticsRenderer().render(report)
 
     assert "Working directory" in rendered
     assert "workspace" in rendered
@@ -414,7 +424,7 @@ def test_collector_target_section_redacts_sensitive_extra_env():
 
 def test_collector_with_missing_app_path_reports_error():
     report = make_collector().collect(app_path=MISSING_APP)
-    rendered = TextDiagnosticsRenderer().render(report)
+    rendered = JSONDiagnosticsRenderer().render(report)
 
     assert report.ok is False
     assert report.errors == 2
@@ -424,7 +434,7 @@ def test_collector_with_missing_app_path_reports_error():
 
 def test_collector_reports_streamlit_missing_with_fake_checker():
     report = make_collector(streamlit_checker=streamlit_missing).collect()
-    rendered = TextDiagnosticsRenderer().render(report)
+    rendered = JSONDiagnosticsRenderer().render(report)
 
     assert report.ok is False
     assert "Streamlit is not installed." in rendered
@@ -432,57 +442,13 @@ def test_collector_reports_streamlit_missing_with_fake_checker():
 
 def test_collector_reports_browser_capabilities_with_fake_registry():
     report = make_collector(browser_selected=False).collect()
-    rendered = TextDiagnosticsRenderer().render(report)
+    messages = report_item_messages(report)
 
     assert report.ok is True
     assert report.warnings >= 1
-    assert "Edge: available, app-mode, full-browser" in rendered
-    assert "Chrome: unavailable, app-mode, full-browser" in rendered
-    assert "No browser available." in rendered
-
-
-def test_text_renderer_outputs_plain_text_with_summary():
-    report = DiagnosticsReport(
-        "LitLaunch Inspect",
-        (
-            DiagnosticSection(
-                "Platform",
-                (
-                    DiagnosticItem(
-                        "Platform",
-                        DiagnosticStatus.OK,
-                        "Windows x64 / Python 3.14.5",
-                        detail="detail line",
-                    ),
-                ),
-            ),
-        ),
-    )
-
-    rendered = TextDiagnosticsRenderer(include_details=True).render(report)
-
-    assert "LitLaunch Inspect" in rendered
-    assert "[OK] Platform: Windows x64 / Python 3.14.5" in rendered
-    assert "detail line" in rendered
-    assert "0 errors, 0 warnings" in rendered
-    assert "\033[" not in rendered
-
-
-def test_text_renderer_can_omit_details():
-    report = DiagnosticsReport(
-        "Report",
-        (
-            DiagnosticSection(
-                "Section",
-                (DiagnosticItem("Name", DiagnosticStatus.INFO, "message", "secret"),),
-            ),
-        ),
-    )
-
-    rendered = TextDiagnosticsRenderer(include_details=False).render(report)
-
-    assert "Name: message" in rendered
-    assert "secret" not in rendered
+    assert messages[("Browsers", "Edge")] == "available, app-mode, full-browser"
+    assert messages[("Browsers", "Chrome")] == "unavailable, app-mode, full-browser"
+    assert messages[("Browsers", "Browser resolution")] == "No browser available."
 
 
 def test_json_renderer_outputs_parseable_sanitized_json():
@@ -509,7 +475,7 @@ def test_json_renderer_outputs_parseable_sanitized_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.11b0"
+    assert data["litlaunch_version"] == "0.91.12b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["items"][0]["message"] == "token=<redacted>"
     assert data["sections"][0]["items"][0]["detail"] == "--api_key=<redacted>"
@@ -559,7 +525,7 @@ def test_html_renderer_outputs_sanitized_standalone_html():
     assert "<script" not in rendered.lower()
     assert "https://" not in rendered
     assert "LitLaunch Inspect" in rendered
-    assert "0.91.11b0" in rendered
+    assert "0.91.12b0" in rendered
     assert "This report is sanitized" in rendered
     assert "raw environment variables" in rendered
     assert "Pattern-based redaction" in rendered
@@ -655,7 +621,7 @@ def test_bundle_renderer_includes_summary_sections_and_sanitization_note():
     rendered = SanitizedBundleRenderer().render(report)
 
     assert "LitLaunch Support Bundle" in rendered
-    assert "Version: 0.91.11b0" in rendered
+    assert "Version: 0.91.12b0" in rendered
     assert "Generated at:" in rendered
     assert "Summary: ok; 0 errors; 0 warnings" in rendered
     assert "This report is sanitized" in rendered
@@ -749,10 +715,10 @@ def test_report_output_does_not_include_sensitive_command_values():
         app_path=EXAMPLE_APP,
         streamlit_args=("--server.cookieSecret", "super-secret-token"),
     )
-    rendered = TextDiagnosticsRenderer().render(report)
+    rendered = HTMLDiagnosticsRenderer().render(report)
 
     assert "super-secret-token" not in rendered
-    assert "<redacted>" in rendered
+    assert "&lt;redacted&gt;" in rendered
 
 
 def test_all_renderers_hide_fake_shutdown_token():
@@ -774,7 +740,6 @@ def test_all_renderers_hide_fake_shutdown_token():
     )
 
     outputs = (
-        TextDiagnosticsRenderer().render(report),
         JSONDiagnosticsRenderer().render(report),
         HTMLDiagnosticsRenderer().render(report),
         SanitizedBundleRenderer().render(report),

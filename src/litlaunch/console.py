@@ -392,6 +392,13 @@ class ConsoleRenderer:
             return
         self._emit(message)
 
+    def next_step(self, message: str) -> None:
+        """Render one concise follow-up action line."""
+
+        if self.mode == ConsoleMode.QUIET:
+            return
+        self._guidance_line("Next", message)
+
     def detail(self, message: str) -> None:
         """Render a verbose-only detail line."""
 

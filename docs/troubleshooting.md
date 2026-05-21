@@ -14,7 +14,7 @@ Likely causes:
 Next steps:
 
 ```powershell
-litlaunch inspect app.py
+litlaunch inspect app.py --html --output litlaunch-report.html
 litlaunch run app.py --verbose
 streamlit run app.py
 ```
@@ -34,7 +34,7 @@ Likely causes:
 Next steps:
 
 ```powershell
-litlaunch inspect app.py
+litlaunch inspect app.py --html --output litlaunch-report.html
 litlaunch run app.py --verbose
 streamlit run app.py
 ```

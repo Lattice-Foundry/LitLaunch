@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from litlaunch.cli.common import CliContext, mode, write
+from litlaunch.cli.common import CliContext, mode, renderer, write
 from litlaunch.cli.config import add_profile_flags, load_cli_profile, profile_value
 from litlaunch.config import BrowserChoice, LaunchMode
 from litlaunch.console import ConsoleMode
@@ -14,7 +14,6 @@ from litlaunch.inspect import (
     HTMLDiagnosticsRenderer,
     JSONDiagnosticsRenderer,
     SanitizedBundleRenderer,
-    TextDiagnosticsRenderer,
 )
 
 
@@ -76,6 +75,10 @@ def cmd_inspect(args: argparse.Namespace, context: CliContext) -> int:
 
     validate_inspect_output_args(args)
     profile = load_cli_profile(args)
+    if not _explicit_output_format(args):
+        render_inspect_guidance(args, context)
+        return 0
+
     profile_config = profile.config if profile is not None else None
     collector = context.diagnostic_collector_factory(
         platform_detector=context.platform_detector_factory(),
@@ -151,7 +154,17 @@ def render_inspect_report(args: argparse.Namespace, report) -> str:
         return HTMLDiagnosticsRenderer(include_details=include_details).render(report)
     if args.bundle:
         return SanitizedBundleRenderer(include_details=include_details).render(report)
-    return TextDiagnosticsRenderer(include_details=include_details).render(report)
+    raise LitLaunchError("Choose --html, --json, or --bundle for inspect output.")
+
+
+def render_inspect_guidance(args: argparse.Namespace, context: CliContext) -> None:
+    """Render concise guidance for choosing a diagnostics artifact format."""
+
+    console = renderer(args, context)
+    console.success("Inspect reports are available as HTML, JSON, or support bundle")
+    console.next_step("Run: litlaunch inspect --html --output litlaunch-report.html")
+    console.next_step("Or: litlaunch inspect --json")
+    console.next_step("Or: litlaunch inspect --bundle")
 
 
 def validate_inspect_output_args(args: argparse.Namespace) -> None:
@@ -161,6 +174,10 @@ def validate_inspect_output_args(args: argparse.Namespace) -> None:
         raise LitLaunchError("--output requires --json, --bundle, or --html.")
     if args.force and not args.output:
         raise LitLaunchError("--force requires --output.")
+
+
+def _explicit_output_format(args: argparse.Namespace) -> bool:
+    return bool(args.json or args.bundle or args.html)
 
 
 def write_inspect_output(path: Path, rendered: str, *, force: bool) -> Path:

@@ -20,7 +20,7 @@ litlaunch run examples/minimal_app/app.py --mode webapp --browser auto
 Inspect first:
 
 ```powershell
-litlaunch inspect examples/minimal_app/app.py
+litlaunch inspect examples/minimal_app/app.py --html --output litlaunch-report.html
 ```
 
 ## Use Your Own App
@@ -68,7 +68,7 @@ Run, inspect, or preview the profile:
 ```powershell
 litlaunch run --profile my-webapp
 litlaunch command --profile my-webapp
-litlaunch inspect --profile my-webapp
+litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
 ```
 
 The same shape can live under `[tool.litlaunch.profiles.my-webapp]` in

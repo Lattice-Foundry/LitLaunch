@@ -96,8 +96,9 @@ that fallback is acceptable for a given product workflow.
 
 ## Inspect Expectations
 
-Before replacing RoleThread launcher paths, run `litlaunch inspect` against the
-RoleThread app entrypoint. Inspect should help identify:
+Before replacing RoleThread launcher paths, run `litlaunch inspect --html
+--output litlaunch-report.html` against the RoleThread app entrypoint. Inspect
+should help identify:
 
 - missing Streamlit dependency.
 - app path mistakes.
@@ -196,4 +197,3 @@ Delete duplication only after equivalent LitLaunch behavior is validated.
 Create: RoleThread-to-LitLaunch migration flow. Show current RoleThread
 launcher responsibilities, the temporary parallel LitLaunch path, and the final
 boundary where RoleThread owns app policy while LitLaunch owns runtime mechanics.
-

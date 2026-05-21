@@ -30,7 +30,7 @@
 | Monitor unsupported | Unsupported platform/provider | Same command on unsupported host | Explicit unsupported result; no silent success. |
 | Graceful shutdown | Hooks succeed | Registered RoleThread hooks | Hooks run once, backend stops cleanly. |
 | Forced fallback | Graceful shutdown unavailable | Fake or blocked endpoint | Backend fallback termination only applies to owned process. |
-| Inspect text | Prelaunch text report | `litlaunch inspect <app.py>` | No launch, useful readiness report. |
+| Inspect HTML | Prelaunch human report | `litlaunch inspect <app.py> --html --output litlaunch-report.html` | No launch, useful readiness report. |
 | Inspect JSON | Machine-readable report | `litlaunch inspect <app.py> --json` | Valid JSON, no token/env dump. |
 | Inspect bundle | Support report | `litlaunch inspect <app.py> --bundle` | Copyable sanitized report. |
 | Console quiet | Quiet runtime | `litlaunch run <app.py> --quiet` | Essential failures still visible; normal noise reduced. |
@@ -62,4 +62,3 @@ local-wheel behavior is stable.
 LitLaunch should remain packaging-agnostic. Package-specific environment setup,
 shortcuts, update behavior, and user-data paths remain RoleThread or installer
 concerns.
-

@@ -4,20 +4,32 @@
 opening browsers, starting a diagnostics server, or dumping raw environment
 variables.
 
-## Text Report
+## Human-Readable HTML Report
 
 ```powershell
-litlaunch inspect
-litlaunch inspect app.py
+litlaunch inspect app.py --html
+litlaunch inspect app.py --html --output litlaunch-report.html
+litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
 ```
 
-With a target app, inspect adds:
+HTML output is the recommended human-readable diagnostics artifact. It is a
+standalone, dependency-free report meant to be readable at a glance, printable,
+and shareable after review. It includes LitLaunch version, platform capability,
+Streamlit availability, browser capability/resolution, target launch plan
+preview, and profile runtime settings when a profile is loaded. It does not
+start a local server, run JavaScript, load external CSS, inspect browser URLs,
+launch Streamlit, or open a browser.
+
+With a target app, the report adds:
 
 - app path existence
 - command preview
 - app URL preview
 - health URL preview
 - browser resolution summary
+
+Plain `litlaunch inspect` prints concise guidance for choosing HTML, JSON, or
+support bundle output. It no longer renders a full legacy text report.
 
 ## JSON
 
@@ -27,7 +39,7 @@ litlaunch inspect app.py --json --output litlaunch-report.json
 ```
 
 JSON is for tools and automation. It uses the same structured report model as
-text output.
+HTML and bundle output.
 
 ## Sanitized Bundle
 
@@ -37,22 +49,6 @@ litlaunch inspect app.py --bundle --output litlaunch-report.txt
 ```
 
 The support bundle is concise and copyable for issues or support requests.
-
-## HTML
-
-```powershell
-litlaunch inspect app.py --html
-litlaunch inspect app.py --html --output litlaunch-report.html
-litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
-```
-
-HTML output is a standalone, dependency-free diagnostics report rendered from
-the same structured report model as text, JSON, and bundle output. It is meant
-to be readable at a glance, printable, and shareable after review. It includes
-LitLaunch version, platform capability, Streamlit availability, browser
-capability/resolution, target launch plan preview, and profile runtime settings
-when a profile is loaded. It does not start a local server, run JavaScript,
-load external CSS, inspect browser URLs, launch Streamlit, or open a browser.
 
 ## Sanitization
 
@@ -76,5 +72,5 @@ always be detected. Review support bundles before sharing them publicly.
 There is no local diagnostics dashboard or diagnostics web server today.
 
 [screenshot needed]
-Capture: `litlaunch inspect examples/minimal_app/app.py --no-color` output.
+Capture: `litlaunch inspect examples/minimal_app/app.py --html --output litlaunch-report.html` output opened in a browser.
 Demonstrate: platform, Streamlit, browser, target, and summary sections.

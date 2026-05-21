@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import importlib
 import json
 import re
@@ -603,7 +604,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.9b0"
+    assert data["litlaunch_version"] == "0.91.10b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -800,6 +801,22 @@ def test_cli_inspect_output_without_json_or_bundle_fails_clearly():
 
     assert code == 2
     assert "--output requires --json, --bundle, or --html" in output
+
+
+def test_cli_inspect_output_help_mentions_html_bundle_and_json():
+    parser = build_parser()
+    stream = StringIO()
+
+    inspect_parser = next(
+        action.choices["inspect"]
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
+    )
+    inspect_parser.print_help(stream)
+    inspect_help = stream.getvalue()
+    assert "Write inspect output to a UTF-8 file" in inspect_help
+    assert "Supports JSON," in inspect_help
+    assert "HTML, and bundle output" in inspect_help
 
 
 def test_cli_inspect_force_without_output_fails_clearly():

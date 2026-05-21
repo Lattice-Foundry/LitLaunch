@@ -59,7 +59,10 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--output",
-        help="Write JSON or bundle inspect output to a UTF-8 file.",
+        help=(
+            "Write inspect output to a UTF-8 file. Supports JSON, HTML, "
+            "and bundle output."
+        ),
     )
     parser.add_argument(
         "--force",

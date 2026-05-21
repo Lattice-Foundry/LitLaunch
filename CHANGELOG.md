@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.10b0
+
+- Corrected `inspect --output` help so it accurately covers JSON, HTML, and
+  bundle output files.
+- Polished standalone HTML diagnostics reports with clearer summary cards,
+  status badges, long-value wrapping, and stronger privacy guidance.
+- Preserved diagnostics collection behavior, JSON schema, and support bundle
+  rendering semantics.
+
 ## 0.91.9b0
 
 - Documented hidden `console-preview --all|--normal|--verbose` developer

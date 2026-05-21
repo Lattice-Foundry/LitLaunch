@@ -47,11 +47,12 @@ litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
 ```
 
 HTML output is a standalone, dependency-free diagnostics report rendered from
-the same structured report model as text, JSON, and bundle output. It includes
+the same structured report model as text, JSON, and bundle output. It is meant
+to be readable at a glance, printable, and shareable after review. It includes
 LitLaunch version, platform capability, Streamlit availability, browser
 capability/resolution, target launch plan preview, and profile runtime settings
 when a profile is loaded. It does not start a local server, run JavaScript,
-inspect browser URLs, launch Streamlit, or open a browser.
+load external CSS, inspect browser URLs, launch Streamlit, or open a browser.
 
 ## Sanitization
 

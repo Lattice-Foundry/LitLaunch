@@ -146,7 +146,7 @@ def runtime_config_from_args(
 
     app_path = Path(app_path_value)
     if not app_path.is_file():
-        raise LitLaunchError(f"Streamlit app path does not exist: {app_path}")
+        raise LitLaunchError(f"App path does not exist: {app_path}")
 
     streamlit_args, app_args = split_passthrough_args(args.passthrough_args)
     config = LauncherConfig(

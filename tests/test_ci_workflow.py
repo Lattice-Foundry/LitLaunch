@@ -39,5 +39,5 @@ def test_ci_workflow_includes_cross_platform_python_matrix():
 
     for os_name in ("windows-latest", "ubuntu-latest", "macos-latest"):
         assert os_name in workflow
-    for python_version in ('"3.10"', '"3.12"', '"3.14"'):
+    for python_version in ('"3.10"', '"3.11"', '"3.12"', '"3.13"', '"3.14"'):
         assert python_version in workflow

@@ -37,7 +37,6 @@ from litlaunch.console_style import (
 )
 from litlaunch.exceptions import LitLaunchError
 
-_source_checkout_example_path = source_checkout_example_path
 _COMMAND_NAMES = frozenset(
     {
         "version",
@@ -75,10 +74,17 @@ _LAUNCH_OPTION_NAMES = frozenset(
         "--app-arg",
     }
 )
+_GLOBAL_FLAG_NAMES = frozenset({"--no-color", "--quiet", "--verbose", "-h", "--help"})
 
 
 class LitLaunchHelpFormatter(argparse.HelpFormatter):
     """Argparse help formatter with LitLaunch's green metavar accent."""
+
+    def add_arguments(self, actions):
+        visible_actions = [
+            action for action in actions if action.help != argparse.SUPPRESS
+        ]
+        super().add_arguments(visible_actions)
 
     def _set_color(self, color):
         super()._set_color(color)
@@ -198,19 +204,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     example_parser.set_defaults(handler=_cmd_example)
 
-    console_preview_parser = subparsers.add_parser(
-        "console-preview",
-        help=argparse.SUPPRESS,
-        formatter_class=LitLaunchHelpFormatter,
-    )
-    add_console_preview_flags(console_preview_parser)
-    console_preview_parser.set_defaults(handler=cmd_console_preview)
-    subparsers._choices_actions = [  # type: ignore[attr-defined]
-        action
-        for action in subparsers._choices_actions  # type: ignore[attr-defined]
-        if action.dest != "console-preview"
-    ]
-
     return parser
 
 
@@ -227,10 +220,13 @@ def main(
 ) -> int:
     """Run the LitLaunch CLI."""
 
-    parser = build_parser()
-    normalized_argv = _normalize_launch_shorthand(
-        sys.argv[1:] if argv is None else argv
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    parser = (
+        build_console_preview_parser()
+        if _is_console_preview_invocation(raw_argv)
+        else build_parser()
     )
+    normalized_argv = _normalize_launch_shorthand(raw_argv)
     args, extra_args = parser.parse_known_args(normalized_argv)
     if not hasattr(args, "handler"):
         if extra_args:
@@ -270,6 +266,30 @@ def _add_global_flags(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--verbose", action="store_true", help="Show detailed output.")
 
 
+def build_console_preview_parser() -> argparse.ArgumentParser:
+    """Build the hidden internal console-preview parser."""
+
+    configure_argparse_help_colors()
+    parent = argparse.ArgumentParser(
+        add_help=False,
+        formatter_class=LitLaunchHelpFormatter,
+    )
+    _add_global_flags(parent)
+    parser = argparse.ArgumentParser(
+        prog="litlaunch",
+        parents=[parent],
+        formatter_class=LitLaunchHelpFormatter,
+    )
+    subparsers = parser.add_subparsers(dest="command")
+    console_preview_parser = subparsers.add_parser(
+        "console-preview",
+        formatter_class=LitLaunchHelpFormatter,
+    )
+    add_console_preview_flags(console_preview_parser)
+    console_preview_parser.set_defaults(handler=cmd_console_preview)
+    return parser
+
+
 def _normalize_launch_shorthand(argv: Sequence[str]) -> list[str]:
     """Route root launch shorthand through the explicit ``run`` command."""
 
@@ -284,6 +304,16 @@ def _normalize_launch_shorthand(argv: Sequence[str]) -> list[str]:
     if _has_root_launch_option(args) or _has_root_app_path_launch(args):
         return ["run", *args]
     return args
+
+
+def _is_console_preview_invocation(args: Sequence[str]) -> bool:
+    for token in args:
+        if token in _GLOBAL_FLAG_NAMES:
+            continue
+        if token.startswith("-"):
+            return False
+        return token == "console-preview"
+    return False
 
 
 def _has_root_launch_option(args: Sequence[str]) -> bool:
@@ -325,7 +355,7 @@ def _factory_overrides(**values: Any) -> dict[str, Any]:
 
 
 def _cmd_example(args: argparse.Namespace, context) -> int:
-    example_path = _source_checkout_example_path(Path(__file__).parent)
+    example_path = source_checkout_example_path(Path(__file__).parent)
     if not example_path.is_file():
         renderer(args, context).error(
             "The minimal example app is available from a LitLaunch source checkout. "

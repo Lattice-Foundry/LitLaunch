@@ -104,8 +104,6 @@ def build_backend_command(
 def copy_streamlit_flags(flags):
     """Return a LaunchPlan-safe copy of Streamlit flags."""
 
-    if isinstance(flags, dict):
-        return dict(flags)
     if hasattr(flags, "items"):
         return dict(flags.items())
     return tuple(flags)

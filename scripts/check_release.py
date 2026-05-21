@@ -34,6 +34,18 @@ FORBIDDEN_ARCHIVE_COMPONENTS = frozenset(
 )
 FORBIDDEN_ARCHIVE_SUFFIXES = (".pyc", ".pyo")
 MALFORMED_VERSION_FRAGMENT_PATTERN = re.compile(r"^\d+(?:\.\d+){1,3}`?$")
+FORBIDDEN_REPO_CACHE_DIRS = frozenset({"__pycache__"})
+FORBIDDEN_REPO_BYTECODE_SUFFIXES = (".pyc", ".pyo")
+IGNORED_REPO_TREE_DIRS = frozenset(
+    {".git", ".venv", ".pytest_cache", ".ruff_cache", "dist"}
+)
+REPO_ROOT_TEMP_DIR_PATTERN = re.compile(r"^litlaunch-test-")
+STALE_REPO_ROOT_GENERATED_NAMES = frozenset(
+    {
+        "litlaunch-report.html",
+        "litlaunch-support-bundle.zip",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -278,6 +290,32 @@ def ensure_no_suspicious_repo_root_artifacts(root: Path = PROJECT_ROOT) -> None:
         joined = ", ".join(path.name for path in suspicious)
         raise RuntimeError(f"Suspicious repo-root artifacts found: {joined}")
 
+    forbidden = find_forbidden_repo_tree_artifacts(root)
+    if forbidden:
+        joined = ", ".join(_display_path(path, root) for path in forbidden)
+        raise RuntimeError(f"Forbidden repo-tree artifacts found: {joined}")
+
+
+def find_forbidden_repo_tree_artifacts(root: Path = PROJECT_ROOT) -> tuple[Path, ...]:
+    """Return generated cache/temp artifacts that should not remain in the repo."""
+
+    forbidden: list[Path] = []
+    ignored = {root / name for name in IGNORED_REPO_TREE_DIRS}
+    for path in root.rglob("*"):
+        if _is_under_ignored_dir(path, ignored):
+            continue
+        if path.is_dir():
+            if path.name in FORBIDDEN_REPO_CACHE_DIRS or (
+                path.parent == root and REPO_ROOT_TEMP_DIR_PATTERN.match(path.name)
+            ):
+                forbidden.append(path)
+            continue
+        if path.suffix in FORBIDDEN_REPO_BYTECODE_SUFFIXES or (
+            path.parent == root and path.name in STALE_REPO_ROOT_GENERATED_NAMES
+        ):
+            forbidden.append(path)
+    return tuple(sorted(forbidden))
+
 
 def find_forbidden_archive_entries(names: Sequence[str]) -> tuple[str, ...]:
     """Return archive entries that should never appear in release artifacts."""
@@ -323,6 +361,19 @@ def _looks_like_accidental_root_artifact(name: str) -> bool:
         or name in {"'", '"'}
         or name.endswith(("`", "'", '"'))
     )
+
+
+def _is_under_ignored_dir(path: Path, ignored: set[Path]) -> bool:
+    return any(
+        path == ignored_dir or ignored_dir in path.parents for ignored_dir in ignored
+    )
+
+
+def _display_path(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return str(path)
 
 
 def run_installed_wheel_smoke(wheel_path: Path, version: str) -> None:

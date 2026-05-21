@@ -60,8 +60,8 @@ python -m pip install litlaunch
 ```
 
 The development environment currently uses Python 3.14.5. Package metadata
-allows Python 3.10 and newer, and CI currently tests Python 3.10, 3.12, and
-3.14 across Windows, Linux, and macOS.
+allows Python 3.10 and newer, and CI currently tests Python 3.10 through 3.14
+across Windows, Linux, and macOS.
 
 ## Quickstart
 

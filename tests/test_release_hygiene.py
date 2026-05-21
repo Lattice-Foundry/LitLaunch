@@ -45,7 +45,7 @@ def test_release_script_smoke_includes_installed_inspect_and_command_checks():
 def test_release_script_reads_current_version():
     module = load_release_script()
 
-    assert module.read_project_version() == "0.91.26b0"
+    assert module.read_project_version() == "0.91.27b0"
 
 
 def test_release_script_detects_forbidden_archive_entries():
@@ -53,17 +53,17 @@ def test_release_script_detects_forbidden_archive_entries():
 
     forbidden = module.find_forbidden_archive_entries(
         (
-            "litlaunch-0.91.26b0/src/litlaunch/__pycache__/x.pyc",
-            "litlaunch-0.91.26b0/.ruff_cache/CACHEDIR.TAG",
-            "litlaunch-0.91.26b0/.claude/settings.json",
-            "litlaunch-0.91.26b0/src/litlaunch/module.py",
+            "litlaunch-0.91.27b0/src/litlaunch/__pycache__/x.pyc",
+            "litlaunch-0.91.27b0/.ruff_cache/CACHEDIR.TAG",
+            "litlaunch-0.91.27b0/.claude/settings.json",
+            "litlaunch-0.91.27b0/src/litlaunch/module.py",
         )
     )
 
     assert forbidden == (
-        "litlaunch-0.91.26b0/src/litlaunch/__pycache__/x.pyc",
-        "litlaunch-0.91.26b0/.ruff_cache/CACHEDIR.TAG",
-        "litlaunch-0.91.26b0/.claude/settings.json",
+        "litlaunch-0.91.27b0/src/litlaunch/__pycache__/x.pyc",
+        "litlaunch-0.91.27b0/.ruff_cache/CACHEDIR.TAG",
+        "litlaunch-0.91.27b0/.claude/settings.json",
     )
 
 
@@ -80,6 +80,28 @@ def test_release_script_detects_suspicious_repo_root_artifacts():
         assert module.find_suspicious_repo_root_artifacts(root) == (suspicious,)
 
 
+def test_release_script_detects_forbidden_repo_tree_artifacts():
+    module = load_release_script()
+
+    with tempfile.TemporaryDirectory(prefix="litlaunch-release-test-") as temp_dir:
+        root = Path(temp_dir)
+        cache_dir = root / "src" / "litlaunch" / "__pycache__"
+        cache_dir.mkdir(parents=True)
+        bytecode = cache_dir / "module.pyc"
+        bytecode.write_bytes(b"cache")
+        root_temp = root / "litlaunch-test-leftover"
+        root_temp.mkdir()
+        report = root / "litlaunch-report.html"
+        report.write_text("<html></html>", encoding="utf-8")
+        ignored = root / ".venv" / "Lib" / "site-packages" / "__pycache__"
+        ignored.mkdir(parents=True)
+        (ignored / "module.pyc").write_bytes(b"cache")
+
+        forbidden = module.find_forbidden_repo_tree_artifacts(root)
+
+        assert forbidden == (report, root_temp, cache_dir, bytecode)
+
+
 def test_release_script_accepts_normal_empty_root_files():
     module = load_release_script()
 
@@ -91,13 +113,25 @@ def test_release_script_accepts_normal_empty_root_files():
         assert module.find_suspicious_repo_root_artifacts(root) == ()
 
 
+def test_release_script_accepts_ignored_repo_tree_artifacts():
+    module = load_release_script()
+
+    with tempfile.TemporaryDirectory(prefix="litlaunch-release-test-") as temp_dir:
+        root = Path(temp_dir)
+        cache_dir = root / ".venv" / "Lib" / "site-packages" / "__pycache__"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "module.pyc").write_bytes(b"cache")
+
+        assert module.find_forbidden_repo_tree_artifacts(root) == ()
+
+
 @pytest.mark.parametrize(
     "entry",
     [
         "/absolute/path.py",
-        "litlaunch-0.91.26b0/../escape.py",
-        "litlaunch-0.91.26b0/.git/config",
-        "litlaunch-0.91.26b0/.venv/pyvenv.cfg",
+        "litlaunch-0.91.27b0/../escape.py",
+        "litlaunch-0.91.27b0/.git/config",
+        "litlaunch-0.91.27b0/.venv/pyvenv.cfg",
     ],
 )
 def test_release_script_rejects_unsafe_archive_entries(entry):
@@ -112,9 +146,9 @@ def test_release_script_allows_normal_archive_entries():
     assert (
         module.find_forbidden_archive_entries(
             (
-                "litlaunch-0.91.26b0/README.md",
-                "litlaunch-0.91.26b0/src/litlaunch/__init__.py",
-                "litlaunch-0.91.26b0/src/litlaunch/py.typed",
+                "litlaunch-0.91.27b0/README.md",
+                "litlaunch-0.91.27b0/src/litlaunch/__init__.py",
+                "litlaunch-0.91.27b0/src/litlaunch/py.typed",
             )
         )
         == ()
@@ -127,15 +161,15 @@ def test_release_script_rejects_internal_docs_in_sdist():
     with pytest.raises(RuntimeError, match="Internal integration docs"):
         module.inspect_sdist_names(
             (
-                "litlaunch-0.91.26b0/README.md",
-                "litlaunch-0.91.26b0/LICENSE",
-                "litlaunch-0.91.26b0/pyproject.toml",
-                "litlaunch-0.91.26b0/docs/overview.md",
-                "litlaunch-0.91.26b0/docs/internal/README.md",
-                "litlaunch-0.91.26b0/src/litlaunch/__init__.py",
-                "litlaunch-0.91.26b0/src/litlaunch/py.typed",
+                "litlaunch-0.91.27b0/README.md",
+                "litlaunch-0.91.27b0/LICENSE",
+                "litlaunch-0.91.27b0/pyproject.toml",
+                "litlaunch-0.91.27b0/docs/overview.md",
+                "litlaunch-0.91.27b0/docs/internal/README.md",
+                "litlaunch-0.91.27b0/src/litlaunch/__init__.py",
+                "litlaunch-0.91.27b0/src/litlaunch/py.typed",
             ),
-            "0.91.26b0",
+            "0.91.27b0",
         )
 
 

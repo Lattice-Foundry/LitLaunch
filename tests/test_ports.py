@@ -1,3 +1,5 @@
+import socket
+
 import pytest
 
 from litlaunch import LauncherConfig
@@ -14,6 +16,38 @@ class FakePortManager(PortManager):
         self.checked_ports.append((host, port))
         self.validate_port(port)
         return port in self.available_ports
+
+
+class FakeSocket:
+    def __init__(self, family, socktype, proto, log, busy_addresses):
+        self.family = family
+        self.socktype = socktype
+        self.proto = proto
+        self.log = log
+        self.busy_addresses = busy_addresses
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc_info):
+        return False
+
+    def setsockopt(self, *_args):
+        return None
+
+    def bind(self, sockaddr):
+        self.log.append((self.family, self.socktype, self.proto, sockaddr))
+        if sockaddr in self.busy_addresses:
+            raise OSError("busy")
+
+
+class FakeSocketFactory:
+    def __init__(self, *, busy_addresses=()):
+        self.log = []
+        self.busy_addresses = set(busy_addresses)
+
+    def __call__(self, family, socktype, proto=0):
+        return FakeSocket(family, socktype, proto, self.log, self.busy_addresses)
 
 
 def test_fixed_available_port_returns_as_expected():
@@ -68,3 +102,94 @@ def test_port_manager_exposes_no_kill_methods():
 
     assert not hasattr(manager, "kill")
     assert not hasattr(manager, "terminate")
+
+
+def test_port_manager_uses_getaddrinfo_for_ipv4_and_ipv6(monkeypatch):
+    def fake_getaddrinfo(host, port, *, type, proto):
+        assert host == "localhost"
+        assert port == 8501
+        assert type == socket.SOCK_STREAM
+        assert proto == socket.IPPROTO_TCP
+        return [
+            (
+                socket.AF_INET6,
+                socket.SOCK_STREAM,
+                socket.IPPROTO_TCP,
+                "",
+                ("::1", 8501, 0, 0),
+            ),
+            (
+                socket.AF_INET,
+                socket.SOCK_STREAM,
+                socket.IPPROTO_TCP,
+                "",
+                ("127.0.0.1", 8501),
+            ),
+        ]
+
+    fake_socket_factory = FakeSocketFactory()
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+    manager = PortManager(socket_factory=fake_socket_factory)
+
+    assert manager.is_port_available("localhost", 8501) is True
+    assert fake_socket_factory.log == [
+        (
+            socket.AF_INET6,
+            socket.SOCK_STREAM,
+            socket.IPPROTO_TCP,
+            ("::1", 8501, 0, 0),
+        ),
+        (
+            socket.AF_INET,
+            socket.SOCK_STREAM,
+            socket.IPPROTO_TCP,
+            ("127.0.0.1", 8501),
+        ),
+    ]
+
+
+def test_port_manager_normalizes_bracketed_ipv6_hosts(monkeypatch):
+    def fake_getaddrinfo(host, port, *, type, proto):
+        assert host == "::1"
+        assert port == 8501
+        return [
+            (
+                socket.AF_INET6,
+                type,
+                proto,
+                "",
+                ("::1", 8501, 0, 0),
+            )
+        ]
+
+    fake_socket_factory = FakeSocketFactory()
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+    manager = PortManager(socket_factory=fake_socket_factory)
+
+    assert manager.is_port_available("[::1]", 8501) is True
+
+
+def test_port_manager_requires_all_resolved_addresses_available(monkeypatch):
+    def fake_getaddrinfo(host, port, *, type, proto):
+        return [
+            (
+                socket.AF_INET6,
+                type,
+                proto,
+                "",
+                ("::1", port, 0, 0),
+            ),
+            (
+                socket.AF_INET,
+                type,
+                proto,
+                "",
+                ("127.0.0.1", port),
+            ),
+        ]
+
+    fake_socket_factory = FakeSocketFactory(busy_addresses={("127.0.0.1", 8501)})
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+    manager = PortManager(socket_factory=fake_socket_factory)
+
+    assert manager.is_port_available("localhost", 8501) is False

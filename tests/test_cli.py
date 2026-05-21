@@ -1116,7 +1116,7 @@ def test_cli_create_shortcut_missing_profile_fails_cleanly(monkeypatch):
 
 
 def test_cli_console_preview_command_exists_and_exits_zero():
-    parser = build_parser()
+    parser = CLI_MAIN_MODULE.build_console_preview_parser()
     args = parser.parse_args(["console-preview"])
     all_args = parser.parse_args(["console-preview", "--all"])
     normal_args = parser.parse_args(["console-preview", "--normal"])
@@ -1137,7 +1137,7 @@ def test_cli_console_preview_command_exists_and_exits_zero():
 
 
 def test_cli_console_preview_removes_obsolete_subcommands_and_local_no_color():
-    parser = build_parser()
+    parser = CLI_MAIN_MODULE.build_console_preview_parser()
 
     with pytest.raises(SystemExit):
         parser.parse_args(["console-preview-norm"])
@@ -1422,7 +1422,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.26b0"
+    assert data["litlaunch_version"] == "0.91.27b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -2691,7 +2691,7 @@ def test_cli_example_fails_clearly_when_source_example_is_missing(monkeypatch):
     stream = StringIO()
     monkeypatch.setattr(
         CLI_MAIN_MODULE,
-        "_source_checkout_example_path",
+        "source_checkout_example_path",
         lambda module_path: Path("X:/missing/examples/minimal_app/app.py"),
     )
 

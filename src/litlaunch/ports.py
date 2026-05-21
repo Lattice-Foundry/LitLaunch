@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import socket
 from collections.abc import Callable
+from typing import TypeAlias
 
 from litlaunch.config import LauncherConfig
 from litlaunch.exceptions import PortError
+
+_SocketAddress: TypeAlias = tuple[str, int] | tuple[str, int, int, int]
 
 
 class PortManager:
@@ -35,12 +38,45 @@ class PortManager:
 
         self.validate_port(port)
         try:
-            with self.socket_factory(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                sock.bind((host, port))
+            addresses = self._bind_addresses(host, port)
+        except OSError:
+            return False
+
+        if not addresses:
+            return False
+
+        try:
+            for family, socktype, proto, sockaddr in addresses:
+                with self.socket_factory(family, socktype, proto) as sock:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    sock.bind(sockaddr)
         except OSError:
             return False
         return True
+
+    def _bind_addresses(
+        self,
+        host: str,
+        port: int,
+    ) -> tuple[tuple[int, int, int, _SocketAddress], ...]:
+        """Resolve host/port pairs into bindable socket addresses."""
+
+        bind_host = _normalize_bind_host(host)
+        infos = socket.getaddrinfo(
+            bind_host,
+            port,
+            type=socket.SOCK_STREAM,
+            proto=socket.IPPROTO_TCP,
+        )
+        addresses: list[tuple[int, int, int, _SocketAddress]] = []
+        seen: set[tuple[int, int, int, _SocketAddress]] = set()
+        for family, socktype, proto, _canonname, sockaddr in infos:
+            key = (family, socktype, proto, sockaddr)
+            if key in seen:
+                continue
+            seen.add(key)
+            addresses.append(key)
+        return tuple(addresses)
 
     def find_available_port(
         self,
@@ -84,3 +120,11 @@ class PortManager:
         if next_port > 65535:
             raise PortError(f"Port {port} is unavailable and no higher port exists.")
         return self.find_available_port(host, next_port)
+
+
+def _normalize_bind_host(host: str) -> str:
+    """Normalize URL-style hosts into socket bind hosts."""
+
+    if host.startswith("[") and host.endswith("]"):
+        return host[1:-1]
+    return host

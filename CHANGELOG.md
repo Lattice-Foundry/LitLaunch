@@ -3,6 +3,17 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.27b0
+
+- Made port availability checks address-family aware, including bracketed IPv6
+  hosts and localhost resolutions that return both IPv4 and IPv6 addresses.
+- Expanded CI coverage to every advertised Python version from 3.10 through
+  3.14 across Windows, Linux, and macOS.
+- Removed fragile argparse private-action mutation for hidden developer preview
+  tooling and cleaned remaining CLI implementation drift.
+- Hardened release hygiene checks for repo-root temp artifacts, stale generated
+  reports, and bytecode/cache artifacts outside ignored local environments.
+
 ## 0.91.26b0
 
 - Centralized console ANSI styling and status-label formatting behind a shared

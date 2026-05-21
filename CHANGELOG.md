@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.17b0
+
+- Normalized `litlaunch help` workflow topics around the finalized launch,
+  report, inspect, profile, planning, info, and developer-tool commands.
+- Aligned workflow help color usage with the approved LitLaunch console palette
+  and removed stray lighter/lime green styling.
+- Clarified that `--help` remains command reference help while
+  `litlaunch help ...` remains concise workflow guidance.
+
 ## 0.91.16b0
 
 - Added `litlaunch help` workflow guidance for launch, diagnostics, profiles,

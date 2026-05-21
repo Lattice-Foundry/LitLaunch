@@ -20,6 +20,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
 from litlaunch import __version__
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.cli import build_parser, main
+from litlaunch.colors import THEME_COLORS, muted_amber, streamlit_blue, terminal_green
 from litlaunch.config import BrowserChoice, LaunchMode
 from litlaunch.console import strip_ansi
 from litlaunch.inspect import (
@@ -371,15 +372,17 @@ def test_cli_workflow_help_launch_topic():
 
     code = main(["help", "launch"], stream=stream)
 
-    output = stream.getvalue()
+    output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "Launch workflows" in output
     assert "litlaunch app.py" in output
-    assert "litlaunch --profile rolethread-webapp" in output
+    assert "litlaunch --profile NAME" in output
     assert "litlaunch run app.py" in output
-    assert "litlaunch run --profile rolethread-webapp" in output
+    assert "litlaunch run --profile NAME" in output
     assert "--monitor-window" in output
-    assert "Bare profile names are not supported" in output
+    assert "Bare profile names are intentionally not supported" in output
+    assert "litlaunch NAME" not in output
+    assert "python -m litlaunch.cli" not in output
 
 
 def test_cli_workflow_help_diagnostics_topic():
@@ -387,14 +390,17 @@ def test_cli_workflow_help_diagnostics_topic():
 
     code = main(["help", "diagnostics"], stream=stream)
 
-    output = stream.getvalue()
+    output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "Diagnostics workflows" in output
-    assert "litlaunch report --profile rolethread-webapp" in output
-    assert "litlaunch report --profile rolethread-webapp --open" in output
+    assert "litlaunch report" in output
+    assert "litlaunch report app.py" in output
+    assert "litlaunch report --profile NAME" in output
+    assert "litlaunch report --profile NAME --open" in output
     assert "litlaunch inspect --json" in output
     assert "litlaunch inspect --bundle" in output
-    assert "report for shareable human diagnostics" in output
+    assert "litlaunch inspect --html --output report.html" in output
+    assert "recommended human-readable HTML diagnostics workflow" in output
 
 
 def test_cli_workflow_help_profiles_topic():
@@ -402,11 +408,11 @@ def test_cli_workflow_help_profiles_topic():
 
     code = main(["help", "profiles"], stream=stream)
 
-    output = stream.getvalue()
+    output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "Profile workflows" in output
-    assert "litlaunch --profile my-webapp" in output
-    assert "litlaunch run --profile my-webapp" in output
+    assert "litlaunch --profile NAME" in output
+    assert "litlaunch run --profile NAME" in output
     assert "--config litlaunch.toml" in output
     assert "pyproject.toml under [tool.litlaunch]" in output
 
@@ -416,13 +422,17 @@ def test_cli_workflow_help_examples_topic():
 
     code = main(["help", "examples"], stream=stream)
 
-    output = stream.getvalue()
+    output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "Examples" in output
     assert "litlaunch app.py" in output
     assert "litlaunch report --profile my-webapp" in output
     assert "litlaunch command app.py" in output
+    assert "litlaunch command --profile my-webapp" in output
+    assert "litlaunch browsers" in output
     assert "litlaunch browsers --verbose" in output
+    assert "litlaunch platform" in output
+    assert "litlaunch version" in output
     assert "litlaunch example" in output
 
 
@@ -446,12 +456,28 @@ def test_cli_workflow_help_all_includes_main_topics():
 
     code = main(["help", "all"], stream=stream)
 
+    output = strip_ansi(stream.getvalue())
+    assert code == 0
+    assert "LitLaunch workflow overview" in output
+    assert "litlaunch app.py" in output
+    assert "litlaunch report --profile NAME --open" in output
+    assert "litlaunch command --profile NAME" in output
+    assert "litlaunch help dev" in output
+    assert "Bare profile names are intentionally not supported" in output
+
+
+def test_cli_workflow_help_uses_approved_palette():
+    stream = StringIO()
+
+    code = main(["help", "launch"], stream=stream, env={})
+
     output = stream.getvalue()
     assert code == 0
-    assert "Launch workflows" in output
-    assert "Diagnostics workflows" in output
-    assert "Profile workflows" in output
-    assert "Developer tooling" in output
+    assert THEME_COLORS[streamlit_blue].ansi in output
+    assert THEME_COLORS[terminal_green].ansi in output
+    assert THEME_COLORS[muted_amber].ansi in output
+    assert "\033[92m" not in output
+    assert "\033[38;2;131;201;255m" not in output
 
 
 def test_cli_workflow_help_unknown_topic_fails_cleanly():
@@ -763,7 +789,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.16b0"
+    assert data["litlaunch_version"] == "0.91.17b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

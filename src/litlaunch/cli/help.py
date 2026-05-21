@@ -8,8 +8,10 @@ use ``litlaunch help ...`` for short workflow guidance.
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 
 from litlaunch.cli.common import CliContext, write
+from litlaunch.colors import THEME_COLORS, muted_amber, streamlit_blue, terminal_green
 from litlaunch.exceptions import LitLaunchError
 
 HELP_TOPICS = ("launch", "diagnostics", "profiles", "examples", "dev", "all")
@@ -29,83 +31,110 @@ def cmd_workflow_help(args: argparse.Namespace, context: CliContext) -> int:
     """Render workflow-oriented help."""
 
     topic = args.topic or "menu"
-    write(context.stream, render_workflow_help(topic))
+    use_color = (
+        not bool(getattr(args, "no_color", False)) and "NO_COLOR" not in context.env
+    )
+    write(context.stream, render_workflow_help(topic, use_color=use_color))
     return 0
 
 
-def render_workflow_help(topic: str) -> str:
+def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
     """Return workflow help text for a supported topic."""
 
+    style = _HelpStyle(use_color=use_color)
     if topic == "menu":
         return _join(
-            "LitLaunch workflow help",
+            style.heading("LitLaunch workflow help"),
             "",
             "Use --help for command reference.",
             "Use litlaunch help <topic> for workflows.",
             "",
-            "Topics:",
+            style.label("Topics:"),
             "  launch       Run Streamlit apps.",
             "  diagnostics  Generate reports and support diagnostics.",
             "  profiles     Reuse settings from litlaunch.toml or pyproject.toml.",
             "  examples     Copy/paste common commands.",
-            "  dev          Internal developer preview tooling.",
+            f"  dev          {style.warning('Internal developer preview tooling.')}",
             "",
-            "Try:",
-            "  litlaunch help launch",
-            "  litlaunch help diagnostics",
+            style.label("Try:"),
+            *style.commands(
+                "litlaunch help launch",
+                "litlaunch help diagnostics",
+            ),
         )
     if topic == "launch":
         return _join(
-            "Launch workflows",
+            style.heading("Launch workflows"),
             "",
-            "Common:",
-            "  litlaunch app.py",
-            "  litlaunch --profile rolethread-webapp",
+            "Run Streamlit apps with friendly shorthand or explicit commands.",
             "",
-            "Explicit:",
-            "  litlaunch run app.py",
-            "  litlaunch run --profile rolethread-webapp",
+            style.label("Friendly:"),
+            *style.commands(
+                "litlaunch app.py",
+                "litlaunch --profile NAME",
+            ),
             "",
-            "Useful flags:",
+            style.label("Explicit:"),
+            *style.commands(
+                "litlaunch run app.py",
+                "litlaunch run --profile NAME",
+            ),
+            "",
+            style.label("Useful flags:"),
             "  --mode browser|webapp",
             "  --browser auto|edge|chrome|default",
             "  --monitor-window",
             "  --verbose",
             "",
-            "Bare profile names are not supported. Use --profile NAME.",
+            style.warning(
+                "Bare profile names are intentionally not supported; "
+                "use --profile NAME."
+            ),
         )
     if topic == "diagnostics":
         return _join(
-            "Diagnostics workflows",
+            style.heading("Diagnostics workflows"),
             "",
-            "Human-readable HTML report:",
-            "  litlaunch report",
-            "  litlaunch report --profile rolethread-webapp",
-            "  litlaunch report --profile rolethread-webapp --open",
+            "`report` is the recommended human-readable HTML diagnostics workflow.",
+            "`inspect` is for advanced diagnostics artifacts.",
             "",
-            "Advanced inspect outputs:",
-            "  litlaunch inspect --json",
-            "  litlaunch inspect --bundle",
-            "  litlaunch inspect --html --output litlaunch-report.html",
+            style.label("HTML report:"),
+            *style.commands(
+                "litlaunch report",
+                "litlaunch report app.py",
+                "litlaunch report --profile NAME",
+                "litlaunch report --profile NAME --open",
+                "litlaunch report --output litlaunch-report.html --force",
+            ),
             "",
-            "Use report for shareable human diagnostics. Use inspect for JSON, "
-            "support bundles, and explicit diagnostics formats.",
+            style.label("Advanced inspect outputs:"),
+            *style.commands(
+                "litlaunch inspect --json",
+                "litlaunch inspect --bundle",
+                "litlaunch inspect --html --output report.html",
+            ),
+            "",
+            "JSON is machine-readable. Bundles are copyable support artifacts.",
         )
     if topic == "profiles":
         return _join(
-            "Profile workflows",
+            style.heading("Profile workflows"),
             "",
             "Profiles store reusable launch settings.",
             "",
-            "Run a profile:",
-            "  litlaunch --profile my-webapp",
-            "  litlaunch run --profile my-webapp",
+            style.label("Run a profile:"),
+            *style.commands(
+                "litlaunch --profile NAME",
+                "litlaunch run --profile NAME",
+            ),
             "",
-            "Choose a config file:",
-            "  litlaunch --config litlaunch.toml --profile my-webapp",
-            "  litlaunch --config pyproject.toml --profile my-webapp",
+            style.label("Choose a config file:"),
+            *style.commands(
+                "litlaunch --config litlaunch.toml --profile NAME",
+                "litlaunch --config pyproject.toml --profile NAME",
+            ),
             "",
-            "Profile sources:",
+            style.label("Profile sources:"),
             "  litlaunch.toml",
             "  pyproject.toml under [tool.litlaunch]",
             "",
@@ -113,49 +142,101 @@ def render_workflow_help(topic: str) -> str:
         )
     if topic == "examples":
         return _join(
-            "Examples",
+            style.heading("Examples"),
             "",
-            "Launch an app:",
-            "  litlaunch app.py",
+            style.label("Launch an app:"),
+            *style.commands("litlaunch app.py"),
             "",
-            "Launch a profile:",
-            "  litlaunch --profile my-webapp",
+            style.label("Launch a profile:"),
+            *style.commands("litlaunch --profile my-webapp"),
             "",
-            "Generate a report:",
-            "  litlaunch report --profile my-webapp",
-            "  litlaunch report --profile my-webapp --open",
+            style.label("Generate a report:"),
+            *style.commands(
+                "litlaunch report --profile my-webapp",
+                "litlaunch report --profile my-webapp --open",
+            ),
             "",
-            "Troubleshoot with more detail:",
-            "  litlaunch app.py --verbose",
+            style.label("Troubleshoot with more detail:"),
+            *style.commands("litlaunch app.py --verbose"),
             "",
-            "Preview the backend command:",
-            "  litlaunch command app.py",
+            style.label("Preview the backend command:"),
+            *style.commands(
+                "litlaunch command app.py",
+                "litlaunch command --profile my-webapp",
+            ),
             "",
-            "Check local capabilities:",
-            "  litlaunch browsers --verbose",
-            "  litlaunch platform --verbose",
+            style.label("Check local capabilities:"),
+            *style.commands(
+                "litlaunch browsers",
+                "litlaunch browsers --verbose",
+                "litlaunch platform",
+                "litlaunch platform --verbose",
+                "litlaunch version",
+            ),
             "",
-            "Find the source-checkout example app:",
-            "  litlaunch example",
+            style.label("Find the source-checkout example app:"),
+            *style.commands("litlaunch example"),
         )
     if topic == "dev":
         return _join(
-            "Developer tooling",
+            style.heading("Developer tooling"),
             "",
-            "Console preview is internal developer-facing tooling for rapid "
-            "formatting, color, category, and verbosity review.",
+            style.warning(
+                "Console preview is internal developer-facing tooling, not a "
+                "main user workflow."
+            ),
+            "Use it for rapid formatting, color, category, and verbosity review.",
             "",
-            "Commands:",
-            "  litlaunch console-preview --all",
-            "  litlaunch console-preview --normal",
-            "  litlaunch console-preview --verbose",
+            style.label("Commands:"),
+            *style.commands(
+                "litlaunch console-preview --all",
+                "litlaunch console-preview --normal",
+                "litlaunch console-preview --verbose",
+            ),
             "",
             "Preview output is not a stable public workflow contract. Some values "
             "are simulated to resemble real runtime views.",
         )
     if topic == "all":
-        return "\n\n".join(
-            render_workflow_help(name) for name in HELP_TOPICS if name != "all"
+        return _join(
+            style.heading("LitLaunch workflow overview"),
+            "",
+            style.label("Launch:"),
+            *style.commands(
+                "litlaunch app.py",
+                "litlaunch --profile NAME",
+                "litlaunch run app.py",
+            ),
+            "",
+            style.label("Diagnostics:"),
+            *style.commands(
+                "litlaunch report --profile NAME --open",
+                "litlaunch inspect --json",
+                "litlaunch inspect --bundle",
+            ),
+            "",
+            style.label("Planning and info:"),
+            *style.commands(
+                "litlaunch command app.py",
+                "litlaunch command --profile NAME",
+                "litlaunch browsers --verbose",
+                "litlaunch platform --verbose",
+                "litlaunch version",
+            ),
+            "",
+            style.label("Topics:"),
+            *style.commands(
+                "litlaunch help launch",
+                "litlaunch help diagnostics",
+                "litlaunch help profiles",
+                "litlaunch help examples",
+                "litlaunch help dev",
+            ),
+            "",
+            style.warning(
+                "Bare profile names are intentionally not supported; "
+                "use --profile NAME."
+            ),
         )
     available = ", ".join(HELP_TOPICS)
     raise LitLaunchError(f"Unknown help topic: {topic}. Available topics: {available}.")
@@ -163,3 +244,32 @@ def render_workflow_help(topic: str) -> str:
 
 def _join(*lines: str) -> str:
     return "\n".join(lines) + "\n"
+
+
+@dataclass(frozen=True)
+class _HelpStyle:
+    """Small color layer for workflow help, separate from argparse help."""
+
+    use_color: bool = False
+
+    def heading(self, text: str) -> str:
+        return self._style(text, streamlit_blue)
+
+    def label(self, text: str) -> str:
+        return self._style(text, streamlit_blue)
+
+    def command(self, text: str) -> str:
+        return self._style(text, terminal_green)
+
+    def warning(self, text: str) -> str:
+        return self._style(text, muted_amber)
+
+    def commands(self, *values: str) -> tuple[str, ...]:
+        return tuple(f"  {self.command(value)}" for value in values)
+
+    def _style(self, text: str, color_name: str) -> str:
+        if not self.use_color:
+            return text
+        color = THEME_COLORS[color_name].ansi
+        reset = "\033[0m"
+        return f"{color}{text}{reset}"

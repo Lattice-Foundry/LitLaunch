@@ -1,4 +1,3 @@
-import os
 import subprocess
 
 import pytest
@@ -78,7 +77,7 @@ def test_start_passes_args_without_shell_true():
     assert kwargs["shell"] is False
 
 
-def test_start_isolates_backend_from_parent_terminal_interrupts():
+def test_start_keeps_backend_in_parent_console_group_for_interrupt_shutdown():
     calls = []
     fake = FakePopen()
 
@@ -90,12 +89,8 @@ def test_start_isolates_backend_from_parent_terminal_interrupts():
     manager.start(("python", "-m", "streamlit"))
 
     kwargs = calls[0][1]
-    if os.name == "nt":
-        assert kwargs["creationflags"] == subprocess.CREATE_NEW_PROCESS_GROUP
-        assert "start_new_session" not in kwargs
-    else:
-        assert kwargs["start_new_session"] is True
-        assert "creationflags" not in kwargs
+    assert "creationflags" not in kwargs
+    assert "start_new_session" not in kwargs
 
 
 def test_fake_popen_matches_managed_popen_protocol():

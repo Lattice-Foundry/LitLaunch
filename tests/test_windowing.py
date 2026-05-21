@@ -193,6 +193,37 @@ def test_polling_monitor_selects_title_match_and_records_events():
     ]
 
 
+def test_polling_monitor_default_title_matches_new_app_mode_window():
+    target_window = window("0x200", title="RoleThread Lite")
+    monitor = monitor_for((target_window,), ())
+
+    result = monitor.wait_for_close(
+        WindowTarget("Streamlit App"),
+        backend_is_running=lambda: True,
+        config=config(stable_poll_count=1),
+    )
+
+    assert result.closed is True
+    assert result.target == target_window
+
+
+def test_polling_monitor_matches_transient_url_title_before_page_title_settles():
+    transient = window("0x200", title="127.0.0.1_/")
+    monitor = monitor_for((transient,), ())
+
+    result = monitor.wait_for_close(
+        WindowTarget("RoleThread Lite", url="http://127.0.0.1:8501"),
+        backend_is_running=lambda: True,
+        config=config(stable_poll_count=2),
+    )
+
+    assert result.closed is True
+    assert result.observed is True
+    assert result.status == WindowMonitorStatus.WINDOW_CLOSED
+    assert result.target == transient
+    assert "before stable observation" in result.message
+
+
 def test_polling_monitor_treats_early_disappearing_candidate_as_closed():
     transient = window("0x111")
     monitor = monitor_for((transient,), ())

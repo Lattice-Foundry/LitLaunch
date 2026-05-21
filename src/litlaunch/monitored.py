@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.launcher import StreamlitLauncher
+from litlaunch.lifecycle import LaunchState
 from litlaunch.platforms import PlatformDetector, PlatformInfo
 from litlaunch.profiles import LaunchProfile
+from litlaunch.runtime_console import render_window_monitor_result
 from litlaunch.session import RuntimeSession
 from litlaunch.windowing import (
     NoopWindowMonitor,
+    WindowInfo,
     WindowMonitor,
     WindowMonitorConfig,
     WindowMonitorResult,
@@ -80,6 +84,7 @@ def run_monitored_webapp(
             stopped_cleanly=True,
         )
 
+    session: RuntimeSession | None = None
     try:
         baseline = resolved_monitor.capture(baseline_target)
     except Exception as exc:
@@ -99,25 +104,53 @@ def run_monitored_webapp(
             stopped_cleanly=True,
         )
 
-    session = launcher.run()
-    if not session.ok:
-        return MonitoredRunResult(
-            exit_code=1,
-            session=session,
-            monitor_result=None,
-            message=session.result.message,
-            launched=False,
-            stopped_cleanly=session.process is None or not _session_is_running(session),
-        )
-
-    target = WindowTarget(
-        launcher.config.title,
-        url=session.url,
-        browser_kind=getattr(session.browser, "kind", None),
-        app_mode=True,
+    startup_probe = _StartupWindowProbe(
+        resolved_monitor,
         baseline_handles=tuple(window.handle for window in baseline),
     )
+    startup_probe.start()
     try:
+        session = launcher.run()
+        startup_probe.stop()
+        if not session.ok:
+            return MonitoredRunResult(
+                exit_code=1,
+                session=session,
+                monitor_result=None,
+                message=session.result.message,
+                launched=False,
+                stopped_cleanly=session.process is None
+                or not _session_is_running(session),
+            )
+
+        startup_close_result = startup_probe.closed_before_monitor_result()
+        if startup_close_result is not None:
+            session.add_event(
+                LaunchState.WINDOW_CLOSED,
+                startup_close_result.message,
+                render=False,
+            )
+            render_window_monitor_result(
+                session.console_renderer,
+                startup_close_result,
+            )
+            session.stop(graceful_timeout_seconds=graceful_timeout_seconds)
+            return MonitoredRunResult(
+                exit_code=0,
+                session=session,
+                monitor_result=startup_close_result,
+                message=startup_close_result.message,
+                launched=True,
+                stopped_cleanly=not _session_is_running(session),
+            )
+
+        target = WindowTarget(
+            launcher.config.title,
+            url=session.url,
+            browser_kind=getattr(session.browser, "kind", None),
+            app_mode=True,
+            baseline_handles=tuple(window.handle for window in baseline),
+        )
         result = session.monitor_window(
             resolved_monitor,
             target,
@@ -125,15 +158,19 @@ def run_monitored_webapp(
             graceful_timeout_seconds=graceful_timeout_seconds,
         )
     except KeyboardInterrupt:
-        session.stop(graceful_timeout_seconds=graceful_timeout_seconds)
+        startup_probe.stop()
+        if session is not None and session.ok:
+            session.stop(graceful_timeout_seconds=graceful_timeout_seconds)
         return MonitoredRunResult(
             exit_code=0,
             session=session,
             monitor_result=None,
             message="Window monitoring interrupted; runtime stopped.",
-            launched=True,
+            launched=session is not None,
             stopped_cleanly=not _session_is_running(session),
         )
+    finally:
+        startup_probe.stop()
 
     if result.closed:
         return MonitoredRunResult(
@@ -237,3 +274,77 @@ def _session_is_running(session: RuntimeSession) -> bool:
     if callable(is_running):
         return bool(is_running())
     return False
+
+
+class _StartupWindowProbe:
+    """Observe app-mode windows during the browser-launch handoff gap."""
+
+    def __init__(
+        self,
+        monitor: WindowMonitor,
+        *,
+        baseline_handles: tuple[str, ...],
+        poll_interval_seconds: float = 0.05,
+    ) -> None:
+        self.monitor = monitor
+        self.target = WindowTarget(
+            "Streamlit App",
+            app_mode=True,
+            baseline_handles=baseline_handles,
+        )
+        self.poll_interval_seconds = poll_interval_seconds
+        self._stop = threading.Event()
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+        self._observed: WindowInfo | None = None
+
+    def start(self) -> None:
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+
+    def closed_before_monitor_result(self) -> WindowMonitorResult | None:
+        with self._lock:
+            observed = self._observed
+        if observed is None:
+            return None
+
+        try:
+            active_handles = {
+                window.handle for window in self.monitor.capture(self.target)
+            }
+        except Exception:
+            return None
+        if observed.handle in active_handles:
+            return None
+        return WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=True,
+            status=WindowMonitorStatus.WINDOW_CLOSED,
+            message="App-mode window closed before monitoring started.",
+            target=observed,
+        )
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            try:
+                candidates = self._candidate_windows()
+            except Exception:
+                return
+            if candidates:
+                with self._lock:
+                    self._observed = candidates[-1]
+            self._stop.wait(self.poll_interval_seconds)
+
+    def _candidate_windows(self) -> tuple[WindowInfo, ...]:
+        baseline = set(self.target.baseline_handles)
+        return tuple(
+            window
+            for window in self.monitor.capture(self.target)
+            if window.handle not in baseline
+        )

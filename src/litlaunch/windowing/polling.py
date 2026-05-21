@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Sequence
+from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
 from litlaunch.browsers import BrowserKind
@@ -260,11 +261,31 @@ class PollingWindowMonitor:
 def _matches_target(window: WindowInfo, target: WindowTarget) -> bool:
     if not target.app_mode:
         return False
-    if target.title.lower() not in window.title.lower():
+    if not _matches_target_title(window.title, target):
         return False
     if target.browser_kind is not None and window.process_name:
         return _browser_kind_matches_process(target.browser_kind, window.process_name)
     return True
+
+
+def _matches_target_title(window_title: str, target: WindowTarget) -> bool:
+    normalized_title = window_title.strip().lower()
+    normalized_target = target.title.strip().lower()
+    if normalized_target and normalized_target in normalized_title:
+        return True
+    if target.title == "Streamlit App":
+        return True
+    return _matches_transient_url_title(normalized_title, target.url)
+
+
+def _matches_transient_url_title(window_title: str, target_url: str | None) -> bool:
+    if not target_url:
+        return False
+    parsed = urlparse(target_url)
+    hostname = (parsed.hostname or "").strip().lower()
+    if not hostname:
+        return False
+    return window_title == hostname or window_title.startswith(f"{hostname}_/")
 
 
 def _browser_kind_matches_process(kind: BrowserKind, process_name: str) -> bool:

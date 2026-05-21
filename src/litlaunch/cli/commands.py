@@ -163,8 +163,6 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
     )
 
     if monitor_options.enabled:
-        if run_result.session is not None and run_result.session.ok:
-            cli_renderer.success(f"Runtime active at {run_result.session.url}")
         if run_result.monitor_result is not None:
             render_monitor_result_if_needed(
                 run_result.session,

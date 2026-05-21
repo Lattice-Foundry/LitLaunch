@@ -1,3 +1,5 @@
+import threading
+
 import pytest
 
 from litlaunch import LauncherConfig, LaunchMode, LaunchProfile
@@ -36,6 +38,26 @@ class FakeMonitor:
         raise AssertionError("RuntimeSession owns wait_for_close delegation")
 
 
+class StartupCloseMonitor:
+    def __init__(self):
+        self.baseline_seen = False
+        self.visible = True
+        self.seen = threading.Event()
+
+    def capture(self, target):
+        if not self.baseline_seen:
+            self.baseline_seen = True
+            return ()
+        if not self.visible:
+            return ()
+        window = WindowInfo("new", title="127.0.0.1_/", process_name="msedge")
+        self.seen.set()
+        return (window,)
+
+    def wait_for_close(self, target, *, backend_is_running, config):
+        raise AssertionError("startup close should be handled before monitor wait")
+
+
 class FakeSession:
     def __init__(self, *, monitor_result, ok=True, raises_keyboard=False):
         self.ok = ok
@@ -55,6 +77,8 @@ class FakeSession:
         self.monitor_calls = []
         self.stop_calls = []
         self.running = ok
+        self.console_renderer = None
+        self.events = []
 
     def monitor_window(self, monitor, target, **kwargs):
         self.monitor_calls.append((monitor, target, kwargs))
@@ -71,6 +95,9 @@ class FakeSession:
     def is_running(self):
         return self.running
 
+    def add_event(self, state, message, *, render=True):
+        self.events.append((state, message, render))
+
 
 class FakeLauncher:
     def __init__(self, config, session):
@@ -80,6 +107,18 @@ class FakeLauncher:
 
     def run(self):
         self.run_calls += 1
+        return self.session
+
+
+class StartupCloseLauncher(FakeLauncher):
+    def __init__(self, config, session, monitor):
+        super().__init__(config, session)
+        self.monitor = monitor
+
+    def run(self):
+        self.run_calls += 1
+        assert self.monitor.seen.wait(timeout=1.0)
+        self.monitor.visible = False
         return self.session
 
 
@@ -258,6 +297,31 @@ def test_run_monitored_webapp_keyboard_interrupt_stops_backend():
     assert result.exit_code == 0
     assert result.message == "Window monitoring interrupted; runtime stopped."
     assert session.stop_calls == [((), {"graceful_timeout_seconds": 6.0})]
+
+
+def test_run_monitored_webapp_handles_window_closed_during_browser_launch_gap():
+    monitor = StartupCloseMonitor()
+    session = FakeSession(monitor_result=closed_result())
+    launcher = StartupCloseLauncher(
+        LauncherConfig(app_path="app.py", mode="webapp"),
+        session,
+        monitor,
+    )
+
+    result = run_monitored_webapp(
+        launcher,
+        monitor=monitor,
+        graceful_timeout_seconds=7.0,
+    )
+
+    assert result.exit_code == 0
+    assert result.monitor_result is not None
+    assert result.monitor_result.closed is True
+    assert result.monitor_result.message == (
+        "App-mode window closed before monitoring started."
+    )
+    assert session.monitor_calls == []
+    assert session.stop_calls == [((), {"graceful_timeout_seconds": 7.0})]
 
 
 def test_run_monitored_webapp_requires_webapp_mode():

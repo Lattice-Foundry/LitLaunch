@@ -3,6 +3,16 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.36b0
+
+- Restored Ctrl+C shutdown reliability by keeping the owned backend in the
+  parent console signal path while preserving LitLaunch's backend-only
+  ownership boundary.
+- Hardened monitored webapp interrupt handling so Ctrl+C during window
+  monitoring routes through the same runtime stop path.
+- Matched transient URL-style Edge app-window titles during startup so quick
+  closes before Streamlit's page title settles still trigger shutdown.
+
 ## 0.91.35b0
 
 - Enabled window monitoring by default for direct CLI `--mode webapp` launches

@@ -1480,7 +1480,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.35b0"
+    assert data["litlaunch_version"] == "0.91.36b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -2459,6 +2459,7 @@ def test_cli_run_webapp_monitors_window_by_default():
     assert session.stop_calls == 1
     assert session.monitor_calls[0][0] is monitor
     assert "window closed" in stream.getvalue()
+    assert "Runtime active at http://127.0.0.1:8501" not in stream.getvalue()
 
 
 def test_cli_run_webapp_no_monitor_window_opt_out_waits_for_backend():

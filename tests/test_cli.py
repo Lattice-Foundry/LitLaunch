@@ -103,7 +103,14 @@ class FakeBrowserRegistry:
         self.resolve_calls.append((choice, platform_info, prefer_app_mode))
         return BrowserResolution(
             requested=BrowserChoice.AUTO,
-            selected=None,
+            selected=BrowserCapability(
+                kind=BrowserKind.EDGE,
+                name="Edge",
+                executable_path="C:/Edge/msedge.exe",
+                available=True,
+                supports_app_mode=True,
+                supports_full_browser=True,
+            ),
             fallback_chain=(),
             message="Selected Edge.",
         )
@@ -517,7 +524,7 @@ def test_cli_platform_outputs_summary_and_verbose_details():
     stream = StringIO()
 
     code = main(
-        ["platform", "--verbose"],
+        ["platform", "--verbose", "--no-color"],
         stream=stream,
         platform_detector_factory=FakePlatformDetector,
     )
@@ -525,8 +532,18 @@ def test_cli_platform_outputs_summary_and_verbose_details():
     output = stream.getvalue()
     assert code == 0
     assert "Windows x64 / Python 3.14.5" in output
-    assert "python_executable: X:/Python/python.exe" in output
-    assert "supports_chromium_app_mode: True" in output
+    assert "[   ok   ] Platform: Chromium app mode supported." in output
+    assert "[   ok   ] Platform: default browser open supported." in output
+    assert "[   ok   ] Platform: window monitoring supported." in output
+    assert "[  info  ] OS: windows." in output
+    assert "[  info  ] Python executable: X:/Python/python.exe." in output
+    assert (
+        "[  info  ] Note: Window monitoring capability is currently Windows-first."
+        in output
+    )
+    assert "supports_chromium_app_mode: True" not in output
+    assert "is_linux: False" not in output
+    assert "notes: (" not in output
 
 
 def test_cli_browsers_outputs_capabilities_without_launching():
@@ -543,11 +560,34 @@ def test_cli_browsers_outputs_capabilities_without_launching():
     output = stream.getvalue()
     assert code == 0
     assert "Browser capabilities" in output
-    assert "Edge: available, app-mode" in output
-    assert "Chrome: unavailable, app-mode" in output
-    assert "Auto app-mode strategy: Selected Edge." in output
+    assert "[   ok   ] Browser: Edge available; app-mode supported." in output
+    assert "[  warn  ] Browser: Chrome unavailable; app-mode supported." in output
+    assert "[   ok   ] Browser: selected Edge for app-mode." in output
+    assert ">" not in output
+    assert "Auto app-mode strategy" not in output
     assert registry.detect_calls
     assert "\033[" not in output
+
+
+def test_cli_browsers_verbose_outputs_readable_metadata():
+    stream = StringIO()
+    registry = FakeBrowserRegistry()
+
+    code = main(
+        ["browsers", "--verbose", "--no-color"],
+        stream=stream,
+        platform_detector_factory=FakePlatformDetector,
+        browser_registry_factory=lambda: registry,
+    )
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "[  info  ] Kind: edge." in output
+    assert "[  info  ] Executable: C:/Edge/msedge.exe." in output
+    assert "[  info  ] Kind: chrome." in output
+    assert "[  info  ] Executable: not reported." in output
+    assert "- kind:" not in output
+    assert "executable_path:" not in output
 
 
 def test_cli_inspect_without_format_outputs_guidance_without_collecting():
@@ -602,7 +642,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.12b0"
+    assert data["litlaunch_version"] == "0.91.13b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

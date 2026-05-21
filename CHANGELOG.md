@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.13b0
+
+- Polished `platform` and `browsers` informational CLI output with aligned
+  status rows and readable verbose metadata.
+- Replaced legacy browser `>`/dash output and raw platform field dumps with
+  coherent console grammar.
+- Added a neutral `info` status label for informational CLI metadata without
+  changing platform or browser detection behavior.
+
 ## 0.91.12b0
 
 - Removed the legacy full text inspect report before public release.

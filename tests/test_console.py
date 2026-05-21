@@ -175,6 +175,7 @@ def test_console_renderer_quiet_suppresses_normal_output_but_not_errors():
     renderer.success("Ready")
     renderer.phase_start(ConsolePhase.BROWSER, "opening")
     renderer.info("Info")
+    renderer.info_status("Metadata")
     renderer.warning("Warning")
     renderer.error("Failure")
 
@@ -183,8 +184,24 @@ def test_console_renderer_quiet_suppresses_normal_output_but_not_errors():
     assert "Ready" not in output
     assert "opening" not in output
     assert "Info" not in output
+    assert "Metadata" not in output
     assert "[  warn  ] Warning." in output
     assert "[ error  ] Failure." in output
+
+
+def test_console_renderer_info_status_uses_fixed_width_green_label():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=True),
+        stream=stream,
+        env={},
+    )
+
+    renderer.info_status("OS: windows")
+
+    output = stream.getvalue()
+    assert THEME_COLORS[success_green].ansi in output
+    assert strip_ansi(output) == "[  info  ] OS: windows.\n"
 
 
 def test_failure_guidance_respects_quiet_normal_and_verbose_modes():

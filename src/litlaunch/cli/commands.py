@@ -21,6 +21,7 @@ from litlaunch.console import ConsoleMode, ConsoleRenderer
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.monitored import run_profile
 from litlaunch.profiles import LaunchProfile
+from litlaunch.redaction import redact_sensitive_text
 from litlaunch.version import __version__
 from litlaunch.windowing import WindowMonitorResult
 
@@ -38,10 +39,34 @@ def cmd_platform(args: argparse.Namespace, context: CliContext) -> int:
     cli_renderer = renderer(args, context)
     info = context.platform_detector_factory().detect()
     cli_renderer.info(info.summary())
+    _render_platform_capability(
+        cli_renderer,
+        "Chromium app mode",
+        info.supports_chromium_app_mode,
+    )
+    _render_platform_capability(
+        cli_renderer,
+        "default browser open",
+        info.supports_default_browser_open,
+    )
+    _render_platform_capability(
+        cli_renderer,
+        "window monitoring",
+        info.supports_window_monitoring,
+    )
     if mode(args) == ConsoleMode.VERBOSE:
-        details = info.as_dict()
-        for key in sorted(details):
-            cli_renderer.detail(f"{key}: {details[key]}")
+        cli_renderer.info_status(f"OS: {info.os.value}")
+        cli_renderer.info_status(f"System: {_display_value(info.system)}")
+        cli_renderer.info_status(f"Release: {_display_value(info.release)}")
+        cli_renderer.info_status(f"Machine: {_display_value(info.machine)}")
+        cli_renderer.info_status(f"Architecture: {info.architecture.value}")
+        cli_renderer.info_status(f"Python version: {info.python_version}")
+        python_executable = _display_value(
+            redact_sensitive_text(info.python_executable)
+        )
+        cli_renderer.info_status(f"Python executable: {python_executable}")
+        for note in info.notes:
+            cli_renderer.info_status(f"Note: {note}")
     return 0
 
 
@@ -54,21 +79,27 @@ def cmd_browsers(args: argparse.Namespace, context: CliContext) -> int:
     capabilities = registry.detect_all(platform_info)
     cli_renderer.info("Browser capabilities")
     for capability in capabilities:
-        availability = "available" if capability.available else "unavailable"
-        app_mode = "app-mode" if capability.supports_app_mode else "full-browser-only"
-        cli_renderer.step(f"{capability.name}: {availability}, {app_mode}")
+        _render_browser_capability(cli_renderer, capability)
         if mode(args) == ConsoleMode.VERBOSE:
-            cli_renderer.detail(f"kind: {capability.kind.value}")
-            cli_renderer.detail(f"executable_path: {capability.executable_path or ''}")
+            cli_renderer.info_status(f"Kind: {capability.kind.value}")
+            executable_path = _display_value(
+                redact_sensitive_text(capability.executable_path or "")
+            )
+            cli_renderer.info_status(f"Executable: {executable_path}")
             for note in capability.notes:
-                cli_renderer.detail(f"note: {note}")
+                cli_renderer.info_status(f"Note: {note}")
 
     resolution = registry.resolve(
         BrowserChoice.AUTO,
         platform_info,
         prefer_app_mode=True,
     )
-    cli_renderer.info(f"Auto app-mode strategy: {resolution.message}")
+    if resolution.selected is None:
+        cli_renderer.warning(f"Browser: {resolution.message}")
+    else:
+        cli_renderer.success(
+            f"Browser: selected {resolution.selected.name} for app-mode"
+        )
     return 0
 
 
@@ -180,3 +211,37 @@ def render_monitor_result_if_needed(
 
     if session is None or getattr(session, "console_renderer", None) is None:
         cli_renderer.render_window_monitor_result(result)
+
+
+def _render_platform_capability(
+    cli_renderer: ConsoleRenderer,
+    label: str,
+    supported: bool,
+) -> None:
+    state = "supported" if supported else "not supported"
+    message = f"Platform: {label} {state}"
+    if supported:
+        cli_renderer.success(message)
+    else:
+        cli_renderer.warning(message)
+
+
+def _render_browser_capability(cli_renderer: ConsoleRenderer, capability) -> None:
+    availability = "available" if capability.available else "unavailable"
+    support = (
+        "app-mode supported"
+        if capability.supports_app_mode
+        else "full-browser only"
+        if capability.supports_full_browser
+        else "no supported launch mode"
+    )
+    message = f"Browser: {capability.name} {availability}; {support}"
+    if capability.available:
+        cli_renderer.success(message)
+    else:
+        cli_renderer.warning(message)
+
+
+def _display_value(value: object) -> str:
+    text = str(value).strip()
+    return text or "not reported"

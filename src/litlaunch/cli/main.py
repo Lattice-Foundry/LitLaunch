@@ -28,16 +28,36 @@ from litlaunch.exceptions import LitLaunchError
 _source_checkout_example_path = source_checkout_example_path
 
 
+class LitLaunchHelpFormatter(argparse.HelpFormatter):
+    """Argparse help formatter with LitLaunch's green metavar accent."""
+
+    def _set_color(self, color):
+        super()._set_color(color)
+        try:
+            from _colorize import ANSIColors
+        except ImportError:  # pragma: no cover - older Python versions.
+            return
+        self._theme = self._theme.copy_with(
+            summary_label=ANSIColors.GREEN,
+            label=ANSIColors.INTENSE_YELLOW,
+        )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the LitLaunch argparse parser."""
 
-    parent = argparse.ArgumentParser(add_help=False)
+    _configure_argparse_help_colors()
+    parent = argparse.ArgumentParser(
+        add_help=False,
+        formatter_class=LitLaunchHelpFormatter,
+    )
     _add_global_flags(parent)
 
     parser = argparse.ArgumentParser(
         prog="litlaunch",
         description="Lightweight Streamlit launcher/runtime tooling.",
         parents=[parent],
+        formatter_class=LitLaunchHelpFormatter,
     )
     subparsers = parser.add_subparsers(
         dest="command",
@@ -48,6 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
         "version",
         parents=[parent],
         help="Show the LitLaunch version.",
+        formatter_class=LitLaunchHelpFormatter,
     )
     version_parser.set_defaults(handler=cmd_version)
 
@@ -55,6 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
         "platform",
         parents=[parent],
         help="Show normalized platform capability information.",
+        formatter_class=LitLaunchHelpFormatter,
     )
     platform_parser.set_defaults(handler=cmd_platform)
 
@@ -62,6 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
         "browsers",
         parents=[parent],
         help="Show detected browser launch capabilities.",
+        formatter_class=LitLaunchHelpFormatter,
     )
     browsers_parser.set_defaults(handler=cmd_browsers)
 
@@ -69,6 +92,7 @@ def build_parser() -> argparse.ArgumentParser:
         "inspect",
         parents=[parent],
         help="Inspect local LitLaunch and Streamlit runtime readiness.",
+        formatter_class=LitLaunchHelpFormatter,
     )
     add_inspect_flags(inspect_parser)
     inspect_parser.set_defaults(handler=cmd_inspect)
@@ -77,6 +101,7 @@ def build_parser() -> argparse.ArgumentParser:
         "command",
         parents=[parent],
         help="Print the Streamlit backend command without launching it.",
+        formatter_class=LitLaunchHelpFormatter,
     )
     add_runtime_flags(command_parser, include_dry_run=False)
     command_parser.set_defaults(handler=cmd_command)
@@ -85,6 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
         "run",
         parents=[parent],
         help="Run a Streamlit app with LitLaunch.",
+        formatter_class=LitLaunchHelpFormatter,
     )
     add_runtime_flags(run_parser, include_dry_run=True)
     run_parser.set_defaults(handler=cmd_run)
@@ -93,12 +119,14 @@ def build_parser() -> argparse.ArgumentParser:
         "example",
         parents=[parent],
         help="Show the source-checkout minimal example app path.",
+        formatter_class=LitLaunchHelpFormatter,
     )
     example_parser.set_defaults(handler=_cmd_example)
 
     console_preview_parser = subparsers.add_parser(
         "console-preview",
         help=argparse.SUPPRESS,
+        formatter_class=LitLaunchHelpFormatter,
     )
     add_console_preview_flags(console_preview_parser)
     console_preview_parser.set_defaults(handler=cmd_console_preview)
@@ -162,6 +190,25 @@ def _add_global_flags(parser: argparse.ArgumentParser) -> None:
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--quiet", action="store_true", help="Suppress normal output.")
     group.add_argument("--verbose", action="store_true", help="Show detailed output.")
+
+
+def _configure_argparse_help_colors() -> None:
+    """Align Python 3.14 argparse metavars with LitLaunch's green help accent."""
+
+    try:
+        from _colorize import ANSIColors, get_theme, set_theme
+    except ImportError:  # pragma: no cover - older Python versions.
+        return
+
+    theme = get_theme(force_color=True)
+    set_theme(
+        theme.copy_with(
+            argparse=theme.argparse.copy_with(
+                summary_label=ANSIColors.GREEN,
+                label=ANSIColors.INTENSE_YELLOW,
+            )
+        )
+    )
 
 
 def _factory_overrides(**values: Any) -> dict[str, Any]:

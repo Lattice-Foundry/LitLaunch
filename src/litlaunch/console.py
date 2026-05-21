@@ -392,6 +392,13 @@ class ConsoleRenderer:
             return
         self._emit(message)
 
+    def info_status(self, message: str) -> None:
+        """Render a neutral informational status line."""
+
+        if self.mode == ConsoleMode.QUIET:
+            return
+        self._emit_status("info", self.theme.success, message)
+
     def next_step(self, message: str) -> None:
         """Render one concise follow-up action line."""
 

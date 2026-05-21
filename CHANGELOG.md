@@ -14,6 +14,9 @@ public API finishes settling.
   and posture reporting.
 - Improved README/PyPI first-read positioning around LitLaunch as a
   runtime-governance and operational-launch layer for Streamlit apps.
+- Added README/overview positioning for packaged, distributed, and
+  cross-platform Streamlit app workflows while keeping packaging and installer
+  creation out of scope.
 - Kept wording explicit that LitLaunch reports operational posture and does not
   secure Streamlit applications.
 

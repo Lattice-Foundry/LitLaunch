@@ -62,6 +62,23 @@ litlaunch --profile my-dashboard
 Simple workflows stay simple. Advanced launch, browser, monitoring, network,
 and diagnostics settings are there when a project needs them.
 
+### Built for real packaged applications
+
+LitLaunch works cleanly inside packaged Streamlit applications and
+cross-platform runtime workflows, including apps built with tools such as
+PyInstaller, Inno Setup, or other desktop/runtime distribution systems.
+
+It does not package your app or replace your installer. It handles the runtime
+layer those packaged apps still need: browser and app-mode startup, owned
+backend lifecycle, graceful shutdown, diagnostics/reporting, working-directory
+handling, repeatable launch workflows, and platform-specific launch behavior.
+
+LitLaunch is designed to behave consistently across Windows, Linux, and macOS.
+
+That makes it a strong fit for internal business tools, analyst dashboards,
+local AI utilities, and desktop-style Streamlit apps that need more operational
+discipline than a bare `streamlit run` command.
+
 ### Add shutdown hooks when cleanup matters
 
 Apps can opt into graceful cleanup without adopting a complicated application

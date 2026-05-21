@@ -9,8 +9,11 @@ litlaunch app.py
 That local-first path gives you explicit backend ownership, Streamlit health
 checks, browser launch, clean shutdown handling, and diagnostics/reporting
 without shell scripts or custom runtime glue. Profiles, shortcuts, shutdown
-hooks, trust modes, and report tooling are available when the project needs more
-repeatable launch behavior or operational visibility.
+hooks, packaged-app runtime workflows, trust modes, and report tooling are
+available when the project needs more repeatable launch behavior or operational
+visibility. LitLaunch can run inside packaged/distributed Streamlit apps across
+Windows, Linux, and macOS, but it does not create installers or replace
+packaging tools.
 
 ## Run The Minimal Example
 

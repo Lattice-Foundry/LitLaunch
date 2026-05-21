@@ -46,10 +46,11 @@ def test_py_typed_marker_exists():
     assert (REPO_ROOT / "src" / "litlaunch" / "py.typed").is_file()
 
 
-def test_claude_directory_is_ignored():
+def test_claude_directory_is_not_listed_in_gitignore():
     gitignore = GITIGNORE.read_text(encoding="utf-8")
 
-    assert ".claude/" in gitignore
+    assert ".claude/" not in gitignore
+    assert "claude" not in gitignore.lower()
 
 
 def test_gitattributes_normalizes_text_to_lf():

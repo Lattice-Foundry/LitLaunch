@@ -84,4 +84,4 @@ native installer artifacts, do not manage icons, and are not automatically
 placed on the Desktop or Start Menu.
 
 LitLaunch should remain the runtime layer beneath those workflows, not the
-installer framework.
+packaging or installer system.

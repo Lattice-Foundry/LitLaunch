@@ -3,6 +3,11 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.37b0
+
+- Clarified browser-mode runtime messaging so users know Ctrl+C is the
+  shutdown path for normal browser-tab sessions.
+
 ## 0.91.36b0
 
 - Restored Ctrl+C shutdown reliability by keeping the owned backend in the

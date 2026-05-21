@@ -200,6 +200,7 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
         return 1
 
     cli_renderer.success(f"Runtime active at {session.url}")
+    cli_renderer.info_status("Press Ctrl+C to stop this session")
     if session.process is None:
         return 0
 

@@ -1480,7 +1480,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.36b0"
+    assert data["litlaunch_version"] == "0.91.37b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1910,6 +1910,7 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.console_renderer is not None
     assert session.wait_calls == 1
     assert "Runtime active at http://127.0.0.1:8501" in stream.getvalue()
+    assert "Press Ctrl+C to stop this session." in stream.getvalue()
 
 
 def test_cli_root_app_path_shorthand_uses_run_pipeline():
@@ -2460,6 +2461,7 @@ def test_cli_run_webapp_monitors_window_by_default():
     assert session.monitor_calls[0][0] is monitor
     assert "window closed" in stream.getvalue()
     assert "Runtime active at http://127.0.0.1:8501" not in stream.getvalue()
+    assert "Press Ctrl+C to stop this session." not in stream.getvalue()
 
 
 def test_cli_run_webapp_no_monitor_window_opt_out_waits_for_backend():
@@ -2478,6 +2480,7 @@ def test_cli_run_webapp_no_monitor_window_opt_out_waits_for_backend():
     assert session.wait_calls == 1
     assert session.monitor_calls == []
     assert "Runtime active at http://127.0.0.1:8501" in stream.getvalue()
+    assert "Press Ctrl+C to stop this session." in stream.getvalue()
 
 
 def test_cli_run_webapp_default_monitoring_skips_unsupported_platform():
@@ -2844,6 +2847,7 @@ def test_cli_quiet_suppresses_run_success_message():
 
     assert code == 0
     assert "Runtime active" not in stream.getvalue()
+    assert "Press Ctrl+C to stop this session." not in stream.getvalue()
 
 
 def test_cli_example_prints_example_path():

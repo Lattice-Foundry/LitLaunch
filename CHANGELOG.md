@@ -3,6 +3,16 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.20b0
+
+- Polished the `litlaunch create profile` wizard with a clearer header, step
+  framing, current-profile summary, clean cancellation, and back/quit prompt
+  controls.
+- Fixed Ctrl+C cancellation so the wizard exits calmly without a Python
+  traceback.
+- Preserved Simple mode behavior, app-root defaults, and profile loading
+  validation.
+
 ## 0.91.19b0
 
 - Added reusable app-root detection for profile creation defaults.

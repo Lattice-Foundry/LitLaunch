@@ -64,7 +64,8 @@ litlaunch create profile
 The Simple wizard defaults to the recommended app-window experience and writes
 a `litlaunch.toml` profile after confirmation. It uses app-root defaults such
 as `app.py` and the current folder name when they are available, while still
-letting you confirm or change every prompt.
+letting you confirm or change every prompt. Type `back` to revisit a previous
+step, or `quit` to cancel.
 
 ```toml
 [profiles.my-webapp]

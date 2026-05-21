@@ -5,7 +5,11 @@ from __future__ import annotations
 import argparse
 
 from litlaunch.cli.common import CliContext
-from litlaunch.profile_wizard import ProfileWizardOptions, run_profile_wizard
+from litlaunch.profile_wizard import (
+    ProfileWizardCancelled,
+    ProfileWizardOptions,
+    run_profile_wizard,
+)
 
 
 def add_create_flags(parser: argparse.ArgumentParser) -> None:
@@ -53,15 +57,22 @@ def cmd_create_profile(args: argparse.Namespace, context: CliContext) -> int:
     """Run the interactive profile creation wizard."""
 
     platform_info = context.platform_detector_factory().detect()
-    run_profile_wizard(
-        ProfileWizardOptions(
-            name=args.name,
-            app_path=args.app_path,
-            config_path=args.config_path,
-            dry_run=bool(args.dry_run),
-            force=bool(args.force),
-        ),
-        stream=context.stream,
-        platform_is_windows=bool(platform_info.is_windows),
-    )
+    try:
+        run_profile_wizard(
+            ProfileWizardOptions(
+                name=args.name,
+                app_path=args.app_path,
+                config_path=args.config_path,
+                dry_run=bool(args.dry_run),
+                force=bool(args.force),
+                use_color=(
+                    not bool(getattr(args, "no_color", False))
+                    and "NO_COLOR" not in context.env
+                ),
+            ),
+            stream=context.stream,
+            platform_is_windows=bool(platform_info.is_windows),
+        )
+    except ProfileWizardCancelled:
+        return 130
     return 0

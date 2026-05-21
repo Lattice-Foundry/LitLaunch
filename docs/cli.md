@@ -277,7 +277,8 @@ The first wizard pass supports Simple mode. It defaults to the recommended
 app-window experience, while still allowing browser-tab profiles. When run from
 an app root, the wizard uses detected values such as `app.py`, the project
 folder name, and an existing `litlaunch.toml` as visible prompt defaults. Users
-still confirm or change each value before anything is written. Advanced mode and
+still confirm or change each value before anything is written. Type `back` to
+return to the previous step, or `quit` to cancel cleanly. Advanced mode and
 shortcut creation are planned separately.
 
 ## Example

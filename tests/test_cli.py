@@ -553,7 +553,107 @@ def test_cli_create_profile_simple_mode_writes_webapp_profile(monkeypatch):
         assert profile.window_monitor_config.stable_poll_count == 2
         output = stream.getvalue()
         assert "App window, recommended" in output
+        assert "Create Profile Wizard" in output
+        assert "Step 1 of" in output
+        assert "Current profile:" in output
         assert "Profile preview" in output
+
+
+def test_cli_create_profile_keyboard_interrupt_cancels_cleanly(monkeypatch):
+    def raise_interrupt():
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("builtins.input", raise_interrupt)
+    stream = StringIO()
+
+    code = main(
+        ["create", "profile"],
+        stream=stream,
+        platform_detector_factory=FakePlatformDetector,
+    )
+
+    output = stream.getvalue()
+    assert code == 130
+    assert "[  warn  ] Profile creation cancelled." in output
+    assert "Traceback" not in output
+    assert "KeyboardInterrupt" not in output
+
+
+def test_cli_create_profile_quit_commands_cancel_cleanly(monkeypatch):
+    for command in ("quit", "exit", "cancel"):
+        answers = iter([command])
+        monkeypatch.setattr(
+            "builtins.input",
+            lambda answers=answers: next(answers),
+        )
+        stream = StringIO()
+
+        code = main(
+            ["create", "profile"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        assert code == 130
+        assert "[  warn  ] Profile creation cancelled." in stream.getvalue()
+
+
+def test_cli_create_profile_back_navigation_preserves_values(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        answers = iter(
+            [
+                "",
+                "first-name",
+                "back",
+                "second-name",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ]
+        )
+        m.setattr("builtins.input", lambda: next(answers))
+        stream = StringIO()
+
+        code = main(
+            ["create", "profile"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        assert code == 0
+        profile = load_profile("second-name", output_dir / "litlaunch.toml")
+        assert profile.config.app_path == output_dir / "app.py"
+        output = stream.getvalue()
+        assert "Name:" in output
+        assert "first-name" in output
+        assert "second-name" in output
+
+
+def test_cli_create_profile_prompts_show_current_defaults(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        answers = iter(["", "", "", "", "", "", "", "", "n"])
+        m.setattr("builtins.input", lambda: next(answers))
+        stream = StringIO()
+
+        code = main(
+            ["create", "profile"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        output = stream.getvalue()
+        assert code == 0
+        assert f"Profile name [{output_dir.name}]:" in output
+        assert "App path [app.py]:" in output
+        assert "Write profile [Y/n]:" in output
 
 
 def test_cli_create_profile_options_prefill_name_and_app(monkeypatch):
@@ -969,7 +1069,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.19b0"
+    assert data["litlaunch_version"] == "0.91.20b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

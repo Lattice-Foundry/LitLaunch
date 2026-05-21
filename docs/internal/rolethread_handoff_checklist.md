@@ -123,10 +123,8 @@ Validate:
 - browser processes are not killed.
 - backend exits cleanly after close.
 - no orphan backend remains.
-
-[screenshot needed]
-Capture: Windows Edge app-mode RoleThread window under LitLaunch monitoring,
-with console output showing monitoring started and runtime active.
+- capture manual notes for the Windows Edge app-mode window and monitoring
+  console output when preparing release evidence.
 
 ## Graceful Shutdown Validation
 
@@ -139,10 +137,9 @@ with console output showing monitoring started and runtime active.
 - Confirm fallback backend termination is used only if graceful stop does not
   complete.
 
-[diagram needed]
-Create: graceful shutdown flow from window close or interrupt through
+Trace the graceful shutdown flow from window close or interrupt through
 `RuntimeSession.stop()`, shutdown endpoint request, hook execution, and backend
-termination fallback.
+termination fallback during validation.
 
 ## Inspect Diagnostics Validation
 

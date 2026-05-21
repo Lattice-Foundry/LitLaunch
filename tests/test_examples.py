@@ -81,6 +81,17 @@ def test_minimal_example_readme_reflects_current_cli():
     assert "source tree as a development/demo fixture" in readme
 
 
+def test_minimal_example_uses_canonical_github_urls():
+    app = EXAMPLE_APP.read_text(encoding="utf-8")
+    old_litlaunch = "LatticeFoundry/" + "litlaunch"
+    old_rolethread = "LatticeFoundry/" + "rolethread"
+
+    assert "https://github.com/Lattice-Foundry/LitLaunch" in app
+    assert "https://github.com/Lattice-Foundry/RoleThread" in app
+    assert old_litlaunch not in app
+    assert old_rolethread not in app
+
+
 def test_package_internals_do_not_reference_rolethread():
     for path in (REPO_ROOT / "src" / "litlaunch").rglob("*.py"):
         assert "RoleThread" not in path.read_text(encoding="utf-8")

@@ -51,6 +51,8 @@ capability and reports the launch failure without retrying alternatives.
 - Browser profile and process reuse are browser behavior, not LitLaunch state.
 - App-mode depends on Chromium-compatible command-line behavior.
 
-[diagram needed]
-Create: browser resolution decision tree for browser mode vs webapp mode.
-Show: requested browser, fallback allowed/disabled, default browser fallback.
+Resolution is deterministic: LitLaunch starts from the requested browser choice,
+checks whether that browser can satisfy the requested mode, and only considers a
+fallback when `allow_browser_fallback` is enabled. Browser-tab mode may fall
+back to the default browser. App-window mode requires a Chromium-compatible
+browser and does not silently downgrade into a normal browser tab.

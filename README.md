@@ -344,7 +344,9 @@ See [docs/inspect.md](docs/inspect.md) and
 - Killing by process name, PID discovery, or port owner.
 - Replacing Streamlit's CLI/config system.
 - Running a local diagnostics dashboard or diagnostics server today.
-- Owning PyInstaller, Nuitka, shortcut, or installer workflows.
+- Owning PyInstaller, Nuitka, installer, updater, or full packaging workflows.
+  LitLaunch does support lightweight project-local shortcut script generation
+  for existing profiles.
 - Adding terminal UI frameworks or heavy runtime dependencies.
 
 ## Versioning

@@ -17,6 +17,12 @@ from litlaunch.shortcut_writer import (
 )
 
 
+@pytest.fixture
+def tmp_path():
+    with tempfile.TemporaryDirectory(prefix="litlaunch-shortcut-") as path:
+        yield Path(path)
+
+
 def platform_info(os_name: OperatingSystem) -> PlatformInfo:
     return PlatformInfo(
         os=os_name,
@@ -36,93 +42,85 @@ def platform_info(os_name: OperatingSystem) -> PlatformInfo:
     )
 
 
-def test_shortcut_plan_windows_bat_uses_app_parent():
-    with tempfile.TemporaryDirectory(prefix="litlaunch-shortcut-", dir=Path.cwd()) as d:
-        root = Path(d)
-        app = root / "app.py"
-        app.write_text("print('hi')\n", encoding="utf-8")
-        profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app))
+def test_shortcut_plan_windows_bat_uses_app_parent(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app))
 
-        plan = build_shortcut_plan(
-            ShortcutRequest(
-                profile=profile,
-                platform=platform_info(OperatingSystem.WINDOWS),
-            )
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.WINDOWS),
         )
+    )
 
-        assert plan.output_path == root / "my-webapp.bat"
-        assert f'cd /d "{root}"' in plan.content
-        assert '"litlaunch" "--profile" "my-webapp"' in plan.content
-        assert plan.executable is False
+    assert plan.output_path == tmp_path / "my-webapp.bat"
+    assert f'cd /d "{tmp_path}"' in plan.content
+    assert '"litlaunch" "--profile" "my-webapp"' in plan.content
+    assert plan.executable is False
 
 
-def test_shortcut_plan_linux_shell_quotes_paths_and_config():
-    with tempfile.TemporaryDirectory(prefix="litlaunch shortcut-", dir=Path.cwd()) as d:
-        root = Path(d)
-        app = root / "app.py"
-        config = root / "litlaunch.toml"
-        app.write_text("print('hi')\n", encoding="utf-8")
-        profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app))
+def test_shortcut_plan_linux_shell_quotes_paths_and_config(tmp_path: Path):
+    app = tmp_path / "app.py"
+    config = tmp_path / "litlaunch.toml"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app))
 
-        plan = build_shortcut_plan(
-            ShortcutRequest(
-                profile=profile,
-                platform=platform_info(OperatingSystem.LINUX),
-                config_path=config,
-            )
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.LINUX),
+            config_path=config,
         )
+    )
 
-        assert plan.output_path == root / "my-webapp.sh"
-        assert plan.content.startswith("#!/usr/bin/env sh\n")
-        assert f"cd '{root}'" in plan.content
-        assert "'litlaunch' '--profile' 'my-webapp' '--config'" in plan.content
-        assert plan.executable is True
+    assert plan.output_path == tmp_path / "my-webapp.sh"
+    assert plan.content.startswith("#!/usr/bin/env sh\n")
+    assert f"cd '{tmp_path}'" in plan.content
+    assert "'litlaunch' '--profile' 'my-webapp' '--config'" in plan.content
+    assert plan.executable is True
 
 
-def test_shortcut_plan_macos_command_uses_cwd_and_custom_output():
-    with tempfile.TemporaryDirectory(prefix="litlaunch-shortcut-", dir=Path.cwd()) as d:
-        root = Path(d)
-        app_root = root / "app"
-        app_root.mkdir()
-        app = app_root / "app.py"
-        app.write_text("print('hi')\n", encoding="utf-8")
-        output = root / "Launch.command"
-        profile = LaunchProfile(
-            "web",
-            LauncherConfig(app_path=app, cwd=app_root),
+def test_shortcut_plan_macos_command_uses_cwd_and_custom_output(tmp_path: Path):
+    app_root = tmp_path / "app"
+    app_root.mkdir()
+    app = app_root / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    output = tmp_path / "Launch.command"
+    profile = LaunchProfile(
+        "web",
+        LauncherConfig(app_path=app, cwd=app_root),
+    )
+
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.MACOS),
+            output_path=output,
+            name="Ignored",
         )
+    )
 
-        plan = build_shortcut_plan(
-            ShortcutRequest(
-                profile=profile,
-                platform=platform_info(OperatingSystem.MACOS),
-                output_path=output,
-                name="Ignored",
-            )
+    assert plan.app_root == app_root
+    assert plan.output_path == output
+    assert plan.content.startswith("#!/usr/bin/env sh\n")
+
+
+def test_write_shortcut_force_and_executable_mode(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    profile = LaunchProfile("web", LauncherConfig(app_path=app))
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.LINUX),
         )
+    )
 
-        assert plan.app_root == app_root
-        assert plan.output_path == output
-        assert plan.content.startswith("#!/usr/bin/env sh\n")
-
-
-def test_write_shortcut_force_and_executable_mode():
-    with tempfile.TemporaryDirectory(prefix="litlaunch-shortcut-", dir=Path.cwd()) as d:
-        root = Path(d)
-        app = root / "app.py"
-        app.write_text("print('hi')\n", encoding="utf-8")
-        profile = LaunchProfile("web", LauncherConfig(app_path=app))
-        plan = build_shortcut_plan(
-            ShortcutRequest(
-                profile=profile,
-                platform=platform_info(OperatingSystem.LINUX),
-            )
-        )
-
+    write_shortcut(plan)
+    assert plan.output_path.is_file()
+    if os.name != "nt":
+        assert plan.output_path.stat().st_mode & 0o111
+    with pytest.raises(ConfigurationError):
         write_shortcut(plan)
-        assert plan.output_path.is_file()
-        if os.name != "nt":
-            assert plan.output_path.stat().st_mode & 0o111
-        with pytest.raises(ConfigurationError):
-            write_shortcut(plan)
-        write_shortcut(plan, force=True)
+    write_shortcut(plan, force=True)

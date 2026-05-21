@@ -49,9 +49,9 @@ if query_params:
 
 st.divider()
 st.markdown(
-    "[LitLaunch](https://github.com/LatticeFoundry/litlaunch) is built by "
-    "[LatticeFoundry](https://github.com/LatticeFoundry), a software division "
+    "[LitLaunch](https://github.com/Lattice-Foundry/LitLaunch) is built by "
+    "[Lattice Foundry](https://github.com/Lattice-Foundry), a software division "
     "of Sierra Cognitive Group, LLC. "
-    "[RoleThread](https://github.com/LatticeFoundry/rolethread) is part of the "
+    "[RoleThread](https://github.com/Lattice-Foundry/RoleThread) is part of the "
     "same local-first ecosystem."
 )

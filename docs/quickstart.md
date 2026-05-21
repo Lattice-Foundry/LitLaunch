@@ -268,6 +268,7 @@ useful when an app needs to schedule its own final exit or post-response
 completion work. Duplicate shutdown requests do not rerun hooks or the
 completion callback.
 
-[screenshot needed]
-Capture: normal `litlaunch run examples/minimal_app/app.py --no-color` output.
-Demonstrate: backend, health, browser, and runtime-ready phase output.
+Normal console output is organized around bracketed status labels and runtime
+categories such as `Backend:`, `Health:`, `Browser:`, `Runtime:`, `Monitor:`,
+`Hook:`, and `Shutdown:`. Use `--verbose` when you want deeper troubleshooting
+detail; normal mode stays concise for day-to-day launches.

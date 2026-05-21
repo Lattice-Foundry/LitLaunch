@@ -13,13 +13,13 @@ Implemented:
 - browser/app-mode launch
 - graceful shutdown hooks
 - diagnostics
+- lightweight profile shortcut script generation
 
 Not implemented:
 
 - PyInstaller recipes
 - Nuitka recipes
 - installer creation
-- shortcut generation
 - packaged resource discovery helpers
 - TestPyPI/PyPI publishing automation
 
@@ -67,15 +67,21 @@ Future notes should cover:
 - running source-checkout examples
 - isolating app dependencies from launcher tooling
 
-## Windows Shortcuts
+## Profile Shortcuts
 
-Future notes should cover:
+LitLaunch can generate lightweight project-local shortcut scripts for existing
+profiles:
 
-- command line target
-- working directory
-- icon handling
-- app-mode browser preference
-- monitor-window opt-in
+```powershell
+litlaunch create shortcut --profile my-webapp
+litlaunch create shortcut --profile my-webapp --dry-run
+```
+
+The profile wizard can also offer shortcut creation after a profile is written.
+Generated shortcuts are `.bat`, `.sh`, or `.command` files that `cd` into the
+app root and run the public `litlaunch --profile NAME` workflow. They are not
+native installer artifacts, do not manage icons, and are not automatically
+placed on the Desktop or Start Menu.
 
 LitLaunch should remain the runtime layer beneath those workflows, not the
 installer framework.

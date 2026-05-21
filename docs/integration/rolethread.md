@@ -1,7 +1,8 @@
 # RoleThread Integration Notes
 
-RoleThread is expected to consume LitLaunch as an external package once the
-runtime contract is stable enough for integration.
+RoleThread can consume LitLaunch as an external package for runtime ownership,
+diagnostics, profile-driven launch configuration, and optional project-local
+shortcut generation.
 
 These notes describe expectations, not a current dependency. LitLaunch must not
 import RoleThread or assume RoleThread paths, names, environment variables, or
@@ -51,12 +52,23 @@ Choose a stable `LauncherConfig.title` for webapp monitoring. If the browser
 window title differs significantly from the configured title, window detection
 may timeout.
 
-## Future Compatibility
+## Launch Profiles
 
-Future launch profiles may help RoleThread map development, browser, webapp,
-and packaged-style launch configurations. Until implemented, integration should
-use explicit `LauncherConfig` fields.
+RoleThread or similar apps can store reusable development, browser-tab,
+app-window, and packaged-style runtime settings in `litlaunch.toml` profiles.
+Use `litlaunch create profile` for an interactive starting point, then commit or
+ship the resulting configuration according to the downstream app's policy.
 
-[diagram needed]
-Create: RoleThread-to-LitLaunch integration boundary diagram. Show RoleThread
-configuration flowing into LitLaunch and `RuntimeSession` returning ownership.
+Profile-based launches use the same runtime path as explicit `LauncherConfig`
+usage:
+
+```powershell
+litlaunch --profile rolethread-webapp
+litlaunch report --profile rolethread-webapp
+litlaunch create shortcut --profile rolethread-webapp
+```
+
+RoleThread still owns product policy, app-specific settings, packaged resource
+layout, and user-facing support text. LitLaunch owns the generic Streamlit
+runtime mechanics and returns `RuntimeSession` ownership for the backend process
+it starts.

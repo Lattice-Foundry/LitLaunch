@@ -8,7 +8,7 @@ For development:
 
 ```powershell
 git clone https://github.com/Lattice-Foundry/LitLaunch
-cd litlaunch
+cd LitLaunch
 python -m pip install -e .[dev]
 ```
 

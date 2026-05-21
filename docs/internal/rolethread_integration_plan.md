@@ -192,7 +192,7 @@ Expect short-lived duplication in:
 
 Delete duplication only after equivalent LitLaunch behavior is validated.
 
-[diagram needed]
-Create: RoleThread-to-LitLaunch migration flow. Show current RoleThread
-launcher responsibilities, the temporary parallel LitLaunch path, and the final
-boundary where RoleThread owns app policy while LitLaunch owns runtime mechanics.
+Migration flow: first map current RoleThread launcher responsibilities, then run
+a temporary parallel LitLaunch path, then delete only the launcher mechanics that
+LitLaunch has proven equivalent. The final boundary should leave RoleThread
+owning app policy while LitLaunch owns generic runtime mechanics.

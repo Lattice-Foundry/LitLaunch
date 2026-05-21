@@ -16,10 +16,7 @@ from litlaunch import (
 
 @pytest.fixture
 def tmp_path():
-    with tempfile.TemporaryDirectory(
-        prefix="litlaunch-profile-test-",
-        dir=Path.cwd(),
-    ) as path:
+    with tempfile.TemporaryDirectory(prefix="litlaunch-profile-test-") as path:
         yield Path(path)
 
 

@@ -79,8 +79,7 @@ is:
 3. packaging/installer behavior that should remain outside both core runtime
    code paths.
 
-[diagram needed]
-Create: responsibility boundary diagram with three columns: RoleThread app
-policy, LitLaunch runtime layer, operating system/browser. Show that LitLaunch
-owns only the backend process it starts and observes browser windows without
-owning browser processes.
+Responsibility boundary: RoleThread owns app policy and product decisions,
+LitLaunch owns the generic Streamlit runtime layer and the backend process it
+starts, and the operating system/browser own browser process behavior. LitLaunch
+may observe browser windows for monitoring, but it does not own or kill them.

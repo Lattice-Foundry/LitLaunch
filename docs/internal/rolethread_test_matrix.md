@@ -47,11 +47,9 @@ For app-mode and monitor-window tests:
 - Confirm closing the app window does not close unrelated browser windows.
 - Confirm backend shutdown is visible in console output.
 - Confirm no LitLaunch-owned backend remains after exit.
-
-[screenshot needed]
-Capture: console output for a successful RoleThread webapp launch with
-monitoring enabled, after the app window has been closed and backend shutdown
-has completed.
+- Record console output for a successful RoleThread webapp launch with
+  monitoring enabled after the app window has closed and backend shutdown has
+  completed.
 
 ## Packaged And Unpackaged Expectations
 

@@ -56,7 +56,7 @@ def test_pyproject_urls_use_canonical_repository_location():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert "## 0.91.23b1" in changelog
+    assert "## 0.91.24b0" in changelog
     assert "## 0.91.0b0" in changelog
     assert "## 0.85.0" in changelog
     assert "## 0.23.0" in changelog
@@ -204,8 +204,12 @@ def test_docs_clarify_redaction_limits_and_deferred_visual_placeholders():
     assert "Encoded, base64, URL-wrapped" in inspect_doc
     assert "Review support bundles before sharing" in inspect_doc
     assert "home/user path prefixes" in troubleshooting
-    assert "Screenshot And Diagram Placeholders" in beta_issues
-    assert "deferred until release stabilization" in beta_issues
+    assert "Visual Documentation" in beta_issues
+    assert "Runtime Profiles" in beta_issues
+    screenshot_placeholder = "[screenshot" + " needed]"
+    diagram_placeholder = "[diagram" + " needed]"
+    assert screenshot_placeholder not in beta_issues
+    assert diagram_placeholder not in beta_issues
 
 
 def test_docs_clarify_with_port_title_and_streamlit_passthrough_policy():

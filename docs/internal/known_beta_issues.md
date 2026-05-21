@@ -69,30 +69,24 @@ browser window will appear.
 
 Use inspect alongside real smoke tests, not instead of them.
 
-## Screenshot And Diagram Placeholders
+## Visual Documentation
 
-Public and internal docs intentionally keep `[screenshot needed]` and
-`[diagram needed]` placeholders as deferred until release stabilization. Actual
-images should be captured after TestPyPI and RoleThread integration validation
-reduce the chance of rework.
+Public docs should avoid unfinished visual placeholders. Screenshots and
+diagrams can still be added after TestPyPI and RoleThread integration
+validation, but prose should stand on its own until then.
 
-## Future Runtime Profiles
+## Runtime Profiles
 
-Runtime profiles are a future possibility, not implemented behavior. They may
-eventually help map development, browser, webapp, packaged-style, or kiosk-ish
-launch preferences without bloating `LauncherConfig`.
-
-Do not build RoleThread integration around profiles until the API exists.
+Runtime profiles are implemented as reusable LitLaunch configuration. They can
+map development, browser-tab, app-window, and packaged-style launch preferences
+without bloating `LauncherConfig`. RoleThread integration may use profiles now,
+while still keeping RoleThread-specific product policy outside LitLaunch.
 
 ## Packaging Notes
 
 LitLaunch should support packaged apps as a runtime dependency, but it should
-not own PyInstaller, Nuitka, shortcut, installer, updater, or distribution
-behavior.
+not own PyInstaller, Nuitka, installer, updater, or distribution behavior.
+Lightweight profile shortcut scripts are supported; full installer workflows are
+not.
 
 Packaging guidance is expected to evolve during RoleThread validation.
-
-[diagram needed]
-Create: beta risk map showing which areas are stable beta foundation, which are
-experimental, and which remain future work. Include browser fallback, window
-monitoring, graceful shutdown, inspect, and packaging.

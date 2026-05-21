@@ -3,6 +3,16 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.24b0
+
+- Added focused automated coverage for the profile wizard and LitLaunch profile
+  writer.
+- Corrected public example links to the canonical `Lattice-Foundry/LitLaunch`
+  GitHub repository casing.
+- Removed public documentation placeholders and refreshed integration docs for
+  current profile and shortcut workflows.
+- Cleaned repo-root temporary test directory usage from profile-related tests.
+
 ## 0.91.23b1
 
 - Finalized CLI Tools documentation for profile and shortcut creation workflows.

@@ -131,6 +131,7 @@ Potential future work includes more platform providers and richer monitor
 diagnostics. Monitoring should remain optional unless a future release clearly
 defines safe defaults.
 
-[screenshot needed]
-Capture: Windows Edge app-mode minimal app window launched by LitLaunch.
-Demonstrate: title matching and separate app-mode window.
+For app-window flows, the recommended manual smoke check is to launch with
+`--mode webapp --monitor-window`, confirm a separate Chromium app-mode window
+appears with the expected title, and close that window to verify LitLaunch stops
+only the owned backend session.

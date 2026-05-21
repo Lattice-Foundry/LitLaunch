@@ -201,6 +201,9 @@ Runtime failures return structured results or nonzero CLI exit codes with
 console guidance. Guidance is presentation-only; it does not drive runtime
 behavior.
 
-[diagram needed]
-Create: architecture diagram with ownership boundaries. Highlight that
-BrowserLauncher launches but does not own browser processes.
+Ownership boundaries are intentionally narrow: LitLaunch owns the backend
+process it starts, observes optional browser-window state when requested, and
+never owns or kills browser processes. Browser launching, health checks,
+shutdown requests, and diagnostics all flow through explicit runtime/session
+objects so integrations can reason about responsibility boundaries without a
+separate diagram.

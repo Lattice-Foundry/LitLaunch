@@ -48,7 +48,8 @@ Not implemented:
 - Browser automation
 - Browser process ownership
 
-[diagram needed]
-Create: a one-page runtime flow from `LauncherConfig` to `RuntimeSession`.
-Show: backend process ownership, browser launch without ownership, optional
-inspect and shutdown paths.
+At runtime, `LauncherConfig` resolves into a launch plan, the backend process is
+started under LitLaunch ownership, health is checked, and browser launch is
+attempted without transferring browser ownership. `RuntimeSession` represents
+the owned backend lifecycle; inspect/report workflows collect diagnostics
+without starting that lifecycle.

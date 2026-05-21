@@ -302,7 +302,7 @@ def test_diagnostics_report_to_dict_shape():
 
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.30b0"
+    assert data["litlaunch_version"] == "0.91.32b0"
     assert data["generated_at_utc"] == "2026-05-18T12:00:00Z"
     assert data["title"] == "Report"
     assert data["ok"] is True
@@ -360,6 +360,7 @@ def test_collector_without_app_path_reports_environment_only():
         "Platform",
         "Streamlit",
         "Browsers",
+        "Runtime Governance",
         "Runtime Exposure",
         "Transport Security",
     ]
@@ -411,11 +412,44 @@ def test_posture_diagnostics_render_to_json_html_and_bundle():
     )
 
     for output in outputs:
+        assert "Runtime Governance" in output
         assert "Runtime Exposure" in output
         assert "Transport Security" in output
         assert "wildcard_bind" in output
         assert "internal_network" in output
         assert "LitLaunch does not secure Streamlit" in output
+
+
+def test_governance_summary_reports_allowed_with_warnings():
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        host="0.0.0.0",
+        trust_mode="internal_network",
+        allow_network_exposure=True,
+    )
+    messages = report_item_messages(report)
+
+    assert messages[("Runtime Governance", "Launch posture")] == (
+        "allowed with warnings"
+    )
+    assert messages[("Runtime Governance", "Trust mode")] == "internal_network"
+    assert (
+        messages[("Runtime Governance", "Top recommendation")]
+        == "Use internal_network only when the app is intentionally exposed."
+    )
+
+
+def test_governance_summary_reports_blocked_posture():
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        host="0.0.0.0",
+        trust_mode="strict_local",
+        allow_network_exposure=True,
+    )
+    messages = report_item_messages(report)
+
+    assert messages[("Runtime Governance", "Launch posture")] == "blocked"
+    assert "loopback" in messages[("Runtime Governance", "Top recommendation")]
 
 
 def test_transport_diagnostics_render_to_json_html_and_bundle():
@@ -534,7 +568,7 @@ def test_json_renderer_outputs_parseable_sanitized_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.30b0"
+    assert data["litlaunch_version"] == "0.91.32b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["items"][0]["message"] == "token=<redacted>"
     assert data["sections"][0]["items"][0]["detail"] == "--api_key=<redacted>"
@@ -584,7 +618,7 @@ def test_html_renderer_outputs_sanitized_standalone_html():
     assert "<script" not in rendered.lower()
     assert "https://" not in rendered
     assert "LitLaunch Inspect" in rendered
-    assert "0.91.30b0" in rendered
+    assert "0.91.32b0" in rendered
     assert "This report is sanitized" in rendered
     assert "raw environment variables" in rendered
     assert "Pattern-based redaction" in rendered
@@ -680,7 +714,7 @@ def test_bundle_renderer_includes_summary_sections_and_sanitization_note():
     rendered = SanitizedBundleRenderer().render(report)
 
     assert "LitLaunch Support Bundle" in rendered
-    assert "Version: 0.91.30b0" in rendered
+    assert "Version: 0.91.32b0" in rendered
     assert "Generated at:" in rendered
     assert "Summary: ok; 0 errors; 0 warnings" in rendered
     assert "This report is sanitized" in rendered

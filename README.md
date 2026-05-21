@@ -37,6 +37,8 @@ LitLaunch is infrastructure, not magic orchestration.
   acknowledgement because LitLaunch does not secure Streamlit itself.
 - Trust modes declare operational intent: `development`, `strict_local`, or
   `internal_network`.
+- Diagnostics report runtime governance, runtime exposure, and transport
+  security posture, including Streamlit-native TLS awareness.
 
 See [docs/philosophy.md](docs/philosophy.md) and
 [docs/architecture.md](docs/architecture.md) for the full ownership model, and
@@ -289,6 +291,8 @@ litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
 litlaunch run app.py --port 8501 --no-auto-port
 litlaunch run app.py --host 0.0.0.0 --allow-network-exposure
+litlaunch run app.py --trust-mode strict_local
+litlaunch run app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure
 litlaunch run app.py --mode webapp --monitor-window --title "My Streamlit App"
 litlaunch run app.py --mode webapp --monitor-window --graceful-timeout 15
 litlaunch run app.py --mode webapp --monitor-window --monitor-appear-timeout 90
@@ -297,6 +301,7 @@ litlaunch inspect
 litlaunch inspect app.py --html --output litlaunch-report.html
 litlaunch inspect app.py --json
 litlaunch inspect app.py --bundle --output litlaunch-report.txt --force
+litlaunch report app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure
 ```
 
 Unknown arguments before Streamlit's `--` separator are passed through to
@@ -326,6 +331,12 @@ litlaunch inspect app.py --html --output litlaunch-report.html
 litlaunch inspect app.py --json --output litlaunch-report.json
 litlaunch inspect app.py --bundle --output litlaunch-report.txt
 ```
+
+Reports include runtime governance, runtime exposure, and transport security
+sections. They show trust mode, host exposure scope, acknowledgement state,
+Streamlit-native TLS posture, and plaintext network-exposure risk. This is
+operational visibility, not a security guarantee: LitLaunch does not
+authenticate users, terminate TLS, or secure Streamlit applications.
 
 See [docs/inspect.md](docs/inspect.md) and
 [docs/troubleshooting.md](docs/troubleshooting.md).

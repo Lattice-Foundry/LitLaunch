@@ -39,6 +39,8 @@ launch Streamlit, or open a browser.
 With a target app, the report adds:
 
 - app path existence
+- runtime governance summary with allowed/blocked posture, highest severity,
+  primary finding, and top recommendation
 - host binding and network exposure posture
 - runtime exposure scope, active trust mode, acknowledgement state, and whether
   the current trust mode allows the configured binding
@@ -51,9 +53,10 @@ With a target app, the report adds:
 - health URL preview
 - browser resolution summary
 
-The posture section is operational, not a security score. It helps identify
-local-only versus network-visible runtime configuration, but LitLaunch does not
-authenticate users, terminate TLS, or secure the Streamlit app itself.
+The posture sections are operational, not a compliance rating or policy engine.
+They help identify local-only versus network-visible runtime configuration, but
+LitLaunch does not authenticate users, terminate TLS, or secure the Streamlit
+app itself.
 Streamlit-native TLS settings can be detected when supplied through
 `streamlit_flags`, but certificate paths are summarized rather than included in
 diagnostics.

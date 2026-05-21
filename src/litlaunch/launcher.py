@@ -17,10 +17,8 @@ from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.console import ConsolePhase, ConsoleRenderer
 from litlaunch.exceptions import LitLaunchError
-from litlaunch.exposure import (
-    classify_host_exposure,
-    validate_host_exposure_policy,
-)
+from litlaunch.exposure import classify_host_exposure
+from litlaunch.governance import validate_runtime_governance
 from litlaunch.health import (
     HealthChecker,
     build_streamlit_app_url,
@@ -409,11 +407,7 @@ class StreamlitLauncher:
             config=self.config,
         )
         try:
-            validate_host_exposure_policy(
-                host=self.config.host,
-                trust_mode=self.config.trust_mode,
-                allow_network_exposure=self.config.allow_network_exposure,
-            )
+            validate_runtime_governance(self.config)
         except ValueError as exc:
             raise LitLaunchError(str(exc)) from exc
 

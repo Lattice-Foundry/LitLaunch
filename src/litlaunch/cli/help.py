@@ -15,7 +15,16 @@ from litlaunch.colors import muted_amber, streamlit_blue, terminal_green
 from litlaunch.console_style import style_text
 from litlaunch.exceptions import LitLaunchError
 
-HELP_TOPICS = ("launch", "diagnostics", "profiles", "tools", "examples", "dev", "all")
+HELP_TOPICS = (
+    "launch",
+    "diagnostics",
+    "security",
+    "profiles",
+    "tools",
+    "examples",
+    "dev",
+    "all",
+)
 
 
 def add_workflow_help_flags(parser: argparse.ArgumentParser) -> None:
@@ -53,6 +62,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             style.label("Topics:"),
             "  launch       Run Streamlit apps.",
             "  diagnostics  Generate reports and support diagnostics.",
+            "  security     Review trust, exposure, and transport posture.",
             "  profiles     Reuse settings from litlaunch.toml or pyproject.toml.",
             "  tools        Create profiles and project assets.",
             "  examples     Copy/paste common commands.",
@@ -62,6 +72,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             *style.commands(
                 "litlaunch help launch",
                 "litlaunch help diagnostics",
+                "litlaunch help security",
             ),
         )
     if topic == "launch":
@@ -86,6 +97,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  --mode browser|webapp",
             "  --browser auto|edge|chrome|default",
             "  --trust-mode development|strict_local|internal_network",
+            "  --allow-network-exposure",
             "  --monitor-window",
             "  --verbose",
             "",
@@ -100,6 +112,10 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "",
             "`report` is the recommended human-readable HTML diagnostics workflow.",
             "`inspect` is for advanced diagnostics artifacts.",
+            (
+                "Reports include Runtime Governance, Runtime Exposure, "
+                "and Transport Security."
+            ),
             "",
             style.label("HTML report:"),
             *style.commands(
@@ -118,12 +134,55 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             ),
             "",
             "JSON is machine-readable. Bundles are copyable support artifacts.",
+            "Use --streamlit-flag to preview Streamlit-native TLS settings.",
+        )
+    if topic == "security":
+        return _join(
+            style.heading("Security and governance workflows"),
+            "",
+            "LitLaunch reports operational runtime posture.",
+            "LitLaunch does not secure Streamlit applications.",
+            "",
+            style.label("Local-only launch:"),
+            *style.commands(
+                "litlaunch app.py --trust-mode strict_local",
+                "litlaunch report app.py --trust-mode strict_local",
+            ),
+            "",
+            style.label("Intentional internal-network launch:"),
+            *style.commands(
+                (
+                    "litlaunch app.py --host 0.0.0.0 "
+                    "--trust-mode internal_network --allow-network-exposure"
+                ),
+                (
+                    "litlaunch report app.py --host 0.0.0.0 "
+                    "--trust-mode internal_network --allow-network-exposure"
+                ),
+            ),
+            "",
+            style.label("Streamlit-native TLS preview:"),
+            *style.commands(
+                "litlaunch report app.py --host 0.0.0.0 --trust-mode internal_network "
+                "--allow-network-exposure --streamlit-flag server.sslCertFile=cert.pem "
+                "--streamlit-flag server.sslKeyFile=key.pem",
+            ),
+            "",
+            style.label("Diagnostics sections:"),
+            "  Runtime Governance summarizes allowed/blocked posture.",
+            "  Runtime Exposure shows host scope and acknowledgement state.",
+            "  Transport Security shows Streamlit-native TLS and plaintext risk.",
+            "",
+            style.warning(
+                "TLS encrypts transport but does not add app authentication."
+            ),
         )
     if topic == "profiles":
         return _join(
             style.heading("Profile workflows"),
             "",
             "Profiles store reusable launch settings.",
+            "Profiles can declare trust mode and intentional exposure.",
             "",
             style.label("Create a profile:"),
             *style.commands("litlaunch create profile"),
@@ -150,6 +209,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  pyproject.toml under [tool.litlaunch]",
             "",
             "CLI flags override profile values.",
+            "Use trust_mode and allow_network_exposure for network posture.",
         )
     if topic == "tools":
         return _join(
@@ -266,6 +326,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             *style.commands(
                 "litlaunch help launch",
                 "litlaunch help diagnostics",
+                "litlaunch help security",
                 "litlaunch help profiles",
                 "litlaunch help tools",
                 "litlaunch help examples",

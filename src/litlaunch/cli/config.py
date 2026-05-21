@@ -109,7 +109,9 @@ def add_runtime_flags(
         default=[],
         metavar="KEY=VALUE",
         type=parse_streamlit_flag,
-        help="Add a Streamlit flag. Repeatable.",
+        help=(
+            "Add a Streamlit flag, including Streamlit-native TLS settings. Repeatable."
+        ),
     )
     parser.add_argument(
         "--app-arg",

@@ -3,6 +3,31 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.32b0
+
+- Aligned public docs, workflow help, and argparse help with the completed
+  Stage 1 runtime-governance features.
+- Added workflow guidance for trust modes, runtime governance, runtime
+  exposure, transport security, and Streamlit-native TLS diagnostics.
+- Updated README, quickstart, CLI, inspect, and security docs so normal users
+  keep the simple local-first path while advanced users can discover governance
+  and posture reporting.
+- Kept wording explicit that LitLaunch reports operational posture and does not
+  secure Streamlit applications.
+
+## 0.91.31b0
+
+- Added a lightweight runtime governance assessment layer that composes trust
+  mode, host exposure, acknowledgement state, and transport/TLS posture.
+- Added a concise `Runtime Governance` diagnostics summary so reports show
+  launch allowed/blocked posture, highest severity, and top recommendation
+  without duplicating full exposure and transport sections.
+- Routed launch-time exposure enforcement through the governance evaluator while
+  preserving existing `development`, `strict_local`, and `internal_network`
+  behavior.
+- Documented governance assessment as operational runtime posture, not a
+  security score, policy engine, auth layer, signing system, or audit log.
+
 ## 0.91.30b0
 
 - Added transport security diagnostics that detect Streamlit-native TLS

@@ -368,6 +368,7 @@ def test_cli_workflow_help_menu_lists_topics():
     assert "Use --help for command reference" in output
     assert "launch" in output
     assert "diagnostics" in output
+    assert "security" in output
     assert "profiles" in output
     assert "tools" in output
     assert "examples" in output
@@ -408,6 +409,24 @@ def test_cli_workflow_help_diagnostics_topic():
     assert "litlaunch inspect --bundle" in output
     assert "litlaunch inspect --html --output report.html" in output
     assert "recommended human-readable HTML diagnostics workflow" in output
+    assert "Runtime Governance" in output
+    assert "--streamlit-flag" in output
+
+
+def test_cli_workflow_help_security_topic():
+    stream = StringIO()
+
+    code = main(["help", "security"], stream=stream)
+
+    output = strip_ansi(stream.getvalue())
+    assert code == 0
+    assert "Security and governance workflows" in output
+    assert "LitLaunch does not secure Streamlit applications" in output
+    assert "litlaunch app.py --trust-mode strict_local" in output
+    assert "--allow-network-exposure" in output
+    assert "server.sslCertFile" in output
+    assert "Runtime Governance" in output
+    assert "Transport Security" in output
 
 
 def test_cli_workflow_help_profiles_topic():
@@ -423,6 +442,8 @@ def test_cli_workflow_help_profiles_topic():
     assert "litlaunch run --profile NAME" in output
     assert "--config litlaunch.toml" in output
     assert "pyproject.toml under [tool.litlaunch]" in output
+    assert "trust_mode" in output
+    assert "allow_network_exposure" in output
 
 
 def test_cli_workflow_help_examples_topic():
@@ -472,6 +493,7 @@ def test_cli_workflow_help_all_includes_main_topics():
     assert "litlaunch report --profile NAME --open" in output
     assert "litlaunch create profile" in output
     assert "litlaunch command --profile NAME" in output
+    assert "litlaunch help security" in output
     assert "litlaunch help tools" in output
     assert "litlaunch help dev" in output
     assert "Bare profile names are intentionally not supported" in output
@@ -1437,7 +1459,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.30b0"
+    assert data["litlaunch_version"] == "0.91.32b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

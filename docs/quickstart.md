@@ -117,6 +117,12 @@ diagnostics report. It writes `litlaunch-report.html` unless `--output` is
 provided. Use `litlaunch inspect --json` or `litlaunch inspect --bundle` for
 machine-readable diagnostics and support bundles.
 
+Reports include runtime governance, runtime exposure, and transport security
+posture. Local profiles can remain simple with `trust_mode = "development"` or
+use `trust_mode = "strict_local"` for loopback-only tools. Intentional internal
+network profiles should use `trust_mode = "internal_network"` plus explicit
+`allow_network_exposure = true`.
+
 Python integrations can use the same profile runtime path:
 
 ```python

@@ -203,6 +203,9 @@ litlaunch report --profile my-webapp --output my-report.html
 litlaunch report --profile my-webapp --output my-report.html --force
 litlaunch report --profile my-webapp --open
 litlaunch report app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure
+litlaunch report app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure `
+  --streamlit-flag server.sslCertFile=cert.pem `
+  --streamlit-flag server.sslKeyFile=key.pem
 ```
 
 By default, reports are written to `litlaunch-report.html` in the current
@@ -210,6 +213,12 @@ working directory. Existing files are not overwritten unless `--force` is
 provided. `--open` opens the generated HTML file in the default browser after a
 successful write; if opening fails, report generation still succeeds and
 LitLaunch emits a warning.
+
+HTML, JSON, and support-bundle diagnostics include `Runtime Governance`,
+`Runtime Exposure`, and `Transport Security` sections. These sections summarize
+trust mode, host exposure scope, acknowledgement state, Streamlit-native TLS
+posture, and plaintext network-exposure risk. They are operational posture
+reports, not compliance ratings.
 
 ## Developer Console Preview
 
@@ -300,6 +309,34 @@ the port. If both `litlaunch.toml` and `pyproject.toml` contain profiles, use
 `window_monitor`, LitLaunch runs the monitored webapp flow; otherwise it uses
 the normal launcher runtime flow. `command --profile` and `inspect --profile`
 remain plan-oriented and do not launch the backend or browser.
+
+Governance-oriented profile examples:
+
+```toml
+[profiles.local-only]
+app_path = "app.py"
+host = "127.0.0.1"
+trust_mode = "strict_local"
+
+[profiles.internal-dashboard]
+app_path = "app.py"
+host = "0.0.0.0"
+trust_mode = "internal_network"
+allow_network_exposure = true
+
+[profiles.internal-dashboard-tls]
+app_path = "app.py"
+host = "0.0.0.0"
+trust_mode = "internal_network"
+allow_network_exposure = true
+
+[profiles.internal-dashboard-tls.streamlit_flags]
+"server.sslCertFile" = "cert.pem"
+"server.sslKeyFile" = "key.pem"
+```
+
+Streamlit-native TLS encrypts transport. It does not add app authentication,
+and LitLaunch does not terminate TLS or secure Streamlit applications.
 
 Create a new `litlaunch.toml` profile interactively:
 

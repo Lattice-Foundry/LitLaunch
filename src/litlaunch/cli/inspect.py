@@ -51,7 +51,7 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--trust-mode",
         choices=[item.value for item in TrustMode],
-        help="Set the operational trust mode for diagnostics.",
+        help="Set the operational trust mode for posture diagnostics.",
     )
     parser.add_argument("--port", type=int)
     parser.add_argument("--host")
@@ -75,7 +75,7 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         default=None,
         help=(
             "Acknowledge that a non-loopback host may expose the app beyond "
-            "this machine."
+            "this machine for posture diagnostics."
         ),
     )
     parser.add_argument(
@@ -108,7 +108,7 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--trust-mode",
         choices=[item.value for item in TrustMode],
-        help="Set the operational trust mode for diagnostics.",
+        help="Set the operational trust mode for posture diagnostics.",
     )
     parser.add_argument("--host")
     parser.add_argument(
@@ -117,7 +117,7 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
         default=None,
         help=(
             "Acknowledge that a non-loopback host may expose the app beyond "
-            "this machine."
+            "this machine for posture diagnostics."
         ),
     )
     parser.add_argument(

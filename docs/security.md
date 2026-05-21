@@ -95,9 +95,26 @@ section. It reports:
 - practical reminders about shutdown hooks, diagnostics privacy, plaintext
   profile environment values, and browser ownership boundaries
 
-This is operational visibility, not a subjective security score. A warning or
+This is operational visibility, not a subjective compliance rating. A warning or
 error means the runtime configuration deserves attention; it does not mean
 LitLaunch has secured or failed to secure the Streamlit application.
+
+## Runtime Governance Summary
+
+Diagnostics also include a concise runtime governance summary. It composes the
+same trust mode, exposure, acknowledgement, and transport posture data used by
+launch checks and reports:
+
+- whether the launch posture is allowed, allowed with warnings, or blocked
+- the active trust mode
+- the highest operational severity
+- the primary finding
+- the top recommendation
+
+This summary is intentionally lightweight. It is not a policy engine, security
+score, compliance system, audit log, profile signature, or authentication
+boundary. It exists to make the current runtime posture easier to review and to
+leave a clean extension point for future governance features.
 
 ## Transport Security Diagnostics
 

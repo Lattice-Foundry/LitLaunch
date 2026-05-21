@@ -14,7 +14,11 @@ from litlaunch.config import (
     StreamlitFlags,
     TrustMode,
 )
-from litlaunch.exposure import assess_runtime_exposure, classify_host_exposure
+from litlaunch.exposure import classify_host_exposure
+from litlaunch.governance import (
+    RuntimeGovernanceAssessment,
+    evaluate_runtime_governance,
+)
 from litlaunch.inspect.models import (
     DiagnosticItem,
     DiagnosticSection,
@@ -27,7 +31,7 @@ from litlaunch.inspect.streamlit_check import (
 )
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import PlatformDetector, PlatformInfo
-from litlaunch.transport import TransportPosture, evaluate_transport_posture
+from litlaunch.transport import TransportPosture
 from litlaunch.version import __version__
 from litlaunch.windowing import WindowMonitorConfig
 
@@ -82,22 +86,22 @@ class DiagnosticCollector:
             allow_fallback=allow_browser_fallback,
         )
 
-        runtime_exposure = assess_runtime_exposure(
+        governance = evaluate_runtime_governance(
             host=host,
             trust_mode=trust_mode,
             allow_network_exposure=allow_network_exposure,
-        )
-        transport_posture = evaluate_transport_posture(
-            exposure_assessment=runtime_exposure,
             streamlit_flags=streamlit_flags or {},
             streamlit_args=streamlit_args,
         )
+        runtime_exposure = governance.exposure_assessment
+        transport_posture = governance.transport_posture
 
         sections = [
             self._litlaunch_section(),
             self._platform_section(platform_info),
             self._streamlit_section(streamlit),
             self._browser_section(capabilities, resolution),
+            self._governance_summary_section(governance),
             self._runtime_exposure_section(
                 assessment=runtime_exposure,
                 extra_env=extra_env or {},
@@ -290,6 +294,55 @@ class DiagnosticCollector:
                 )
             )
         return DiagnosticSection("Profile", tuple(items))
+
+    def _governance_summary_section(
+        self,
+        assessment: RuntimeGovernanceAssessment,
+    ) -> DiagnosticSection:
+        status = _posture_status(assessment.highest_severity)
+        launch_message = (
+            "allowed"
+            if assessment.launch_allowed and assessment.highest_severity == "ok"
+            else "allowed with warnings"
+            if assessment.launch_allowed
+            else "blocked"
+        )
+        finding = assessment.findings[0] if assessment.findings else "No finding."
+        recommendation = (
+            assessment.recommendations[0]
+            if assessment.recommendations
+            else "No recommendation."
+        )
+        return DiagnosticSection(
+            "Runtime Governance",
+            (
+                DiagnosticItem(
+                    "Launch posture",
+                    status,
+                    launch_message,
+                    detail=f"Highest severity: {assessment.highest_severity}.",
+                ),
+                DiagnosticItem(
+                    "Trust mode",
+                    DiagnosticStatus.INFO,
+                    assessment.trust_mode.value,
+                ),
+                DiagnosticItem(
+                    "Primary finding",
+                    status,
+                    finding,
+                ),
+                DiagnosticItem(
+                    "Top recommendation",
+                    status,
+                    recommendation,
+                    detail=(
+                        "This is an operational posture summary, not a security "
+                        "guarantee or score."
+                    ),
+                ),
+            ),
+        )
 
     def _runtime_exposure_section(
         self,

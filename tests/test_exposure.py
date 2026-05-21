@@ -18,6 +18,10 @@ from litlaunch.exposure import (
     network_exposure_acknowledged,
     validate_host_exposure_policy,
 )
+from litlaunch.governance import (
+    evaluate_runtime_governance,
+    validate_runtime_governance,
+)
 from litlaunch.inspect import DiagnosticCollector
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
@@ -208,6 +212,86 @@ def test_transport_posture_warns_for_network_visible_plaintext():
     assert posture.plaintext_network_risk is True
     assert posture.severity == "warning"
     assert "plaintext HTTP" in posture.summary
+
+
+def test_governance_assessment_development_loopback():
+    assessment = evaluate_runtime_governance(
+        host="127.0.0.1",
+        trust_mode="development",
+    )
+
+    assert assessment.launch_allowed is True
+    assert assessment.highest_severity == "ok"
+    assert assessment.exposure_scope == ExposureScope.LOOPBACK
+    assert assessment.exposure_acknowledged is False
+    assert assessment.tls_status == TlsStatus.NOT_CONFIGURED
+    assert "Use strict_local" in assessment.recommendations[0]
+
+
+def test_governance_assessment_strict_local_loopback():
+    assessment = evaluate_runtime_governance(
+        host="127.0.0.1",
+        trust_mode="strict_local",
+    )
+
+    assert assessment.launch_allowed is True
+    assert assessment.highest_severity == "ok"
+    assert any("strict_local" in finding for finding in assessment.findings)
+
+
+def test_governance_assessment_strict_local_non_loopback():
+    assessment = evaluate_runtime_governance(
+        host="0.0.0.0",
+        trust_mode="strict_local",
+        allow_network_exposure=True,
+    )
+
+    assert assessment.launch_allowed is False
+    assert assessment.highest_severity == "error"
+    assert assessment.exposure_scope == ExposureScope.WILDCARD_BIND
+    assert "loopback" in assessment.recommendations[0]
+
+
+def test_governance_assessment_internal_network_acknowledged_plaintext():
+    assessment = evaluate_runtime_governance(
+        host="0.0.0.0",
+        trust_mode="internal_network",
+        allow_network_exposure=True,
+    )
+
+    assert assessment.launch_allowed is True
+    assert assessment.highest_severity == "warning"
+    assert assessment.transport_posture.plaintext_network_risk is True
+    assert any("reverse proxy" in item for item in assessment.recommendations)
+
+
+def test_governance_assessment_internal_network_tls_configured():
+    assessment = evaluate_runtime_governance(
+        host="0.0.0.0",
+        trust_mode="internal_network",
+        allow_network_exposure=True,
+        streamlit_flags={
+            "server.sslCertFile": "cert.pem",
+            "server.sslKeyFile": "key.pem",
+        },
+    )
+
+    assert assessment.launch_allowed is True
+    assert assessment.highest_severity == "warning"
+    assert assessment.tls_status == TlsStatus.CONFIGURED
+    assert assessment.transport_posture.plaintext_network_risk is False
+
+
+def test_governance_validation_preserves_launch_blocking_messages():
+    with pytest.raises(ValueError, match="strict_local requires loopback-only"):
+        validate_runtime_governance(
+            LauncherConfig(
+                app_path="app.py",
+                host="0.0.0.0",
+                trust_mode="strict_local",
+                allow_network_exposure=True,
+            )
+        )
 
 
 def test_launcher_blocks_unacknowledged_network_exposure(tmp_path: Path):

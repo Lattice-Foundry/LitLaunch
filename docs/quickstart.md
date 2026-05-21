@@ -1,5 +1,17 @@
 # Quickstart
 
+LitLaunch keeps the first run simple:
+
+```powershell
+litlaunch app.py
+```
+
+That local-first path gives you explicit backend ownership, Streamlit health
+checks, browser launch, clean shutdown handling, and diagnostics/reporting
+without shell scripts or custom runtime glue. Profiles, shortcuts, shutdown
+hooks, trust modes, and report tooling are available when the project needs more
+repeatable launch behavior or operational visibility.
+
 ## Run The Minimal Example
 
 From a source checkout:

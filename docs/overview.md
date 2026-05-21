@@ -1,8 +1,9 @@
 # Overview
 
-LitLaunch is a Streamlit runtime layer for projects that need predictable
-startup, browser launch, diagnostics, and shutdown behavior without converting a
-Streamlit app into a different application framework.
+LitLaunch is a runtime-governance and operational-launch layer for Streamlit
+applications. It helps projects get predictable startup, browser launch,
+diagnostics, shutdown behavior, and runtime posture visibility without
+converting a Streamlit app into a different application framework.
 
 The core idea is small:
 
@@ -20,7 +21,9 @@ streamlit run app.py
 ```
 
 It should also reward better app structure through graceful shutdown hooks,
-diagnostics, and cleaner launch flows.
+profiles, shortcuts, diagnostics, and cleaner launch flows. Normal localhost
+workflows stay simple; trust modes, exposure diagnostics, and transport posture
+reporting are available when a project needs stronger operational visibility.
 
 ## Current Scope
 
@@ -34,7 +37,9 @@ Implemented:
 - Edge, Chrome/Chromium, and default-browser capability detection
 - Runtime session ownership
 - Graceful shutdown hooks
-- Text/JSON/HTML/bundle inspect diagnostics
+- JSON/HTML/bundle inspect diagnostics
+- Runtime governance, exposure, and transport posture diagnostics
+- Profile wizard and lightweight project-local shortcut generation
 - Lightweight console rendering
 - Argparse CLI
 - Optional Windows-first Chromium window monitoring

@@ -1,9 +1,12 @@
 # LitLaunch
 
-LitLaunch is a lightweight launcher and runtime layer for Streamlit
-applications. It starts Streamlit backends, resolves browser launch strategy,
-supports browser and Chromium app-mode flows, provides opt-in graceful shutdown,
-and exposes diagnostics without hiding ownership or process behavior.
+LitLaunch is a runtime-governance and operational-launch layer for Streamlit
+applications. It helps developers run Streamlit apps cleanly, predictably, and
+locally first, without replacing Streamlit or hiding runtime ownership.
+
+It starts Streamlit backends, resolves browser launch strategy, supports browser
+and Chromium app-mode flows, provides opt-in graceful shutdown, and exposes
+diagnostics without pretending to secure the app itself.
 
 LitLaunch is developed and maintained by LatticeFoundry, a software division of
 Sierra Cognitive Group, LLC. LitLaunch is not affiliated with Streamlit.
@@ -11,6 +14,87 @@ Sierra Cognitive Group, LLC. LitLaunch is not affiliated with Streamlit.
 Current status: beta stabilization and TestPyPI rehearsal readiness. The
 runtime is usable for integration work, with the public API intended to
 stabilize through the beta band.
+
+## Why LitLaunch?
+
+LitLaunch gets Streamlit apps running cleanly with a small amount of code or a
+short CLI command, while handling the operational details most projects end up
+reinventing.
+
+### Launch your app with sensible defaults
+
+```powershell
+litlaunch app.py
+```
+
+```python
+from litlaunch import LauncherConfig, StreamlitLauncher
+
+launcher = StreamlitLauncher(LauncherConfig("app.py"))
+session = launcher.start()
+```
+
+That is enough to get local-first defaults, explicit backend ownership, health
+checks, automatic browser launch, browser capability detection, clean shutdown
+handling, app-mode support where available, and diagnostics/reporting tools.
+
+No shell scripts. No browser automation hacks. No custom runtime glue.
+
+### Go further with profiles and shortcuts
+
+Profiles make launch behavior repeatable for local tools, internal dashboards,
+AI apps, and developer utilities:
+
+```toml
+[profiles.my-dashboard]
+app_path = "app.py"
+trust_mode = "strict_local"
+mode = "webapp"
+browser = "edge"
+```
+
+```powershell
+litlaunch create profile
+litlaunch create shortcut --profile my-dashboard
+litlaunch --profile my-dashboard
+```
+
+Simple workflows stay simple. Advanced launch, browser, monitoring, network,
+and diagnostics settings are there when a project needs them.
+
+### Add shutdown hooks when cleanup matters
+
+Apps can opt into graceful cleanup without adopting a complicated application
+structure:
+
+```python
+from litlaunch import LauncherRuntime
+
+runtime = LauncherRuntime.from_env()
+
+
+@runtime.shutdown_hook(label="Saving app state")
+def save_state():
+    ...
+
+
+runtime.enable_shutdown_endpoint()
+```
+
+Shutdown hooks are useful for saving state, syncing data, local AI workflows,
+temporary resource cleanup, logging/export tasks, and other app-owned cleanup.
+They are optional when you need them and invisible when you do not.
+
+### Runtime governance without enterprise bloat
+
+LitLaunch helps teams run Streamlit apps more safely and predictably without
+claiming to secure Streamlit applications.
+
+It provides localhost-first defaults, trust modes, intentional network exposure
+workflows, runtime exposure diagnostics, Streamlit-native TLS awareness,
+governance/posture reporting, and sanitized diagnostics bundles. Normal
+localhost workflows stay frictionless; advanced runtime controls are available
+when the app is intentionally exposed beyond the local machine.
 
 ## What It Solves
 

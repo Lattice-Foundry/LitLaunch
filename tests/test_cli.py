@@ -350,27 +350,46 @@ def test_cli_console_preview_outputs_representative_no_color_messages():
     output = stream.getvalue()
     assert code == 0
     assert "\033[" not in output
-    assert "[   ok   ] LitLaunch Starting runtime" in output
+    assert "== Normal mode ==" in output
+    assert "[   ok   ] LitLaunch Starting runtime..." in output
     assert "== Backend ==" in output
-    assert "[   ok   ] Backend: starting Streamlit" in output
-    assert "[   ok   ] Backend: started Streamlit with PID 12345 in 0.3s" in output
-    assert "[   ok   ] Health: waiting for Streamlit" in output
+    assert "[   ok   ] Backend: starting Streamlit..." in output
+    assert "[   ok   ] Backend: started Streamlit in 0.3s." in output
+    assert "Backend PID: 12345" not in output
+    assert "[   ok   ] Health: waiting for Streamlit..." in output
     assert "Streamlit backend did not become healthy before timeout." in output
-    assert "[   ok   ] Browser: opening Microsoft Edge app window" in output
+    assert "[   ok   ] Browser: opening Microsoft Edge app window..." in output
     assert "Microsoft Edge unavailable; using Chrome" in output
     assert "Runtime ready at http://127.0.0.1:8501" in output
-    assert "[   ok   ] Monitor: watching app window" in output
+    assert "[   ok   ] Monitor: watching app window..." in output
     assert "Window monitoring timed out before an app window was observed." in output
-    assert "[   ok   ] Shutdown: requesting app cleanup" in output
-    assert "Stopping backend: terminating owned backend process" in output
-    assert "[   ok   ] Port 8501 released" in output
+    assert "[   ok   ] Shutdown: requesting app cleanup..." in output
+    assert "Stopping backend: terminating owned backend process" not in output
+    assert "Shutdown: using backend termination fallback." in output
+    assert "[   ok   ] Port 8501 released." in output
     assert "Backend exited with code 1." in output
     assert "exited with code 0" not in output
     assert "Likely cause" not in output
-    assert "[   ok   ] Cause " in output
-    assert "[   ok   ] Next " in output
+    assert "[ Cause  ] " in output
+    assert "[  Next  ] " in output
+    assert "[   ok   ] Cause " not in output
+    assert "[   ok   ] Next " not in output
+    assert "Run the app directly with streamlit run to see the traceback." not in output
     assert "Cause:" not in output
     assert "Next:" not in output
+
+
+def test_cli_console_preview_verbose_keeps_detailed_guidance():
+    stream = StringIO()
+
+    code = main(["console-preview", "--no-color", "--verbose"], stream=stream)
+
+    output = stream.getvalue()
+    assert code == 0
+    assert "== Verbose mode ==" in output
+    assert "Backend PID: 12345" in output
+    assert "Run the app directly with streamlit run to see the traceback." in output
+    assert 'Run "litlaunch inspect" for local diagnostics.' in output
 
 
 def test_cli_console_preview_status_labels_are_fixed_width():
@@ -380,7 +399,13 @@ def test_cli_console_preview_status_labels_are_fixed_width():
 
     assert code == 0
     labels = re.findall(r"^\[[^\]]+\]", stream.getvalue(), flags=re.MULTILINE)
-    assert {"[   ok   ]", "[  warn  ]", "[ error  ]"} <= set(labels)
+    assert {
+        "[   ok   ]",
+        "[  warn  ]",
+        "[ error  ]",
+        "[ Cause  ]",
+        "[  Next  ]",
+    } <= set(labels)
     assert {len(label) for label in labels} == {10}
 
 
@@ -415,7 +440,7 @@ def test_cli_console_preview_does_not_call_runtime_factories():
     )
 
     assert code == 0
-    assert "[   ok   ] LitLaunch Starting runtime" in stream.getvalue()
+    assert "[   ok   ] LitLaunch Starting runtime..." in stream.getvalue()
 
 
 def test_cli_version_returns_zero_and_prints_version():
@@ -518,7 +543,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.3b0"
+    assert data["litlaunch_version"] == "0.91.4b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -1409,7 +1434,8 @@ def test_cli_run_monitor_window_noop_monitor_fails_before_launch():
     assert code == 1
     assert FakeLauncher.instances[0].run_calls == 0
     assert "Window monitoring is unavailable" in stream.getvalue()
-    assert "Omit --monitor-window" in stream.getvalue()
+    assert "Use verbose mode for more runtime details." in stream.getvalue()
+    assert "Omit --monitor-window" not in stream.getvalue()
 
 
 def test_cli_run_monitor_window_backend_exit_returns_zero_without_extra_stop():

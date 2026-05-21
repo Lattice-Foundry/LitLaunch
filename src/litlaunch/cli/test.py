@@ -5,9 +5,9 @@ from __future__ import annotations
 import argparse
 
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
-from litlaunch.cli.common import CliContext, renderer
+from litlaunch.cli.common import CliContext
 from litlaunch.config import BrowserChoice
-from litlaunch.console import ConsolePhase, ConsoleRenderer
+from litlaunch.console import ConsoleMode, ConsolePhase, ConsoleRenderer, ConsoleTheme
 from litlaunch.lifecycle import LaunchEvent, LaunchState
 from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
 
@@ -18,12 +18,42 @@ EXAMPLE_HEALTH_URL = "http://127.0.0.1:8501/_stcore/health"
 def cmd_console_preview(args: argparse.Namespace, context: CliContext) -> int:
     """Render representative runtime console output without launching anything."""
 
-    render_console_preview(renderer(args, context))
+    command = str(getattr(args, "command", "console-preview"))
+    if command == "console-preview-norm":
+        render_console_preview(_preview_renderer(args, context, ConsoleMode.NORMAL))
+        return 0
+    if command == "console-preview-verb":
+        render_console_preview(_preview_renderer(args, context, ConsoleMode.VERBOSE))
+        return 0
+
+    render_console_preview(_preview_renderer(args, context, ConsoleMode.NORMAL))
+    render_console_preview(_preview_renderer(args, context, ConsoleMode.VERBOSE))
     return 0
+
+
+def _preview_renderer(
+    args: argparse.Namespace,
+    context: CliContext,
+    mode: ConsoleMode,
+) -> ConsoleRenderer:
+    use_color = (
+        not bool(getattr(args, "no_color", False)) and "NO_COLOR" not in context.env
+    )
+    return ConsoleRenderer(
+        mode=mode,
+        theme=ConsoleTheme(use_color=use_color),
+        stream=context.stream,
+        env=context.env,
+    )
 
 
 def render_console_preview(console: ConsoleRenderer) -> None:
     """Render every runtime console message style for visual review."""
+
+    mode_label = (
+        "Verbose mode" if console.mode == ConsoleMode.VERBOSE else "Normal mode"
+    )
+    _section(console, mode_label)
 
     _section(console, "Startup")
     console.runtime_start("Starting runtime")
@@ -40,14 +70,14 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     console.phase_start(ConsolePhase.BACKEND, "starting Streamlit")
     console.phase_success(
         ConsolePhase.BACKEND,
-        "started Streamlit with PID 12345",
+        "started Streamlit",
         elapsed_seconds=0.3,
     )
+    console.detail("Backend PID: 12345")
     console.failure_guidance(
         "Backend startup failed.",
         likely_cause=(
-            "Streamlit may be missing, the app may have crashed during import, "
-            "or Streamlit CLI arguments may be invalid."
+            "Streamlit may be missing or the app may have crashed during startup."
         ),
         next_steps=(
             "Check the app path and Python environment.",
@@ -62,10 +92,7 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     console.phase_success(ConsolePhase.HEALTH, "ready", elapsed_seconds=1.2)
     console.failure_guidance(
         "Streamlit backend did not become healthy before timeout.",
-        likely_cause=(
-            f"The backend did not report ready at {EXAMPLE_HEALTH_URL} "
-            "before the timeout."
-        ),
+        likely_cause="The app started but did not report ready in time.",
         next_steps=(
             "Increase the health timeout if startup is expected to be slow.",
             "Run Streamlit directly to see any app traceback.",
@@ -84,9 +111,10 @@ def render_console_preview(console: ConsoleRenderer) -> None:
         _browser_fallback_resolution(),
         prefer_app_mode=True,
     )
-    console.phase_error(ConsolePhase.BROWSER, "browser launch failed")
+    if console.mode == ConsoleMode.VERBOSE:
+        console.phase_error(ConsolePhase.BROWSER, "browser launch failed")
     console.failure_guidance(
-        "Browser launch failed; stopping the owned backend.",
+        "Browser launch failed; stopping backend.",
         likely_cause="Microsoft Edge could not be started in app-mode.",
         next_steps=(
             "Check that the requested browser is installed and launchable.",
@@ -102,7 +130,7 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     )
     console.failure_guidance(
         "Backend exited with code 1.",
-        likely_cause="The backend stopped but reported a non-zero exit code.",
+        likely_cause="The backend stopped with an error status.",
         next_steps=("Run Streamlit directly to inspect the traceback.",),
         suggest_inspect=False,
     )
@@ -168,27 +196,30 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     console.phase_start(ConsolePhase.SHUTDOWN, "requested")
     console.phase_start(ConsolePhase.SHUTDOWN, "requesting app cleanup")
     console.phase_success(ConsolePhase.SHUTDOWN, "app cleanup request accepted")
-    console.phase_warning(
-        ConsolePhase.STOPPING_BACKEND,
-        "graceful request failed; using termination fallback",
-    )
+    if console.mode == ConsoleMode.VERBOSE:
+        console.phase_warning(
+            ConsolePhase.STOPPING_BACKEND,
+            "graceful request failed; using termination fallback",
+        )
     console.failure_guidance(
         "Graceful shutdown request failed.",
-        likely_cause="The app-side shutdown endpoint did not accept the request.",
+        likely_cause="The app did not accept the cleanup request.",
         next_steps=(
             "Confirm the app calls LauncherRuntime.enable_shutdown_endpoint().",
             "Use verbose mode for more runtime details.",
         ),
     )
-    console.phase_warning(
-        ConsolePhase.STOPPING_BACKEND,
-        "terminating owned backend process",
-    )
+    if console.mode == ConsoleMode.VERBOSE:
+        console.phase_warning(
+            ConsolePhase.STOPPING_BACKEND,
+            "terminating owned backend process",
+        )
     console.failure_guidance(
-        "Using backend termination fallback.",
+        "Shutdown: using backend termination fallback.",
         likely_cause="The backend did not stop through graceful shutdown.",
         next_steps=("LitLaunch will stop only the backend process it started.",),
         suggest_inspect=False,
+        level="warning",
     )
     console.phase_success(
         ConsolePhase.SHUTDOWN,

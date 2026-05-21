@@ -147,9 +147,10 @@ def start_backend_process(
         render_phase_success(
             console_renderer,
             ConsolePhase.BACKEND,
-            f"started Streamlit with PID {pid}",
+            "started Streamlit",
             elapsed_seconds=backend_elapsed,
         )
+        render_detail(console_renderer, f"Backend PID: {pid}")
 
         if wait_for_health:
             return _wait_for_backend_health(

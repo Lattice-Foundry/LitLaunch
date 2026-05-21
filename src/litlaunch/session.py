@@ -8,7 +8,7 @@ from collections.abc import Callable
 from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
-from litlaunch.console import ConsolePhase, ConsoleRenderer
+from litlaunch.console import ConsoleMode, ConsolePhase, ConsoleRenderer
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.runtime_console import (
@@ -170,11 +170,12 @@ class RuntimeSession:
                         "Graceful shutdown timed out; using termination fallback.",
                         render=False,
                     )
-                    render_phase_warning(
-                        self.console_renderer,
-                        ConsolePhase.STOPPING_BACKEND,
-                        "graceful stop timed out; using termination fallback",
-                    )
+                    if self._is_verbose_console():
+                        render_phase_warning(
+                            self.console_renderer,
+                            ConsolePhase.STOPPING_BACKEND,
+                            "graceful stop timed out; using termination fallback",
+                        )
                     render_failure_guidance(
                         self.console_renderer,
                         "Graceful shutdown timed out.",
@@ -203,17 +204,16 @@ class RuntimeSession:
                     "Graceful shutdown request failed; using termination fallback.",
                     render=False,
                 )
-                render_phase_warning(
-                    self.console_renderer,
-                    ConsolePhase.STOPPING_BACKEND,
-                    "graceful request failed; using termination fallback",
-                )
+                if self._is_verbose_console():
+                    render_phase_warning(
+                        self.console_renderer,
+                        ConsolePhase.STOPPING_BACKEND,
+                        "graceful request failed; using termination fallback",
+                    )
                 render_failure_guidance(
                     self.console_renderer,
                     "Graceful shutdown request failed.",
-                    likely_cause=(
-                        "The app-side shutdown endpoint did not accept the request."
-                    ),
+                    likely_cause="The app did not accept the cleanup request.",
                     next_steps=(
                         (
                             "Confirm the app calls "
@@ -245,17 +245,19 @@ class RuntimeSession:
             "Stopping owned backend process with termination fallback.",
             render=False,
         )
-        render_phase_warning(
-            self.console_renderer,
-            ConsolePhase.STOPPING_BACKEND,
-            "terminating owned backend process",
-        )
+        if self._is_verbose_console():
+            render_phase_warning(
+                self.console_renderer,
+                ConsolePhase.STOPPING_BACKEND,
+                "terminating owned backend process",
+            )
         render_failure_guidance(
             self.console_renderer,
-            "Using backend termination fallback.",
+            "Shutdown: using backend termination fallback.",
             likely_cause="The backend did not stop through graceful shutdown.",
             next_steps=("LitLaunch will stop only the backend process it started.",),
             suggest_inspect=False,
+            level="warning",
         )
         self.process_manager.stop(
             self.process,
@@ -414,7 +416,7 @@ class RuntimeSession:
         render_failure_guidance(
             self.console_renderer,
             f"Backend exited with code {code}.",
-            likely_cause="The backend stopped but reported a non-zero exit code.",
+            likely_cause="The backend stopped with an error status.",
             next_steps=(
                 "Run the app directly with streamlit run to inspect the traceback.",
             ),
@@ -433,6 +435,12 @@ class RuntimeSession:
             return
         if released:
             self.console_renderer.success(f"Port {port} released")
+
+    def _is_verbose_console(self) -> bool:
+        return (
+            self.console_renderer is not None
+            and self.console_renderer.mode == ConsoleMode.VERBOSE
+        )
 
 
 def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:

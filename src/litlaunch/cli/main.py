@@ -98,16 +98,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     # TEMP TEST: beta-only console design preview hook. Delete when the runtime
     # terminal language is stable enough to remove the dev preview command.
-    console_preview_parser = subparsers.add_parser(
+    for preview_command in (
         "console-preview",
-        parents=[parent],
-        help=argparse.SUPPRESS,
-    )
-    console_preview_parser.set_defaults(handler=cmd_console_preview)
+        "console-preview-norm",
+        "console-preview-verb",
+    ):
+        console_preview_parser = subparsers.add_parser(
+            preview_command,
+            parents=[parent],
+            help=argparse.SUPPRESS,
+        )
+        console_preview_parser.set_defaults(handler=cmd_console_preview)
     subparsers._choices_actions = [  # type: ignore[attr-defined]  # TEMP TEST
         action
         for action in subparsers._choices_actions  # type: ignore[attr-defined]
-        if action.dest != "console-preview"
+        if not action.dest.startswith("console-preview")
     ]
 
     return parser

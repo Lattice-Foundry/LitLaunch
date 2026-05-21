@@ -88,6 +88,7 @@ def render_failure_guidance(
     next_steps: tuple[str, ...] = (),
     suggest_inspect: bool = True,
     detail: str | None = None,
+    level: str = "error",
 ) -> None:
     """Render actionable failure guidance."""
 
@@ -98,6 +99,7 @@ def render_failure_guidance(
             next_steps=next_steps,
             suggest_inspect=suggest_inspect,
             detail=detail,
+            level=level,
         )
 
 
@@ -110,7 +112,9 @@ def render_backend_start_failure_guidance(
     render_failure_guidance(
         renderer,
         "Backend startup failed.",
-        likely_cause=detail,
+        likely_cause=(
+            "Streamlit may be missing or the app may have crashed during startup."
+        ),
         next_steps=(
             "Check the app path and Python environment.",
             "Check Streamlit installation and CLI arguments.",
@@ -132,10 +136,7 @@ def render_health_failure_guidance(
         render_failure_guidance(
             renderer,
             "Streamlit backend did not become healthy before timeout.",
-            likely_cause=(
-                "The app may still be starting, Streamlit may have failed "
-                "internally, or localhost health checks may be blocked."
-            ),
+            likely_cause="The app started but did not report ready in time.",
             next_steps=(
                 "Increase the health timeout if startup is expected to be slow.",
                 "Run Streamlit directly to see any app traceback.",
@@ -148,8 +149,7 @@ def render_health_failure_guidance(
         renderer,
         "Streamlit backend exited before becoming healthy.",
         likely_cause=(
-            "Streamlit may be missing, the app may have crashed during import, "
-            "or Streamlit CLI arguments may be invalid."
+            "Streamlit may be missing or the app may have crashed during startup."
         ),
         next_steps=(
             "Verify Streamlit is installed in this Python environment.",

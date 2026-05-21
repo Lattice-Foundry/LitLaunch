@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.4b0
+
+- Made normal-mode failure guidance concise with one summary, one `Cause`, and
+  one `Next` line while preserving deeper diagnostic steps in verbose mode.
+- Reduced redundant normal-mode browser and shutdown failure messages without
+  changing runtime behavior.
+- Moved backend PID detail to verbose output and kept normal progress messages
+  user-facing.
+
 ## 0.91.3b0
 
 - Reviewed RoleThread `main` launcher/runtime console wording and adapted
@@ -12,6 +21,10 @@ public API finishes settling.
   non-zero-exit messages.
 - Added verified port-release console output when LitLaunch can safely confirm
   the configured backend port is available after the owned process stops.
+- Corrected console guidance labels so `Cause` and `Next` occupy the
+  fixed-width bracket field instead of following an `ok` status label.
+- Tuned beta console warning/error colors toward true yellow and a brighter
+  PowerShell-style red.
 
 ## 0.91.2b0
 

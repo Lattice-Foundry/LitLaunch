@@ -15,7 +15,7 @@ from litlaunch.backend_start import start_backend_process
 from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
-from litlaunch.console import ConsolePhase, ConsoleRenderer
+from litlaunch.console import ConsoleMode, ConsolePhase, ConsoleRenderer
 from litlaunch.health import (
     HealthChecker,
     build_streamlit_app_url,
@@ -237,14 +237,18 @@ class StreamlitLauncher:
                 "Browser launch failed; stopping owned backend.",
                 render=False,
             )
-            render_phase_error(
-                self.console_renderer,
-                ConsolePhase.BROWSER,
-                browser_result.message,
-            )
+            if (
+                self.console_renderer is not None
+                and self.console_renderer.mode == ConsoleMode.VERBOSE
+            ):
+                render_phase_error(
+                    self.console_renderer,
+                    ConsolePhase.BROWSER,
+                    browser_result.message,
+                )
             render_failure_guidance(
                 self.console_renderer,
-                "Browser launch failed; stopping the owned backend.",
+                "Browser launch failed; stopping backend.",
                 likely_cause=browser_result.message,
                 next_steps=(
                     "Check that the requested browser is installed and launchable.",

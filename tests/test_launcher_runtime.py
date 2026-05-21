@@ -10,7 +10,7 @@ from litlaunch.browsers import (
     BrowserResolution,
 )
 from litlaunch.config import BrowserChoice
-from litlaunch.console import ConsoleRenderer, ConsoleTheme
+from litlaunch.console import ConsoleMode, ConsoleRenderer, ConsoleTheme
 from litlaunch.exceptions import CommandBuildError
 from litlaunch.health import build_streamlit_app_url, build_streamlit_health_url
 from litlaunch.launcher import StreamlitLauncher
@@ -612,8 +612,10 @@ def test_health_timeout_console_guidance_is_actionable():
     output = stream.getvalue()
     assert session.ok is False
     assert "Streamlit backend did not become healthy before timeout." in output
-    assert "Run Streamlit directly to see any app traceback." in output
-    assert 'Run "litlaunch inspect" for local diagnostics.' in output
+    assert "[ Cause  ] The app started but did not report ready in time." in output
+    assert output.count("[  Next  ]") == 1
+    assert "Run Streamlit directly to see any app traceback." not in output
+    assert 'Run "litlaunch inspect" for local diagnostics.' not in output
 
 
 def test_start_backend_reports_process_exit_before_health_as_startup_failure():
@@ -656,6 +658,34 @@ def test_backend_early_exit_console_guidance_is_actionable():
     output = stream.getvalue()
     assert session.ok is False
     assert "Streamlit backend exited before becoming healthy." in output
+    assert (
+        "Streamlit may be missing or the app may have crashed during startup." in output
+    )
+    assert output.count("[  Next  ]") == 1
+    assert "Verify Streamlit is installed in this Python environment." not in output
+    assert "Run the app directly with streamlit run" not in output
+
+
+def test_backend_failure_verbose_guidance_keeps_detailed_steps():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        mode=ConsoleMode.VERBOSE,
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8601),
+        process_manager=FakeProcessManager(process_returncode=1),
+        health_checker=FakeHealthChecker(healthy=False),
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend()
+
+    output = stream.getvalue()
+    assert session.ok is False
     assert "Verify Streamlit is installed in this Python environment." in output
     assert "Run the app directly with streamlit run" in output
 
@@ -816,10 +846,11 @@ def test_browser_failure_console_guidance_is_actionable():
 
     output = stream.getvalue()
     assert session.ok is False
-    assert "Browser launch failed; stopping the owned backend." in output
-    assert "Check that the requested browser is installed and launchable." in output
-    assert "--browser default" in output
-    assert "[   ok   ] Port 8605 released" in output
+    assert "Browser launch failed; stopping backend." in output
+    assert "Check that the requested browser is installed and launchable." not in output
+    assert "--browser default" not in output
+    assert output.count("[ error  ]") == 1
+    assert "[   ok   ] Port 8605 released." in output
 
 
 def test_run_browser_mode_can_use_default_browser_path():
@@ -903,10 +934,11 @@ def test_launcher_emits_high_level_console_messages_without_tokens():
     output = stream.getvalue()
     token = process_manager.started[0][1]["env"]["LITLAUNCH_SHUTDOWN_TOKEN"]
     assert session.ok is True
-    assert "[   ok   ] LitLaunch Starting runtime" in output
+    assert "[   ok   ] LitLaunch Starting runtime..." in output
     assert "[LitLaunch]" not in output
-    assert "[   ok   ] Backend: starting Streamlit" in output
-    assert "Backend: started Streamlit with PID 999 in" in output
+    assert "[   ok   ] Backend: starting Streamlit..." in output
+    assert "Backend: started Streamlit in" in output
+    assert "Backend PID: 999" not in output
     assert "Health: ready in" in output
     assert "Browser: opening Edge app window" in output
     assert "Browser: browser launched in" in output

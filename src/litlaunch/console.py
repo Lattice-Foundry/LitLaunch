@@ -125,7 +125,8 @@ class ConsoleRenderer:
         if self.mode == ConsoleMode.QUIET:
             return
         prefix = self._style(self.theme.prefix, self.theme.success)
-        self.success(f"{prefix} {self._style(message, self.theme.accent)}")
+        message_text = self._style(_ensure_ellipsis(message), self.theme.accent)
+        self.success(f"{prefix} {message_text}")
 
     def step(self, message: str) -> None:
         """Render a normal runtime milestone."""
@@ -148,12 +149,15 @@ class ConsoleRenderer:
             return
         label = phase.value if isinstance(phase, ConsolePhase) else str(phase)
         label_text = self._style(f"{label}:", self.theme.label)
-        elapsed = (
-            f" in {format_elapsed(elapsed_seconds)}"
+        message_text = (
+            (
+                f"{_strip_sentence_punctuation(message)} "
+                f"in {format_elapsed(elapsed_seconds)}"
+            )
             if elapsed_seconds is not None
-            else ""
+            else _punctuate_phase_message(message)
         )
-        line = f"{label_text} {message}{elapsed}"
+        line = f"{label_text} {message_text}"
         if level == "warning":
             self.warning(line)
         elif level == "error":
@@ -203,23 +207,32 @@ class ConsoleRenderer:
         suggest_inspect: bool = False,
         docs_hint: str | None = None,
         detail: str | None = None,
+        level: str = "error",
     ) -> None:
         """Render calm, actionable failure guidance."""
 
-        self.error(summary)
+        if level == "warning":
+            self.warning(summary)
+        else:
+            self.error(summary)
         if self.mode == ConsoleMode.QUIET:
+            return
+        if self.mode == ConsoleMode.NORMAL:
+            if likely_cause:
+                self._guidance_line("Likely cause", likely_cause)
+            self._guidance_line("Next", "Use verbose mode for more runtime details.")
             return
         if likely_cause:
             self._guidance_line("Likely cause", likely_cause)
         for step in next_steps:
+            if _is_verbose_hint(step):
+                continue
             self._guidance_line("Next", step)
         if suggest_inspect:
             self._guidance_line(
                 "Next",
                 'Run "litlaunch inspect" for local diagnostics.',
             )
-        if not _mentions_verbose(next_steps):
-            self._guidance_line("Next", "Use verbose mode for more runtime details.")
         if docs_hint:
             self._guidance_line("Docs", docs_hint)
         if detail:
@@ -250,13 +263,17 @@ class ConsoleRenderer:
         if fallback_used:
             preserved = selected.supports_app_mode if prefer_app_mode else True
             downgrade = "" if preserved else "; app-mode was not preserved"
+            fallback_message = (
+                f"{first.name} unavailable; using {selected.name} "
+                f"{mode_text}{downgrade}"
+            )
             self.phase_warning(
                 ConsolePhase.BROWSER,
-                (
-                    f"{first.name} unavailable; using {selected.name} "
-                    f"({mode_text}){downgrade}. Runtime will continue. "
-                    "Use --browser or install the preferred browser to change this."
-                ),
+                fallback_message,
+            )
+            self.detail(
+                "Browser fallback: preferred browser was unavailable; "
+                "use --browser or install the preferred browser to change this."
             )
             return
 
@@ -319,17 +336,17 @@ class ConsoleRenderer:
 
         if self.mode == ConsoleMode.QUIET:
             return
-        self._emit(f"{self._status_prefix('ok', self.theme.success)} {message}")
+        self._emit_status("ok", self.theme.success, message)
 
     def warning(self, message: str) -> None:
         """Render a warning message."""
 
-        self._emit(f"{self._status_prefix('warn', self.theme.warning)} {message}")
+        self._emit_status("warn", self.theme.warning, message)
 
     def error(self, message: str) -> None:
         """Render an error message."""
 
-        self._emit(f"{self._status_prefix('error', self.theme.error)} {message}")
+        self._emit_status("error", self.theme.error, message)
 
     def info(self, message: str) -> None:
         """Render an informational message."""
@@ -388,6 +405,12 @@ class ConsoleRenderer:
         padded = f"{status:^{STATUS_LABEL_WIDTH}}"
         return f"[{self._style(padded, color_name)}]"
 
+    def _emit_status(self, status: str, color_name: str, message: str) -> None:
+        self._emit(
+            f"{self._status_prefix(status, color_name)} "
+            f"{_ensure_terminal_punctuation(message)}"
+        )
+
     def _with_optional_label_color(self, message: str, color: str | None) -> str:
         if color is None:
             return message
@@ -404,8 +427,7 @@ class ConsoleRenderer:
 
     def _guidance_line(self, label: str, message: str) -> None:
         display_label = "Cause" if label == "Likely cause" else label
-        label_text = self._style(display_label, self.theme.label)
-        self.success(f"{label_text} {message}")
+        self._emit_status(display_label, self.theme.label, message)
 
 
 def strip_ansi(text: str) -> str:
@@ -426,9 +448,41 @@ def _normalize_mode(mode: ConsoleMode | str) -> ConsoleMode:
     return ConsoleMode(str(mode).strip().lower())
 
 
-def _mentions_verbose(messages: Sequence[str]) -> bool:
-    return any("verbose" in message.lower() for message in messages)
+def _is_verbose_hint(message: str) -> bool:
+    normalized = message.lower()
+    return "use verbose mode" in normalized or "verbose mode" in normalized
 
 
 def _strip_sentence_punctuation(message: str) -> str:
     return message.strip().rstrip(".;:")
+
+
+def _ensure_terminal_punctuation(message: str) -> str:
+    visible = strip_ansi(message).rstrip()
+    if not visible or visible.endswith((".", "!", "?")):
+        return message
+    return f"{message}."
+
+
+def _ensure_ellipsis(message: str) -> str:
+    stripped = _strip_sentence_punctuation(message)
+    return f"{stripped}..."
+
+
+def _punctuate_phase_message(message: str) -> str:
+    stripped = message.strip()
+    visible = strip_ansi(stripped)
+    if visible.endswith((".", "!", "?")):
+        return stripped
+    normalized = visible.lower()
+    if normalized.startswith(
+        (
+            "opening ",
+            "requesting ",
+            "starting ",
+            "waiting ",
+            "watching ",
+        )
+    ):
+        return f"{_strip_sentence_punctuation(stripped)}..."
+    return f"{_strip_sentence_punctuation(stripped)}."

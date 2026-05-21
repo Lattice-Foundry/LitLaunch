@@ -222,15 +222,16 @@ runtime.enable_shutdown_endpoint()
 ```
 
 Shutdown hooks run before the endpoint responds to LitLaunch. Hook labels and
-messages are app-owned presentation hints; console rendering uses the orange
-`Hook:` category so developer cleanup is separate from LitLaunch's own
-`Shutdown:` and `Backend:` lifecycle messages. Hook color metadata is preserved
-on hook results for integrations, but the runtime console keeps hook message text
-unstyled for readability. Hook failures are reported separately from core
-shutdown failures. The optional completion callback runs after the endpoint response is sent
-to LitLaunch and is useful when an app needs to schedule its own final exit or
-post-response completion work. Duplicate shutdown requests do not rerun hooks or
-the completion callback.
+messages are app-owned presentation hints; console rendering uses the orange `Hook:` category
+so developer cleanup is separate from LitLaunch's own `Shutdown:` and `Backend:`
+lifecycle messages. Hook status still uses the normal `ok`/`warn`/`error` bracket
+colors, while hook message text stays unstyled for readability. Hook color metadata
+is preserved on hook results for integrations.
+Hook failures are reported separately from core shutdown failures. The optional
+completion callback runs after the endpoint response is sent to LitLaunch and is
+useful when an app needs to schedule its own final exit or post-response
+completion work. Duplicate shutdown requests do not rerun hooks or the
+completion callback.
 
 [screenshot needed]
 Capture: normal `litlaunch run examples/minimal_app/app.py --no-color` output.

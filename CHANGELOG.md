@@ -3,6 +3,14 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.9b0
+
+- Documented hidden `console-preview --all|--normal|--verbose` developer
+  tooling for rapid console formatting, color, and verbosity review.
+- Clarified shutdown hook console behavior, including the orange `Hook:`
+  category, unstyled hook message text, and preserved hook color metadata.
+- Kept preview tooling developer-facing and avoided runtime behavior changes.
+
 ## 0.91.8b0
 
 - Formalized `console-preview` as hidden internal developer tooling with

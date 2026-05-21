@@ -110,6 +110,24 @@ checked instead of allowing automatic port selection.
 path exposed to Python integrations through
 `StreamlitLauncher.build_launch_plan()`.
 
+## Developer Console Preview
+
+LitLaunch includes hidden developer-facing preview tooling for console renderer
+work. These commands are intended for rapid formatting, category, color, and
+verbosity review; they are not a stable public output contract.
+
+```powershell
+litlaunch console-preview --all
+litlaunch console-preview --normal
+litlaunch console-preview --verbose
+```
+
+`--all` renders both normal and verbose examples. `--normal` and `--verbose`
+render only that console mode. The preview does not start Streamlit, open a
+browser, inspect windows, or touch ports. Some values are simulated so the
+output resembles real runtime views, including backend IDs, URLs, browser
+fallbacks, monitor statuses, and shutdown hook results.
+
 ## Inspect
 
 ```powershell

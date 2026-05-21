@@ -22,6 +22,11 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
     profile_parser = subparsers.add_parser(
         "profile",
         help="Create a LitLaunch launch profile interactively.",
+        description=(
+            "Create a LitLaunch launch profile interactively. Simple mode covers "
+            "guided app-window defaults; Advanced mode exposes runtime profile "
+            "fields such as host, port, monitor tuning, args, cwd, and env."
+        ),
         formatter_class=parser.formatter_class,
     )
     profile_parser.add_argument("--name", help="Prefill the profile name.")

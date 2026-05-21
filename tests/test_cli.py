@@ -756,19 +756,122 @@ title = "Old"
         )
 
 
-def test_cli_create_profile_advanced_mode_exits_cleanly(monkeypatch):
-    answers = iter(["2"])
-    monkeypatch.setattr("builtins.input", lambda: next(answers))
-    stream = StringIO()
+def test_cli_create_profile_advanced_mode_writes_full_profile(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        answers = iter(
+            [
+                "2",
+                "advanced-profile",
+                "",
+                "Advanced App",
+                "",
+                "chrome",
+                "0.0.0.0",
+                "8502",
+                "n",
+                "n",
+                "true",
+                "--kiosk",
+                "",
+                "y",
+                "20",
+                "70",
+                "2",
+                "3",
+                "server.maxUploadSize=200",
+                "server.runOnSave=true",
+                "",
+                "--logger.level=debug",
+                "",
+                "--demo",
+                "",
+                ".",
+                "LIT_MODE=dev",
+                "",
+                "",
+                "",
+            ]
+        )
+        m.setattr("builtins.input", lambda: next(answers))
+        stream = StringIO()
 
-    code = main(
-        ["create", "profile"],
-        stream=stream,
-        platform_detector_factory=FakePlatformDetector,
-    )
+        code = main(
+            ["create", "profile"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
 
-    assert code == 0
-    assert "Advanced mode is not implemented yet" in stream.getvalue()
+        assert code == 0
+        profile = load_profile("advanced-profile", output_dir / "litlaunch.toml")
+        assert profile.config.title == "Advanced App"
+        assert profile.config.mode == LaunchMode.WEBAPP
+        assert profile.config.browser == BrowserChoice.CHROME
+        assert profile.config.host == "0.0.0.0"
+        assert profile.config.port == 8502
+        assert profile.config.auto_port is False
+        assert profile.config.allow_browser_fallback is False
+        assert profile.config.headless is True
+        assert profile.config.extra_browser_args == ("--kiosk",)
+        assert profile.config.streamlit_flags["server.maxUploadSize"] == 200
+        assert profile.config.streamlit_flags["server.runOnSave"] is True
+        assert profile.config.streamlit_args == ("--logger.level=debug",)
+        assert profile.config.app_args == ("--demo",)
+        assert profile.config.extra_env["LIT_MODE"] == "dev"
+        assert profile.monitor_window is True
+        assert profile.graceful_timeout_seconds == 20
+        assert profile.window_monitor_config.appear_timeout_seconds == 70
+        assert profile.window_monitor_config.poll_interval_seconds == 2
+        assert profile.window_monitor_config.stable_poll_count == 3
+        output = stream.getvalue()
+        assert "Advanced" in output
+        assert "Streamlit flags: 2" in output
+
+
+def test_cli_create_profile_advanced_mode_dry_run_does_not_write(monkeypatch):
+    with temporary_output_dir() as output_dir, monkeypatch.context() as m:
+        m.chdir(output_dir)
+        (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
+        answers = iter(
+            [
+                "2",
+                "advanced-dry-run",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ]
+        )
+        m.setattr("builtins.input", lambda: next(answers))
+        stream = StringIO()
+
+        code = main(
+            ["create", "profile", "--dry-run"],
+            stream=stream,
+            platform_detector_factory=FakePlatformDetector,
+        )
+
+        assert code == 0
+        assert not (output_dir / "litlaunch.toml").exists()
+        assert '[profiles."advanced-dry-run"]' in stream.getvalue()
 
 
 def test_cli_console_preview_command_exists_and_exits_zero():
@@ -1069,7 +1172,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.20b0"
+    assert data["litlaunch_version"] == "0.91.21b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

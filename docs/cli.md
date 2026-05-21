@@ -273,13 +273,15 @@ litlaunch create profile --name my-webapp --app app.py
 litlaunch create profile --dry-run
 ```
 
-The first wizard pass supports Simple mode. It defaults to the recommended
-app-window experience, while still allowing browser-tab profiles. When run from
-an app root, the wizard uses detected values such as `app.py`, the project
-folder name, and an existing `litlaunch.toml` as visible prompt defaults. Users
-still confirm or change each value before anything is written. Type `back` to
-return to the previous step, or `quit` to cancel cleanly. Advanced mode and
-shortcut creation are planned separately.
+Simple mode defaults to the recommended app-window experience, while still
+allowing browser-tab profiles. Advanced mode exposes the fuller runtime profile
+surface, including network settings, browser fallback, monitor tuning,
+Streamlit flags, app args, working directory, and extra environment variables.
+When run from an app root, the wizard uses detected values such as `app.py`, the
+project folder name, and an existing `litlaunch.toml` as visible prompt
+defaults. Users still confirm or change each value before anything is written.
+Type `back` to return to the previous step, or `quit` to cancel cleanly.
+Shortcut creation is planned separately.
 
 ## Example
 

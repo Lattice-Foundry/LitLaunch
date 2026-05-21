@@ -125,6 +125,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "",
             style.label("Create a profile:"),
             *style.commands("litlaunch create profile"),
+            "  Choose Simple for guided defaults, or Advanced for runtime fields.",
             "",
             style.label("Run a profile:"),
             *style.commands(
@@ -156,6 +157,8 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
                 "litlaunch create profile --name my-webapp --app app.py",
                 "litlaunch create profile --dry-run",
             ),
+            "  Simple mode covers common app-window profiles.",
+            "  Advanced mode exposes network, browser, monitor, args, cwd, and env.",
             "",
             style.warning(
                 "Shortcut creation is planned separately and is not implemented yet."

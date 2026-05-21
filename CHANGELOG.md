@@ -3,6 +3,16 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.21b0
+
+- Implemented Advanced mode for `litlaunch create profile`.
+- Added grouped wizard prompts for network settings, browser/runtime behavior,
+  monitor tuning, Streamlit flags, app args, working directory, and extra
+  environment variables.
+- Reused the existing wizard state, app-root detection, back navigation,
+  cancellation, dry-run, and profile writer paths with no runtime behavior
+  changes.
+
 ## 0.91.20b0
 
 - Polished the `litlaunch create profile` wizard with a clearer header, step

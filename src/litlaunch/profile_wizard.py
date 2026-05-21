@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TextIO
 
-from litlaunch.colors import THEME_COLORS, streamlit_blue, terminal_green
+from litlaunch.colors import (
+    THEME_COLORS,
+    powershell_red,
+    streamlit_blue,
+    terminal_green,
+)
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.profile_detection import AppRootDetection, detect_app_root
@@ -56,6 +61,19 @@ class _WizardState:
     title: str | None = None
     launch_experience: str | None = None
     browser: str | None = None
+    host: str = "127.0.0.1"
+    port: int | None = None
+    auto_port: bool = True
+    headless: bool | None = None
+    allow_browser_fallback: bool = True
+    cwd: Path | None = None
+    streamlit_flags: dict[str, str | int | float | bool | None] = field(
+        default_factory=dict
+    )
+    streamlit_args: list[str] = field(default_factory=list)
+    app_args: list[str] = field(default_factory=list)
+    extra_browser_args: list[str] = field(default_factory=list)
+    extra_env: dict[str, str] = field(default_factory=dict)
     monitor_window: bool | None = None
     graceful_timeout: float = 3.0
     monitor_config: WindowMonitorConfig = WindowMonitorConfig()
@@ -122,7 +140,7 @@ def _run_profile_wizard(
         monitor_window=platform_is_windows,
         force=options.force,
     )
-    steps = _simple_mode_steps(platform_is_windows=platform_is_windows)
+    steps = _wizard_steps(platform_is_windows=platform_is_windows)
 
     _render_header(io)
     index = 0
@@ -133,9 +151,6 @@ def _run_profile_wizard(
         _render_step_header(io, state, steps, index)
         try:
             steps[index].handler(state, io)
-            if index == 0 and state.setup_mode == "advanced":
-                _write(io.stream, "Advanced mode is not implemented yet.")
-                return None
             index += 1
         except _WizardBack:
             previous_index = _previous_step_index(steps, state, index)
@@ -143,9 +158,6 @@ def _run_profile_wizard(
                 _write(io.stream, "Already at the first step.")
             index = previous_index
 
-    if state.setup_mode == "advanced":
-        _write(io.stream, "Advanced mode is not implemented yet.")
-        return None
     if not state.write_confirmed:
         _write(io.stream, "Profile creation cancelled.")
         return None
@@ -167,7 +179,7 @@ def _run_profile_wizard(
     return result
 
 
-def _simple_mode_steps(*, platform_is_windows: bool) -> tuple[_WizardStep, ...]:
+def _wizard_steps(*, platform_is_windows: bool) -> tuple[_WizardStep, ...]:
     return (
         _WizardStep("Setup mode", _step_setup_mode),
         _WizardStep("Profile name", _step_profile_name),
@@ -175,6 +187,12 @@ def _simple_mode_steps(*, platform_is_windows: bool) -> tuple[_WizardStep, ...]:
         _WizardStep("App title", _step_title),
         _WizardStep("Launch experience", _step_launch_experience),
         _WizardStep("Browser", _step_browser),
+        _WizardStep("Host", _step_host, skip=_simple_mode),
+        _WizardStep("Port", _step_port, skip=_simple_mode),
+        _WizardStep("Auto-port", _step_auto_port, skip=_simple_mode),
+        _WizardStep("Browser fallback", _step_browser_fallback, skip=_simple_mode),
+        _WizardStep("Headless", _step_headless, skip=_simple_mode),
+        _WizardStep("Extra browser args", _step_extra_browser_args, skip=_simple_mode),
         _WizardStep(
             "Monitor window",
             lambda state, io: _step_monitor_window(
@@ -184,9 +202,38 @@ def _simple_mode_steps(*, platform_is_windows: bool) -> tuple[_WizardStep, ...]:
             ),
             skip=lambda state: state.launch_experience != "webapp",
         ),
+        _WizardStep(
+            "Graceful timeout",
+            _step_graceful_timeout,
+            skip=lambda state: _simple_mode(state) or not state.monitor_window,
+        ),
+        _WizardStep(
+            "Monitor appear timeout",
+            _step_monitor_appear_timeout,
+            skip=lambda state: _simple_mode(state) or not state.monitor_window,
+        ),
+        _WizardStep(
+            "Monitor poll interval",
+            _step_monitor_poll_interval,
+            skip=lambda state: _simple_mode(state) or not state.monitor_window,
+        ),
+        _WizardStep(
+            "Monitor stable polls",
+            _step_monitor_stable_polls,
+            skip=lambda state: _simple_mode(state) or not state.monitor_window,
+        ),
+        _WizardStep("Streamlit flags", _step_streamlit_flags, skip=_simple_mode),
+        _WizardStep("Streamlit args", _step_streamlit_args, skip=_simple_mode),
+        _WizardStep("App args", _step_app_args, skip=_simple_mode),
+        _WizardStep("Working directory", _step_cwd, skip=_simple_mode),
+        _WizardStep("Extra environment", _step_extra_env, skip=_simple_mode),
         _WizardStep("Output config file", _step_config_path),
         _WizardStep("Preview and confirm", _step_preview_confirm),
     )
+
+
+def _simple_mode(state: _WizardState) -> bool:
+    return state.setup_mode != "advanced"
 
 
 def _step_setup_mode(state: _WizardState, io: _WizardIo) -> None:
@@ -273,6 +320,78 @@ def _step_browser(state: _WizardState, io: _WizardIo) -> None:
     )
 
 
+def _step_host(state: _WizardState, io: _WizardIo) -> None:
+    while True:
+        value = _ask(io, "Host", default=state.host, validator=_nonempty)
+        try:
+            LauncherConfig(app_path="app.py", host=value)
+        except ConfigurationError as exc:
+            _write(io.stream, f"Invalid host: {exc}")
+            continue
+        state.host = value
+        return
+
+
+def _step_port(state: _WizardState, io: _WizardIo) -> None:
+    while True:
+        default = "" if state.port is None else str(state.port)
+        value = _ask_optional(io, "Port (blank for auto)", default=default)
+        if not value:
+            state.port = None
+            state.auto_port = True
+            return
+        try:
+            port = int(value)
+            LauncherConfig(app_path="app.py", port=port)
+        except (ConfigurationError, ValueError) as exc:
+            _write(io.stream, f"Invalid port: {exc}")
+            continue
+        state.port = port
+        return
+
+
+def _step_auto_port(state: _WizardState, io: _WizardIo) -> None:
+    if state.port is None:
+        state.auto_port = True
+        _write(io.stream, "Auto-port is enabled because no fixed port is set.")
+        return
+    state.auto_port = _ask_bool(
+        io,
+        "Try another port if the requested port is busy",
+        default=state.auto_port,
+    )
+
+
+def _step_browser_fallback(state: _WizardState, io: _WizardIo) -> None:
+    state.allow_browser_fallback = _ask_bool(
+        io,
+        "Allow browser fallback",
+        default=state.allow_browser_fallback,
+    )
+
+
+def _step_headless(state: _WizardState, io: _WizardIo) -> None:
+    choice = _choose(
+        io,
+        "Streamlit headless setting",
+        (
+            ("default", "Use LitLaunch default"),
+            ("true", "true"),
+            ("false", "false"),
+        ),
+        default="default" if state.headless is None else str(state.headless).lower(),
+    )
+    state.headless = None if choice == "default" else choice == "true"
+
+
+def _step_extra_browser_args(state: _WizardState, io: _WizardIo) -> None:
+    state.extra_browser_args = _ask_list(
+        io,
+        "Extra browser arg",
+        current=state.extra_browser_args,
+    )
+
+
 def _step_monitor_window(
     state: _WizardState,
     io: _WizardIo,
@@ -298,6 +417,112 @@ def _step_monitor_window(
     else:
         state.graceful_timeout = 3.0
         state.monitor_config = WindowMonitorConfig()
+
+
+def _step_graceful_timeout(state: _WizardState, io: _WizardIo) -> None:
+    state.graceful_timeout = _ask_positive_float(
+        io,
+        "Graceful shutdown timeout seconds",
+        default=state.graceful_timeout,
+    )
+
+
+def _step_monitor_appear_timeout(state: _WizardState, io: _WizardIo) -> None:
+    monitor = state.monitor_config
+    state.monitor_config = WindowMonitorConfig(
+        appear_timeout_seconds=_ask_positive_float(
+            io,
+            "Monitor appear timeout seconds",
+            default=monitor.appear_timeout_seconds,
+        ),
+        poll_interval_seconds=monitor.poll_interval_seconds,
+        stable_poll_count=monitor.stable_poll_count,
+    )
+
+
+def _step_monitor_poll_interval(state: _WizardState, io: _WizardIo) -> None:
+    monitor = state.monitor_config
+    state.monitor_config = WindowMonitorConfig(
+        appear_timeout_seconds=monitor.appear_timeout_seconds,
+        poll_interval_seconds=_ask_positive_float(
+            io,
+            "Monitor poll interval seconds",
+            default=monitor.poll_interval_seconds,
+        ),
+        stable_poll_count=monitor.stable_poll_count,
+    )
+
+
+def _step_monitor_stable_polls(state: _WizardState, io: _WizardIo) -> None:
+    monitor = state.monitor_config
+    state.monitor_config = WindowMonitorConfig(
+        appear_timeout_seconds=monitor.appear_timeout_seconds,
+        poll_interval_seconds=monitor.poll_interval_seconds,
+        stable_poll_count=_ask_positive_int(
+            io,
+            "Monitor stable poll count",
+            default=monitor.stable_poll_count,
+        ),
+    )
+
+
+def _step_streamlit_flags(state: _WizardState, io: _WizardIo) -> None:
+    state.streamlit_flags = _ask_mapping(
+        io,
+        "Streamlit flag",
+        current=state.streamlit_flags,
+        value_parser=_parse_profile_scalar,
+        hint="Use key=value, for example server.maxUploadSize=200.",
+    )
+
+
+def _step_streamlit_args(state: _WizardState, io: _WizardIo) -> None:
+    state.streamlit_args = _ask_list(
+        io,
+        "Raw Streamlit arg",
+        current=state.streamlit_args,
+    )
+
+
+def _step_app_args(state: _WizardState, io: _WizardIo) -> None:
+    state.app_args = _ask_list(io, "App arg", current=state.app_args)
+
+
+def _step_cwd(state: _WizardState, io: _WizardIo) -> None:
+    default = "" if state.cwd is None else str(state.cwd)
+    value = _ask_optional(
+        io,
+        "Working directory (blank for profile config folder)",
+        default=default,
+    )
+    if not value:
+        state.cwd = None
+        return
+    path = Path(value)
+    if not path.exists():
+        _write(io.stream, "Working directory does not exist.")
+        _step_cwd(state, io)
+        return
+    if not path.is_dir():
+        _write(io.stream, "Working directory must be a directory.")
+        _step_cwd(state, io)
+        return
+    state.cwd = path
+
+
+def _step_extra_env(state: _WizardState, io: _WizardIo) -> None:
+    state.extra_env = {
+        key: str(value)
+        for key, value in _ask_mapping(
+            io,
+            "Environment variable",
+            current=state.extra_env,
+            value_parser=str,
+            hint=(
+                "Use NAME=value. Values are written to the child process profile only."
+            ),
+        ).items()
+    }
 
 
 def _step_config_path(state: _WizardState, io: _WizardIo) -> None:
@@ -336,10 +561,17 @@ def _build_profile(state: _WizardState) -> LaunchProfile:
         title=title,
         mode=LaunchMode.WEBAPP if launch_experience == "webapp" else LaunchMode.BROWSER,
         browser=BrowserChoice(browser),
-        host="127.0.0.1",
-        port=None,
-        auto_port=True,
-        allow_browser_fallback=True,
+        host=state.host,
+        port=state.port,
+        auto_port=state.auto_port,
+        headless=state.headless,
+        allow_browser_fallback=state.allow_browser_fallback,
+        cwd=state.cwd,
+        extra_env=state.extra_env,
+        streamlit_flags=state.streamlit_flags,
+        streamlit_args=state.streamlit_args,
+        app_args=state.app_args,
+        extra_browser_args=state.extra_browser_args,
     )
     return LaunchProfile(
         name=state.profile_name,
@@ -426,6 +658,108 @@ def _ask(
     return validator(value)
 
 
+def _ask_optional(io: _WizardIo, label: str, *, default: str = "") -> str:
+    prompt = f"Selection: {label}"
+    if default:
+        prompt += f" [{default}]"
+    prompt += ":"
+    _write(io.stream, prompt)
+    answer = _read_answer(io).strip()
+    return answer if answer else default
+
+
+def _ask_positive_float(io: _WizardIo, label: str, *, default: float) -> float:
+    while True:
+        value = _ask(io, label, default=f"{default:g}")
+        try:
+            number = float(value)
+        except ValueError:
+            _write(io.stream, "Enter a positive number.")
+            continue
+        if number > 0:
+            return number
+        _write(io.stream, "Enter a positive number.")
+
+
+def _ask_positive_int(io: _WizardIo, label: str, *, default: int) -> int:
+    while True:
+        value = _ask(io, label, default=str(default))
+        try:
+            number = int(value)
+        except ValueError:
+            _write(io.stream, "Enter a positive integer.")
+            continue
+        if number > 0:
+            return number
+        _write(io.stream, "Enter a positive integer.")
+
+
+def _ask_list(io: _WizardIo, label: str, *, current: list[str]) -> list[str]:
+    if current:
+        _write(io.stream, f"Current entries: {', '.join(current)}")
+    _write(io.stream, f"Enter {label.lower()} values one at a time.")
+    _write(io.stream, "Leave blank when finished, or type 'clear' to reset.")
+    values = list(current)
+    while True:
+        _write(io.stream, f"Selection: {label}:")
+        answer = _read_answer(io).strip()
+        if not answer:
+            return values
+        if answer.lower() == "clear":
+            values = []
+            _write(io.stream, "Entries cleared.")
+            continue
+        values.append(answer)
+
+
+def _ask_mapping(
+    io: _WizardIo,
+    label: str,
+    *,
+    current: dict[str, object],
+    value_parser: Callable[[str], object],
+    hint: str,
+) -> dict[str, object]:
+    if current:
+        _write(io.stream, f"Current entries: {', '.join(sorted(current))}")
+    _write(io.stream, hint)
+    _write(io.stream, "Leave blank when finished, or type 'clear' to reset.")
+    values = dict(current)
+    while True:
+        _write(io.stream, f"Selection: {label}:")
+        answer = _read_answer(io).strip()
+        if not answer:
+            return values
+        if answer.lower() == "clear":
+            values = {}
+            _write(io.stream, "Entries cleared.")
+            continue
+        key, separator, raw_value = answer.partition("=")
+        key = key.strip()
+        if not separator or not key:
+            _write(io.stream, "Use key=value.")
+            continue
+        values[key] = value_parser(raw_value.strip())
+
+
+def _parse_profile_scalar(value: str) -> str | int | float | bool | None:
+    normalized = value.strip()
+    if normalized.lower() == "true":
+        return True
+    if normalized.lower() == "false":
+        return False
+    if normalized.lower() in {"none", "null"}:
+        return None
+    try:
+        return int(normalized)
+    except ValueError:
+        pass
+    try:
+        return float(normalized)
+    except ValueError:
+        return normalized
+
+
 def _read_answer(io: _WizardIo) -> str:
     answer = io.input_func()
     normalized = answer.strip().lower()
@@ -438,7 +772,7 @@ def _read_answer(io: _WizardIo) -> str:
 
 def _render_header(io: _WizardIo) -> None:
     _write(io.stream, _style("Create Profile Wizard", streamlit_blue, io.use_color))
-    _write(io.stream, _style("Simple Mode", terminal_green, io.use_color))
+    _write(io.stream, "Choose Simple mode or Advanced mode.")
     _write(io.stream, "Type 'back' to revisit the previous step, or 'quit' to cancel.")
     _write(io.stream, "")
 
@@ -452,14 +786,14 @@ def _render_step_header(
     visible_steps = [step for step in steps if not step.skip(state)]
     current = sum(1 for step in steps[:index] if not step.skip(state)) + 1
     title = steps[index].title
-    _write(
-        io.stream,
-        _style(
-            f"Step {current} of {len(visible_steps)} — {title}",
-            streamlit_blue,
-            io.use_color,
-        ),
+    mode = "Advanced" if state.setup_mode == "advanced" else "Simple"
+    mode_text = _style(mode, powershell_red, io.use_color)
+    step_text = _style(
+        f"Step {current} of {len(visible_steps)} - {title}",
+        streamlit_blue,
+        io.use_color,
     )
+    _write(io.stream, f"{mode_text} - {step_text}")
     _render_current_data(io, state)
 
 
@@ -488,11 +822,35 @@ def _current_data_values(state: _WizardState) -> tuple[tuple[str, str], ...]:
         values.append(("Launch", launch))
     if state.browser:
         values.append(("Browser", state.browser))
+    if state.setup_mode == "advanced":
+        values.append(("Host", state.host))
+        values.append(("Port", "auto" if state.port is None else str(state.port)))
+        values.append(("Auto-port", "enabled" if state.auto_port else "disabled"))
+        fallback = "enabled" if state.allow_browser_fallback else "disabled"
+        values.append(("Browser fallback", fallback))
+        if state.headless is not None:
+            values.append(("Headless", str(state.headless).lower()))
+        if state.cwd is not None:
+            values.append(("Cwd", str(state.cwd)))
+        _append_count(values, "Streamlit flags", len(state.streamlit_flags))
+        _append_count(values, "Streamlit args", len(state.streamlit_args))
+        _append_count(values, "App args", len(state.app_args))
+        _append_count(values, "Browser args", len(state.extra_browser_args))
+        _append_count(values, "Env vars", len(state.extra_env))
     if state.launch_experience == "webapp" and state.monitor_window is not None:
         values.append(("Monitor", "enabled" if state.monitor_window else "disabled"))
     if state.config_path:
         values.append(("Config", str(state.config_path)))
     return tuple(values)
+
+
+def _append_count(
+    values: list[tuple[str, str]],
+    label: str,
+    count: int,
+) -> None:
+    if count:
+        values.append((label, str(count)))
 
 
 def _previous_step_index(
@@ -522,10 +880,29 @@ def _preview_profile(
     label = "App window" if launch_experience == "webapp" else "Browser tab"
     _write(stream, f"Launch experience: {label}")
     _write(stream, f"Browser: {profile.config.browser.value}")
+    _write(stream, f"Host: {profile.config.host}")
+    port = "auto" if profile.config.port is None else str(profile.config.port)
+    _write(stream, f"Port: {port}")
+    auto_port = "enabled" if profile.config.auto_port else "disabled"
+    _write(stream, f"Auto-port: {auto_port}")
+    fallback = "enabled" if profile.config.allow_browser_fallback else "disabled"
+    _write(stream, f"Browser fallback: {fallback}")
+    if profile.config.headless is not None:
+        _write(stream, f"Headless: {str(profile.config.headless).lower()}")
+    if profile.config.cwd is not None:
+        _write(stream, f"Working directory: {profile.config.cwd}")
     monitor_status = "enabled" if profile.monitor_window else "disabled"
     _write(stream, f"Monitor window: {monitor_status}")
-    _write(stream, "Port: auto")
-    _write(stream, "Browser fallback: enabled")
+    if profile.config.streamlit_flags:
+        _write(stream, f"Streamlit flags: {len(profile.config.streamlit_flags)}")
+    if profile.config.streamlit_args:
+        _write(stream, f"Streamlit args: {len(profile.config.streamlit_args)}")
+    if profile.config.app_args:
+        _write(stream, f"App args: {len(profile.config.app_args)}")
+    if profile.config.extra_browser_args:
+        _write(stream, f"Extra browser args: {len(profile.config.extra_browser_args)}")
+    if profile.config.extra_env:
+        _write(stream, f"Extra env vars: {len(profile.config.extra_env)}")
     _write(stream, "")
 
 

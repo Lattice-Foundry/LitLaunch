@@ -9,6 +9,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from enum import Enum
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from litlaunch.exceptions import ConfigurationError
@@ -23,6 +24,13 @@ SHUTDOWN_ENDPOINT_PATH = "/shutdown"
 DEFAULT_SHUTDOWN_HOST = "127.0.0.1"
 
 
+class HookConsoleVisibility(str, Enum):
+    """Console visibility for developer-defined shutdown hook messages."""
+
+    NORMAL = "normal"
+    VERBOSE = "verbose"
+
+
 @dataclass(frozen=True)
 class ShutdownHook:
     """A cleanup hook registered by a Streamlit app."""
@@ -32,6 +40,7 @@ class ShutdownHook:
     success_message: str | None = None
     failure_message: str | None = None
     color: str | None = None
+    console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL
     continue_on_error: bool = True
 
     def __post_init__(self) -> None:
@@ -39,6 +48,11 @@ class ShutdownHook:
             raise ConfigurationError("Shutdown hook func must be callable.")
         if not self.label or not self.label.strip():
             raise ConfigurationError("Shutdown hook label cannot be empty.")
+        object.__setattr__(
+            self,
+            "console_visibility",
+            _normalize_hook_console_visibility(self.console_visibility),
+        )
 
 
 @dataclass(frozen=True)
@@ -50,6 +64,14 @@ class ShutdownHookResult:
     message: str
     error: str | None = None
     color: str | None = None
+    console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "console_visibility",
+            _normalize_hook_console_visibility(self.console_visibility),
+        )
 
 
 @dataclass(frozen=True)
@@ -95,6 +117,7 @@ class ShutdownRequestResult:
     ok: bool
     status_code: int | None
     message: str
+    hook_results: tuple[ShutdownHookResult, ...] = ()
 
 
 class ShutdownHookRegistry:
@@ -117,6 +140,7 @@ class ShutdownHookRegistry:
         success_message: str | None = None,
         failure_message: str | None = None,
         color: str | None = None,
+        console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL,
         continue_on_error: bool = True,
     ) -> Callable[[], object]:
         """Register a shutdown hook and return the original function."""
@@ -128,6 +152,7 @@ class ShutdownHookRegistry:
                 success_message=success_message,
                 failure_message=failure_message,
                 color=color,
+                console_visibility=console_visibility,
                 continue_on_error=continue_on_error,
             )
         )
@@ -140,6 +165,7 @@ class ShutdownHookRegistry:
         success_message: str | None = None,
         failure_message: str | None = None,
         color: str | None = None,
+        console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL,
         continue_on_error: bool = True,
     ) -> Callable[[Callable[[], object]], Callable[[], object]]:
         """Return a decorator that registers a shutdown hook."""
@@ -151,6 +177,7 @@ class ShutdownHookRegistry:
                 success_message=success_message,
                 failure_message=failure_message,
                 color=color,
+                console_visibility=console_visibility,
                 continue_on_error=continue_on_error,
             )
 
@@ -179,6 +206,7 @@ class ShutdownHookRegistry:
                         or f"Shutdown hook failed: {hook.label}",
                         error=str(exc),
                         color=hook.color,
+                        console_visibility=hook.console_visibility,
                     )
                 )
                 if not hook.continue_on_error:
@@ -191,6 +219,7 @@ class ShutdownHookRegistry:
                         message=hook.success_message
                         or f"Shutdown hook completed: {hook.label}",
                         color=hook.color,
+                        console_visibility=hook.console_visibility,
                     )
                 )
 
@@ -292,6 +321,7 @@ class LauncherRuntime:
         success_message: str | None = None,
         failure_message: str | None = None,
         color: str | None = None,
+        console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL,
         continue_on_error: bool = True,
     ) -> Callable[[Callable[[], object]], Callable[[], object]]:
         """Return a decorator for registering an app shutdown hook."""
@@ -301,6 +331,7 @@ class LauncherRuntime:
             success_message=success_message,
             failure_message=failure_message,
             color=color,
+            console_visibility=console_visibility,
             continue_on_error=continue_on_error,
         )
 
@@ -417,13 +448,21 @@ class ShutdownClient:
         try:
             response = self.opener(request, timeout=self.timeout_seconds)
             status_code = getattr(response, "status", getattr(response, "code", None))
+            payload = _read_shutdown_response_payload(response)
             if hasattr(response, "close"):
                 response.close()
         except urllib.error.HTTPError as exc:
+            payload = _read_shutdown_response_payload(exc)
             return ShutdownRequestResult(
                 ok=False,
                 status_code=exc.code,
-                message=f"Shutdown request failed with HTTP {exc.code}.",
+                message=str(
+                    payload.get(
+                        "message",
+                        f"Shutdown request failed with HTTP {exc.code}.",
+                    )
+                ),
+                hook_results=_hook_results_from_payload(payload),
             )
         except Exception as exc:
             return ShutdownRequestResult(
@@ -436,11 +475,17 @@ class ShutdownClient:
         return ShutdownRequestResult(
             ok=ok,
             status_code=status_code,
-            message=(
-                "Shutdown request accepted."
-                if ok
-                else f"Shutdown request failed with HTTP {status_code}."
+            message=str(
+                payload.get(
+                    "message",
+                    (
+                        "Shutdown request accepted."
+                        if ok
+                        else f"Shutdown request failed with HTTP {status_code}."
+                    ),
+                )
             ),
+            hook_results=_hook_results_from_payload(payload),
         )
 
 
@@ -465,6 +510,10 @@ def _build_shutdown_handler(runtime: LauncherRuntime) -> type[BaseHTTPRequestHan
                         {
                             "ok": result.ok,
                             "message": "Shutdown already requested.",
+                            "hook_results": tuple(
+                                _hook_result_to_payload(item)
+                                for item in result.hook_results
+                            ),
                         },
                     )
                     return
@@ -474,7 +523,13 @@ def _build_shutdown_handler(runtime: LauncherRuntime) -> type[BaseHTTPRequestHan
                 runtime._mark_shutdown_complete(result)
             self._write_json(
                 200 if result.ok else 500,
-                {"ok": result.ok, "message": result.message},
+                {
+                    "ok": result.ok,
+                    "message": result.message,
+                    "hook_results": tuple(
+                        _hook_result_to_payload(item) for item in result.hook_results
+                    ),
+                },
             )
             runtime._schedule_shutdown_completion(result)
 
@@ -503,6 +558,91 @@ def _validate_port(port: int | str) -> int:
     if value < 1 or value > 65535:
         raise ConfigurationError("Shutdown port must be from 1 to 65535.")
     return value
+
+
+def _normalize_hook_console_visibility(
+    value: HookConsoleVisibility | str,
+) -> HookConsoleVisibility:
+    if isinstance(value, HookConsoleVisibility):
+        return value
+    normalized = str(value).strip().lower()
+    try:
+        return HookConsoleVisibility(normalized)
+    except ValueError as exc:
+        raise ConfigurationError(
+            "Shutdown hook console_visibility must be 'normal' or 'verbose'."
+        ) from exc
+
+
+def _hook_result_to_payload(result: ShutdownHookResult) -> dict[str, object]:
+    return {
+        "label": result.label,
+        "ok": result.ok,
+        "message": result.message,
+        "error": None,
+        "color": result.color,
+        "console_visibility": result.console_visibility.value,
+    }
+
+
+def _hook_results_from_payload(
+    payload: Mapping[str, object],
+) -> tuple[ShutdownHookResult, ...]:
+    raw_results = payload.get("hook_results")
+    if not isinstance(raw_results, list | tuple):
+        return ()
+    results: list[ShutdownHookResult] = []
+    for raw_item in raw_results:
+        if not isinstance(raw_item, Mapping):
+            continue
+        try:
+            results.append(
+                ShutdownHookResult(
+                    label=str(raw_item.get("label", "")),
+                    ok=bool(raw_item.get("ok", False)),
+                    message=str(raw_item.get("message", "")),
+                    error=(
+                        None
+                        if raw_item.get("error") is None
+                        else str(raw_item.get("error"))
+                    ),
+                    color=(
+                        None
+                        if raw_item.get("color") is None
+                        else str(raw_item.get("color"))
+                    ),
+                    console_visibility=str(
+                        raw_item.get(
+                            "console_visibility",
+                            HookConsoleVisibility.NORMAL.value,
+                        )
+                    ),
+                )
+            )
+        except ConfigurationError:
+            continue
+    return tuple(results)
+
+
+def _read_shutdown_response_payload(response: object) -> dict[str, object]:
+    read = getattr(response, "read", None)
+    if not callable(read):
+        return {}
+    try:
+        raw_body = read()
+    except Exception:
+        return {}
+    if not raw_body:
+        return {}
+    if isinstance(raw_body, bytes):
+        text = raw_body.decode("utf-8", errors="replace")
+    else:
+        text = str(raw_body)
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _is_loopback_host(host: str) -> bool:

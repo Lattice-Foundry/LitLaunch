@@ -14,6 +14,7 @@ from litlaunch.shutdown import (
     LITLAUNCH_SHUTDOWN_PORT,
     LITLAUNCH_SHUTDOWN_TOKEN,
     SHUTDOWN_TOKEN_HEADER,
+    HookConsoleVisibility,
     LauncherRuntime,
     ShutdownClient,
     ShutdownConfig,
@@ -49,6 +50,7 @@ def test_shutdown_hook_stores_metadata():
         success_message="Done",
         failure_message="Failed",
         color=streamlit_blue,
+        console_visibility="verbose",
         continue_on_error=False,
     )
 
@@ -57,7 +59,17 @@ def test_shutdown_hook_stores_metadata():
     assert hook.success_message == "Done"
     assert hook.failure_message == "Failed"
     assert hook.color == streamlit_blue
+    assert hook.console_visibility == HookConsoleVisibility.VERBOSE
     assert hook.continue_on_error is False
+
+
+def test_shutdown_hook_rejects_unknown_console_visibility():
+    with pytest.raises(ConfigurationError, match="console_visibility"):
+        ShutdownHook(
+            func=lambda: None,
+            label="Cleanup",
+            console_visibility="sometimes",
+        )
 
 
 def test_shutdown_hook_accepts_unknown_custom_color_metadata():
@@ -76,7 +88,12 @@ def test_shutdown_registry_registers_and_runs_hooks_in_order():
 
     registry.register(lambda: calls.append("one"), label="One")
 
-    @registry.hook(label="Two", success_message="Two done", color="blue")
+    @registry.hook(
+        label="Two",
+        success_message="Two done",
+        color="blue",
+        console_visibility="verbose",
+    )
     def two():
         calls.append("two")
 
@@ -88,6 +105,7 @@ def test_shutdown_registry_registers_and_runs_hooks_in_order():
     assert [item.ok for item in result.hook_results] == [True, True]
     assert result.hook_results[1].message == "Two done"
     assert result.hook_results[1].color == "blue"
+    assert result.hook_results[1].console_visibility == HookConsoleVisibility.VERBOSE
 
 
 def test_shutdown_registry_continues_on_error_by_default():
@@ -256,7 +274,10 @@ def test_shutdown_endpoint_valid_post_runs_hooks_without_exposing_token():
 
     assert calls == ["cleanup"]
     assert runtime.shutdown_requested is True
-    assert json.loads(body)["ok"] is True
+    payload = json.loads(body)
+    assert payload["ok"] is True
+    assert payload["hook_results"][0]["label"] == "Cleanup"
+    assert payload["hook_results"][0]["console_visibility"] == "normal"
     assert "secret-token" not in body
 
 
@@ -390,6 +411,9 @@ def test_shutdown_endpoint_schedules_completion_after_hook_failure():
         runtime.close_shutdown_endpoint()
 
     assert failure.value.code == 500
+    body = failure.value.read().decode("utf-8")
+    assert "boom" not in body
+    assert json.loads(body)["hook_results"][0]["error"] is None
     assert completion_results == [False]
 
 
@@ -454,8 +478,14 @@ def test_ipv6_loopback_is_accepted_for_endpoint_binding_attempt():
 class FakeResponse:
     status = 200
 
-    def __init__(self):
+    def __init__(self, body=b""):
+        self.body = body
+        self.read_called = False
         self.closed = False
+
+    def read(self):
+        self.read_called = True
+        return self.body
 
     def close(self):
         self.closed = True
@@ -487,6 +517,44 @@ def test_shutdown_client_sends_post_with_token_header():
     headers = {key.lower(): value for key, value in request.header_items()}
     assert headers[SHUTDOWN_TOKEN_HEADER.lower()] == "secret-token"
     assert response.closed is True
+
+
+def test_shutdown_client_parses_hook_results_from_response_payload():
+    response = FakeResponse(
+        json.dumps(
+            {
+                "ok": True,
+                "message": "Shutdown hooks completed.",
+                "hook_results": [
+                    {
+                        "label": "Cleanup",
+                        "ok": True,
+                        "message": "Cleanup complete",
+                        "error": None,
+                        "color": "project_custom_color",
+                        "console_visibility": "verbose",
+                    }
+                ],
+            }
+        ).encode("utf-8")
+    )
+
+    client = ShutdownClient(
+        host="127.0.0.1",
+        port=9900,
+        token="secret-token",
+        opener=lambda request, timeout: response,
+    )
+
+    result = client.request_shutdown()
+
+    assert result.ok is True
+    assert result.message == "Shutdown hooks completed."
+    assert response.read_called is True
+    assert len(result.hook_results) == 1
+    assert result.hook_results[0].message == "Cleanup complete"
+    assert result.hook_results[0].color == "project_custom_color"
+    assert result.hook_results[0].console_visibility == HookConsoleVisibility.VERBOSE
 
 
 def test_shutdown_client_formats_ipv6_loopback_url_with_brackets():

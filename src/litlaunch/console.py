@@ -26,7 +26,7 @@ from litlaunch.console_style import (
     style_text,
 )
 from litlaunch.lifecycle import LaunchEvent, LaunchState
-from litlaunch.shutdown import ShutdownHookResult
+from litlaunch.shutdown import HookConsoleVisibility, ShutdownHookResult
 from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
 
 
@@ -340,7 +340,10 @@ class ConsoleRenderer:
 
         message = result.message or result.label
         if result.ok:
-            if self.mode == ConsoleMode.QUIET:
+            if self.mode == ConsoleMode.QUIET or (
+                result.console_visibility == HookConsoleVisibility.VERBOSE
+                and self.mode != ConsoleMode.VERBOSE
+            ):
                 return
             self._emit_hook_status("ok", self.theme.success, message)
             return

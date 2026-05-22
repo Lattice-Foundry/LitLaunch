@@ -100,7 +100,9 @@ runtime.enable_shutdown_endpoint()
 
 Shutdown hooks are useful for saving state, syncing data, local AI workflows,
 temporary resource cleanup, logging/export tasks, and other app-owned cleanup.
-They are optional when you need them and invisible when you do not.
+They are optional when you need them and invisible when you do not. Routine hook
+messages can also be marked verbose-only while failures remain visible in normal
+output.
 
 ### Runtime governance without enterprise bloat
 

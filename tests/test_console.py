@@ -25,7 +25,7 @@ from litlaunch.console import (
 )
 from litlaunch.console_style import ANSI_COLORS, status_prefix, style_text
 from litlaunch.lifecycle import LaunchEvent, LaunchState
-from litlaunch.shutdown import ShutdownHookResult
+from litlaunch.shutdown import HookConsoleVisibility, ShutdownHookResult
 from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
 
 
@@ -409,6 +409,66 @@ def test_console_renderer_shutdown_hook_result_uses_hook_category():
     output = stream.getvalue()
     assert "[   ok   ] Hook: Closed database connections." in output
     assert "Shutdown: Closed database connections" not in output
+
+
+def test_console_renderer_suppresses_verbose_only_success_hooks_in_normal_mode():
+    stream = StringIO()
+    renderer = ConsoleRenderer(theme=ConsoleTheme(use_color=False), stream=stream)
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Cloud sync",
+            ok=True,
+            message="Cloud sync completed",
+            console_visibility=HookConsoleVisibility.VERBOSE,
+        )
+    )
+
+    assert stream.getvalue() == ""
+
+
+def test_console_renderer_shows_verbose_only_success_hooks_in_verbose_mode():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        mode=ConsoleMode.VERBOSE,
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Cloud sync",
+            ok=True,
+            message="Cloud sync completed",
+            console_visibility="verbose",
+        )
+    )
+
+    assert "[   ok   ] Hook: Cloud sync completed." in stream.getvalue()
+
+
+def test_console_renderer_always_shows_verbose_only_hook_failures_in_normal_mode():
+    stream = StringIO()
+    renderer = ConsoleRenderer(theme=ConsoleTheme(use_color=False), stream=stream)
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Cloud sync",
+            ok=False,
+            message="Cloud sync failed",
+            error="full traceback hidden in normal",
+            console_visibility=HookConsoleVisibility.VERBOSE,
+        )
+    )
+
+    output = stream.getvalue()
+    assert "[ error  ] Hook: Cloud sync failed." in output
+    assert "[ cause  ] The shutdown hook raised an exception." in output
+    assert "[  next  ] Use verbose mode for more runtime details." in output
+    assert output.count("[ error  ]") == 1
+    assert output.count("[ cause  ]") == 1
+    assert output.count("[  next  ]") == 1
+    assert "full traceback hidden in normal" not in output
 
 
 def test_console_renderer_shutdown_hook_failure_is_redacted():

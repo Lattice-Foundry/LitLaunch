@@ -27,6 +27,7 @@ from litlaunch import (
     DiagnosticsReport,
     DiagnosticStatus,
     HealthChecker,
+    HookConsoleVisibility,
     HTMLDiagnosticsRenderer,
     JSONDiagnosticsRenderer,
     LauncherConfig,
@@ -109,6 +110,7 @@ def test_public_imports_are_available():
     assert DiagnosticsReport
     assert HTMLDiagnosticsRenderer
     assert HealthChecker
+    assert HookConsoleVisibility.NORMAL.value == "normal"
     assert JSONDiagnosticsRenderer
     assert issubclass(ConfigurationError, LitLaunchError)
     assert LaunchState.CREATED.value == "created"
@@ -190,6 +192,7 @@ def test_public_all_is_explicit():
         "DiagnosticsReport",
         "HTMLDiagnosticsRenderer",
         "HealthChecker",
+        "HookConsoleVisibility",
         "JSONDiagnosticsRenderer",
         "LaunchEvent",
         "LaunchMode",
@@ -252,8 +255,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.91.42b0"
-    assert __version__ == "0.91.42b0"
+    assert litlaunch.__version__ == "0.91.43b0"
+    assert __version__ == "0.91.43b0"
     assert re.fullmatch(r"\d+\.\d+\.\d+(?:b\d+)?", litlaunch.__version__)
 
 

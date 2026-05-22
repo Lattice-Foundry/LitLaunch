@@ -18,7 +18,7 @@ from litlaunch.runtime_console import (
     render_phase_warning,
     render_window_monitor_result,
 )
-from litlaunch.shutdown import ShutdownClient
+from litlaunch.shutdown import ShutdownClient, ShutdownHookResult
 from litlaunch.windowing import (
     WindowMonitor,
     WindowMonitorConfig,
@@ -160,6 +160,7 @@ class RuntimeSession:
                     "Graceful shutdown request accepted.",
                     render=False,
                 )
+                self._render_shutdown_hook_results(request_result.hook_results)
                 render_phase_success(
                     self.console_renderer,
                     ConsolePhase.SHUTDOWN,
@@ -211,6 +212,7 @@ class RuntimeSession:
                     "Graceful shutdown request failed; using termination fallback.",
                     render=False,
                 )
+                self._render_shutdown_hook_results(request_result.hook_results)
                 if self._is_verbose_console():
                     render_phase_warning(
                         self.console_renderer,
@@ -442,6 +444,15 @@ class RuntimeSession:
             return
         if released:
             self.console_renderer.success(f"Backend: port {port} released")
+
+    def _render_shutdown_hook_results(
+        self,
+        hook_results: tuple[ShutdownHookResult, ...],
+    ) -> None:
+        if self.console_renderer is None:
+            return
+        for hook_result in hook_results:
+            self.console_renderer.render_shutdown_hook_result(hook_result)
 
     def _is_verbose_console(self) -> bool:
         return (

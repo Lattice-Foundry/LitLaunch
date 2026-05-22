@@ -3,6 +3,14 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.43b0
+
+- Added shutdown hook console visibility metadata so app cleanup messages can
+  stay normal by default or become verbose-only when they are routine.
+- Routed app-side shutdown hook results back through LitLaunch console
+  rendering while keeping hook failures visible in normal mode with concise
+  error/cause/verbose-details guidance.
+
 ## 0.91.42b0
 
 - Tuned runtime console verbosity so normal mode keeps lifecycle milestones

@@ -61,6 +61,7 @@ from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.profiles import LaunchProfile, load_profile, load_profiles
 from litlaunch.session import RuntimeSession
 from litlaunch.shutdown import (
+    HookConsoleVisibility,
     LauncherRuntime,
     ShutdownClient,
     ShutdownConfig,
@@ -109,6 +110,7 @@ __all__ = [
     "get_theme_color",
     "hook_orange",
     "HealthChecker",
+    "HookConsoleVisibility",
     "DiagnosticCollector",
     "DiagnosticItem",
     "DiagnosticSection",

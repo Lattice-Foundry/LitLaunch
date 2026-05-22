@@ -146,7 +146,10 @@ output for those callbacks uses the orange `Hook:` category, not `Shutdown:` or
 `Backend:`, so app cleanup remains visually distinct from LitLaunch-owned
 lifecycle mechanics. Hook status brackets keep the normal status colors, hook
 message text remains unstyled for readability, and hook color metadata is
-preserved on hook results for integrations. The endpoint runs hooks, sends the
+preserved on hook results for integrations. Hooks can mark routine success
+messages as `console_visibility="verbose"`; failures stay visible in normal
+output through the standard error/cause/verbose-details guidance. The endpoint
+runs hooks, sends the
 HTTP response to LitLaunch, and then schedules the app-provided completion
 callback. Hooks and completion callbacks are idempotent for a single shutdown
 request sequence; duplicate shutdown requests return the stored result and do

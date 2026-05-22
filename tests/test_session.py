@@ -7,7 +7,7 @@ from litlaunch.console import ConsoleMode, ConsoleRenderer, ConsoleTheme
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess
 from litlaunch.session import RuntimeSession
-from litlaunch.shutdown import ShutdownRequestResult
+from litlaunch.shutdown import ShutdownHookResult, ShutdownRequestResult
 from litlaunch.windowing import (
     WindowInfo,
     WindowMonitorConfig,
@@ -59,8 +59,9 @@ class FakeProcessManager:
 
 
 class FakeShutdownClient:
-    def __init__(self, *, ok=True):
+    def __init__(self, *, ok=True, hook_results=()):
         self.ok = ok
+        self.hook_results = hook_results
         self.calls = 0
 
     def request_shutdown(self):
@@ -69,6 +70,7 @@ class FakeShutdownClient:
             ok=self.ok,
             status_code=200 if self.ok else 500,
             message="accepted" if self.ok else "failed",
+            hook_results=self.hook_results,
         )
 
 
@@ -416,6 +418,81 @@ def test_runtime_session_verbose_stop_emits_shutdown_request_details():
     assert "Shutdown: requesting app cleanup" in output
     assert "Shutdown: app cleanup request accepted" in output
     assert "Shutdown: complete; backend stopped cleanly in" in output
+
+
+def test_runtime_session_renders_shutdown_hook_results_from_graceful_response():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    shutdown_client = FakeShutdownClient(
+        ok=True,
+        hook_results=(
+            ShutdownHookResult(
+                label="Cloud sync",
+                ok=True,
+                message="Cloud sync completed",
+                console_visibility="normal",
+            ),
+            ShutdownHookResult(
+                label="Verbose cleanup",
+                ok=True,
+                message="Verbose cleanup completed",
+                console_visibility="verbose",
+            ),
+        ),
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session.stop(graceful_timeout_seconds=0.5)
+
+    output = stream.getvalue()
+    assert "[   ok   ] Hook: Cloud sync completed." in output
+    assert "Verbose cleanup completed" not in output
+
+
+def test_runtime_session_renders_verbose_shutdown_hook_results():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        mode=ConsoleMode.VERBOSE,
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    shutdown_client = FakeShutdownClient(
+        ok=True,
+        hook_results=(
+            ShutdownHookResult(
+                label="Verbose cleanup",
+                ok=True,
+                message="Verbose cleanup completed",
+                console_visibility="verbose",
+            ),
+        ),
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session.stop(graceful_timeout_seconds=0.5)
+
+    assert "[   ok   ] Hook: Verbose cleanup completed." in stream.getvalue()
 
 
 def test_runtime_session_reports_port_release_only_when_verified():

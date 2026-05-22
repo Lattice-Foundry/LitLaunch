@@ -264,6 +264,7 @@ runtime = LauncherRuntime.from_env()
     success_message="Resources closed",
     failure_message="Resource cleanup failed",
     color="success_green",
+    console_visibility="normal",
 )
 def close_resources():
     ...
@@ -284,6 +285,9 @@ so developer cleanup is separate from LitLaunch's own `Shutdown:` and `Backend:`
 lifecycle messages. Hook status still uses the normal `ok`/`warn`/`error` bracket
 colors, while hook message text stays unstyled for readability. Hook color metadata
 is preserved on hook results for integrations.
+Use `console_visibility="verbose"` for routine hook messages that should only
+appear in verbose runs. Hook failures are still shown in normal output with the
+standard error, cause, and verbose-details hint.
 Hook failures are reported separately from core shutdown failures. The optional
 completion callback runs after the endpoint response is sent to LitLaunch and is
 useful when an app needs to schedule its own final exit or post-response

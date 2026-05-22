@@ -3,6 +3,16 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.40b0
+
+- Upgraded browser-mode window observation to use a LitLaunch-managed
+  temporary Chromium profile for direct CLI launches, combining
+  `--user-data-dir`, `--new-window`, and window naming to make HWND detection
+  more deterministic.
+- Kept browser-mode observation non-controlling: LitLaunch watches for
+  user-closed windows and still falls back to Ctrl+C when no confident browser
+  window can be matched.
+
 ## 0.91.39b0
 
 - Enabled the browser-window lifecycle monitor for plain browser

@@ -1503,7 +1503,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.39b0"
+    assert data["litlaunch_version"] == "0.91.40b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -2541,7 +2541,15 @@ def test_cli_run_browser_mode_attempts_browser_window_monitor_by_default():
     assert session.monitor_calls == []
     assert monitor.capture_calls
     assert FakeLauncher.instances[0].config.browser == BrowserChoice.EDGE
-    assert FakeLauncher.instances[0].config.extra_browser_args == ("--new-window",)
+    browser_args = FakeLauncher.instances[0].config.extra_browser_args
+    assert "--new-window" in browser_args
+    assert "--no-first-run" in browser_args
+    assert "--no-default-browser-check" in browser_args
+    assert "--window-name=LitLaunch - Streamlit App" in browser_args
+    user_data_arg = next(
+        arg for arg in browser_args if arg.startswith("--user-data-dir=")
+    )
+    assert not Path(user_data_arg.split("=", 1)[1]).exists()
 
 
 def test_cli_run_browser_mode_hidden_monitor_opt_out_preserves_plain_wait():
@@ -2602,7 +2610,7 @@ def test_cli_run_browser_window_monitor_stops_on_window_close():
     assert code == 0
     assert session.stop_calls == 1
     assert session.wait_calls == 0
-    assert FakeLauncher.instances[0].config.extra_browser_args == ("--new-window",)
+    assert "--new-window" in FakeLauncher.instances[0].config.extra_browser_args
     assert "Monitor: watching browser window" in output
     assert "Monitor: Browser window closed; requesting shutdown." in output
 

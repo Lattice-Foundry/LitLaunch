@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import shutil
+import tempfile
+from contextlib import ExitStack
 from dataclasses import replace
 from typing import Any
 
@@ -126,119 +129,122 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
     config = runtime_config_from_args(args, profile=profile)
     monitor_options = monitor_options_from_args(args, profile, config)
     browser_window_options = browser_window_monitor_options_from_args(args, profile)
-    if (
-        getattr(args, "monitor_browser_window", None) is None
-        and config.mode == LaunchMode.BROWSER
-    ):
-        browser_window_options = replace(browser_window_options, enabled=True)
-        if profile is None and config.browser == BrowserChoice.AUTO:
-            config = replace(
+    with ExitStack() as cleanup:
+        if (
+            getattr(args, "monitor_browser_window", None) is None
+            and config.mode == LaunchMode.BROWSER
+        ):
+            browser_window_options = replace(browser_window_options, enabled=True)
+        if browser_window_options.enabled and profile is None:
+            config = _prepare_managed_browser_window_config(
                 config,
-                browser=BrowserChoice.EDGE,
-                extra_browser_args=_with_browser_window_arg(config.extra_browser_args),
+                dry_run=bool(args.dry_run),
+                cleanup=cleanup,
             )
-    if monitor_options.enabled and config.mode != LaunchMode.WEBAPP:
-        raise LitLaunchError("--monitor-window is only valid with --mode webapp.")
-    if browser_window_options.enabled and config.mode != LaunchMode.BROWSER:
-        raise LitLaunchError(
-            "browser-window monitoring is only valid with --mode browser."
-        )
-    platform_detector = context.platform_detector_factory()
-    if (
-        monitor_options.enabled
-        and not monitor_options.explicit
-        and not platform_detector.detect().supports_window_monitoring
-    ):
-        monitor_options = MonitorOptions(
-            enabled=False,
-            explicit=False,
+        if monitor_options.enabled and config.mode != LaunchMode.WEBAPP:
+            raise LitLaunchError("--monitor-window is only valid with --mode webapp.")
+        if browser_window_options.enabled and config.mode != LaunchMode.BROWSER:
+            raise LitLaunchError(
+                "browser-window monitoring is only valid with --mode browser."
+            )
+        platform_detector = context.platform_detector_factory()
+        if (
+            monitor_options.enabled
+            and not monitor_options.explicit
+            and not platform_detector.detect().supports_window_monitoring
+        ):
+            monitor_options = MonitorOptions(
+                enabled=False,
+                explicit=False,
+                graceful_timeout_seconds=monitor_options.graceful_timeout_seconds,
+                window_monitor_config=monitor_options.window_monitor_config,
+            )
+        launcher = context.launcher_factory(config, console_renderer=cli_renderer)
+        if args.dry_run:
+            plan = launcher.build_launch_plan()
+            cli_renderer.success(
+                "Runtime: dry run; backend and browser were not started."
+            )
+            cli_renderer.success(f"Runtime: app URL: {plan.app_url}")
+            cli_renderer.success(f"Runtime: mode: {config.mode.value}")
+            if plan.browser_resolution is not None:
+                cli_renderer.success(f"Browser: {plan.browser_resolution.message}")
+            write(context.stream, plan.command_display)
+            return 0
+
+        runtime_profile = LaunchProfile(
+            name=profile.name if profile is not None else "cli",
+            config=config,
+            monitor_window=monitor_options.enabled,
+            monitor_browser_window=browser_window_options.enabled,
             graceful_timeout_seconds=monitor_options.graceful_timeout_seconds,
             window_monitor_config=monitor_options.window_monitor_config,
+            browser_window_monitor_config=browser_window_options.window_monitor_config,
         )
-    launcher = context.launcher_factory(config, console_renderer=cli_renderer)
-    if args.dry_run:
-        plan = launcher.build_launch_plan()
-        cli_renderer.success("Runtime: dry run; backend and browser were not started.")
-        cli_renderer.success(f"Runtime: app URL: {plan.app_url}")
-        cli_renderer.success(f"Runtime: mode: {config.mode.value}")
-        if plan.browser_resolution is not None:
-            cli_renderer.success(f"Browser: {plan.browser_resolution.message}")
-        write(context.stream, plan.command_display)
-        return 0
+        run_result = run_profile(
+            runtime_profile,
+            launcher=launcher,
+            platform_detector=platform_detector,
+            window_monitor_factory=context.window_monitor_factory,
+        )
 
-    runtime_profile = LaunchProfile(
-        name=profile.name if profile is not None else "cli",
-        config=config,
-        monitor_window=monitor_options.enabled,
-        monitor_browser_window=browser_window_options.enabled,
-        graceful_timeout_seconds=monitor_options.graceful_timeout_seconds,
-        window_monitor_config=monitor_options.window_monitor_config,
-        browser_window_monitor_config=browser_window_options.window_monitor_config,
-    )
-    run_result = run_profile(
-        runtime_profile,
-        launcher=launcher,
-        platform_detector=platform_detector,
-        window_monitor_factory=context.window_monitor_factory,
-    )
-
-    if monitor_options.enabled:
-        if run_result.monitor_result is not None:
-            render_monitor_result_if_needed(
-                run_result.session,
-                cli_renderer,
-                run_result.monitor_result,
-            )
-        if not run_result.launched:
-            cli_renderer.failure_guidance(
-                run_result.message,
-                next_steps=(
-                    "Omit --monitor-window to launch without close detection.",
-                    (
-                        "Use Chromium app-mode on Windows for the strongest "
-                        "supported path."
+        if monitor_options.enabled:
+            if run_result.monitor_result is not None:
+                render_monitor_result_if_needed(
+                    run_result.session,
+                    cli_renderer,
+                    run_result.monitor_result,
+                )
+            if not run_result.launched:
+                cli_renderer.failure_guidance(
+                    run_result.message,
+                    next_steps=(
+                        "Omit --monitor-window to launch without close detection.",
+                        (
+                            "Use Chromium app-mode on Windows for the strongest "
+                            "supported path."
+                        ),
                     ),
-                ),
-            )
-        elif run_result.exit_code != 0:
+                )
+            elif run_result.exit_code != 0:
+                cli_renderer.failure_guidance(run_result.message)
+            return run_result.exit_code
+
+        session = run_result.session
+        if session is None:
             cli_renderer.failure_guidance(run_result.message)
-        return run_result.exit_code
+            return run_result.exit_code
+        if not session.ok:
+            cli_renderer.failure_guidance(
+                "Runtime: launch failed.",
+                likely_cause=session.result.message,
+                next_steps=(
+                    "Run the app directly with streamlit run to compare behavior.",
+                ),
+                suggest_inspect=True,
+            )
+            return 1
 
-    session = run_result.session
-    if session is None:
-        cli_renderer.failure_guidance(run_result.message)
-        return run_result.exit_code
-    if not session.ok:
-        cli_renderer.failure_guidance(
-            "Runtime: launch failed.",
-            likely_cause=session.result.message,
-            next_steps=(
-                "Run the app directly with streamlit run to compare behavior.",
-            ),
-            suggest_inspect=True,
-        )
-        return 1
+        if (
+            browser_window_options.enabled
+            and run_result.monitor_result is not None
+            and run_result.monitor_result.closed
+        ):
+            return run_result.exit_code
 
-    if (
-        browser_window_options.enabled
-        and run_result.monitor_result is not None
-        and run_result.monitor_result.closed
-    ):
-        return run_result.exit_code
+        cli_renderer.success(f"Runtime active at {session.url}")
+        cli_renderer.info_status("Press Ctrl+C to stop this session")
+        if session.process is None:
+            return 0
 
-    cli_renderer.success(f"Runtime active at {session.url}")
-    cli_renderer.info_status("Press Ctrl+C to stop this session")
-    if session.process is None:
-        return 0
+        try:
+            returncode = session.wait()
+        except KeyboardInterrupt:
+            cli_renderer.warning("Runtime: interrupt received; stopping runtime.")
+            session.stop()
+            return 0
 
-    try:
-        returncode = session.wait()
-    except KeyboardInterrupt:
-        cli_renderer.warning("Runtime: interrupt received; stopping runtime.")
-        session.stop()
-        return 0
-
-    return int(returncode or 0)
+        return int(returncode or 0)
 
 
 def render_monitor_result_if_needed(
@@ -281,12 +287,78 @@ def _render_browser_capability(cli_renderer: ConsoleRenderer, capability) -> Non
         cli_renderer.warning(message)
 
 
+def _prepare_managed_browser_window_config(
+    config,
+    *,
+    dry_run: bool,
+    cleanup: ExitStack,
+):
+    """Return browser config that encourages a monitorable top-level window."""
+
+    if config.mode != LaunchMode.BROWSER:
+        return config
+    if config.browser == BrowserChoice.DEFAULT:
+        return config
+
+    browser = (
+        BrowserChoice.EDGE if config.browser == BrowserChoice.AUTO else config.browser
+    )
+    extra_args = config.extra_browser_args
+    if not dry_run:
+        profile_dir = tempfile.mkdtemp(prefix="litlaunch-browser-")
+        cleanup.callback(shutil.rmtree, profile_dir, ignore_errors=True)
+        extra_args = _with_managed_browser_window_args(
+            extra_args,
+            profile_dir=profile_dir,
+            title=config.title,
+        )
+    elif browser != BrowserChoice.AUTO:
+        extra_args = _with_browser_window_arg(extra_args)
+
+    return replace(config, browser=browser, extra_browser_args=extra_args)
+
+
 def _with_browser_window_arg(args: tuple[str, ...]) -> tuple[str, ...]:
-    """Return browser args that encourage a monitorable top-level window."""
+    """Return browser args with a new-window launch hint."""
 
     if any(str(arg).strip().lower() == "--new-window" for arg in args):
         return args
     return (*args, "--new-window")
+
+
+def _with_managed_browser_window_args(
+    args: tuple[str, ...],
+    *,
+    profile_dir: str,
+    title: str,
+) -> tuple[str, ...]:
+    """Return browser args for isolated LitLaunch-managed browser windows."""
+
+    result = list(args)
+    _append_switch_once(result, f"--user-data-dir={profile_dir}", "--user-data-dir")
+    _append_switch_once(result, "--no-first-run", "--no-first-run")
+    _append_switch_once(
+        result,
+        "--no-default-browser-check",
+        "--no-default-browser-check",
+    )
+    _append_switch_once(
+        result,
+        f"--window-name=LitLaunch - {title}",
+        "--window-name",
+    )
+    return _with_browser_window_arg(tuple(result))
+
+
+def _append_switch_once(args: list[str], value: str, switch: str) -> None:
+    normalized = f"{switch.lower()}="
+    if any(
+        str(arg).strip().lower() == switch.lower()
+        or str(arg).strip().lower().startswith(normalized)
+        for arg in args
+    ):
+        return
+    args.append(value)
 
 
 def _display_value(value: object) -> str:

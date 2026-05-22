@@ -3,6 +3,15 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.41b0
+
+- Hardened managed Chromium/Edge browser-window launches by seeding temporary
+  profiles with first-run state and adding sync/onboarding/default-browser
+  suppression switches.
+- Kept the managed browser profile temporary and non-controlling: LitLaunch
+  still observes user-closed browser windows and removes the temporary profile
+  after the runtime exits.
+
 ## 0.91.40b0
 
 - Upgraded browser-mode window observation to use a LitLaunch-managed

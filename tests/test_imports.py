@@ -252,8 +252,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.91.40b0"
-    assert __version__ == "0.91.40b0"
+    assert litlaunch.__version__ == "0.91.41b0"
+    assert __version__ == "0.91.41b0"
     assert re.fullmatch(r"\d+\.\d+\.\d+(?:b\d+)?", litlaunch.__version__)
 
 

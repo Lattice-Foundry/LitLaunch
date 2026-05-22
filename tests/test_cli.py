@@ -1503,7 +1503,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.40b0"
+    assert data["litlaunch_version"] == "0.91.41b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -2544,7 +2544,14 @@ def test_cli_run_browser_mode_attempts_browser_window_monitor_by_default():
     browser_args = FakeLauncher.instances[0].config.extra_browser_args
     assert "--new-window" in browser_args
     assert "--no-first-run" in browser_args
+    assert "--disable-first-run-ui" in browser_args
     assert "--no-default-browser-check" in browser_args
+    assert "--disable-default-browser-promo" in browser_args
+    assert "--disable-default-apps" in browser_args
+    assert "--disable-sync" in browser_args
+    assert "--disable-background-networking" in browser_args
+    assert "--disable-component-update" in browser_args
+    assert "--disable-features=msEdgeEnableNurturingFramework" in browser_args
     assert "--window-name=LitLaunch - Streamlit App" in browser_args
     user_data_arg = next(
         arg for arg in browser_args if arg.startswith("--user-data-dir=")

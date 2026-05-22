@@ -254,7 +254,7 @@ overlap, but it does not deduplicate duplicate user options across both inputs.
 Streamlit apps can opt into graceful cleanup when launched by LitLaunch:
 
 ```python
-from litlaunch import LauncherRuntime
+from litlaunch import LauncherRuntime, ShutdownHookStatus
 
 runtime = LauncherRuntime.from_env()
 
@@ -270,6 +270,17 @@ def close_resources():
     ...
 
 
+@runtime.shutdown_hook(label="Cloud backup sync")
+def sync_backups():
+    result = run_cloud_sync()
+    if not result.configured:
+        return ShutdownHookStatus(render=False)
+    return ShutdownHookStatus(
+        message="Cloud sync: Staged cloud sync completed.",
+        console_visibility="normal",
+    )
+
+
 def finish_after_response(result):
     if result.ok:
         ...
@@ -280,14 +291,16 @@ runtime.enable_shutdown_endpoint()
 ```
 
 Shutdown hooks run before the endpoint responds to LitLaunch. Hook labels and
-messages are app-owned presentation hints; console rendering uses the orange `Hook:` category
-so developer cleanup is separate from LitLaunch's own `Shutdown:` and `Backend:`
-lifecycle messages. Hook status still uses the normal `ok`/`warn`/`error` bracket
-colors, while hook message text stays unstyled for readability. Hook color metadata
-is preserved on hook results for integrations.
+messages are app-owned presentation hints; console rendering uses the orange `Hook:` category so developer cleanup is separate from LitLaunch's own `Shutdown:`
+and `Backend:` lifecycle messages. Hook status still uses the normal
+`ok`/`warn`/`error` bracket colors, while hook message text stays unstyled for
+readability. Hook color metadata is preserved on hook results for integrations.
 Use `console_visibility="verbose"` for routine hook messages that should only
 appear in verbose runs. Hook failures are still shown in normal output with the
 standard error, cause, and verbose-details hint.
+When a hook needs a run-specific message, return `ShutdownHookStatus` instead of
+printing directly to stdout. `ShutdownHookStatus(render=False)` suppresses
+successful no-op hooks while still letting failures surface normally.
 Hook failures are reported separately from core shutdown failures. The optional
 completion callback runs after the endpoint response is sent to LitLaunch and is
 useful when an app needs to schedule its own final exit or post-response

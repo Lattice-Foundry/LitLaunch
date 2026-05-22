@@ -939,6 +939,7 @@ def test_launcher_emits_high_level_console_messages_without_tokens():
     assert "[   ok   ] Backend: starting Streamlit..." not in output
     assert "Backend: started Streamlit in" in output
     assert "Backend PID: 999" not in output
+    assert "[   ok   ] Health: waiting for Streamlit...\n\n" in output
     assert "Health: ready in" in output
     assert "Browser: opening Edge app window" not in output
     assert "Browser: browser launched in" in output

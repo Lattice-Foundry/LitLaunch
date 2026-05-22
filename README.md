@@ -102,7 +102,9 @@ Shutdown hooks are useful for saving state, syncing data, local AI workflows,
 temporary resource cleanup, logging/export tasks, and other app-owned cleanup.
 They are optional when you need them and invisible when you do not. Routine hook
 messages can also be marked verbose-only while failures remain visible in normal
-output.
+output. Hooks that need run-specific messages can return `ShutdownHookStatus`
+so app cleanup still flows through LitLaunch's standard `Hook:` console lines
+instead of raw app prints.
 
 ### Runtime governance without enterprise bloat
 

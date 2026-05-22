@@ -57,6 +57,7 @@ from litlaunch import (
     ShutdownHook,
     ShutdownHookRegistry,
     ShutdownHookResult,
+    ShutdownHookStatus,
     ShutdownRequestResult,
     ShutdownResult,
     StreamlitBackendCommandProvider,
@@ -138,6 +139,7 @@ def test_public_imports_are_available():
     assert ShutdownHook
     assert ShutdownHookRegistry
     assert ShutdownHookResult
+    assert ShutdownHookStatus
     assert ShutdownRequestResult
     assert ShutdownResult
     assert StreamlitBackendCommandProvider
@@ -223,6 +225,7 @@ def test_public_all_is_explicit():
         "ShutdownHook",
         "ShutdownHookRegistry",
         "ShutdownHookResult",
+        "ShutdownHookStatus",
         "ShutdownRequestResult",
         "ShutdownResult",
         "StreamlitBackendCommandProvider",
@@ -255,8 +258,8 @@ def test_public_all_is_explicit():
 
 
 def test_version_is_public_and_internal_baseline():
-    assert litlaunch.__version__ == "0.91.43b0"
-    assert __version__ == "0.91.43b0"
+    assert litlaunch.__version__ == "0.91.44b0"
+    assert __version__ == "0.91.44b0"
     assert re.fullmatch(r"\d+\.\d+\.\d+(?:b\d+)?", litlaunch.__version__)
 
 

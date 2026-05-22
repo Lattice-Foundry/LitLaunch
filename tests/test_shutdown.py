@@ -20,6 +20,8 @@ from litlaunch.shutdown import (
     ShutdownConfig,
     ShutdownHook,
     ShutdownHookRegistry,
+    ShutdownHookResult,
+    ShutdownHookStatus,
     _is_loopback_host,
 )
 
@@ -106,6 +108,94 @@ def test_shutdown_registry_registers_and_runs_hooks_in_order():
     assert result.hook_results[1].message == "Two done"
     assert result.hook_results[1].color == "blue"
     assert result.hook_results[1].console_visibility == HookConsoleVisibility.VERBOSE
+
+
+def test_shutdown_registry_uses_dynamic_hook_status_message():
+    registry = ShutdownHookRegistry()
+
+    registry.register(
+        lambda: ShutdownHookStatus(
+            message="Cloud sync: Staged cloud sync completed.",
+            console_visibility="verbose",
+        ),
+        label="Cloud backup sync",
+        success_message="Cloud backup sync complete.",
+    )
+
+    result = registry.run_all()
+
+    assert result.ok is True
+    assert len(result.hook_results) == 1
+    hook_result = result.hook_results[0]
+    assert hook_result.ok is True
+    assert hook_result.label == "Cloud backup sync"
+    assert hook_result.message == "Cloud sync: Staged cloud sync completed."
+    assert hook_result.console_visibility == HookConsoleVisibility.VERBOSE
+
+
+def test_shutdown_registry_can_suppress_routine_dynamic_success_message():
+    calls = []
+    registry = ShutdownHookRegistry()
+
+    registry.register(
+        lambda: calls.append("cleanup") or ShutdownHookStatus(render=False),
+        label="Cleanup",
+    )
+
+    result = registry.run_all()
+
+    assert calls == ["cleanup"]
+    assert result.ok is True
+    assert result.hook_results[0].render is False
+
+
+def test_shutdown_registry_can_use_dynamic_failure_status_without_exception():
+    calls = []
+    registry = ShutdownHookRegistry()
+
+    registry.register(
+        lambda: (
+            calls.append("fail")
+            or ShutdownHookStatus(
+                ok=False,
+                message="Cloud sync warning: pending work was preserved.",
+            )
+        ),
+        label="Cloud backup sync",
+        failure_message="Cloud backup sync failed.",
+        continue_on_error=False,
+    )
+    registry.register(lambda: calls.append("after"), label="After")
+
+    result = registry.run_all()
+
+    assert calls == ["fail"]
+    assert result.ok is False
+    assert result.hook_results[0].ok is False
+    assert result.hook_results[0].message == (
+        "Cloud sync warning: pending work was preserved."
+    )
+
+
+def test_shutdown_registry_accepts_hook_result_return_for_advanced_integrations():
+    registry = ShutdownHookRegistry()
+
+    registry.register(
+        lambda: ShutdownHookResult(
+            label="Ignored",
+            ok=True,
+            message="Integration supplied message",
+            console_visibility="verbose",
+        ),
+        label="Integration hook",
+    )
+
+    result = registry.run_all()
+
+    assert result.ok is True
+    assert result.hook_results[0].label == "Integration hook"
+    assert result.hook_results[0].message == "Integration supplied message"
+    assert result.hook_results[0].console_visibility == HookConsoleVisibility.VERBOSE
 
 
 def test_shutdown_registry_continues_on_error_by_default():
@@ -278,6 +368,7 @@ def test_shutdown_endpoint_valid_post_runs_hooks_without_exposing_token():
     assert payload["ok"] is True
     assert payload["hook_results"][0]["label"] == "Cleanup"
     assert payload["hook_results"][0]["console_visibility"] == "normal"
+    assert payload["hook_results"][0]["render"] is True
     assert "secret-token" not in body
 
 
@@ -533,6 +624,7 @@ def test_shutdown_client_parses_hook_results_from_response_payload():
                         "error": None,
                         "color": "project_custom_color",
                         "console_visibility": "verbose",
+                        "render": False,
                     }
                 ],
             }
@@ -555,6 +647,7 @@ def test_shutdown_client_parses_hook_results_from_response_payload():
     assert result.hook_results[0].message == "Cleanup complete"
     assert result.hook_results[0].color == "project_custom_color"
     assert result.hook_results[0].console_visibility == HookConsoleVisibility.VERBOSE
+    assert result.hook_results[0].render is False
 
 
 def test_shutdown_client_formats_ipv6_loopback_url_with_brackets():

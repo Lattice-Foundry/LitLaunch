@@ -3,6 +3,14 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.44b0
+
+- Added `ShutdownHookStatus` so shutdown hooks can return run-specific console
+  messages, verbose-only visibility, or suppress routine no-op success output
+  without printing raw app-owned status lines.
+- Documented the normal/verbose shutdown hook visibility pattern and the
+  dynamic hook-status return contract for app integrations.
+
 ## 0.91.43b0
 
 - Added shutdown hook console visibility metadata so app cleanup messages can

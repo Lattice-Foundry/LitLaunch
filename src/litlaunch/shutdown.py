@@ -32,6 +32,25 @@ class HookConsoleVisibility(str, Enum):
 
 
 @dataclass(frozen=True)
+class ShutdownHookStatus:
+    """Optional status returned by a shutdown hook to customize console output."""
+
+    message: str | None = None
+    ok: bool = True
+    color: str | None = None
+    console_visibility: HookConsoleVisibility | str | None = None
+    render: bool = True
+
+    def __post_init__(self) -> None:
+        if self.console_visibility is not None:
+            object.__setattr__(
+                self,
+                "console_visibility",
+                _normalize_hook_console_visibility(self.console_visibility),
+            )
+
+
+@dataclass(frozen=True)
 class ShutdownHook:
     """A cleanup hook registered by a Streamlit app."""
 
@@ -65,6 +84,7 @@ class ShutdownHookResult:
     error: str | None = None
     color: str | None = None
     console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL
+    render: bool = True
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -196,7 +216,7 @@ class ShutdownHookRegistry:
         results: list[ShutdownHookResult] = []
         for hook in self._hooks:
             try:
-                hook.func()
+                status = _normalize_hook_return(hook.func())
             except Exception as exc:
                 results.append(
                     ShutdownHookResult(
@@ -212,16 +232,33 @@ class ShutdownHookRegistry:
                 if not hook.continue_on_error:
                     break
             else:
+                message = (
+                    status.message
+                    if status.message is not None
+                    else (hook.success_message if status.ok else hook.failure_message)
+                )
+                if message is None:
+                    message = (
+                        f"Shutdown hook completed: {hook.label}"
+                        if status.ok
+                        else f"Shutdown hook failed: {hook.label}"
+                    )
                 results.append(
                     ShutdownHookResult(
                         label=hook.label,
-                        ok=True,
-                        message=hook.success_message
-                        or f"Shutdown hook completed: {hook.label}",
-                        color=hook.color,
-                        console_visibility=hook.console_visibility,
+                        ok=status.ok,
+                        message=message,
+                        color=status.color if status.color is not None else hook.color,
+                        console_visibility=(
+                            status.console_visibility
+                            if status.console_visibility is not None
+                            else hook.console_visibility
+                        ),
+                        render=status.render,
                     )
                 )
+                if not status.ok and not hook.continue_on_error:
+                    break
 
         ok = all(result.ok for result in results)
         return ShutdownResult(
@@ -582,6 +619,7 @@ def _hook_result_to_payload(result: ShutdownHookResult) -> dict[str, object]:
         "error": None,
         "color": result.color,
         "console_visibility": result.console_visibility.value,
+        "render": result.render,
     }
 
 
@@ -617,11 +655,26 @@ def _hook_results_from_payload(
                             HookConsoleVisibility.NORMAL.value,
                         )
                     ),
+                    render=bool(raw_item.get("render", True)),
                 )
             )
         except ConfigurationError:
             continue
     return tuple(results)
+
+
+def _normalize_hook_return(value: object) -> ShutdownHookStatus:
+    if isinstance(value, ShutdownHookStatus):
+        return value
+    if isinstance(value, ShutdownHookResult):
+        return ShutdownHookStatus(
+            message=value.message,
+            ok=value.ok,
+            color=value.color,
+            console_visibility=value.console_visibility,
+            render=value.render,
+        )
+    return ShutdownHookStatus()
 
 
 def _read_shutdown_response_payload(response: object) -> dict[str, object]:

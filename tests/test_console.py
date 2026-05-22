@@ -471,6 +471,38 @@ def test_console_renderer_always_shows_verbose_only_hook_failures_in_normal_mode
     assert "full traceback hidden in normal" not in output
 
 
+def test_console_renderer_suppresses_success_hooks_marked_not_rendered():
+    stream = StringIO()
+    renderer = ConsoleRenderer(theme=ConsoleTheme(use_color=False), stream=stream)
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="No-op cleanup",
+            ok=True,
+            message="No-op cleanup complete",
+            render=False,
+        )
+    )
+
+    assert stream.getvalue() == ""
+
+
+def test_console_renderer_still_shows_failures_marked_not_rendered():
+    stream = StringIO()
+    renderer = ConsoleRenderer(theme=ConsoleTheme(use_color=False), stream=stream)
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Cleanup",
+            ok=False,
+            message="Cleanup failed",
+            render=False,
+        )
+    )
+
+    assert "[ error  ] Hook: Cleanup failed." in stream.getvalue()
+
+
 def test_console_renderer_shutdown_hook_failure_is_redacted():
     stream = StringIO()
     renderer = ConsoleRenderer(

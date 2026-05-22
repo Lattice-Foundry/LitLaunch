@@ -242,6 +242,8 @@ def _wait_for_backend_health(
         render=False,
     )
     render_phase_start(console_renderer, ConsolePhase.HEALTH, "waiting for Streamlit")
+    if console_renderer is not None:
+        console_renderer.blank()
     health_start_time = clock.monotonic()
     healthy = health_checker.wait_until_healthy(
         health_url,

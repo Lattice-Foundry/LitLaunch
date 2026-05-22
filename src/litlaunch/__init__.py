@@ -68,6 +68,7 @@ from litlaunch.shutdown import (
     ShutdownHook,
     ShutdownHookRegistry,
     ShutdownHookResult,
+    ShutdownHookStatus,
     ShutdownRequestResult,
     ShutdownResult,
 )
@@ -149,6 +150,7 @@ __all__ = [
     "ShutdownHook",
     "ShutdownHookRegistry",
     "ShutdownHookResult",
+    "ShutdownHookStatus",
     "ShutdownRequestResult",
     "ShutdownResult",
     "StreamlitCommandBuilder",

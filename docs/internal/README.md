@@ -36,6 +36,7 @@ Do not use these notes as:
 - [RoleThread Handoff Checklist](rolethread_handoff_checklist.md)
 - [RoleThread Runtime Mapping](rolethread_runtime_mapping.md)
 - [RoleThread Test Matrix](rolethread_test_matrix.md)
+- [RoleThread / LitLaunch Manual Test Plan](rolethread_litlaunch_manual_test_plan.md)
 - [Known Beta Issues](known_beta_issues.md)
 
 ## Removal Expectation

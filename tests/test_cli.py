@@ -1223,14 +1223,14 @@ def test_cli_console_preview_outputs_representative_normal_messages():
     assert "== Normal mode ==" in output
     assert "[   ok   ] LitLaunch Starting runtime..." in output
     assert "== Backend ==" in output
-    assert "[   ok   ] Backend: starting Streamlit..." in output
+    assert "[   ok   ] Backend: starting Streamlit..." not in output
     assert "[   ok   ] Backend: started Streamlit in 0.3s." in output
     assert "[ error  ] Backend: startup failed." in output
     assert "Backend PID: 12345" not in output
     assert "[   ok   ] Health: waiting for Streamlit..." in output
     assert "[ error  ] Health: backend did not become healthy before timeout." in output
     assert "Health: backend did not become healthy before timeout." in output
-    assert "[   ok   ] Browser: opening Microsoft Edge app window..." in output
+    assert "[   ok   ] Browser: opening Microsoft Edge app window..." not in output
     assert "[ error  ] Browser: launch failed; stopping backend." in output
     assert "[  warn  ] Browser: Microsoft Edge unavailable." in output
     assert "[  next  ] Using Chrome app-mode instead." in output
@@ -1239,7 +1239,8 @@ def test_cli_console_preview_outputs_representative_normal_messages():
     assert "[   ok   ] Monitor: watching app window..." in output
     assert "[ error  ] Monitor: window monitoring is unavailable." in output
     assert "Monitor: timed out before app window was observed." in output
-    assert "[   ok   ] Shutdown: requesting app cleanup..." in output
+    assert "[   ok   ] Shutdown: requesting app cleanup..." not in output
+    assert "[   ok   ] Shutdown: app cleanup request accepted." not in output
     assert "Stopping backend: terminating owned backend process" not in output
     assert "Stopping backend:" not in output
     assert "Runtime launch failed." not in output
@@ -1271,6 +1272,11 @@ def test_cli_console_preview_verbose_keeps_detailed_guidance():
     output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "== Verbose mode ==" in output
+    assert "[   ok   ] Backend: starting Streamlit..." in output
+    assert "[   ok   ] Browser: opening Microsoft Edge app window..." in output
+    assert "[   ok   ] Shutdown: requested." in output
+    assert "[   ok   ] Shutdown: requesting app cleanup..." in output
+    assert "[   ok   ] Shutdown: app cleanup request accepted." in output
     assert "Backend PID: 12345" in output
     assert "Run the app directly with streamlit run to see the traceback." in output
     assert 'Run "litlaunch inspect" for local diagnostics.' in output
@@ -1503,7 +1509,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.41b0"
+    assert data["litlaunch_version"] == "0.91.42b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

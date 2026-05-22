@@ -936,11 +936,11 @@ def test_launcher_emits_high_level_console_messages_without_tokens():
     assert session.ok is True
     assert "[   ok   ] LitLaunch Starting runtime..." in output
     assert "[LitLaunch]" not in output
-    assert "[   ok   ] Backend: starting Streamlit..." in output
+    assert "[   ok   ] Backend: starting Streamlit..." not in output
     assert "Backend: started Streamlit in" in output
     assert "Backend PID: 999" not in output
     assert "Health: ready in" in output
-    assert "Browser: opening Edge app window" in output
+    assert "Browser: opening Edge app window" not in output
     assert "Browser: browser launched in" in output
     assert "Runtime: ready at http://127.0.0.1:8609" in output
     assert token not in output
@@ -967,4 +967,5 @@ def test_launcher_verbose_console_emits_command_detail():
     output = stream.getvalue()
     assert session.ok is True
     assert "Command:" in output
+    assert "[   ok   ] Backend: starting Streamlit..." in output
     assert "--server.port 8612" in output

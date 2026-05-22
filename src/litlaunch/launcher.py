@@ -223,6 +223,7 @@ class StreamlitLauncher:
             self.console_renderer,
             ConsolePhase.BROWSER,
             f"opening {browser_name} {browser_mode}",
+            verbose_only=True,
         )
         browser_start_time = self.clock.monotonic()
         browser_result = self.browser_launcher.launch(

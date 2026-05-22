@@ -91,9 +91,13 @@ def render_phase_start(
     renderer: ConsoleRenderer | None,
     phase: ConsolePhase,
     message: str,
+    *,
+    verbose_only: bool = False,
 ) -> None:
     """Render the start of a runtime phase."""
 
+    if verbose_only and (renderer is None or renderer.mode.value != "verbose"):
+        return
     if renderer is not None:
         renderer.phase_start(phase, message)
 
@@ -104,9 +108,12 @@ def render_phase_success(
     message: str,
     *,
     elapsed_seconds: float | None = None,
+    verbose_only: bool = False,
 ) -> None:
     """Render successful completion of a runtime phase."""
 
+    if verbose_only and (renderer is None or renderer.mode.value != "verbose"):
+        return
     if renderer is not None:
         renderer.phase_success(phase, message, elapsed_seconds=elapsed_seconds)
 

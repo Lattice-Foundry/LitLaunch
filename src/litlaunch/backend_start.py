@@ -125,6 +125,7 @@ def start_backend_process(
             console_renderer,
             ConsolePhase.BACKEND,
             backend_start_message(backend_command.description),
+            verbose_only=True,
         )
         backend_start_time = clock.monotonic()
         managed_process = process_manager.start(

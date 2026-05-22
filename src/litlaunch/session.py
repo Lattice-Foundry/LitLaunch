@@ -134,7 +134,12 @@ class RuntimeSession:
             return
 
         stop_start_time = self.clock.monotonic()
-        render_phase_start(self.console_renderer, ConsolePhase.SHUTDOWN, "requested")
+        render_phase_start(
+            self.console_renderer,
+            ConsolePhase.SHUTDOWN,
+            "requested",
+            verbose_only=True,
+        )
 
         if self._shutdown_client is not None and self.is_running():
             self.add_event(
@@ -146,6 +151,7 @@ class RuntimeSession:
                 self.console_renderer,
                 ConsolePhase.SHUTDOWN,
                 "requesting app cleanup",
+                verbose_only=True,
             )
             request_result = self._shutdown_client.request_shutdown()
             if request_result.ok:
@@ -158,6 +164,7 @@ class RuntimeSession:
                     self.console_renderer,
                     ConsolePhase.SHUTDOWN,
                     "app cleanup request accepted",
+                    verbose_only=True,
                 )
                 try:
                     returncode = self.process_manager.wait(

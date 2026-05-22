@@ -219,10 +219,8 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
         if not session.ok:
             cli_renderer.failure_guidance(
                 "Runtime: launch failed.",
-                likely_cause=session.result.message,
-                next_steps=(
-                    "Run the app directly with streamlit run to compare behavior.",
-                ),
+                likely_cause=_runtime_failure_cause(session.result.message),
+                next_steps=_runtime_failure_next_steps(session.result.message),
                 suggest_inspect=True,
             )
             return 1
@@ -437,6 +435,26 @@ def _append_comma_switch_values_once(
         if value not in merged:
             merged.append(value)
     args[existing_index] = f"{switch}={','.join(merged)}"
+
+
+def _runtime_failure_cause(message: str) -> str:
+    """Return a concise cause for runtime launch failures."""
+
+    if "exited before becoming healthy" in message:
+        return "Streamlit backend process exited before becoming healthy."
+    return message
+
+
+def _runtime_failure_next_steps(message: str) -> tuple[str, ...]:
+    """Return actionable next steps for runtime launch failures."""
+
+    if "exited before becoming healthy" in message:
+        return (
+            "Verify Streamlit is installed in this Python environment.",
+            "Run the app directly with streamlit run to see any startup traceback.",
+            "Check for invalid Streamlit CLI options or app startup errors.",
+        )
+    return ("Run the app directly with streamlit run to compare behavior.",)
 
 
 def _display_value(value: object) -> str:

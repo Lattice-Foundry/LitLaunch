@@ -107,7 +107,8 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     console.success("Runtime: dry run; backend and browser were not started.")
 
     _section(console, "Backend")
-    console.phase_start(ConsolePhase.BACKEND, "starting Streamlit")
+    if console.mode == ConsoleMode.VERBOSE:
+        console.phase_start(ConsolePhase.BACKEND, "starting Streamlit")
     console.phase_success(
         ConsolePhase.BACKEND,
         "started Streamlit",
@@ -141,7 +142,8 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     )
 
     _section(console, "Browser")
-    console.phase_start(ConsolePhase.BROWSER, "opening Microsoft Edge app window")
+    if console.mode == ConsoleMode.VERBOSE:
+        console.phase_start(ConsolePhase.BROWSER, "opening Microsoft Edge app window")
     console.phase_success(
         ConsolePhase.BROWSER,
         "browser launched",
@@ -231,8 +233,9 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     )
 
     _section(console, "Shutdown")
-    console.phase_start(ConsolePhase.SHUTDOWN, "requested")
-    console.phase_start(ConsolePhase.SHUTDOWN, "requesting app cleanup")
+    if console.mode == ConsoleMode.VERBOSE:
+        console.phase_start(ConsolePhase.SHUTDOWN, "requested")
+        console.phase_start(ConsolePhase.SHUTDOWN, "requesting app cleanup")
     console.phase_start(ConsolePhase.HOOK, "closing database connections")
     console.render_shutdown_hook_result(
         ShutdownHookResult(
@@ -252,7 +255,8 @@ def render_console_preview(console: ConsoleRenderer) -> None:
             color=streamlit_blue,
         )
     )
-    console.phase_success(ConsolePhase.SHUTDOWN, "app cleanup request accepted")
+    if console.mode == ConsoleMode.VERBOSE:
+        console.phase_success(ConsolePhase.SHUTDOWN, "app cleanup request accepted")
     if console.mode == ConsoleMode.VERBOSE:
         console.phase_warning(
             ConsolePhase.BACKEND,

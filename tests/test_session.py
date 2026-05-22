@@ -3,7 +3,7 @@ from io import StringIO
 
 from litlaunch._protocols import ClockProvider
 from litlaunch.browsers import BrowserCapability, BrowserKind
-from litlaunch.console import ConsoleRenderer, ConsoleTheme
+from litlaunch.console import ConsoleMode, ConsoleRenderer, ConsoleTheme
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess
 from litlaunch.session import RuntimeSession
@@ -383,11 +383,39 @@ def test_runtime_session_stop_emits_console_shutdown_messages():
     session.stop(graceful_timeout_seconds=0.5)
 
     output = stream.getvalue()
+    assert "Shutdown: requested" not in output
+    assert "Shutdown: requesting app cleanup" not in output
+    assert "Shutdown: app cleanup request accepted" not in output
+    assert "Shutdown: complete; backend stopped cleanly in" in output
+    assert "exited with code 0" not in output
+
+
+def test_runtime_session_verbose_stop_emits_shutdown_request_details():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        mode=ConsoleMode.VERBOSE,
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    shutdown_client = FakeShutdownClient(ok=True)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session.stop(graceful_timeout_seconds=0.5)
+
+    output = stream.getvalue()
     assert "Shutdown: requested" in output
     assert "Shutdown: requesting app cleanup" in output
     assert "Shutdown: app cleanup request accepted" in output
     assert "Shutdown: complete; backend stopped cleanly in" in output
-    assert "exited with code 0" not in output
 
 
 def test_runtime_session_reports_port_release_only_when_verified():

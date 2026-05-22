@@ -3,6 +3,13 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.42b0
+
+- Tuned runtime console verbosity so normal mode keeps lifecycle milestones
+  while verbose mode shows backend/browser handoff and shutdown request details.
+- Split early backend health failure guidance into a concise cause plus
+  actionable next-step lines.
+
 ## 0.91.41b0
 
 - Hardened managed Chromium/Edge browser-window launches by seeding temporary

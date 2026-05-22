@@ -3,6 +3,23 @@
 LitLaunch is in beta stabilization. Entries are intentionally concise while the
 public API finishes settling.
 
+## 0.91.39b0
+
+- Enabled the browser-window lifecycle monitor for plain browser
+  CLI launches so `litlaunch app.py` can exercise the HWND baseline/diff path
+  without extra flags.
+- For plain auto-browser CLI launches, LitLaunch now nudges browser-mode launches
+  toward a monitorable Edge/Chromium new-window launch while retaining a hidden
+  opt-out and Ctrl+C fallback.
+
+## 0.91.38b0
+
+- Added a browser-window lifecycle monitor for explicit
+  Edge/Chrome browser mode using pre-launch HWND baselines and exact-window
+  close observation.
+- Kept normal browser-mode defaults unchanged: Ctrl+C remains the guaranteed
+  shutdown path and webapp mode remains the recommended close-to-shutdown flow.
+
 ## 0.91.37b0
 
 - Clarified browser-mode runtime messaging so users know Ctrl+C is the

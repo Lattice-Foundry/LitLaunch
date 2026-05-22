@@ -255,6 +255,29 @@ def test_browser_mode_launch_can_fallback_to_default_browser():
     assert len(calls) == 1
 
 
+def test_browser_mode_launch_places_extra_args_before_url():
+    calls = []
+    launcher = BrowserLauncher(
+        registry=BrowserRegistry((EdgeAdapter(),)),
+        popen_factory=lambda command, **kwargs: calls.append((command, kwargs)),
+    )
+
+    result = launcher.launch(
+        resolution(capability(BrowserKind.EDGE, "C:/Edge/msedge.exe")),
+        url="http://127.0.0.1:8501",
+        mode=LaunchMode.BROWSER,
+        extra_args=("--new-window",),
+    )
+
+    assert result.ok is True
+    assert result.command == (
+        "C:/Edge/msedge.exe",
+        "--new-window",
+        "http://127.0.0.1:8501",
+    )
+    assert calls == [(result.command, {"shell": False})]
+
+
 def test_browser_launcher_has_no_termination_surface():
     launcher = BrowserLauncher()
 

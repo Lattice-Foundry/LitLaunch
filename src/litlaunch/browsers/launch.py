@@ -190,8 +190,8 @@ class BrowserLauncher:
 
         command = (
             capability.executable_path,
-            url,
             *tuple(str(arg) for arg in extra_args),
+            url,
         )
         try:
             self.popen_factory(command, shell=False)

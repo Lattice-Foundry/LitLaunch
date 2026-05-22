@@ -5,7 +5,12 @@ import pytest
 from litlaunch import LauncherConfig, LaunchMode, LaunchProfile
 from litlaunch.browsers import BrowserCapability, BrowserKind
 from litlaunch.exceptions import ConfigurationError
-from litlaunch.monitored import MonitoredRunResult, run_monitored_webapp, run_profile
+from litlaunch.monitored import (
+    MonitoredRunResult,
+    run_monitored_browser_window,
+    run_monitored_webapp,
+    run_profile,
+)
 from litlaunch.windowing import (
     NoopWindowMonitor,
     WindowInfo,
@@ -36,6 +41,21 @@ class FakeMonitor:
 
     def wait_for_close(self, target, *, backend_is_running, config):
         raise AssertionError("RuntimeSession owns wait_for_close delegation")
+
+
+class SequenceMonitor:
+    def __init__(self, snapshots):
+        self.snapshots = list(snapshots)
+        self.capture_calls = []
+
+    def capture(self, target):
+        self.capture_calls.append(target)
+        if self.snapshots:
+            return self.snapshots.pop(0)
+        return ()
+
+    def wait_for_close(self, target, *, backend_is_running, config):
+        raise AssertionError("browser-window path owns exact-handle monitoring")
 
 
 class StartupCloseMonitor:
@@ -433,3 +453,159 @@ def test_run_profile_can_create_launcher_from_profile_config():
 
     assert result.exit_code == 0
     assert result.session is session
+
+
+def browser_monitor_config():
+    return WindowMonitorConfig(
+        appear_timeout_seconds=0.01,
+        poll_interval_seconds=0.001,
+        stable_poll_count=2,
+        require_app_mode=False,
+    )
+
+
+def test_run_monitored_browser_window_stops_when_new_browser_hwnd_closes():
+    old = WindowInfo("old", title="Other - Microsoft Edge", process_name="msedge")
+    new = WindowInfo(
+        "new",
+        title="Streamlit App - Microsoft Edge",
+        process_name="msedge",
+    )
+    monitor = SequenceMonitor(
+        (
+            (old,),
+            (old, new),
+            (old, new),
+            (old,),
+        )
+    )
+    session = FakeSession(monitor_result=closed_result())
+    launcher = FakeLauncher(
+        LauncherConfig(app_path="app.py", mode="browser", browser="edge"),
+        session,
+    )
+
+    result = run_monitored_browser_window(
+        launcher,
+        monitor=monitor,
+        window_monitor_config=browser_monitor_config(),
+        graceful_timeout_seconds=5.0,
+    )
+
+    assert result.exit_code == 0
+    assert result.monitor_result is not None
+    assert result.monitor_result.closed is True
+    assert result.monitor_result.target == new
+    assert session.stop_calls == [((), {"graceful_timeout_seconds": 5.0})]
+    assert monitor.capture_calls[0].app_mode is False
+    assert monitor.capture_calls[0].browser_kind is None
+
+
+def test_run_monitored_browser_window_no_new_hwnd_falls_back_to_ctrl_c():
+    old = WindowInfo("old", title="Other - Microsoft Edge", process_name="msedge")
+    monitor = SequenceMonitor(((old,), (old,), (old,)))
+    session = FakeSession(monitor_result=closed_result())
+    launcher = FakeLauncher(
+        LauncherConfig(app_path="app.py", mode="browser", browser="edge"),
+        session,
+    )
+
+    result = run_monitored_browser_window(
+        launcher,
+        monitor=monitor,
+        window_monitor_config=browser_monitor_config(),
+    )
+
+    assert result.exit_code == 0
+    assert result.monitor_result is not None
+    assert result.monitor_result.closed is False
+    assert result.monitor_result.status == WindowMonitorStatus.TIMEOUT
+    assert session.stop_calls == []
+    assert session.is_running()
+
+
+def test_run_monitored_browser_window_multiple_new_hwnds_falls_back():
+    old = WindowInfo("old", title="Other - Microsoft Edge", process_name="msedge")
+    first = WindowInfo(
+        "first", title="Streamlit App - Microsoft Edge", process_name="msedge"
+    )
+    second = WindowInfo(
+        "second", title="127.0.0.1 - Microsoft Edge", process_name="msedge"
+    )
+    monitor = SequenceMonitor(((old,), (old, first, second)))
+    session = FakeSession(monitor_result=closed_result())
+    launcher = FakeLauncher(
+        LauncherConfig(app_path="app.py", mode="browser", browser="edge"),
+        session,
+    )
+
+    result = run_monitored_browser_window(
+        launcher,
+        monitor=monitor,
+        window_monitor_config=browser_monitor_config(),
+    )
+
+    assert result.monitor_result is not None
+    assert result.monitor_result.status == WindowMonitorStatus.UNSUPPORTED
+    assert result.monitor_result.observed is True
+    assert session.stop_calls == []
+
+
+def test_run_monitored_browser_window_default_browser_can_observe_new_hwnd():
+    old = WindowInfo("old", title="Other - Microsoft Edge", process_name="msedge")
+    new = WindowInfo(
+        "new",
+        title="Streamlit App - Microsoft Edge",
+        process_name="msedge",
+    )
+    monitor = SequenceMonitor(((old,), (old, new), (old, new), (old,)))
+    session = FakeSession(monitor_result=closed_result())
+    launcher = FakeLauncher(
+        LauncherConfig(app_path="app.py", mode="browser", browser="default"),
+        session,
+    )
+
+    result = run_monitored_browser_window(
+        launcher,
+        monitor=monitor,
+        window_monitor_config=browser_monitor_config(),
+    )
+
+    assert launcher.run_calls == 1
+    assert result.monitor_result is not None
+    assert result.monitor_result.closed is True
+    assert session.stop_calls == [((), {"graceful_timeout_seconds": 3.0})]
+
+
+def test_run_profile_browser_window_monitor_uses_profile_settings():
+    old = WindowInfo("old", title="Other - Google Chrome", process_name="chrome")
+    new = WindowInfo(
+        "new", title="Streamlit App - Google Chrome", process_name="chrome"
+    )
+    monitor = SequenceMonitor(((old,), (old, new), (old, new), (old,)))
+    session = FakeSession(monitor_result=closed_result())
+    session.browser = BrowserCapability(
+        kind=BrowserKind.CHROME,
+        name="Chrome",
+        executable_path="chrome.exe",
+        available=True,
+        supports_app_mode=True,
+        supports_full_browser=True,
+    )
+    launcher = FakeLauncher(
+        LauncherConfig(app_path="app.py", mode="browser", browser="chrome"),
+        session,
+    )
+    profile = LaunchProfile(
+        name="science",
+        config=launcher.config,
+        monitor_browser_window=True,
+        graceful_timeout_seconds=4.0,
+        browser_window_monitor_config=browser_monitor_config(),
+    )
+
+    result = run_profile(profile, launcher=launcher, monitor=monitor)
+
+    assert result.monitor_result is not None
+    assert result.monitor_result.closed is True
+    assert session.stop_calls == [((), {"graceful_timeout_seconds": 4.0})]

@@ -36,6 +36,7 @@ from litlaunch.profiles import load_profile
 from litlaunch.redaction import format_command_preview
 from litlaunch.windowing import (
     NoopWindowMonitor,
+    WindowInfo,
     WindowMonitorResult,
     WindowMonitorStatus,
 )
@@ -162,6 +163,9 @@ class FakeSession:
         self.stop_calls = 0
         self.stop_args = []
         self.monitor_calls = []
+        self.running = ok
+        self.console_renderer = None
+        self.events = []
         self.result = LaunchResult(
             ok=ok,
             state=LaunchState.RUNNING if ok else LaunchState.FAILED,
@@ -181,6 +185,13 @@ class FakeSession:
     def stop(self, *args, **kwargs):
         self.stop_calls += 1
         self.stop_args.append((args, kwargs))
+        self.running = False
+
+    def is_running(self):
+        return self.running
+
+    def add_event(self, state, message, *, render=True):
+        self.events.append((state, message, render))
 
     @property
     def browser(self):
@@ -208,6 +219,18 @@ class FakeCliMonitor:
     def capture(self, target):
         self.capture_calls.append(target)
         return self.windows
+
+
+class SequenceCliMonitor:
+    def __init__(self, snapshots):
+        self.snapshots = list(snapshots)
+        self.capture_calls = []
+
+    def capture(self, target):
+        self.capture_calls.append(target)
+        if self.snapshots:
+            return self.snapshots.pop(0)
+        return ()
 
 
 class FakeLauncher:
@@ -382,7 +405,7 @@ def test_cli_workflow_help_menu_lists_topics():
 
     code = main(["help"], stream=stream)
 
-    output = stream.getvalue()
+    output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "LitLaunch workflow help" in output
     assert "Use --help for command reference" in output
@@ -492,7 +515,7 @@ def test_cli_workflow_help_dev_topic_frames_internal_preview_tooling():
 
     code = main(["help", "dev"], stream=stream)
 
-    output = stream.getvalue()
+    output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "Developer tooling" in output
     assert "internal developer-facing" in output
@@ -1480,7 +1503,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.37b0"
+    assert data["litlaunch_version"] == "0.91.39b0"
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None
@@ -2500,21 +2523,122 @@ def test_cli_run_webapp_default_monitoring_skips_unsupported_platform():
     assert session.monitor_calls == []
 
 
-def test_cli_run_browser_mode_does_not_monitor_by_default():
+def test_cli_run_browser_mode_attempts_browser_window_monitor_by_default():
     stream = StringIO()
     session = FakeSession(ok=True, wait_return=0)
+    monitor = FakeCliMonitor()
 
     code = main(
         ["run", str(EXAMPLE_APP)],
         stream=stream,
         launcher_factory=reset_fake_launcher(session),
         platform_detector_factory=FakePlatformDetector,
-        window_monitor_factory=lambda platform_info: FakeCliMonitor(),
+        window_monitor_factory=lambda platform_info: monitor,
     )
 
     assert code == 0
     assert session.wait_calls == 1
     assert session.monitor_calls == []
+    assert monitor.capture_calls
+    assert FakeLauncher.instances[0].config.browser == BrowserChoice.EDGE
+    assert FakeLauncher.instances[0].config.extra_browser_args == ("--new-window",)
+
+
+def test_cli_run_browser_mode_hidden_monitor_opt_out_preserves_plain_wait():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+    monitor = FakeCliMonitor()
+
+    code = main(
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--no-monitor-browser-window",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: monitor,
+    )
+
+    assert code == 0
+    assert session.wait_calls == 1
+    assert session.monitor_calls == []
+    assert monitor.capture_calls == []
+    assert FakeLauncher.instances[0].config.browser == BrowserChoice.AUTO
+
+
+def test_cli_run_browser_window_monitor_stops_on_window_close():
+    stream = StringIO()
+    session = FakeSession(ok=True)
+    old = WindowInfo("old", title="Other - Microsoft Edge", process_name="msedge")
+    new = WindowInfo(
+        "new", title="Streamlit App - Microsoft Edge", process_name="msedge"
+    )
+    monitor = SequenceCliMonitor(((old,), (old, new), (old, new), (old,)))
+
+    code = main(
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--mode",
+            "browser",
+            "--browser",
+            "edge",
+            "--browser-arg=--new-window",
+            "--monitor-browser-window",
+            "--monitor-appear-timeout",
+            "0.01",
+            "--monitor-poll-interval",
+            "0.001",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: monitor,
+    )
+
+    output = strip_ansi(stream.getvalue())
+    assert code == 0
+    assert session.stop_calls == 1
+    assert session.wait_calls == 0
+    assert FakeLauncher.instances[0].config.extra_browser_args == ("--new-window",)
+    assert "Monitor: watching browser window" in output
+    assert "Monitor: Browser window closed; requesting shutdown." in output
+
+
+def test_cli_run_browser_window_monitor_falls_back_without_hwnd():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+    old = WindowInfo("old", title="Other - Microsoft Edge", process_name="msedge")
+    monitor = SequenceCliMonitor(((old,), (old,), (old,)))
+
+    code = main(
+        [
+            "run",
+            str(EXAMPLE_APP),
+            "--mode",
+            "browser",
+            "--browser",
+            "edge",
+            "--monitor-browser-window",
+            "--monitor-appear-timeout",
+            "0.01",
+            "--monitor-poll-interval",
+            "0.001",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: monitor,
+    )
+
+    output = stream.getvalue()
+    assert code == 0
+    assert session.stop_calls == 0
+    assert session.wait_calls == 1
+    assert "No new browser window was observed" in output
+    assert "Press Ctrl+C to stop this session." in output
 
 
 def test_cli_run_monitor_window_closure_stops_runtime():

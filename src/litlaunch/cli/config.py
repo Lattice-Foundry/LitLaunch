@@ -24,6 +24,15 @@ class MonitorOptions:
     window_monitor_config: WindowMonitorConfig
 
 
+@dataclass(frozen=True)
+class BrowserWindowMonitorOptions:
+    """Resolved browser-window monitoring options."""
+
+    enabled: bool
+    explicit: bool
+    window_monitor_config: WindowMonitorConfig
+
+
 def add_runtime_flags(
     parser: argparse.ArgumentParser,
     *,
@@ -96,6 +105,20 @@ def add_runtime_flags(
             type=int,
             help="Matching polls required before a window is considered stable.",
         )
+        parser.add_argument(
+            "--monitor-browser-window",
+            action="store_true",
+            dest="monitor_browser_window",
+            default=None,
+            help=argparse.SUPPRESS,
+        )
+        parser.add_argument(
+            "--no-monitor-browser-window",
+            action="store_false",
+            dest="monitor_browser_window",
+            default=None,
+            help=argparse.SUPPRESS,
+        )
     parser.add_argument(
         "--no-browser-fallback",
         action="store_false",
@@ -127,6 +150,12 @@ def add_runtime_flags(
         action="append",
         default=[],
         help="Add an app argument after Streamlit's -- separator. Repeatable.",
+    )
+    parser.add_argument(
+        "--browser-arg",
+        action="append",
+        default=[],
+        help=argparse.SUPPRESS,
     )
 
 
@@ -222,7 +251,8 @@ def runtime_config_from_args(
             *app_args,
         ),
         extra_browser_args=(
-            profile_config.extra_browser_args if profile_config is not None else ()
+            *(profile_config.extra_browser_args if profile_config is not None else ()),
+            *tuple(getattr(args, "browser_arg", ()) or ()),
         ),
     )
     return config
@@ -284,6 +314,43 @@ def monitor_options_from_args(
             poll_interval_seconds=float(poll_interval),
             stable_poll_count=int(stable_polls),
         ),
+    )
+
+
+def browser_window_monitor_options_from_args(
+    args: argparse.Namespace,
+    profile: LaunchProfile | None,
+) -> BrowserWindowMonitorOptions:
+    """Resolve browser-window monitoring options."""
+
+    profile_monitor_config = (
+        profile.browser_window_monitor_config
+        if profile is not None
+        else WindowMonitorConfig(
+            appear_timeout_seconds=8.0,
+            poll_interval_seconds=0.25,
+            stable_poll_count=2,
+            require_app_mode=False,
+        )
+    )
+    monitor_browser_window = (
+        args.monitor_browser_window
+        if getattr(args, "monitor_browser_window", None) is not None
+        else profile.monitor_browser_window
+        if profile is not None
+        else False
+    )
+    if profile_monitor_config.require_app_mode:
+        profile_monitor_config = WindowMonitorConfig(
+            appear_timeout_seconds=profile_monitor_config.appear_timeout_seconds,
+            poll_interval_seconds=profile_monitor_config.poll_interval_seconds,
+            stable_poll_count=profile_monitor_config.stable_poll_count,
+            require_app_mode=False,
+        )
+    return BrowserWindowMonitorOptions(
+        enabled=bool(monitor_browser_window),
+        explicit=getattr(args, "monitor_browser_window", None) is not None,
+        window_monitor_config=profile_monitor_config,
     )
 
 

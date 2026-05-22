@@ -59,6 +59,12 @@ enabled = true
 appear_timeout = 60
 poll_interval = 1
 stable_polls = 2
+
+[profiles.my-webapp.browser_window_monitor]
+enabled = true
+appear_timeout = 8
+poll_interval = 0.25
+stable_polls = 2
 """,
     )
 
@@ -87,6 +93,13 @@ stable_polls = 2
         appear_timeout_seconds=60.0,
         poll_interval_seconds=1.0,
         stable_poll_count=2,
+    )
+    assert profile.monitor_browser_window is True
+    assert profile.browser_window_monitor_config == WindowMonitorConfig(
+        appear_timeout_seconds=8.0,
+        poll_interval_seconds=0.25,
+        stable_poll_count=2,
+        require_app_mode=False,
     )
 
 

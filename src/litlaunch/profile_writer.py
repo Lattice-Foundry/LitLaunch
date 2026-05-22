@@ -155,6 +155,17 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
         lines.append(f"appear_timeout = {monitor.appear_timeout_seconds:g}")
         lines.append(f"poll_interval = {monitor.poll_interval_seconds:g}")
         lines.append(f"stable_polls = {monitor.stable_poll_count}")
+    default_browser_monitor = WindowMonitorConfig(require_app_mode=False)
+    if (
+        profile.monitor_browser_window
+        or profile.browser_window_monitor_config != default_browser_monitor
+    ):
+        monitor = profile.browser_window_monitor_config
+        lines.extend(("", f"[{profile_header}.browser_window_monitor]"))
+        lines.append(f"enabled = {_toml_bool(profile.monitor_browser_window)}")
+        lines.append(f"appear_timeout = {monitor.appear_timeout_seconds:g}")
+        lines.append(f"poll_interval = {monitor.poll_interval_seconds:g}")
+        lines.append(f"stable_polls = {monitor.stable_poll_count}")
     return "\n".join(lines)
 
 

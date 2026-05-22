@@ -47,6 +47,7 @@ CONFIG_FIELDS = {
 RUNTIME_FIELDS = {
     "graceful_timeout",
     "window_monitor",
+    "browser_window_monitor",
 }
 WINDOW_MONITOR_FIELDS = {
     "enabled",
@@ -63,9 +64,13 @@ class LaunchProfile:
     name: str
     config: LauncherConfig
     monitor_window: bool = False
+    monitor_browser_window: bool = False
     graceful_timeout_seconds: float = 3.0
     window_monitor_config: WindowMonitorConfig = field(
         default_factory=WindowMonitorConfig
+    )
+    browser_window_monitor_config: WindowMonitorConfig = field(
+        default_factory=lambda: WindowMonitorConfig(require_app_mode=False)
     )
 
     def __post_init__(self) -> None:
@@ -75,6 +80,11 @@ class LaunchProfile:
             raise ConfigurationError("profile graceful_timeout must be positive.")
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "monitor_window", bool(self.monitor_window))
+        object.__setattr__(
+            self,
+            "monitor_browser_window",
+            bool(self.monitor_browser_window),
+        )
         object.__setattr__(self, "graceful_timeout_seconds", graceful_timeout)
 
 
@@ -233,12 +243,46 @@ def _profile_from_mapping(
             f"Profile {profile_name!r} has invalid window_monitor settings: {exc}"
         ) from exc
 
+    browser_window_values = values.get("browser_window_monitor", {})
+    if browser_window_values is None:
+        browser_window_values = {}
+    if not isinstance(browser_window_values, Mapping):
+        raise ConfigurationError(
+            f"Profile {profile_name!r} browser_window_monitor must be a table."
+        )
+    unknown_browser_window = set(browser_window_values) - WINDOW_MONITOR_FIELDS
+    if unknown_browser_window:
+        unknown_text = ", ".join(sorted(str(item) for item in unknown_browser_window))
+        raise ConfigurationError(
+            f"Profile {profile_name!r} browser_window_monitor has unknown fields: "
+            f"{unknown_text}."
+        )
+
+    try:
+        browser_window_monitor_config = WindowMonitorConfig(
+            appear_timeout_seconds=float(
+                browser_window_values.get("appear_timeout", 8.0)
+            ),
+            poll_interval_seconds=float(
+                browser_window_values.get("poll_interval", 0.25)
+            ),
+            stable_poll_count=int(browser_window_values.get("stable_polls", 2)),
+            require_app_mode=False,
+        )
+    except (TypeError, ValueError) as exc:
+        raise ConfigurationError(
+            f"Profile {profile_name!r} has invalid browser_window_monitor "
+            f"settings: {exc}"
+        ) from exc
+
     return LaunchProfile(
         name=profile_name,
         config=LauncherConfig(**config_values),
         monitor_window=bool(window_values.get("enabled", False)),
+        monitor_browser_window=bool(browser_window_values.get("enabled", False)),
         graceful_timeout_seconds=float(values.get("graceful_timeout", 3.0)),
         window_monitor_config=monitor_config,
+        browser_window_monitor_config=browser_window_monitor_config,
     )
 
 

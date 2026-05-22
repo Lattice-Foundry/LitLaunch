@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from typing import Any
 
 from litlaunch.cli.common import (
@@ -13,6 +14,7 @@ from litlaunch.cli.common import (
 )
 from litlaunch.cli.config import (
     MonitorOptions,
+    browser_window_monitor_options_from_args,
     load_cli_profile,
     monitor_options_from_args,
     runtime_config_from_args,
@@ -123,8 +125,24 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
     profile = load_cli_profile(args)
     config = runtime_config_from_args(args, profile=profile)
     monitor_options = monitor_options_from_args(args, profile, config)
+    browser_window_options = browser_window_monitor_options_from_args(args, profile)
+    if (
+        getattr(args, "monitor_browser_window", None) is None
+        and config.mode == LaunchMode.BROWSER
+    ):
+        browser_window_options = replace(browser_window_options, enabled=True)
+        if profile is None and config.browser == BrowserChoice.AUTO:
+            config = replace(
+                config,
+                browser=BrowserChoice.EDGE,
+                extra_browser_args=_with_browser_window_arg(config.extra_browser_args),
+            )
     if monitor_options.enabled and config.mode != LaunchMode.WEBAPP:
         raise LitLaunchError("--monitor-window is only valid with --mode webapp.")
+    if browser_window_options.enabled and config.mode != LaunchMode.BROWSER:
+        raise LitLaunchError(
+            "browser-window monitoring is only valid with --mode browser."
+        )
     platform_detector = context.platform_detector_factory()
     if (
         monitor_options.enabled
@@ -152,8 +170,10 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
         name=profile.name if profile is not None else "cli",
         config=config,
         monitor_window=monitor_options.enabled,
+        monitor_browser_window=browser_window_options.enabled,
         graceful_timeout_seconds=monitor_options.graceful_timeout_seconds,
         window_monitor_config=monitor_options.window_monitor_config,
+        browser_window_monitor_config=browser_window_options.window_monitor_config,
     )
     run_result = run_profile(
         runtime_profile,
@@ -198,6 +218,13 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
             suggest_inspect=True,
         )
         return 1
+
+    if (
+        browser_window_options.enabled
+        and run_result.monitor_result is not None
+        and run_result.monitor_result.closed
+    ):
+        return run_result.exit_code
 
     cli_renderer.success(f"Runtime active at {session.url}")
     cli_renderer.info_status("Press Ctrl+C to stop this session")
@@ -252,6 +279,14 @@ def _render_browser_capability(cli_renderer: ConsoleRenderer, capability) -> Non
         cli_renderer.success(message)
     else:
         cli_renderer.warning(message)
+
+
+def _with_browser_window_arg(args: tuple[str, ...]) -> tuple[str, ...]:
+    """Return browser args that encourage a monitorable top-level window."""
+
+    if any(str(arg).strip().lower() == "--new-window" for arg in args):
+        return args
+    return (*args, "--new-window")
 
 
 def _display_value(value: object) -> str:

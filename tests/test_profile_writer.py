@@ -152,6 +152,36 @@ def test_profile_writer_round_trips_non_default_trust_mode(tmp_path: Path):
     assert loaded.config.trust_mode == TrustMode.STRICT_LOCAL
 
 
+def test_profile_writer_round_trips_browser_window_monitor(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="browser-science",
+        config=LauncherConfig(
+            app_path=app,
+            mode=LaunchMode.BROWSER,
+            browser=BrowserChoice.EDGE,
+            extra_browser_args=["--new-window"],
+        ),
+        monitor_browser_window=True,
+        browser_window_monitor_config=WindowMonitorConfig(
+            appear_timeout_seconds=8,
+            poll_interval_seconds=0.25,
+            stable_poll_count=2,
+            require_app_mode=False,
+        ),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("browser-science", result.path)
+
+    assert '[profiles."browser-science".browser_window_monitor]' in result.toml
+    assert "enabled = true" in result.toml
+    assert loaded.monitor_browser_window is True
+    assert loaded.browser_window_monitor_config.require_app_mode is False
+    assert loaded.config.extra_browser_args == ("--new-window",)
+
+
 def test_profile_writer_omits_default_trust_mode(tmp_path: Path):
     profile = make_profile(tmp_path)
 

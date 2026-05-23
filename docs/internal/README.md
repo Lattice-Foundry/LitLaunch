@@ -1,25 +1,23 @@
-# Internal Integration Documentation
+# Internal Developer Notes
 
-> INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION
+> INTERNAL DEVELOPMENT-PROCESS ARTIFACTS
 >
-> These documents exist to support LitLaunch beta integration workflows and
-> ecosystem validation. They are intentionally excluded from the stable public
-> documentation surface and may change substantially before release
-> stabilization.
+> These documents preserve project coordination, RoleThread validation context,
+> and handoff notes. They are intentionally excluded from source distributions
+> and are not part of the public user documentation surface.
 
-This directory is for practical integration work while LitLaunch is being
-validated with RoleThread, TestPyPI rehearsals, and beta runtime smoke testing.
-The documents are tracked so a fresh clone has the working context, but they
-should not be treated as stable user documentation or public API guarantees.
-They are excluded from public source distributions.
+This directory is for practical integration and release-readiness work. The
+documents are tracked so a fresh clone has the working context, but they should
+not be treated as user documentation, support promises, or public API
+guarantees.
 
 ## Scope
 
 Use these notes for:
 
 - RoleThread integration planning.
-- TestPyPI rehearsal coordination.
-- beta runtime validation.
+- package rehearsal coordination.
+- runtime validation notes.
 - Codex handoff continuity between sessions.
 - temporary experiments around integration boundaries.
 
@@ -37,11 +35,11 @@ Do not use these notes as:
 - [RoleThread Runtime Mapping](rolethread_runtime_mapping.md)
 - [RoleThread Test Matrix](rolethread_test_matrix.md)
 - [RoleThread / LitLaunch Manual Test Plan](rolethread_litlaunch_manual_test_plan.md)
-- [Known Beta Issues](known_beta_issues.md)
+- [Release Validation Notes](release_validation_notes.md)
 
-## Removal Expectation
+## Maintenance Expectation
 
-Before release stabilization, decide whether this directory should be removed,
-collapsed into issue tracker tasks, or split into permanent public docs and
-private integration notes. Public architecture truths should live in
-`docs/architecture.md` and `docs/philosophy.md`, not here.
+Review this directory before public releases. Public architecture truths should
+live in `docs/architecture.md` and `docs/philosophy.md`, not here. If a note
+becomes long-lived user guidance, promote it into the public docs and remove the
+process-only wording.

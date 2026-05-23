@@ -16,7 +16,6 @@ from litlaunch.exposure import (
     classify_host_exposure,
     is_loopback_host,
     network_exposure_acknowledged,
-    validate_host_exposure_policy,
 )
 from litlaunch.governance import (
     evaluate_runtime_governance,
@@ -80,50 +79,60 @@ def test_network_exposure_acknowledgement_accepts_flag_or_env():
 
 def test_development_requires_acknowledgement_for_non_loopback():
     with pytest.raises(ValueError, match="Network exposure requires"):
-        validate_host_exposure_policy(
-            host="0.0.0.0",
-            trust_mode="development",
-            allow_network_exposure=False,
-            env={},
+        validate_runtime_governance(
+            LauncherConfig(
+                app_path="app.py",
+                host="0.0.0.0",
+                trust_mode="development",
+                allow_network_exposure=False,
+            )
         )
 
-    exposure = validate_host_exposure_policy(
-        host="0.0.0.0",
-        trust_mode="development",
-        allow_network_exposure=True,
-        env={},
+    assessment = validate_runtime_governance(
+        LauncherConfig(
+            app_path="app.py",
+            host="0.0.0.0",
+            trust_mode="development",
+            allow_network_exposure=True,
+        )
     )
 
-    assert exposure.exposed is True
+    assert assessment.exposure_assessment.exposed is True
 
 
 def test_strict_local_refuses_non_loopback_even_when_acknowledged():
     with pytest.raises(ValueError, match="strict_local requires loopback-only"):
-        validate_host_exposure_policy(
-            host="0.0.0.0",
-            trust_mode="strict_local",
-            allow_network_exposure=True,
-            env={"LITLAUNCH_ALLOW_NETWORK_EXPOSURE": "1"},
+        validate_runtime_governance(
+            LauncherConfig(
+                app_path="app.py",
+                host="0.0.0.0",
+                trust_mode="strict_local",
+                allow_network_exposure=True,
+            )
         )
 
 
 def test_internal_network_requires_acknowledgement_for_non_loopback():
     with pytest.raises(ValueError, match="Network exposure requires"):
-        validate_host_exposure_policy(
-            host="0.0.0.0",
-            trust_mode="internal_network",
-            allow_network_exposure=False,
-            env={},
+        validate_runtime_governance(
+            LauncherConfig(
+                app_path="app.py",
+                host="0.0.0.0",
+                trust_mode="internal_network",
+                allow_network_exposure=False,
+            )
         )
 
-    exposure = validate_host_exposure_policy(
-        host="0.0.0.0",
-        trust_mode="internal_network",
-        allow_network_exposure=False,
-        env={"LITLAUNCH_ALLOW_NETWORK_EXPOSURE": "1"},
+    assessment = validate_runtime_governance(
+        LauncherConfig(
+            app_path="app.py",
+            host="0.0.0.0",
+            trust_mode="internal_network",
+            allow_network_exposure=True,
+        )
     )
 
-    assert exposure.exposed is True
+    assert assessment.exposure_assessment.exposed is True
 
 
 def test_exposure_assessment_summarizes_posture():

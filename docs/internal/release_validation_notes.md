@@ -1,9 +1,9 @@
-# Known Beta Issues
+# Release Validation Notes
 
 > INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION
 >
-> This list tracks expected rough edges during beta integration. It is not a
-> permanent public limitations page.
+> This list tracks release-readiness observations during integration work. It is
+> not a permanent public limitations page.
 
 ## Windows-First Runtime Validation
 
@@ -58,7 +58,7 @@ The graceful shutdown endpoint is tokened and loopback-only by default. It runs
 registered hooks and lets `RuntimeSession.stop()` fall back to terminating only
 the owned backend process if graceful shutdown does not complete.
 
-Potential beta issues:
+Potential validation issues:
 
 - app code may forget to call `enable_shutdown_endpoint()`.
 - hooks may need clearer ordering during real RoleThread cleanup.
@@ -76,7 +76,7 @@ Use inspect alongside real smoke tests, not instead of them.
 ## Visual Documentation
 
 Public docs should avoid unfinished visual placeholders. Screenshots and
-diagrams can still be added after TestPyPI and RoleThread integration
+diagrams can still be added after package rehearsal and RoleThread integration
 validation, but prose should stand on its own until then.
 
 ## Runtime Profiles
@@ -91,7 +91,7 @@ while still keeping RoleThread-specific product policy outside LitLaunch.
 LitLaunch should support packaged apps as a runtime dependency, but it should
 not own PyInstaller, Nuitka, installer, updater, or distribution behavior.
 Lightweight project-local shortcut artifacts are supported; full installer
-workflows are not. macOS shortcut behavior remains beta until community
+workflows are not. macOS shortcut behavior remains limited-validation until community
 validation expands.
 
 Packaging guidance is expected to evolve during RoleThread validation.

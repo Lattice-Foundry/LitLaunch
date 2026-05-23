@@ -215,20 +215,20 @@ def test_docs_clarify_redaction_limits_and_deferred_visual_placeholders():
     troubleshooting = (REPO_ROOT / "docs" / "troubleshooting.md").read_text(
         encoding="utf-8"
     )
-    beta_issues = (REPO_ROOT / "docs" / "internal" / "known_beta_issues.md").read_text(
-        encoding="utf-8"
-    )
+    validation_notes = (
+        REPO_ROOT / "docs" / "internal" / "release_validation_notes.md"
+    ).read_text(encoding="utf-8")
 
     assert "pattern-based" in inspect_doc
     assert "Encoded, base64, URL-wrapped" in inspect_doc
     assert "Review support bundles before sharing" in inspect_doc
     assert "home/user path prefixes" in troubleshooting
-    assert "Visual Documentation" in beta_issues
-    assert "Runtime Profiles" in beta_issues
+    assert "Visual Documentation" in validation_notes
+    assert "Runtime Profiles" in validation_notes
     screenshot_placeholder = "[screenshot" + " needed]"
     diagram_placeholder = "[diagram" + " needed]"
-    assert screenshot_placeholder not in beta_issues
-    assert diagram_placeholder not in beta_issues
+    assert screenshot_placeholder not in validation_notes
+    assert diagram_placeholder not in validation_notes
 
 
 def test_docs_clarify_with_port_title_and_streamlit_passthrough_policy():
@@ -255,14 +255,14 @@ def test_internal_docs_exist_but_are_not_linked_from_public_docs():
         "rolethread_handoff_checklist.md",
         "rolethread_runtime_mapping.md",
         "rolethread_test_matrix.md",
-        "known_beta_issues.md",
+        "release_validation_notes.md",
     ]
 
     for doc in internal_docs:
         path = REPO_ROOT / "docs" / "internal" / doc
         text = path.read_text(encoding="utf-8")
         assert path.is_file()
-        assert "INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION" in text
+        assert "INTERNAL" in text
         assert text.strip()
 
     public_paths = [REPO_ROOT / "README.md"]

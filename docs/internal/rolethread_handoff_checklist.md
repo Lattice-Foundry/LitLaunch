@@ -2,14 +2,13 @@
 
 > INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION
 >
-> This checklist is for beta integration continuity between engineers or Codex
+> This checklist is for integration continuity between engineers or Codex
 > sessions. It is not public setup documentation.
 
 ## Before Starting
 
 - Confirm the LitLaunch branch and version under test.
-- Confirm whether LitLaunch is installed from source, a local wheel, or
-  TestPyPI.
+- Confirm whether LitLaunch is installed from source or a local/package wheel.
 - Start from a clean virtual environment when comparing launcher behavior.
 - Record Python version, OS, browser availability, and RoleThread branch.
 - Run `litlaunch report` before any live
@@ -30,7 +29,7 @@ litlaunch browsers
 
 ### Local Wheel Install
 
-Use this to simulate a package install without TestPyPI:
+Use this to simulate a package install from a built wheel:
 
 ```powershell
 python scripts/check_release.py
@@ -38,18 +37,19 @@ python -m pip install dist/litlaunch-<version>-py3-none-any.whl
 litlaunch version
 ```
 
-### TestPyPI Rehearsal
+### Package Index Rehearsal
 
-Use this only after a release rehearsal package exists:
+Use this only after a release rehearsal package exists on the configured
+package index:
 
 ```powershell
 python -m pip install --index-url https://test.pypi.org/simple/ litlaunch
 litlaunch version
 ```
 
-If dependencies are not available from TestPyPI, use PyPI as the extra index
-for dependency resolution. Do not document this as public installation guidance
-until the publish flow is finalized.
+If dependencies are unavailable on the rehearsal index, use the public package
+index as the extra index for dependency resolution. Do not document rehearsal
+commands as public installation guidance.
 
 ## RoleThread Launcher Replacement Checklist
 

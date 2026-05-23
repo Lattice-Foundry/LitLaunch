@@ -2,9 +2,9 @@
 
 > INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION
 >
-> This plan is for real-world beta validation of LitLaunch through the
-> RoleThread integration sandbox. It is expected to change during RC work and
-> is not a public support matrix.
+> This plan is for real-world developer validation of LitLaunch through the
+> RoleThread integration sandbox. It is expected to change during release
+> readiness work and is not a public support matrix.
 
 ## Purpose
 
@@ -218,7 +218,7 @@ Cleanup performed:
 Notes:
 ```
 
-## Recommended Live Beta Loop
+## Recommended Live Validation Loop
 
 Use this loop for fast nightly testing:
 

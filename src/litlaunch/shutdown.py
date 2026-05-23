@@ -13,6 +13,7 @@ from enum import Enum
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from litlaunch.exceptions import ConfigurationError
+from litlaunch.exposure import is_loopback_host
 
 LITLAUNCH_SHUTDOWN_HOST = "LITLAUNCH_SHUTDOWN_HOST"
 LITLAUNCH_SHUTDOWN_PORT = "LITLAUNCH_SHUTDOWN_PORT"
@@ -434,7 +435,7 @@ class LauncherRuntime:
             return False
         if self._server is not None:
             return True
-        if not _is_loopback_host(self.config.host):
+        if not is_loopback_host(self.config.host):
             return False
 
         handler = _build_shutdown_handler(self)
@@ -714,10 +715,6 @@ def _read_shutdown_response_payload(response: object) -> dict[str, object]:
     except json.JSONDecodeError:
         return {}
     return payload if isinstance(payload, dict) else {}
-
-
-def _is_loopback_host(host: str) -> bool:
-    return host in {"127.0.0.1", "::1", "localhost"}
 
 
 def _format_host_for_url(host: str) -> str:

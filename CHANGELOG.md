@@ -14,6 +14,10 @@ concise.
   help so command reference matches runtime behavior.
 - Added `python -m litlaunch` module execution parity with the `litlaunch`
   console script.
+- Removed a test-only host exposure validator so runtime launch enforcement has
+  one clear governance path, consolidated shutdown loopback checks through the
+  shared exposure helper, and reframed internal developer notes away from public
+  documentation.
 - Added `ShutdownHookStatus` so shutdown hooks can return run-specific console
   messages, verbose-only visibility, or suppress routine no-op success output
   without printing raw app-owned status lines.
@@ -419,21 +423,21 @@ concise.
   the configured backend port is available after the owned process stops.
 - Corrected console guidance labels so `cause` and `next` occupy the
   fixed-width bracket field instead of following an `ok` status label.
-- Tuned beta console warning/error colors toward true yellow and a brighter
+- Tuned console warning/error colors toward true yellow and a brighter
   PowerShell-style red.
 
 ## 0.91.2b0
 
 - Aligned runtime console phase and guidance lines under fixed-width status
-  labels while preserving console behavior and beta color roles.
+  labels while preserving console behavior and pre-release color roles.
 - Updated failure guidance labels to bracketed `cause`/`next` lines for cleaner
   terminal alignment.
 
 ## 0.91.1b0
 
-- Added an internal beta `console-preview` developer command for visually
+- Added an internal `console-preview` developer command for visually
   reviewing runtime terminal output styles.
-- Polished runtime console status formatting, startup header styling, beta color
+- Polished runtime console status formatting, startup header styling, color
   roles, and label/body color separation without changing runtime behavior.
 
 ## 0.91.0b0
@@ -441,7 +445,7 @@ concise.
 - Entered the 0.9x pre-release package line with matching package metadata and
   classifier alignment.
 - Reflected the profiles/runtime, diagnostics, backend-provider, monitoring, and
-  organization milestones completed before TestPyPI rehearsal.
+  organization milestones completed before package rehearsal.
 
 ## 0.85.0
 
@@ -576,12 +580,12 @@ concise.
 - Clarified the internal shutdown-result storage contract used by the local
   shutdown endpoint.
 - Documented the browser adapter naming invariant used by registry resolution.
-- Tracked screenshot and diagram placeholders as deferred beta documentation
+- Tracked screenshot and diagram placeholders as deferred documentation
   work.
 
 ## 0.24.0
 
-- Updated package metadata to the Alpha development classifier for TestPyPI
+- Updated package metadata to the Alpha development classifier for package
   rehearsal readiness.
 - Clarified `run()`/`start()`, `with_port()`, title/window matching, and
   Streamlit flag passthrough expectations in docs.
@@ -612,13 +616,13 @@ concise.
 ## 0.21.0
 
 - Added temporary internal integration docs for RoleThread migration planning,
-  beta runtime validation, TestPyPI rehearsal, and Codex handoff continuity.
+  runtime validation, package rehearsal, and Codex handoff continuity.
 - Added internal RoleThread runtime mapping, handoff checklist, test matrix,
-  and known beta issue tracking while keeping public docs isolated.
+  and validation note tracking while keeping public docs isolated.
 
 ## 0.20.0
 
-- Reworked README as a concise beta-quality integration entry point.
+- Reworked README as a concise integration entry point.
 - Added repository-native markdown docs for architecture, philosophy,
   installation, quickstart, CLI, browser support, window monitoring, inspect,
   troubleshooting, RoleThread integration, and packaging notes.

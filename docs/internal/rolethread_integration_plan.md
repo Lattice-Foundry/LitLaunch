@@ -2,7 +2,7 @@
 
 > INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION
 >
-> This document supports beta integration work only. It is not part of the
+> This document supports developer integration work only. It is not part of the
 > stable public LitLaunch documentation surface.
 
 ## Purpose
@@ -159,7 +159,7 @@ runtime capability issue, not a product crash.
 
 - Delete only RoleThread launcher code proven redundant.
 - Keep product policy, packaging, and UI-specific code in RoleThread.
-- Preserve rollback until real beta users have exercised the path.
+- Preserve rollback until real integration users have exercised the path.
 
 ## Rollback Strategy
 

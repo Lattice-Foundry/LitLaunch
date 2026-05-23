@@ -21,7 +21,7 @@ Out of scope:
 - Nuitka recipes
 - installer creation
 - packaged resource discovery helpers
-- TestPyPI/PyPI publishing automation
+- package publishing automation
 
 ## Backend Command Providers
 
@@ -49,7 +49,8 @@ processes. It is a command construction seam, not a runner abstraction.
 
 ## PyInstaller / Nuitka
 
-Future notes should cover:
+When using PyInstaller, Nuitka, cx_Freeze, or similar tools, keep LitLaunch as
+the runtime owner and let the packaging tool own artifact creation. Validate:
 
 - locating the Streamlit app entrypoint
 - including static/assets files
@@ -57,11 +58,12 @@ Future notes should cover:
 - browser launch behavior from packaged executables
 - shutdown endpoint behavior
 
-Do not assume packaged behavior is validated until a smoke checklist exists.
+Do not assume packaged behavior is validated until the packaged artifact has
+passed a smoke checklist on the target platform.
 
 ## uv / pipx
 
-Future notes should cover:
+For CLI-style installs, validate:
 
 - installing LitLaunch CLI
 - running source-checkout examples

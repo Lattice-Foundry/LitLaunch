@@ -8,6 +8,7 @@ import pytest
 
 from litlaunch.colors import streamlit_blue
 from litlaunch.exceptions import ConfigurationError
+from litlaunch.exposure import is_loopback_host
 from litlaunch.shutdown import (
     LITLAUNCH_SHUTDOWN_ENABLED,
     LITLAUNCH_SHUTDOWN_HOST,
@@ -22,7 +23,6 @@ from litlaunch.shutdown import (
     ShutdownHookRegistry,
     ShutdownHookResult,
     ShutdownHookStatus,
-    _is_loopback_host,
 )
 
 
@@ -583,7 +583,7 @@ def test_launcher_runtime_marks_shutdown_complete_for_idempotency():
 
 
 def test_ipv6_loopback_is_accepted_for_endpoint_binding_attempt():
-    assert _is_loopback_host("::1") is True
+    assert is_loopback_host("::1") is True
 
     runtime = LauncherRuntime(
         config=ShutdownConfig(host="::1", port=available_port(), token="secret-token")

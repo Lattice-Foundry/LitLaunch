@@ -211,39 +211,6 @@ def network_exposure_acknowledged(
     }
 
 
-def validate_host_exposure_policy(
-    *,
-    host: str,
-    trust_mode: TrustMode | str,
-    allow_network_exposure: bool = False,
-    env: Mapping[str, str] | None = None,
-) -> HostExposure:
-    """Validate the host binding against the configured trust mode."""
-
-    mode = (
-        trust_mode if isinstance(trust_mode, TrustMode) else TrustMode(str(trust_mode))
-    )
-    assessment = assess_runtime_exposure(
-        host=host,
-        trust_mode=mode,
-        allow_network_exposure=allow_network_exposure,
-        env=env,
-    )
-    if assessment.allowed:
-        return classify_host_exposure(host)
-    if mode == TrustMode.STRICT_LOCAL and assessment.exposed:
-        raise ValueError(
-            "trust_mode strict_local requires loopback-only host binding. "
-            "Use 127.0.0.1, ::1, or localhost."
-        )
-    raise ValueError(
-        "Network exposure requires explicit acknowledgement. "
-        "Use --allow-network-exposure, set allow_network_exposure=true in "
-        "the profile, set LITLAUNCH_ALLOW_NETWORK_EXPOSURE=1, or bind to "
-        "127.0.0.1 for localhost-only use."
-    )
-
-
 def _is_loopback_host(host: str) -> bool:
     normalized = host.lower().rstrip(".")
     if normalized == "localhost":

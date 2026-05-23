@@ -2,7 +2,7 @@
 
 > INTERNAL / TEMPORARY INTEGRATION DOCUMENTATION
 >
-> This matrix is for beta validation. It is expected to change during
+> This matrix is for developer validation. It is expected to change during
 > integration work and is not a public support matrix.
 
 ## Conventions
@@ -39,7 +39,7 @@
 | Console verbose | Verbose runtime | `litlaunch run <app.py> --verbose` | More sanitized detail, no secrets. |
 | Source checkout | Editable install | `python -m pip install -e .[dev]` | CLI and imports resolve from source. |
 | Local wheel | Built wheel install | `python scripts/check_release.py` | Wheel installs and CLI smoke passes. |
-| TestPyPI | Test package install | TestPyPI install command | Version and CLI smoke match package under test. |
+| Package rehearsal | Test package install | Package install command | Version and CLI smoke match package under test. |
 
 ## Manual Validation Notes
 

@@ -437,6 +437,13 @@ def _step_monitor_window(
         default = platform_is_windows
     else:
         default = state.monitor_window
+    _write(
+        io.stream,
+        (
+            "Highly recommended: keep this enabled for app-window profiles "
+            "so closing the app window stops the backend cleanly."
+        ),
+    )
     state.monitor_window = _ask_bool(
         io,
         "Monitor app window close",
@@ -682,6 +689,7 @@ def _choose(
                 else ""
             )
             _write(io.stream, f"  {index}. {text}{recommended}{suffix}")
+        _write(io.stream, "Press Enter for the default selection.")
         _write(io.stream, "Selection:")
         answer = _read_answer(io).strip().lower()
         if not answer:
@@ -717,24 +725,31 @@ def _ask(
     validator: Callable[[str], str] | None = None,
     raw_default: bool = False,
 ) -> str:
-    prompt = f"{label}"
-    if default is not None:
-        prompt += f" [{default}]"
-    prompt = f"Selection: {prompt}:"
-    _write(io.stream, prompt)
-    answer = _read_answer(io)
-    value = answer.strip() if answer.strip() else (default or "")
-    if raw_default and value == (default or ""):
-        return answer.strip()
-    if validator is None:
-        return value
-    return validator(value)
+    while True:
+        prompt = f"{label}"
+        if default is not None:
+            prompt += f" [{default}]"
+            _write(io.stream, "Press Enter for the default value.")
+        prompt = f"Selection: {prompt}:"
+        _write(io.stream, prompt)
+        answer = _read_answer(io)
+        stripped = answer.strip()
+        if not stripped and default is None:
+            _write(io.stream, f"{label} requires a value.")
+            continue
+        value = stripped if stripped else (default or "")
+        if raw_default and value == (default or ""):
+            return stripped
+        if validator is None:
+            return value
+        return validator(value)
 
 
 def _ask_optional(io: _WizardIo, label: str, *, default: str = "") -> str:
     prompt = f"Selection: {label}"
     if default:
         prompt += f" [{default}]"
+        _write(io.stream, "Press Enter for the default value.")
     prompt += ":"
     _write(io.stream, prompt)
     answer = _read_answer(io).strip()
@@ -849,6 +864,7 @@ def _render_header(io: _WizardIo) -> None:
         style_text("Create Profile Wizard", streamlit_blue, use_color=io.use_color),
     )
     _write(io.stream, "Choose Simple mode or Advanced mode.")
+    _write(io.stream, "Press Enter to accept any value shown in brackets.")
     _write(io.stream, "Type 'back' to revisit the previous step, or 'quit' to cancel.")
     _write(io.stream, "")
 

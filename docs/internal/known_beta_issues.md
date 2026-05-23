@@ -90,7 +90,8 @@ while still keeping RoleThread-specific product policy outside LitLaunch.
 
 LitLaunch should support packaged apps as a runtime dependency, but it should
 not own PyInstaller, Nuitka, installer, updater, or distribution behavior.
-Lightweight profile shortcut scripts are supported; full installer workflows are
-not.
+Lightweight project-local shortcut artifacts are supported; full installer
+workflows are not. macOS shortcut behavior remains beta until community
+validation expands.
 
 Packaging guidance is expected to evolve during RoleThread validation.

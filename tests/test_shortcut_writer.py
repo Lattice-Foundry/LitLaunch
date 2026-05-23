@@ -11,6 +11,7 @@ from litlaunch.exceptions import ConfigurationError
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
 from litlaunch.profiles import LaunchProfile
 from litlaunch.shortcut_writer import (
+    ShortcutKind,
     ShortcutRequest,
     build_shortcut_plan,
     write_shortcut,
@@ -42,7 +43,7 @@ def platform_info(os_name: OperatingSystem) -> PlatformInfo:
     )
 
 
-def test_shortcut_plan_windows_bat_uses_app_parent(tmp_path: Path):
+def test_shortcut_plan_windows_lnk_uses_app_parent_and_python(tmp_path: Path):
     app = tmp_path / "app.py"
     app.write_text("print('hi')\n", encoding="utf-8")
     profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app))
@@ -54,13 +55,40 @@ def test_shortcut_plan_windows_bat_uses_app_parent(tmp_path: Path):
         )
     )
 
-    assert plan.output_path == tmp_path / ".litlaunch" / "shortcuts" / "my-webapp.bat"
-    assert f'cd /d "{tmp_path}"' in plan.content
-    assert '"litlaunch" "--profile" "my-webapp"' in plan.content
+    assert plan.kind == ShortcutKind.NATIVE
+    assert plan.output_path == tmp_path / ".litlaunch" / "shortcuts" / "my-webapp.lnk"
+    assert f"Start in: {tmp_path}" in plan.content
+    assert plan.command[:5] == (
+        "X:/Python/python.exe",
+        "-m",
+        "litlaunch.cli",
+        "--profile",
+        "my-webapp",
+    )
     assert plan.executable is False
 
 
-def test_shortcut_plan_linux_shell_quotes_paths_and_config(tmp_path: Path):
+def test_shortcut_plan_windows_script_bat_uses_app_parent(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app))
+
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.WINDOWS),
+            kind=ShortcutKind.SCRIPT,
+        )
+    )
+
+    assert plan.output_path == tmp_path / ".litlaunch" / "shortcuts" / "my-webapp.bat"
+    assert f'cd /d "{tmp_path}"' in plan.content
+    assert '"X:/Python/python.exe" "-m" "litlaunch.cli"' in plan.content
+    assert '"--profile" "my-webapp"' in plan.content
+    assert plan.executable is False
+
+
+def test_shortcut_plan_linux_desktop_quotes_paths_and_config(tmp_path: Path):
     app = tmp_path / "app.py"
     config = tmp_path / "litlaunch.toml"
     app.write_text("print('hi')\n", encoding="utf-8")
@@ -74,10 +102,39 @@ def test_shortcut_plan_linux_shell_quotes_paths_and_config(tmp_path: Path):
         )
     )
 
+    assert plan.output_path == (
+        tmp_path / ".litlaunch" / "shortcuts" / "my-webapp.desktop"
+    )
+    assert plan.content.startswith("[Desktop Entry]\n")
+    assert "Type=Application" in plan.content
+    assert "Terminal=true" in plan.content
+    assert (
+        "Exec=X:/Python/python.exe -m litlaunch.cli --profile my-webapp --config"
+        in (plan.content)
+    )
+    assert plan.executable is True
+
+
+def test_shortcut_plan_linux_script_quotes_paths_and_config(tmp_path: Path):
+    app = tmp_path / "app.py"
+    config = tmp_path / "litlaunch.toml"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app))
+
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.LINUX),
+            config_path=config,
+            kind=ShortcutKind.SCRIPT,
+        )
+    )
+
     assert plan.output_path == tmp_path / ".litlaunch" / "shortcuts" / "my-webapp.sh"
     assert plan.content.startswith("#!/usr/bin/env sh\n")
     assert f"cd '{tmp_path}'" in plan.content
-    assert "'litlaunch' '--profile' 'my-webapp' '--config'" in plan.content
+    assert "'X:/Python/python.exe' '-m' 'litlaunch.cli' '--profile'" in plan.content
+    assert "'--config'" in plan.content
     assert plan.executable is True
 
 
@@ -98,6 +155,7 @@ def test_shortcut_plan_macos_command_uses_cwd_and_custom_output(tmp_path: Path):
             platform=platform_info(OperatingSystem.MACOS),
             output_path=output,
             name="Ignored",
+            kind=ShortcutKind.SCRIPT,
         )
     )
 
@@ -141,6 +199,7 @@ def test_windows_shortcut_escapes_cmd_sensitive_characters(tmp_path: Path):
             profile=profile,
             platform=platform_info(OperatingSystem.WINDOWS),
             config_path=config,
+            kind=ShortcutKind.SCRIPT,
         )
     )
 
@@ -148,5 +207,26 @@ def test_windows_shortcut_escapes_cmd_sensitive_characters(tmp_path: Path):
     assert "^&" in plan.content
     assert "^^" in plan.content
     assert '^"' in plan.content
-    assert '"litlaunch" "--profile" "web-profile"' in plan.content
+    assert '"X:/Python/python.exe" "-m" "litlaunch.cli"' in plan.content
+    assert '"--profile" "web-profile"' in plan.content
     assert "litlaunch ^& config.toml" in plan.content
+
+
+def test_shortcut_plan_macos_native_app_bundle(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app))
+
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.MACOS),
+        )
+    )
+
+    assert plan.output_path == tmp_path / ".litlaunch" / "shortcuts" / "my-webapp.app"
+    assert {file.relative_path.as_posix() for file in plan.files} == {
+        "Contents/Info.plist",
+        "Contents/MacOS/launch",
+    }
+    assert "CFBundlePackageType" in plan.content

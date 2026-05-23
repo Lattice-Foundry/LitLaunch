@@ -14,6 +14,7 @@ from litlaunch.profile_wizard import (
 )
 from litlaunch.profiles import load_profile
 from litlaunch.shortcut_writer import (
+    ShortcutKind,
     ShortcutRequest,
     build_shortcut_plan,
     write_shortcut,
@@ -73,7 +74,7 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
         epilog=(
             "Examples: litlaunch create shortcut --profile my-webapp | "
             "litlaunch create shortcut --profile my-webapp --dry-run | "
-            "litlaunch create shortcut --profile my-webapp --output Launch.bat --force"
+            "litlaunch create shortcut --profile my-webapp --kind script"
         ),
         formatter_class=parser.formatter_class,
     )
@@ -86,6 +87,12 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
     shortcut_parser.add_argument(
         "--name",
         help="Override the generated shortcut base filename.",
+    )
+    shortcut_parser.add_argument(
+        "--kind",
+        choices=[item.value for item in ShortcutKind],
+        default=ShortcutKind.NATIVE.value,
+        help="Shortcut artifact style. Defaults to OS-native where supported.",
     )
     shortcut_parser.add_argument(
         "--force",
@@ -154,11 +161,13 @@ def cmd_create_shortcut(args: argparse.Namespace, context: CliContext) -> int:
             config_path=config_path,
             output_path=Path(args.output_path) if args.output_path else None,
             name=args.name,
+            kind=args.kind,
         )
     )
     if args.dry_run:
         context.stream.write("Shortcut dry run\n")
         context.stream.write(f"Platform: {plan.platform.value}\n")
+        context.stream.write(f"Kind: {plan.kind.value}\n")
         context.stream.write(f"Profile: {plan.profile_name}\n")
         context.stream.write(f"Output: {plan.output_path}\n")
         context.stream.write(f"Command: {' '.join(plan.command)}\n")

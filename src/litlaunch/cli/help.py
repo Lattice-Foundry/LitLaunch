@@ -201,7 +201,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "",
             style.label("Create a launch shortcut:"),
             *style.commands("litlaunch create shortcut --profile NAME"),
-            "  Writes a .bat, .sh, or .command file under .litlaunch/shortcuts.",
+            "  Writes a native launcher under .litlaunch/shortcuts by default.",
             "",
             style.label("Run a profile:"),
             *style.commands(
@@ -242,9 +242,12 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             style.label("Shortcuts:"),
             *style.commands(
                 "litlaunch create shortcut --profile my-webapp",
+                "litlaunch create shortcut --profile my-webapp --kind script",
                 "litlaunch create shortcut --profile my-webapp --dry-run",
             ),
-            "  Shortcut files are written under .litlaunch/shortcuts by default.",
+            "  Native shortcuts are .lnk on Windows, .desktop on Linux, and",
+            "  .app bundles on macOS. Use --kind script for .bat/.sh/.command.",
+            "  macOS shortcut support is beta until community validation expands.",
         )
     if topic == "examples":
         return _join(

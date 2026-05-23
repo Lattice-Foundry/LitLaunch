@@ -240,7 +240,7 @@ LitLaunch keeps generated project files under `.litlaunch/` by default:
 ```text
 .litlaunch/
   reports/              HTML reports, JSON output, and support bundles
-  shortcuts/            generated .bat, .sh, and .command launch shortcuts
+  shortcuts/            generated launch shortcuts
   tmp/browser-profiles/ managed temporary Chromium profiles
 ```
 
@@ -407,14 +407,19 @@ Create a project-local launch shortcut for an existing profile:
 ```powershell
 litlaunch create shortcut --profile my-webapp
 litlaunch create shortcut --profile my-webapp --dry-run
-litlaunch create shortcut --profile my-webapp --output Launch.bat --force
+litlaunch create shortcut --profile my-webapp --kind script
 ```
 
-Shortcut creation writes a `.bat`, `.sh`, or `.command` file under
-`.litlaunch/shortcuts/` in the profile app root by default. It does not launch
-the app, modify the Desktop, or install Start Menu entries. The generated file
-uses the public `litlaunch --profile NAME` workflow so it remains easy to
-inspect and move.
+Shortcut creation writes an OS-native project-local shortcut under
+`.litlaunch/shortcuts/` in the profile app root by default:
+
+- Windows: `.lnk`
+- Linux: `.desktop`
+- macOS: `.app` bundle, currently beta until broader community validation
+
+Use `--kind script` for the simpler `.bat`, `.sh`, or `.command` fallback form.
+Shortcut creation does not launch the app, modify the Desktop, register Start
+Menu entries, or install launchers into OS-specific locations.
 
 ## Example
 

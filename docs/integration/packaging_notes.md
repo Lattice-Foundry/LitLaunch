@@ -69,22 +69,27 @@ Future notes should cover:
 
 ## Profile Shortcuts
 
-LitLaunch can generate lightweight project-local shortcut scripts for existing
+LitLaunch can generate lightweight project-local shortcuts for existing
 profiles:
 
 ```powershell
 litlaunch create shortcut --profile my-webapp
 litlaunch create shortcut --profile my-webapp --dry-run
+litlaunch create shortcut --profile my-webapp --kind script
 ```
 
 The profile wizard can also offer shortcut creation after a profile is written.
 Generated shortcuts are written under `.litlaunch/shortcuts/` in the app root
-by default, so packaged-project repositories can ignore generated launch scripts
-with a single `.litlaunch/` entry.
-Generated shortcuts are `.bat`, `.sh`, or `.command` files that `cd` into the
-app root and run the public `litlaunch --profile NAME` workflow. They are not
-native installer artifacts, do not manage icons, and are not automatically
-placed on the Desktop or Start Menu.
+by default, so packaged-project repositories can ignore generated launch
+artifacts with a single `.litlaunch/` entry.
+Generated shortcuts are native project-local artifacts by default: `.lnk` on
+Windows, `.desktop` on Linux, and a small `.app` bundle on macOS. Use
+`--kind script` for `.bat`, `.sh`, or `.command` fallback scripts. macOS shortcut
+support is beta until broader community validation expands.
+
+Shortcuts are not installer artifacts, do not register with desktop menus, and
+are not automatically placed on the Desktop, Start Menu, Dock, or distro-specific
+launchers.
 
 LitLaunch should remain the runtime layer beneath those workflows, not the
 packaging or installer system.

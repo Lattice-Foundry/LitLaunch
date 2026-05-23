@@ -10,6 +10,11 @@ public API finishes settling.
   without printing raw app-owned status lines.
 - Documented the normal/verbose shutdown hook visibility pattern and the
   dynamic hook-status return contract for app integrations.
+- Routed generated reports, shortcuts, and managed browser scratch profiles
+  under project-local `.litlaunch/` folders by default.
+- Upgraded shortcut generation to use native project-local artifacts by
+  default: `.lnk` on Windows, `.desktop` on Linux, and beta `.app` bundles on
+  macOS, with `--kind script` for `.bat`/`.sh`/`.command` fallback scripts.
 
 ## 0.91.43b0
 

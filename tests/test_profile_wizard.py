@@ -80,7 +80,7 @@ def test_profile_wizard_simple_mode_happy_path_declines_shortcut(
     assert profile.config.title == "Example App"
     assert profile.monitor_window is True
     assert "Profile preview" in output
-    assert not (tmp_path / ".litlaunch" / "shortcuts" / "web.bat").exists()
+    assert not (tmp_path / ".litlaunch" / "shortcuts" / "web.lnk").exists()
 
 
 def test_profile_wizard_advanced_mode_writes_profile(
@@ -231,4 +231,4 @@ def test_profile_wizard_shortcut_prompt_defaults_to_no(
 
     assert result is not None
     assert "Create a shortcut for this profile now" in output
-    assert not (tmp_path / ".litlaunch" / "shortcuts" / "shortcut-default.bat").exists()
+    assert not (tmp_path / ".litlaunch" / "shortcuts" / "shortcut-default.lnk").exists()

@@ -25,7 +25,8 @@ profiles, shortcuts, diagnostics, and cleaner launch flows. Normal localhost
 workflows stay simple; packaged/distributed app workflows can reuse the same
 runtime layer across Windows, Linux, and macOS; trust modes, exposure
 diagnostics, and transport posture reporting are available when a project needs
-stronger operational visibility.
+stronger operational visibility. Windows and Linux receive first-party manual
+validation; macOS support is beta until community testing broadens.
 
 ## Current Scope
 
@@ -43,8 +44,8 @@ Implemented:
 - JSON/HTML/bundle inspect diagnostics
 - Runtime governance, exposure, and transport posture diagnostics
 - Profile wizard and lightweight project-local shortcut generation
-- Packaged/distributed workflow support on Windows, Linux, and macOS through
-  the same runtime primitives
+- Packaged/distributed workflow support on Windows, Linux, and beta macOS
+  through the same runtime primitives
 - Lightweight console rendering
 - Argparse CLI
 - Optional Windows-first Chromium window monitoring

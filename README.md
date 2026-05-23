@@ -75,6 +75,8 @@ backend lifecycle, graceful shutdown, diagnostics/reporting, working-directory
 handling, repeatable launch workflows, and platform-specific launch behavior.
 
 LitLaunch is designed to behave consistently across Windows, Linux, and macOS.
+Windows and Linux receive first-party manual validation; macOS support is beta
+until community testing broadens.
 
 That makes it a strong fit for internal business tools, analyst dashboards,
 local AI utilities, and desktop-style Streamlit apps that need more operational
@@ -268,7 +270,7 @@ default:
 ```text
 .litlaunch/
   reports/              HTML reports, JSON output, and support bundles
-  shortcuts/            generated .bat, .sh, and .command launch shortcuts
+  shortcuts/            generated launch shortcuts
   tmp/browser-profiles/ managed temporary Chromium profiles
 ```
 
@@ -276,6 +278,12 @@ Keep `litlaunch.toml` in the project root when you want profiles to travel with
 the app. Add `.litlaunch/` to `.gitignore` when generated reports, shortcuts, and
 runtime scratch files should stay out of source control. Explicit `--output`
 paths still write exactly where you ask.
+
+Shortcut generation uses native project-local artifacts by default: `.lnk` on
+Windows, `.desktop` on Linux, and a small `.app` bundle on macOS. Use
+`litlaunch create shortcut --profile NAME --kind script` when you prefer the
+simple `.bat`, `.sh`, or `.command` script form. macOS support is treated as beta
+until it receives broader community validation.
 
 Python integrations can run the same configured profile through `run_profile()`:
 

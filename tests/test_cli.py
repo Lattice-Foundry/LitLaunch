@@ -636,6 +636,7 @@ def test_cli_create_shortcut_help_describes_profile_shortcuts(capsys):
     assert exc_info.value.code == 0
     assert "OS-appropriate launch shortcut" in output
     assert "--profile" in output
+    assert "--kind" in output
     assert "litlaunch create shortcut --profile my-webapp" in output
     assert "python -m litlaunch.cli" not in output
 
@@ -643,6 +644,10 @@ def test_cli_create_shortcut_help_describes_profile_shortcuts(capsys):
 def test_cli_create_profile_simple_mode_writes_webapp_profile(monkeypatch):
     with temporary_output_dir() as output_dir, monkeypatch.context() as m:
         m.chdir(output_dir)
+        m.setattr(
+            "litlaunch.shortcut_writer._write_windows_lnk",
+            lambda plan: plan.output_path.write_bytes(b"lnk"),
+        )
         (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
         answers = iter(["", "", "", "", "", "", "", "", "", "n"])
         m.setattr("builtins.input", lambda: next(answers))
@@ -672,7 +677,7 @@ def test_cli_create_profile_simple_mode_writes_webapp_profile(monkeypatch):
         assert "Current profile:" in output
         assert "Profile preview" in output
         assert not (
-            output_dir / ".litlaunch" / "shortcuts" / f"{output_dir.name}.bat"
+            output_dir / ".litlaunch" / "shortcuts" / f"{output_dir.name}.lnk"
         ).exists()
 
 
@@ -699,6 +704,10 @@ def test_cli_create_profile_keyboard_interrupt_cancels_cleanly(monkeypatch):
 def test_cli_create_profile_simple_mode_accepts_shortcut(monkeypatch):
     with temporary_output_dir() as output_dir, monkeypatch.context() as m:
         m.chdir(output_dir)
+        m.setattr(
+            "litlaunch.shortcut_writer._write_windows_lnk",
+            lambda plan: plan.output_path.write_bytes(b"lnk"),
+        )
         (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
         answers = iter(["", "web", "", "", "", "", "", "", "", "y"])
         m.setattr("builtins.input", lambda: next(answers))
@@ -711,13 +720,10 @@ def test_cli_create_profile_simple_mode_accepts_shortcut(monkeypatch):
             launcher_factory=_failing_launcher_factory,
         )
 
-        shortcut = output_dir / ".litlaunch" / "shortcuts" / "web.bat"
+        shortcut = output_dir / ".litlaunch" / "shortcuts" / "web.lnk"
         assert code == 0
         assert shortcut.is_file()
-        content = shortcut.read_text(encoding="utf-8")
-        assert '"litlaunch" "--profile" "web"' in content
-        assert '"--config"' in content
-        assert f'"{(output_dir / "litlaunch.toml").resolve()}"' in content
+        assert shortcut.stat().st_size > 0
         assert "Created shortcut" in stream.getvalue()
 
 
@@ -725,7 +731,7 @@ def test_cli_create_profile_shortcut_existing_can_be_skipped(monkeypatch):
     with temporary_output_dir() as output_dir, monkeypatch.context() as m:
         m.chdir(output_dir)
         (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
-        shortcut = output_dir / ".litlaunch" / "shortcuts" / "web.bat"
+        shortcut = output_dir / ".litlaunch" / "shortcuts" / "web.lnk"
         shortcut.parent.mkdir(parents=True)
         shortcut.write_text("old", encoding="utf-8")
         answers = iter(["", "web", "", "", "", "", "", "", "", "y", "n"])
@@ -876,7 +882,7 @@ def test_cli_create_profile_dry_run_does_not_write(monkeypatch):
 
         assert code == 0
         assert not (output_dir / "litlaunch.toml").exists()
-        assert not (output_dir / ".litlaunch" / "shortcuts" / "dry-run.bat").exists()
+        assert not (output_dir / ".litlaunch" / "shortcuts" / "dry-run.lnk").exists()
         assert '[profiles."dry-run"]' in stream.getvalue()
         assert "Dry run complete" in stream.getvalue()
         assert "Shortcut creation would be offered" in stream.getvalue()
@@ -928,6 +934,10 @@ title = "Old"
 def test_cli_create_profile_advanced_mode_writes_full_profile(monkeypatch):
     with temporary_output_dir() as output_dir, monkeypatch.context() as m:
         m.chdir(output_dir)
+        m.setattr(
+            "litlaunch.shortcut_writer._write_windows_lnk",
+            lambda plan: plan.output_path.write_bytes(b"lnk"),
+        )
         (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
         answers = iter(
             [
@@ -995,11 +1005,9 @@ def test_cli_create_profile_advanced_mode_writes_full_profile(monkeypatch):
         assert profile.window_monitor_config.appear_timeout_seconds == 70
         assert profile.window_monitor_config.poll_interval_seconds == 2
         assert profile.window_monitor_config.stable_poll_count == 3
-        shortcut = output_dir / ".litlaunch" / "shortcuts" / "advanced-profile.bat"
+        shortcut = output_dir / ".litlaunch" / "shortcuts" / "advanced-profile.lnk"
         assert shortcut.is_file()
-        assert '"litlaunch" "--profile" "advanced-profile"' in shortcut.read_text(
-            encoding="utf-8"
-        )
+        assert shortcut.stat().st_size > 0
         output = stream.getvalue()
         assert "Advanced" in output
         assert "Streamlit flags: 2" in output
@@ -1072,16 +1080,21 @@ title = "Web"
         )
 
         assert code == 0
-        assert not (output_dir / ".litlaunch" / "shortcuts" / "web.bat").exists()
+        assert not (output_dir / ".litlaunch" / "shortcuts" / "web.lnk").exists()
         output = stream.getvalue()
         assert "Shortcut dry run" in output
-        assert "web.bat" in output
-        assert 'litlaunch" "--profile" "web' in output
+        assert "web.lnk" in output
+        assert "Target: X:/Python/python.exe" in output
+        assert "litlaunch.cli" in output
 
 
 def test_cli_create_shortcut_writes_and_respects_force(monkeypatch):
     with temporary_output_dir() as output_dir, monkeypatch.context() as m:
         m.chdir(output_dir)
+        m.setattr(
+            "litlaunch.shortcut_writer._write_windows_lnk",
+            lambda plan: plan.output_path.write_bytes(b"lnk"),
+        )
         (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
         (output_dir / "litlaunch.toml").write_text(
             """
@@ -1099,7 +1112,7 @@ title = "Web"
             platform_detector_factory=FakePlatformDetector,
         )
 
-        shortcut = output_dir / ".litlaunch" / "shortcuts" / "web.bat"
+        shortcut = output_dir / ".litlaunch" / "shortcuts" / "web.lnk"
         assert code == 0
         assert shortcut.is_file()
         assert "Created shortcut" in stream.getvalue()
@@ -1151,6 +1164,8 @@ title = "Web"
                 str(config_path),
                 "--output",
                 str(output_path),
+                "--kind",
+                "script",
             ],
             stream=stream,
             platform_detector_factory=FakePlatformDetector,

@@ -13,7 +13,8 @@ hooks, packaged-app runtime workflows, trust modes, and report tooling are
 available when the project needs more repeatable launch behavior or operational
 visibility. LitLaunch can run inside packaged/distributed Streamlit apps across
 Windows, Linux, and macOS, but it does not create installers or replace
-packaging tools.
+packaging tools. Windows and Linux receive first-party manual validation; macOS
+support is beta until community testing broadens.
 
 ## Run The Minimal Example
 

@@ -145,16 +145,16 @@ Validate reusable launch workflows and generated artifacts.
 
 | ID | Status | Effort | Command / Action | Expected Result | Record If It Fails | Severity | Feature Area |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| PROF-01 | Not run | Light | `litlaunch command --profile rolethread-webapp` | Prints planned launch command without starting runtime. | Command output. | Medium | Profile preview |
-| PROF-02 | Not run | Light | `litlaunch inspect --profile rolethread-webapp --json` | Profile loads cleanly and diagnostics include profile context. | Profile loading error or missing context. | High | Profile loading |
-| PROF-03 | Not run | Medium | `litlaunch --profile rolethread-webapp` | Profile launches one app window and close-to-shutdown works. | Console output and window behavior. | Blocker | Profile launch |
-| PROF-04 | Not run | Medium | `litlaunch --profile rolethread-browser` | Browser profile launches and `Ctrl+C` remains reliable. | Browser behavior and shutdown output. | High | Profile launch |
-| PROF-05 | Not run | Light | `litlaunch --profile does-not-exist` | Clean profile-not-found error, no backend start. | Error text. | Medium | Profile errors |
-| PROF-06 | Not run | Medium | `litlaunch create shortcut --profile rolethread-webapp --dry-run` | Shows shortcut plan and content; writes nothing. | Output and whether file appeared. | Medium | Shortcut dry-run |
-| PROF-07 | Not run | Medium | Run `litlaunch create shortcut --profile rolethread-webapp --force`<br>Then run `.\\.litlaunch\\shortcuts\\rolethread-webapp.lnk`. | Shortcut starts RoleThread from correct working directory; lifecycle matches profile launch. | Shortcut file content and console output. | High | Shortcut launch |
-| PROF-08 | Not run | Medium | Run `X:\\dev\\rolethread-test\\.litlaunch\\shortcuts\\rolethread-webapp.lnk` from a different current directory. | Working directory is still correct and app assets resolve. | Starting directory and any missing-file errors. | High | Shortcut cwd |
-| PROF-09 | Not run | Medium | Create a temporary folder path with spaces, copy the shortcut there, and run it. | Quoting survives spaces in path. | Shortcut path and error text. | Medium | Shortcut quoting |
-| PROF-10 | Not run | Medium | `litlaunch create profile --dry-run` and walk Simple mode without writing. | App-root defaults detect `app.py`, folder-derived title/name, app-window default, and optional shortcut is not written. | Prompt sequence and preview. | Medium | Profile wizard |
+| PROF-01 | Complete | Light | `litlaunch command --profile rolethread-webapp` | Prints planned launch command without starting runtime. | Command output. | Medium | Profile preview |
+| PROF-02 | Complete | Light | `litlaunch inspect --profile rolethread-webapp --json` | Profile loads cleanly and diagnostics include profile context. | Profile loading error or missing context. | High | Profile loading |
+| PROF-03 | Complete | Medium | `litlaunch --profile rolethread-webapp` | Profile launches one app window and close-to-shutdown works. | Console output and window behavior. | Blocker | Profile launch |
+| PROF-04 | Complete | Medium | `litlaunch --profile rolethread-browser` | Browser profile launches and `Ctrl+C` remains reliable. | Browser behavior and shutdown output. | High | Profile launch |
+| PROF-05 | Complete | Light | `litlaunch --profile does-not-exist` | Clean profile-not-found error, no backend start. | Error text. | Medium | Profile errors |
+| PROF-06 | Complete | Medium | `litlaunch create shortcut --profile rolethread-webapp --dry-run` | Shows shortcut plan and content; writes nothing. | Output and whether file appeared. | Medium | Shortcut dry-run |
+| PROF-07 | Complete | Medium | Run `litlaunch create shortcut --profile rolethread-webapp --force`<br>Then run `.\\.litlaunch\\shortcuts\\rolethread-webapp.lnk`. | Shortcut starts RoleThread from correct working directory; lifecycle matches profile launch. | Shortcut file content and console output. | High | Shortcut launch |
+| PROF-08 | Complete | Medium | Run `X:\\dev\\rolethread-test\\.litlaunch\\shortcuts\\rolethread-webapp.lnk` from a different current directory. | Working directory is still correct and app assets resolve. | Starting directory and any missing-file errors. | High | Shortcut cwd |
+| PROF-09 | Complete | Medium | Create a temporary folder path with spaces, copy the shortcut there, and run it. | Quoting survives spaces in path. | Shortcut path and error text. | Medium | Shortcut quoting |
+| PROF-10 | Complete | Medium | `litlaunch create profile --dry-run` and walk Simple mode without writing. | App-root defaults detect `app.py`, folder-derived title/name, app-window default, and optional shortcut is not written. | Prompt sequence and preview. | Medium | Profile wizard |
 
 Cleanup:
 

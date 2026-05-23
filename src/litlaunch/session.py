@@ -408,11 +408,7 @@ class RuntimeSession:
             render_phase_success(
                 self.console_renderer,
                 ConsolePhase.SHUTDOWN if expected_shutdown else ConsolePhase.BACKEND,
-                (
-                    "Backend stopped cleanly"
-                    if expected_shutdown
-                    else "exited cleanly"
-                ),
+                ("Backend stopped cleanly" if expected_shutdown else "exited cleanly"),
                 elapsed_seconds=elapsed_seconds,
             )
             return

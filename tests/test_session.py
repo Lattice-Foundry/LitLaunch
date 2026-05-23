@@ -249,7 +249,7 @@ def test_runtime_session_wait_renders_clean_backend_exit_without_exit_code_zero(
     assert session.wait() == 0
 
     output = stream.getvalue()
-    assert "[   ok   ] Backend: exited cleanly." in output
+    assert "[   ok   ] Backend: Exited cleanly." in output
     assert "exited with code 0" not in output
     assert "Exited with code" not in output
 
@@ -272,7 +272,7 @@ def test_runtime_session_wait_renders_nonzero_backend_exit_code():
     assert session.wait() == 2
 
     output = stream.getvalue()
-    assert "[ error  ] Backend: exited with code 2." in output
+    assert "[ error  ] Backend: Exited with code 2." in output
     assert "[ cause  ] The backend stopped with an error status." in output
     assert output.count("[  next  ]") == 1
 
@@ -388,7 +388,7 @@ def test_runtime_session_stop_emits_console_shutdown_messages():
     assert "Shutdown: requested" not in output
     assert "Shutdown: requesting app cleanup" not in output
     assert "Shutdown: app cleanup request accepted" not in output
-    assert "Shutdown: complete; backend stopped cleanly in" in output
+    assert "Shutdown: Backend stopped cleanly in" in output
     assert "exited with code 0" not in output
 
 
@@ -414,10 +414,10 @@ def test_runtime_session_verbose_stop_emits_shutdown_request_details():
     session.stop(graceful_timeout_seconds=0.5)
 
     output = stream.getvalue()
-    assert "Shutdown: requested" in output
-    assert "Shutdown: requesting app cleanup" in output
-    assert "Shutdown: app cleanup request accepted" in output
-    assert "Shutdown: complete; backend stopped cleanly in" in output
+    assert "Shutdown: Requested" in output
+    assert "Shutdown: Requesting app cleanup" in output
+    assert "Shutdown: App cleanup request accepted" in output
+    assert "Shutdown: Backend stopped cleanly in" in output
 
 
 def test_runtime_session_renders_shutdown_hook_results_from_graceful_response():
@@ -518,7 +518,7 @@ def test_runtime_session_reports_port_release_only_when_verified():
     session.stop(graceful_timeout_seconds=0.5)
 
     assert calls == [("127.0.0.1", 8501)]
-    assert "[   ok   ] Backend: port 8501 released." in stream.getvalue()
+    assert "[   ok   ] Backend: Port 8501 released." in stream.getvalue()
 
 
 def test_runtime_session_does_not_claim_port_release_when_not_verified():
@@ -586,8 +586,8 @@ def test_runtime_session_stop_fallback_console_guidance():
     session.stop(timeout_seconds=2.0)
 
     output = stream.getvalue()
-    assert "Shutdown: graceful request failed." in output
-    assert "Shutdown: using backend termination fallback." in output
+    assert "Shutdown: Graceful request failed." in output
+    assert "Shutdown: Using backend termination fallback." in output
     assert "LitLaunch will stop only the backend process it started." not in output
     assert "Use verbose mode for more runtime details." in output
 

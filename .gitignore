@@ -47,6 +47,7 @@ desktop.ini
 *.log
 *.tmp
 *.temp
+.litlaunch/
 
 # ai tooling cache
 

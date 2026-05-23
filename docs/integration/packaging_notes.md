@@ -78,6 +78,9 @@ litlaunch create shortcut --profile my-webapp --dry-run
 ```
 
 The profile wizard can also offer shortcut creation after a profile is written.
+Generated shortcuts are written under `.litlaunch/shortcuts/` in the app root
+by default, so packaged-project repositories can ignore generated launch scripts
+with a single `.litlaunch/` entry.
 Generated shortcuts are `.bat`, `.sh`, or `.command` files that `cd` into the
 app root and run the public `litlaunch --profile NAME` workflow. They are not
 native installer artifacts, do not manage icons, and are not automatically

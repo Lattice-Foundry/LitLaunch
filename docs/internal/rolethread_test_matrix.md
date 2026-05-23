@@ -32,7 +32,7 @@
 | Monitor unsupported | Unsupported platform/provider | Same command on unsupported host | Explicit unsupported result; no silent success. |
 | Graceful shutdown | Hooks succeed | Registered RoleThread hooks | Hooks run once, backend stops cleanly. |
 | Forced fallback | Graceful shutdown unavailable | Fake or blocked endpoint | Backend fallback termination only applies to owned process. |
-| Inspect HTML | Prelaunch human report | `litlaunch inspect <app.py> --html --output litlaunch-report.html` | No launch, useful readiness report. |
+| Inspect HTML | Prelaunch human report | `litlaunch report <app.py>` | No launch, useful readiness report at `.litlaunch/reports/litlaunch-report.html`. |
 | Inspect JSON | Machine-readable report | `litlaunch inspect <app.py> --json` | Valid JSON, no token/env dump. |
 | Inspect bundle | Support report | `litlaunch inspect <app.py> --bundle` | Copyable sanitized report. |
 | Console quiet | Quiet runtime | `litlaunch run <app.py> --quiet` | Essential failures still visible; normal noise reduced. |

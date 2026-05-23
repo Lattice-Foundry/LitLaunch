@@ -14,11 +14,11 @@ litlaunch report --profile my-webapp --open
 ```
 
 `litlaunch report` is the recommended human-facing diagnostics workflow. It
-writes `litlaunch-report.html` in the current working directory unless
-`--output` is provided. Existing report files are not overwritten unless
-`--force` is supplied. `--open` opens the generated standalone HTML report in
-the default browser after writing it; if opening fails, the report still
-generates and LitLaunch emits a warning.
+writes `.litlaunch/reports/litlaunch-report.html` unless `--output` is
+provided. Existing report files are not overwritten unless `--force` is
+supplied. `--open` opens the generated standalone HTML report in the default
+browser after writing it; if opening fails, the report still generates and
+LitLaunch emits a warning.
 
 The explicit inspect form remains available:
 

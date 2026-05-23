@@ -50,8 +50,7 @@ Known RoleThread profiles in the sandbox:
 Useful cleanup commands:
 
 ```powershell
-Remove-Item .\litlaunch-report.html -ErrorAction SilentlyContinue
-Remove-Item .\rolethread-webapp-test.bat -ErrorAction SilentlyContinue
+Remove-Item .\.litlaunch -Recurse -Force -ErrorAction SilentlyContinue
 Get-ChildItem $env:TEMP -Directory | Where-Object Name -like "litlaunch*"
 ```
 
@@ -71,7 +70,7 @@ Must-run tests for every new LitLaunch build tested against RoleThread.
 | SMK-03 | Complete | Light | `litlaunch app.py`, then press `Ctrl+C` instead of closing the browser. | Backend stops cleanly, hook path runs, port releases. | Console excerpt from `Ctrl+C` through port release. | Blocker | Shutdown |
 | SMK-04 | Complete | Light | `litlaunch app.py --mode webapp` | One Edge app window opens, `Monitor: Watching app window...` appears, closing the app window triggers graceful shutdown. | Console output and screenshot if monitor does not start. | Blocker | Webapp lifecycle |
 | SMK-05 | Complete | Light | `litlaunch --profile rolethread-webapp` | RoleThread webapp profile launches one app window, close-to-shutdown works, RoleThread shutdown hook runs. | Profile name, console output, hook lines. | Blocker | Profiles/hooks |
-| SMK-06 | Complete | Light | `litlaunch report --profile rolethread-webapp --output litlaunch-report.html --force` then open `.\litlaunch-report.html`. | HTML report is generated, standalone, readable, and includes governance/exposure/transport sections. | Report path, screenshot, missing sections. | High | Diagnostics/report |
+| SMK-06 | Complete | Light | `litlaunch report --profile rolethread-webapp --force` then open `.\\.litlaunch\\reports\\litlaunch-report.html`. | HTML report is generated, standalone, readable, and includes governance/exposure/transport sections. | Report path, screenshot, missing sections. | High | Diagnostics/report |
 | SMK-07 | Complete | Light | `litlaunch inspect --profile rolethread-webapp --json` | Valid JSON prints without launching the app. | JSON parse issue or unexpected launch behavior. | High | Diagnostics/JSON |
 
 ## B. Core Lifecycle Tests: 30-60 Minutes
@@ -120,7 +119,8 @@ Run these without launching the app unless noted.
 Cleanup:
 
 ```powershell
-Remove-Item .\inspect-rolethread.json, .\rolethread-support.txt, .\litlaunch-report.html -ErrorAction SilentlyContinue
+Remove-Item .\inspect-rolethread.json, .\rolethread-support.txt -ErrorAction SilentlyContinue
+Remove-Item .\.litlaunch\reports -Recurse -Force -ErrorAction SilentlyContinue
 ```
 
 ## D. Console And Output Tests: 20-40 Minutes
@@ -151,15 +151,15 @@ Validate reusable launch workflows and generated artifacts.
 | PROF-04 | Not run | Medium | `litlaunch --profile rolethread-browser` | Browser profile launches and `Ctrl+C` remains reliable. | Browser behavior and shutdown output. | High | Profile launch |
 | PROF-05 | Not run | Light | `litlaunch --profile does-not-exist` | Clean profile-not-found error, no backend start. | Error text. | Medium | Profile errors |
 | PROF-06 | Not run | Medium | `litlaunch create shortcut --profile rolethread-webapp --dry-run` | Shows shortcut plan and content; writes nothing. | Output and whether file appeared. | Medium | Shortcut dry-run |
-| PROF-07 | Not run | Medium | `litlaunch create shortcut --profile rolethread-webapp --output .\rolethread-webapp-test.bat --force` then run `.\rolethread-webapp-test.bat`. | Shortcut starts RoleThread from correct working directory; lifecycle matches profile launch. | Shortcut file content and console output. | High | Shortcut launch |
-| PROF-08 | Not run | Medium | Run `.\rolethread-webapp-test.bat` from a different current directory. | Working directory is still correct and app assets resolve. | Starting directory and any missing-file errors. | High | Shortcut cwd |
+| PROF-07 | Not run | Medium | `litlaunch create shortcut --profile rolethread-webapp --force` then run `.\\.litlaunch\\shortcuts\\rolethread-webapp.bat`. | Shortcut starts RoleThread from correct working directory; lifecycle matches profile launch. | Shortcut file content and console output. | High | Shortcut launch |
+| PROF-08 | Not run | Medium | Run `.\\.litlaunch\\shortcuts\\rolethread-webapp.bat` from a different current directory. | Working directory is still correct and app assets resolve. | Starting directory and any missing-file errors. | High | Shortcut cwd |
 | PROF-09 | Not run | Medium | Create a temporary folder path with spaces, copy the shortcut there, and run it. | Quoting survives spaces in path. | Shortcut path and error text. | Medium | Shortcut quoting |
 | PROF-10 | Not run | Medium | `litlaunch create profile --dry-run` and walk Simple mode without writing. | App-root defaults detect `app.py`, folder-derived title/name, app-window default, and optional shortcut is not written. | Prompt sequence and preview. | Medium | Profile wizard |
 
 Cleanup:
 
 ```powershell
-Remove-Item .\rolethread-webapp-test.bat -ErrorAction SilentlyContinue
+Remove-Item .\.litlaunch\shortcuts\rolethread-webapp.bat -ErrorAction SilentlyContinue
 ```
 
 ## F. Packaged / Installer Tests: Effort Depends On Availability

@@ -6,6 +6,7 @@ import stat
 from dataclasses import dataclass
 from pathlib import Path
 
+from litlaunch.artifacts import default_shortcut_path
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.platforms import OperatingSystem, PlatformInfo
 from litlaunch.profiles import LaunchProfile
@@ -45,7 +46,7 @@ def build_shortcut_plan(request: ShortcutRequest) -> ShortcutPlan:
     output_path = (
         request.output_path
         if request.output_path is not None
-        else app_root / f"{basename}{extension}"
+        else default_shortcut_path(app_root, basename, extension)
     )
     command = _shortcut_command(profile.name, request.config_path)
     content, executable = _render_shortcut(

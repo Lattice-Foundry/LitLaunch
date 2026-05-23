@@ -256,9 +256,26 @@ such as `litlaunch my-webapp` are intentionally not launch shorthand; use
 `--profile` so profile-based launches stay unambiguous.
 
 `litlaunch report` is the recommended human-facing diagnostics workflow. It
-writes `litlaunch-report.html` by default. The explicit `litlaunch inspect
---html`, `--json`, and `--bundle` commands remain available for power-user and
-machine-readable diagnostics.
+writes `.litlaunch/reports/litlaunch-report.html` by default. The explicit
+`litlaunch inspect --html`, `--json`, and `--bundle` commands remain available
+for power-user and machine-readable diagnostics.
+
+### Generated project artifacts
+
+LitLaunch keeps generated files under a project-local `.litlaunch/` directory by
+default:
+
+```text
+.litlaunch/
+  reports/              HTML reports, JSON output, and support bundles
+  shortcuts/            generated .bat, .sh, and .command launch shortcuts
+  tmp/browser-profiles/ managed temporary Chromium profiles
+```
+
+Keep `litlaunch.toml` in the project root when you want profiles to travel with
+the app. Add `.litlaunch/` to `.gitignore` when generated reports, shortcuts, and
+runtime scratch files should stay out of source control. Explicit `--output`
+paths still write exactly where you ask.
 
 Python integrations can run the same configured profile through `run_profile()`:
 

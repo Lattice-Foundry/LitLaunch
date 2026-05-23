@@ -671,7 +671,9 @@ def test_cli_create_profile_simple_mode_writes_webapp_profile(monkeypatch):
         assert "Step 1 of" in output
         assert "Current profile:" in output
         assert "Profile preview" in output
-        assert not (output_dir / f"{output_dir.name}.bat").exists()
+        assert not (
+            output_dir / ".litlaunch" / "shortcuts" / f"{output_dir.name}.bat"
+        ).exists()
 
 
 def test_cli_create_profile_keyboard_interrupt_cancels_cleanly(monkeypatch):
@@ -709,7 +711,7 @@ def test_cli_create_profile_simple_mode_accepts_shortcut(monkeypatch):
             launcher_factory=_failing_launcher_factory,
         )
 
-        shortcut = output_dir / "web.bat"
+        shortcut = output_dir / ".litlaunch" / "shortcuts" / "web.bat"
         assert code == 0
         assert shortcut.is_file()
         content = shortcut.read_text(encoding="utf-8")
@@ -723,7 +725,8 @@ def test_cli_create_profile_shortcut_existing_can_be_skipped(monkeypatch):
     with temporary_output_dir() as output_dir, monkeypatch.context() as m:
         m.chdir(output_dir)
         (output_dir / "app.py").write_text("print('hello')\n", encoding="utf-8")
-        shortcut = output_dir / "web.bat"
+        shortcut = output_dir / ".litlaunch" / "shortcuts" / "web.bat"
+        shortcut.parent.mkdir(parents=True)
         shortcut.write_text("old", encoding="utf-8")
         answers = iter(["", "web", "", "", "", "", "", "", "", "y", "n"])
         m.setattr("builtins.input", lambda: next(answers))
@@ -873,7 +876,7 @@ def test_cli_create_profile_dry_run_does_not_write(monkeypatch):
 
         assert code == 0
         assert not (output_dir / "litlaunch.toml").exists()
-        assert not (output_dir / "dry-run.bat").exists()
+        assert not (output_dir / ".litlaunch" / "shortcuts" / "dry-run.bat").exists()
         assert '[profiles."dry-run"]' in stream.getvalue()
         assert "Dry run complete" in stream.getvalue()
         assert "Shortcut creation would be offered" in stream.getvalue()
@@ -992,7 +995,7 @@ def test_cli_create_profile_advanced_mode_writes_full_profile(monkeypatch):
         assert profile.window_monitor_config.appear_timeout_seconds == 70
         assert profile.window_monitor_config.poll_interval_seconds == 2
         assert profile.window_monitor_config.stable_poll_count == 3
-        shortcut = output_dir / "advanced-profile.bat"
+        shortcut = output_dir / ".litlaunch" / "shortcuts" / "advanced-profile.bat"
         assert shortcut.is_file()
         assert '"litlaunch" "--profile" "advanced-profile"' in shortcut.read_text(
             encoding="utf-8"
@@ -1069,7 +1072,7 @@ title = "Web"
         )
 
         assert code == 0
-        assert not (output_dir / "web.bat").exists()
+        assert not (output_dir / ".litlaunch" / "shortcuts" / "web.bat").exists()
         output = stream.getvalue()
         assert "Shortcut dry run" in output
         assert "web.bat" in output
@@ -1096,7 +1099,7 @@ title = "Web"
             platform_detector_factory=FakePlatformDetector,
         )
 
-        shortcut = output_dir / "web.bat"
+        shortcut = output_dir / ".litlaunch" / "shortcuts" / "web.bat"
         assert code == 0
         assert shortcut.is_file()
         assert "Created shortcut" in stream.getvalue()
@@ -1461,7 +1464,7 @@ def test_cli_inspect_without_format_outputs_guidance_without_collecting():
     output = stream.getvalue()
     assert code == 0
     assert "Inspect reports are available as HTML, JSON, or support bundle." in output
-    assert "litlaunch inspect --html --output litlaunch-report.html" in output
+    assert "litlaunch report" in output
     assert "litlaunch inspect --json" in output
     assert "litlaunch inspect --bundle" in output
     assert FakeDiagnosticCollector.instances == []
@@ -1631,7 +1634,7 @@ def test_cli_report_writes_default_html_report(monkeypatch):
     with temporary_output_dir() as output_dir:
         cwd = Path.cwd()
         monkeypatch.chdir(output_dir)
-        output_path = output_dir / "litlaunch-report.html"
+        output_path = output_dir / ".litlaunch" / "reports" / "litlaunch-report.html"
         stream = StringIO()
         try:
             code = main(
@@ -1649,9 +1652,10 @@ def test_cli_report_writes_default_html_report(monkeypatch):
     assert code == 0
     assert content.startswith("<!doctype html>")
     assert "LitLaunch Inspect" in content
-    assert "Report: wrote HTML diagnostics report to litlaunch-report.html" in (
-        stream.getvalue()
-    )
+    output = stream.getvalue()
+    assert "Report: wrote HTML diagnostics report to" in output
+    assert ".litlaunch" in output
+    assert "litlaunch-report.html" in output
 
 
 def test_cli_report_custom_output_and_force():
@@ -2566,7 +2570,10 @@ def test_cli_run_browser_mode_attempts_browser_window_monitor_by_default():
     user_data_arg = next(
         arg for arg in browser_args if arg.startswith("--user-data-dir=")
     )
-    assert not Path(user_data_arg.split("=", 1)[1]).exists()
+    user_data_path = Path(user_data_arg.split("=", 1)[1])
+    assert ".litlaunch" in user_data_path.parts
+    assert "browser-profiles" in user_data_path.parts
+    assert not user_data_path.exists()
 
 
 def test_cli_run_default_browser_uses_detected_chromium_for_browser_monitor(

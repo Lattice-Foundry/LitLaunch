@@ -67,7 +67,8 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
         help="Create a launch shortcut for a LitLaunch profile.",
         description=(
             "Create an OS-appropriate launch shortcut file for a LitLaunch "
-            "profile. The shortcut is written to the app root by default."
+            "profile. By default, the shortcut is written under "
+            ".litlaunch/shortcuts in the app root."
         ),
         epilog=(
             "Examples: litlaunch create shortcut --profile my-webapp | "

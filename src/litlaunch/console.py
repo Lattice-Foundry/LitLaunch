@@ -251,9 +251,7 @@ class ConsoleRenderer:
         """Render a concise runtime-ready message."""
 
         message = (
-            "Runtime: ready"
-            if url is None
-            else f"Runtime: ready locally at {url}"
+            "Runtime: ready" if url is None else f"Runtime: ready locally at {url}"
         )
         self.success(message)
 
@@ -359,9 +357,7 @@ class ConsoleRenderer:
                 or (
                     result.console_visibility == HookConsoleVisibility.VERBOSE
                     and self.mode != ConsoleMode.VERBOSE
-                    and not (
-                        self.mode == ConsoleMode.QUIET and result.show_in_quiet
-                    )
+                    and not (self.mode == ConsoleMode.QUIET and result.show_in_quiet)
                 )
             ):
                 return
@@ -498,8 +494,7 @@ class ConsoleRenderer:
             return message
         color = hook_orange if label == "Hook" else self.theme.label
         return (
-            f"{self._style(label + separator, color)}"
-            f"{_capitalize_sentence_start(rest)}"
+            f"{self._style(label + separator, color)}{_capitalize_sentence_start(rest)}"
         )
 
     def _format_category_message(

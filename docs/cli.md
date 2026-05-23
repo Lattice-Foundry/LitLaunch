@@ -227,11 +227,27 @@ litlaunch report app.py --host 0.0.0.0 --trust-mode internal_network --allow-net
   --streamlit-flag server.sslKeyFile=key.pem
 ```
 
-By default, reports are written to `litlaunch-report.html` in the current
-working directory. Existing files are not overwritten unless `--force` is
-provided. `--open` opens the generated HTML file in the default browser after a
-successful write; if opening fails, report generation still succeeds and
-LitLaunch emits a warning.
+By default, reports are written to
+`.litlaunch/reports/litlaunch-report.html`. Existing files are not overwritten
+unless `--force` is provided. `--open` opens the generated HTML file in the
+default browser after a successful write; if opening fails, report generation
+still succeeds and LitLaunch emits a warning.
+
+## Generated Artifacts
+
+LitLaunch keeps generated project files under `.litlaunch/` by default:
+
+```text
+.litlaunch/
+  reports/              HTML reports, JSON output, and support bundles
+  shortcuts/            generated .bat, .sh, and .command launch shortcuts
+  tmp/browser-profiles/ managed temporary Chromium profiles
+```
+
+`litlaunch.toml` remains the normal project-level profile file. Add
+`.litlaunch/` to `.gitignore` when generated diagnostics, shortcuts, and runtime
+scratch files should stay out of source control. Explicit `--output` paths still
+write to the path you provide.
 
 HTML, JSON, and support-bundle diagnostics include `Runtime Governance`,
 `Runtime Exposure`, and `Transport Security` sections. These sections summarize
@@ -394,10 +410,11 @@ litlaunch create shortcut --profile my-webapp --dry-run
 litlaunch create shortcut --profile my-webapp --output Launch.bat --force
 ```
 
-Shortcut creation writes a `.bat`, `.sh`, or `.command` file into the profile app
-root by default. It does not launch the app, modify the Desktop, or install Start
-Menu entries. The generated file uses the public `litlaunch --profile NAME`
-workflow so it remains easy to inspect and move.
+Shortcut creation writes a `.bat`, `.sh`, or `.command` file under
+`.litlaunch/shortcuts/` in the profile app root by default. It does not launch
+the app, modify the Desktop, or install Start Menu entries. The generated file
+uses the public `litlaunch --profile NAME` workflow so it remains easy to
+inspect and move.
 
 ## Example
 

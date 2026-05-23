@@ -7,6 +7,7 @@ import webbrowser
 from collections.abc import Callable
 from pathlib import Path
 
+from litlaunch.artifacts import default_report_path
 from litlaunch.cli.common import CliContext, mode, renderer, write
 from litlaunch.cli.config import (
     add_profile_flags,
@@ -130,8 +131,10 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--output",
-        default="litlaunch-report.html",
-        help="Write the HTML diagnostics report to this file.",
+        help=(
+            "Write the HTML diagnostics report to this file. Defaults to "
+            ".litlaunch/reports/litlaunch-report.html."
+        ),
     )
     parser.add_argument(
         "--force",
@@ -181,7 +184,7 @@ def cmd_report(args: argparse.Namespace, context: CliContext) -> int:
         include_details=mode(args) == ConsoleMode.VERBOSE
     ).render(report)
     output_path = write_inspect_output(
-        Path(args.output),
+        _report_output_path(args),
         rendered,
         force=args.force,
     )
@@ -296,7 +299,7 @@ def render_inspect_guidance(args: argparse.Namespace, context: CliContext) -> No
 
     console = renderer(args, context)
     console.success("Inspect reports are available as HTML, JSON, or support bundle")
-    console.next_step("Run: litlaunch inspect --html --output litlaunch-report.html")
+    console.next_step("Run: litlaunch report")
     console.next_step("Or: litlaunch inspect --json")
     console.next_step("Or: litlaunch inspect --bundle")
 
@@ -312,6 +315,12 @@ def validate_inspect_output_args(args: argparse.Namespace) -> None:
 
 def _explicit_output_format(args: argparse.Namespace) -> bool:
     return bool(args.json or args.bundle or args.html)
+
+
+def _report_output_path(args: argparse.Namespace) -> Path:
+    if args.output:
+        return Path(args.output)
+    return default_report_path(create_parent=True)
 
 
 def write_inspect_output(path: Path, rendered: str, *, force: bool) -> Path:

@@ -54,7 +54,7 @@ def test_shortcut_plan_windows_bat_uses_app_parent(tmp_path: Path):
         )
     )
 
-    assert plan.output_path == tmp_path / "my-webapp.bat"
+    assert plan.output_path == tmp_path / ".litlaunch" / "shortcuts" / "my-webapp.bat"
     assert f'cd /d "{tmp_path}"' in plan.content
     assert '"litlaunch" "--profile" "my-webapp"' in plan.content
     assert plan.executable is False
@@ -74,7 +74,7 @@ def test_shortcut_plan_linux_shell_quotes_paths_and_config(tmp_path: Path):
         )
     )
 
-    assert plan.output_path == tmp_path / "my-webapp.sh"
+    assert plan.output_path == tmp_path / ".litlaunch" / "shortcuts" / "my-webapp.sh"
     assert plan.content.startswith("#!/usr/bin/env sh\n")
     assert f"cd '{tmp_path}'" in plan.content
     assert "'litlaunch' '--profile' 'my-webapp' '--config'" in plan.content

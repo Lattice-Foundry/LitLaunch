@@ -146,7 +146,7 @@ termination fallback during validation.
 Run:
 
 ```powershell
-litlaunch inspect <rolethread-app.py> --html --output litlaunch-report.html
+litlaunch report <rolethread-app.py>
 litlaunch inspect <rolethread-app.py> --json
 litlaunch inspect <rolethread-app.py> --bundle
 ```

@@ -128,9 +128,12 @@ supported. Use `--profile` for profile launches so they remain clear and do not
 conflict with paths or future commands.
 
 Use `litlaunch report --profile my-webapp` for the default human-readable HTML
-diagnostics report. It writes `litlaunch-report.html` unless `--output` is
-provided. Use `litlaunch inspect --json` or `litlaunch inspect --bundle` for
-machine-readable diagnostics and support bundles.
+diagnostics report. It writes `.litlaunch/reports/litlaunch-report.html` unless
+`--output` is provided. Use `litlaunch inspect --json` or
+`litlaunch inspect --bundle` for machine-readable diagnostics and support
+bundles. Generated reports, shortcuts, and managed browser scratch profiles live
+under `.litlaunch/` by default so projects can ignore them with one
+`.gitignore` entry.
 
 Reports include runtime governance, runtime exposure, and transport security
 posture. Local profiles can remain simple with `trust_mode = "development"` or

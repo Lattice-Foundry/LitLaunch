@@ -128,8 +128,9 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
                 "litlaunch report app.py",
                 "litlaunch report --profile NAME",
                 "litlaunch report --profile NAME --open",
-                "litlaunch report --output litlaunch-report.html --force",
+                "litlaunch report --output my-report.html --force",
             ),
+            "  Default path: .litlaunch/reports/litlaunch-report.html",
             "",
             style.label("Advanced inspect outputs:"),
             *style.commands(
@@ -200,7 +201,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "",
             style.label("Create a launch shortcut:"),
             *style.commands("litlaunch create shortcut --profile NAME"),
-            "  Writes a .bat, .sh, or .command file into the app root.",
+            "  Writes a .bat, .sh, or .command file under .litlaunch/shortcuts.",
             "",
             style.label("Run a profile:"),
             *style.commands(
@@ -236,13 +237,14 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  Simple mode covers common app-window profiles.",
             "  Advanced mode exposes network, browser, monitor, args, cwd, and env.",
             "  After writing, the wizard can optionally create a launch shortcut.",
+            "  Generated reports, shortcuts, and temp browser profiles use .litlaunch.",
             "",
             style.label("Shortcuts:"),
             *style.commands(
                 "litlaunch create shortcut --profile my-webapp",
                 "litlaunch create shortcut --profile my-webapp --dry-run",
             ),
-            "  Shortcut files are written to the app root by default.",
+            "  Shortcut files are written under .litlaunch/shortcuts by default.",
         )
     if topic == "examples":
         return _join(

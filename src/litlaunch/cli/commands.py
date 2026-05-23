@@ -5,12 +5,15 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import tempfile
 from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from litlaunch.artifacts import (
+    create_managed_browser_profile_dir,
+    project_root_for_config,
+)
 from litlaunch.browsers import BrowserKind, detect_default_chromium_browser
 from litlaunch.cli.common import (
     CliContext,
@@ -322,7 +325,9 @@ def _prepare_managed_browser_window_config(
 
     extra_args = config.extra_browser_args
     if not dry_run:
-        profile_dir = _create_managed_browser_profile_dir()
+        profile_dir = _create_managed_browser_profile_dir(
+            project_root_for_config(config)
+        )
         cleanup.callback(shutil.rmtree, profile_dir, ignore_errors=True)
         extra_args = _with_managed_browser_window_args(
             extra_args,
@@ -404,10 +409,10 @@ def _with_managed_browser_window_args(
     return _with_browser_window_arg(tuple(result))
 
 
-def _create_managed_browser_profile_dir() -> str:
+def _create_managed_browser_profile_dir(root: Path) -> str:
     """Create a temporary Chromium profile preseeded for app-style launch UX."""
 
-    profile_path = Path(tempfile.mkdtemp(prefix="litlaunch-browser-"))
+    profile_path = create_managed_browser_profile_dir(root)
     (profile_path / "First Run").touch()
     local_state = {
         "distribution": {

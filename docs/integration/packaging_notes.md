@@ -13,7 +13,7 @@ Implemented:
 - browser/app-mode launch
 - graceful shutdown hooks
 - diagnostics
-- lightweight profile shortcut script generation
+- lightweight project-local shortcut generation
 
 Out of scope:
 

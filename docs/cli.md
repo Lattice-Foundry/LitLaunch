@@ -21,6 +21,10 @@ litlaunch create shortcut --profile <profile>
 litlaunch example
 ```
 
+The installed console command and module execution form are equivalent. Use
+`python -m litlaunch ...` when a source checkout or environment has not exposed
+the `litlaunch` script on `PATH`.
+
 ## Global Flags
 
 ```powershell

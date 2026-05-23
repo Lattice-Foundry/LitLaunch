@@ -23,6 +23,10 @@ reinventing.
 litlaunch app.py
 ```
 
+CLI examples use the installed `litlaunch` command. `python -m litlaunch ...`
+is equivalent when a source checkout or environment has not exposed the console
+script on `PATH`.
+
 ```python
 from litlaunch import LauncherConfig, StreamlitLauncher
 
@@ -494,8 +498,8 @@ See [docs/inspect.md](docs/inspect.md) and
 - Replacing Streamlit's CLI/config system.
 - Running a local diagnostics dashboard or diagnostics server today.
 - Owning PyInstaller, Nuitka, installer, updater, or full packaging workflows.
-  LitLaunch does support lightweight project-local shortcut script generation
-  for existing profiles.
+  LitLaunch does support project-local native shortcut generation for existing
+  profiles, with script fallback when needed.
 - Adding terminal UI frameworks or heavy runtime dependencies.
 
 ## Versioning

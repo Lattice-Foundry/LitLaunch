@@ -32,6 +32,16 @@ After publication:
 python -m pip install litlaunch
 ```
 
+Verify the CLI entry points:
+
+```powershell
+litlaunch --help
+python -m litlaunch --help
+```
+
+The module form is useful when the environment can import LitLaunch but the
+console script directory is not on `PATH`.
+
 ## Python Versions
 
 The local development environment currently uses Python 3.14.5. Package metadata

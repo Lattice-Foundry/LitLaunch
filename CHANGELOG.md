@@ -24,6 +24,9 @@ concise.
 - Extracted profile wizard state/rendering/navigation helpers and managed
   browser-window monitoring into cohesive internal modules without changing
   runtime behavior.
+- Swept public documentation after audit remediation so module execution,
+  native shortcut artifacts, generated artifact layout, and integration wording
+  stay aligned with the current CLI.
 - Added `ShutdownHookStatus` so shutdown hooks can return run-specific console
   messages, verbose-only visibility, or suppress routine no-op success output
   without printing raw app-owned status lines.

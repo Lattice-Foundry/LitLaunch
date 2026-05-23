@@ -130,6 +130,12 @@ class FakeLauncher:
         return self.session
 
 
+class InterruptingLauncher(FakeLauncher):
+    def run(self):
+        self.run_calls += 1
+        raise KeyboardInterrupt
+
+
 class StartupCloseLauncher(FakeLauncher):
     def __init__(self, config, session, monitor):
         super().__init__(config, session)
@@ -575,6 +581,24 @@ def test_run_monitored_browser_window_default_browser_can_observe_new_hwnd():
     assert result.monitor_result is not None
     assert result.monitor_result.closed is True
     assert session.stop_calls == [((), {"graceful_timeout_seconds": 3.0})]
+
+
+def test_run_monitored_browser_window_interrupt_before_session_is_user_stop():
+    monitor = SequenceMonitor(((),))
+    launcher = InterruptingLauncher(
+        LauncherConfig(app_path="app.py", mode="browser", browser="edge"),
+        session=None,
+    )
+
+    result = run_monitored_browser_window(
+        launcher,
+        monitor=monitor,
+        window_monitor_config=browser_monitor_config(),
+    )
+
+    assert result.exit_code == 0
+    assert result.session is None
+    assert result.message == "Session stopped by user."
 
 
 def test_run_profile_browser_window_monitor_uses_profile_settings():

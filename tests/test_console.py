@@ -427,6 +427,66 @@ def test_console_renderer_suppresses_verbose_only_success_hooks_in_normal_mode()
     assert stream.getvalue() == ""
 
 
+def test_console_renderer_suppresses_success_hooks_in_quiet_by_default():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        mode=ConsoleMode.QUIET,
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Cleanup",
+            ok=True,
+            message="Cleanup complete",
+        )
+    )
+
+    assert stream.getvalue() == ""
+
+
+def test_console_renderer_can_show_success_hooks_in_quiet_mode():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        mode=ConsoleMode.QUIET,
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Cleanup",
+            ok=True,
+            message="Cleanup complete",
+            show_in_quiet=True,
+        )
+    )
+
+    assert "[   ok   ] Hook: Cleanup complete." in stream.getvalue()
+
+
+def test_console_renderer_can_show_verbose_hooks_in_quiet_mode():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        mode=ConsoleMode.QUIET,
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+
+    renderer.render_shutdown_hook_result(
+        ShutdownHookResult(
+            label="Cleanup",
+            ok=True,
+            message="Cleanup complete",
+            console_visibility=HookConsoleVisibility.VERBOSE,
+            show_in_quiet=True,
+        )
+    )
+
+    assert "[   ok   ] Hook: Cleanup complete." in stream.getvalue()
+
+
 def test_console_renderer_shows_verbose_only_success_hooks_in_verbose_mode():
     stream = StringIO()
     renderer = ConsoleRenderer(
@@ -632,6 +692,36 @@ def test_console_renderer_browser_fallback_summary():
     assert "[  next  ] Use --browser to select a different browser." in output
     assert "app-mode" in output
     assert "[   ok   ] Using Chrome" not in output
+
+
+def test_browser_strategy_uses_full_browser_when_not_preferring_app_mode():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        mode=ConsoleMode.VERBOSE,
+        stream=stream,
+    )
+
+    renderer.render_browser_resolution(
+        BrowserResolution(
+            requested=BrowserChoice.EDGE,
+            selected=BrowserCapability(
+                kind=BrowserKind.EDGE,
+                name="Microsoft Edge",
+                executable_path="C:/Edge/msedge.exe",
+                available=True,
+                supports_app_mode=True,
+                supports_full_browser=True,
+            ),
+            fallback_chain=(),
+            message="Selected Microsoft Edge.",
+        ),
+        prefer_app_mode=False,
+    )
+
+    output = strip_ansi(stream.getvalue())
+    assert "Browser strategy: Microsoft Edge (full-browser)." in output
+    assert "app-mode" not in output
 
 
 def test_console_renderer_monitor_status_rendering():

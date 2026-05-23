@@ -39,6 +39,7 @@ class ShutdownHookStatus:
     ok: bool = True
     color: str | None = None
     console_visibility: HookConsoleVisibility | str | None = None
+    show_in_quiet: bool | None = None
     render: bool = True
 
     def __post_init__(self) -> None:
@@ -60,6 +61,7 @@ class ShutdownHook:
     failure_message: str | None = None
     color: str | None = None
     console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL
+    show_in_quiet: bool = False
     continue_on_error: bool = True
 
     def __post_init__(self) -> None:
@@ -84,6 +86,7 @@ class ShutdownHookResult:
     error: str | None = None
     color: str | None = None
     console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL
+    show_in_quiet: bool = False
     render: bool = True
 
     def __post_init__(self) -> None:
@@ -161,6 +164,7 @@ class ShutdownHookRegistry:
         failure_message: str | None = None,
         color: str | None = None,
         console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL,
+        show_in_quiet: bool = False,
         continue_on_error: bool = True,
     ) -> Callable[[], object]:
         """Register a shutdown hook and return the original function."""
@@ -173,6 +177,7 @@ class ShutdownHookRegistry:
                 failure_message=failure_message,
                 color=color,
                 console_visibility=console_visibility,
+                show_in_quiet=show_in_quiet,
                 continue_on_error=continue_on_error,
             )
         )
@@ -186,6 +191,7 @@ class ShutdownHookRegistry:
         failure_message: str | None = None,
         color: str | None = None,
         console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL,
+        show_in_quiet: bool = False,
         continue_on_error: bool = True,
     ) -> Callable[[Callable[[], object]], Callable[[], object]]:
         """Return a decorator that registers a shutdown hook."""
@@ -198,6 +204,7 @@ class ShutdownHookRegistry:
                 failure_message=failure_message,
                 color=color,
                 console_visibility=console_visibility,
+                show_in_quiet=show_in_quiet,
                 continue_on_error=continue_on_error,
             )
 
@@ -227,6 +234,7 @@ class ShutdownHookRegistry:
                         error=str(exc),
                         color=hook.color,
                         console_visibility=hook.console_visibility,
+                        show_in_quiet=hook.show_in_quiet,
                     )
                 )
                 if not hook.continue_on_error:
@@ -253,6 +261,11 @@ class ShutdownHookRegistry:
                             status.console_visibility
                             if status.console_visibility is not None
                             else hook.console_visibility
+                        ),
+                        show_in_quiet=(
+                            status.show_in_quiet
+                            if status.show_in_quiet is not None
+                            else hook.show_in_quiet
                         ),
                         render=status.render,
                     )
@@ -359,6 +372,7 @@ class LauncherRuntime:
         failure_message: str | None = None,
         color: str | None = None,
         console_visibility: HookConsoleVisibility | str = HookConsoleVisibility.NORMAL,
+        show_in_quiet: bool = False,
         continue_on_error: bool = True,
     ) -> Callable[[Callable[[], object]], Callable[[], object]]:
         """Return a decorator for registering an app shutdown hook."""
@@ -369,6 +383,7 @@ class LauncherRuntime:
             failure_message=failure_message,
             color=color,
             console_visibility=console_visibility,
+            show_in_quiet=show_in_quiet,
             continue_on_error=continue_on_error,
         )
 
@@ -619,6 +634,7 @@ def _hook_result_to_payload(result: ShutdownHookResult) -> dict[str, object]:
         "error": None,
         "color": result.color,
         "console_visibility": result.console_visibility.value,
+        "show_in_quiet": result.show_in_quiet,
         "render": result.render,
     }
 
@@ -655,6 +671,7 @@ def _hook_results_from_payload(
                             HookConsoleVisibility.NORMAL.value,
                         )
                     ),
+                    show_in_quiet=bool(raw_item.get("show_in_quiet", False)),
                     render=bool(raw_item.get("render", True)),
                 )
             )
@@ -672,6 +689,7 @@ def _normalize_hook_return(value: object) -> ShutdownHookStatus:
             ok=value.ok,
             color=value.color,
             console_visibility=value.console_visibility,
+            show_in_quiet=value.show_in_quiet,
             render=value.render,
         )
     return ShutdownHookStatus()

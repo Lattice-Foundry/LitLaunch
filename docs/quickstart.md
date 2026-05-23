@@ -278,6 +278,7 @@ def sync_backups():
     return ShutdownHookStatus(
         message="Cloud sync: Staged cloud sync completed.",
         console_visibility="normal",
+        show_in_quiet=True,
     )
 
 
@@ -296,8 +297,10 @@ and `Backend:` lifecycle messages. Hook status still uses the normal
 `ok`/`warn`/`error` bracket colors, while hook message text stays unstyled for
 readability. Hook color metadata is preserved on hook results for integrations.
 Use `console_visibility="verbose"` for routine hook messages that should only
-appear in verbose runs. Hook failures are still shown in normal output with the
-standard error, cause, and verbose-details hint.
+appear in verbose runs. Add `show_in_quiet=True` when a hook success message is
+important enough to appear even when the runtime is launched with `--quiet`.
+Hook failures are still shown in normal and quiet output with the standard
+error, cause, and verbose-details hint.
 When a hook needs a run-specific message, return `ShutdownHookStatus` instead of
 printing directly to stdout. `ShutdownHookStatus(render=False)` suppresses
 successful no-op hooks while still letting failures surface normally.

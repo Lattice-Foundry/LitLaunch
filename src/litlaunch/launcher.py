@@ -218,7 +218,10 @@ class StreamlitLauncher:
         browser_name = (
             resolution.selected.name if resolution.selected is not None else "browser"
         )
-        browser_mode = "app window" if self.config.mode == LaunchMode.WEBAPP else "tab"
+        browser_mode = _browser_launch_display_mode(
+            mode=self.config.mode,
+            extra_args=self.config.extra_browser_args,
+        )
         render_phase_start(
             self.console_renderer,
             ConsolePhase.BROWSER,
@@ -420,3 +423,15 @@ def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:
     if parsed.hostname is None or parsed.port is None:
         return None
     return parsed.hostname, parsed.port
+
+
+def _browser_launch_display_mode(
+    *,
+    mode: LaunchMode,
+    extra_args: tuple[str, ...],
+) -> str:
+    if mode == LaunchMode.WEBAPP:
+        return "app window"
+    if any(str(arg).strip().lower() == "--new-window" for arg in extra_args):
+        return "window"
+    return "tab"

@@ -371,7 +371,7 @@ def run_monitored_browser_window(
             exit_code=0,
             session=session,
             monitor_result=None,
-            message="Browser-window monitoring interrupted; runtime stopped.",
+            message="Session stopped by user.",
             launched=session is not None,
             stopped_cleanly=not _session_is_running(session)
             if session is not None

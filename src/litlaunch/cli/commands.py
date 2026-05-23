@@ -217,6 +217,9 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
 
         session = run_result.session
         if session is None:
+            if run_result.exit_code == 0:
+                cli_renderer.info_status("Session stopped by user")
+                return 0
             cli_renderer.failure_guidance(run_result.message)
             return run_result.exit_code
         if not session.ok:

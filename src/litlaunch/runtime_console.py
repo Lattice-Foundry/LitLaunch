@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from litlaunch.browsers import BrowserResolution
 from litlaunch.config import LauncherConfig
-from litlaunch.console import ConsolePhase, ConsoleRenderer
+from litlaunch.console import ConsoleMode, ConsolePhase, ConsoleRenderer
 from litlaunch.exposure import HostExposure
 from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.transport import evaluate_transport_posture
@@ -46,38 +46,70 @@ def render_network_exposure_warning(
         streamlit_flags=config.streamlit_flags,
         streamlit_args=config.streamlit_args,
     )
-    cause = exposure.warning
-    next_steps = [
-        "Use --host 127.0.0.1 for localhost-only development.",
-        "Use --allow-network-exposure only when this binding is intentional.",
-    ]
+    cause, reachability_steps = _split_exposure_warning(exposure.warning)
+    next_steps = list(reachability_steps)
     if transport.plaintext_network_risk:
-        cause = f"{cause} Traffic appears to use plaintext HTTP."
+        next_steps.append("Traffic appears to use plaintext HTTP.")
         next_steps.append(
             "Use Streamlit TLS settings or approved network infrastructure "
             "for internal deployments."
         )
     elif transport.tls_status.value == "configured":
-        cause = (
-            f"{cause} Streamlit-native TLS appears configured, but LitLaunch "
-            "does not add authentication or secure the app itself."
+        next_steps.append(
+            "Streamlit-native TLS appears configured, but LitLaunch does not "
+            "add authentication or secure the app itself."
         )
         next_steps.append(
             "Confirm certificate handling, authentication, and network controls "
             "outside LitLaunch."
         )
     elif transport.tls_status.value == "incomplete":
-        cause = f"{cause} Streamlit TLS settings appear incomplete."
+        next_steps.append("Streamlit TLS settings appear incomplete.")
         next_steps.append(
             "Set both server.sslCertFile and server.sslKeyFile, or remove "
             "partial TLS settings."
         )
-    renderer.failure_guidance(
-        "Runtime: network exposure requested.",
-        likely_cause=cause,
-        next_steps=tuple(next_steps),
-        level="warning",
+    next_steps.extend(
+        (
+            "Use --host 127.0.0.1 for localhost-only development.",
+            "Use --allow-network-exposure only when this binding is intentional.",
+        )
     )
+    _render_network_exposure_guidance(renderer, cause, tuple(next_steps))
+
+
+def _split_exposure_warning(warning: str) -> tuple[str, tuple[str, ...]]:
+    cause, separator, reachability = warning.partition(". ")
+    if not separator:
+        return warning, ("Review this host binding before launching.",)
+    if " depending on " in reachability:
+        reachability_start, reachability_end = reachability.split(
+            " depending on ",
+            1,
+        )
+        return cause, (
+            reachability_start,
+            f"Reachability depends on {reachability_end}",
+        )
+    return cause, (reachability,)
+
+
+def _render_network_exposure_guidance(
+    renderer: ConsoleRenderer,
+    cause: str,
+    next_steps: tuple[str, ...],
+) -> None:
+    renderer.warning("Runtime: Network exposure requested.")
+    if renderer.mode == ConsoleMode.QUIET:
+        return
+    renderer.guidance_line("Likely cause", cause)
+    visible_steps = (
+        next_steps[:3] if renderer.mode == ConsoleMode.NORMAL else next_steps
+    )
+    for step in visible_steps:
+        renderer.guidance_line("Next", step)
+    if renderer.mode == ConsoleMode.NORMAL:
+        renderer.guidance_line("Next", "Use verbose mode for more runtime details.")
 
 
 def render_detail(renderer: ConsoleRenderer | None, message: str) -> None:

@@ -53,6 +53,7 @@ def test_shutdown_hook_stores_metadata():
         failure_message="Failed",
         color=streamlit_blue,
         console_visibility="verbose",
+        show_in_quiet=True,
         continue_on_error=False,
     )
 
@@ -62,6 +63,7 @@ def test_shutdown_hook_stores_metadata():
     assert hook.failure_message == "Failed"
     assert hook.color == streamlit_blue
     assert hook.console_visibility == HookConsoleVisibility.VERBOSE
+    assert hook.show_in_quiet is True
     assert hook.continue_on_error is False
 
 
@@ -117,6 +119,7 @@ def test_shutdown_registry_uses_dynamic_hook_status_message():
         lambda: ShutdownHookStatus(
             message="Cloud sync: Staged cloud sync completed.",
             console_visibility="verbose",
+            show_in_quiet=True,
         ),
         label="Cloud backup sync",
         success_message="Cloud backup sync complete.",
@@ -131,6 +134,7 @@ def test_shutdown_registry_uses_dynamic_hook_status_message():
     assert hook_result.label == "Cloud backup sync"
     assert hook_result.message == "Cloud sync: Staged cloud sync completed."
     assert hook_result.console_visibility == HookConsoleVisibility.VERBOSE
+    assert hook_result.show_in_quiet is True
 
 
 def test_shutdown_registry_can_suppress_routine_dynamic_success_message():
@@ -147,6 +151,30 @@ def test_shutdown_registry_can_suppress_routine_dynamic_success_message():
     assert calls == ["cleanup"]
     assert result.ok is True
     assert result.hook_results[0].render is False
+
+
+def test_shutdown_registry_hook_quiet_visibility_defaults_and_overrides():
+    registry = ShutdownHookRegistry()
+
+    registry.register(
+        lambda: None,
+        label="Normal quiet hook",
+        success_message="Normal quiet hook complete",
+        show_in_quiet=True,
+    )
+    registry.register(
+        lambda: ShutdownHookStatus(
+            message="Dynamic quiet hook complete",
+            show_in_quiet=False,
+        ),
+        label="Dynamic quiet hook",
+        show_in_quiet=True,
+    )
+
+    result = registry.run_all()
+
+    assert result.hook_results[0].show_in_quiet is True
+    assert result.hook_results[1].show_in_quiet is False
 
 
 def test_shutdown_registry_can_use_dynamic_failure_status_without_exception():
@@ -368,6 +396,7 @@ def test_shutdown_endpoint_valid_post_runs_hooks_without_exposing_token():
     assert payload["ok"] is True
     assert payload["hook_results"][0]["label"] == "Cleanup"
     assert payload["hook_results"][0]["console_visibility"] == "normal"
+    assert payload["hook_results"][0]["show_in_quiet"] is False
     assert payload["hook_results"][0]["render"] is True
     assert "secret-token" not in body
 
@@ -624,6 +653,7 @@ def test_shutdown_client_parses_hook_results_from_response_payload():
                         "error": None,
                         "color": "project_custom_color",
                         "console_visibility": "verbose",
+                        "show_in_quiet": True,
                         "render": False,
                     }
                 ],
@@ -647,6 +677,7 @@ def test_shutdown_client_parses_hook_results_from_response_payload():
     assert result.hook_results[0].message == "Cleanup complete"
     assert result.hook_results[0].color == "project_custom_color"
     assert result.hook_results[0].console_visibility == HookConsoleVisibility.VERBOSE
+    assert result.hook_results[0].show_in_quiet is True
     assert result.hook_results[0].render is False
 
 

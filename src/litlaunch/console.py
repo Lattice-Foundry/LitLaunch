@@ -242,6 +242,11 @@ class ConsoleRenderer:
         if detail:
             self.detail(f"Failure detail: {detail}")
 
+    def guidance_line(self, label: str, message: str) -> None:
+        """Render one cause/next/docs guidance line."""
+
+        self._guidance_line(label, message)
+
     def runtime_ready(self, url: str | None = None) -> None:
         """Render a concise runtime-ready message."""
 
@@ -263,7 +268,11 @@ class ConsoleRenderer:
 
         first = resolution.fallback_chain[0] if resolution.fallback_chain else selected
         fallback_used = selected.kind != first.kind
-        mode_text = "app-mode" if selected.supports_app_mode else "full-browser"
+        mode_text = (
+            "app-mode"
+            if prefer_app_mode and selected.supports_app_mode
+            else "full-browser"
+        )
         if fallback_used:
             preserved = selected.supports_app_mode if prefer_app_mode else True
             self.phase_warning(
@@ -342,10 +351,13 @@ class ConsoleRenderer:
         if result.ok:
             if (
                 not result.render
-                or self.mode == ConsoleMode.QUIET
+                or (self.mode == ConsoleMode.QUIET and not result.show_in_quiet)
                 or (
                     result.console_visibility == HookConsoleVisibility.VERBOSE
                     and self.mode != ConsoleMode.VERBOSE
+                    and not (
+                        self.mode == ConsoleMode.QUIET and result.show_in_quiet
+                    )
                 )
             ):
                 return

@@ -37,6 +37,7 @@ Implemented:
 - Streamlit health checking
 - Browser/app-mode launch orchestration
 - Edge, Chrome/Chromium, and default-browser capability detection
+- Managed browser-window lifecycle for Chromium browser-mode launches
 - Runtime session ownership
 - Graceful shutdown hooks
 - JSON/HTML/bundle inspect diagnostics
@@ -55,8 +56,8 @@ Not implemented:
 - Background monitor threads
 - Packaging automation
 - Installer creation
-- Browser automation
 - Browser process ownership
+- Browser automation
 
 At runtime, `LauncherConfig` resolves into a launch plan, the backend process is
 started under LitLaunch ownership, health is checked, and browser launch is

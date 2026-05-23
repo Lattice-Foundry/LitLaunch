@@ -16,15 +16,19 @@ lighter today.
 
 Window monitoring is:
 
-- opt-in.
+- enabled by default for supported browser-mode CLI launches and webapp CLI
+  launches, but still explicitly disable-able.
 - strongest on Windows.
-- focused on Chromium app-mode windows.
+- focused on Chromium app-mode windows and managed Chromium browser windows.
 - observational only.
 - not a browser process ownership system.
 
 Known rough edges:
 
-- app window title matching may need a project-specific title override.
+- app window title matching may need a project-specific title override for
+  webapp mode.
+- managed browser-window detection may fall back to Ctrl+C if Chromium does not
+  create a distinct observable top-level window.
 - multiple matching windows can require careful smoke testing.
 - browser process reuse can make process-based assumptions unreliable, which is
   why LitLaunch does not own browser processes.

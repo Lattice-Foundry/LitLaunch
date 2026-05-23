@@ -19,6 +19,7 @@ RoleThread should provide:
 - Streamlit flags
 - app arguments
 - optional monitor-window choice
+- optional managed browser-window choice
 - optional shutdown hooks inside the app
 
 LitLaunch should provide:
@@ -28,6 +29,7 @@ LitLaunch should provide:
 - port resolution
 - health checking
 - browser resolution and launch
+- managed browser-window lifecycle when enabled
 - graceful shutdown request/fallback
 - inspect diagnostics
 
@@ -45,8 +47,10 @@ Hook labels and color metadata should remain app-level presentation metadata.
 ## Window Monitoring
 
 RoleThread may opt into `--monitor-window` or equivalent API behavior for
-Windows Chromium app-mode flows. Monitoring must remain observational; closing
-or killing browser windows should remain outside LitLaunch.
+Windows Chromium app-mode flows. Browser-mode profiles can opt into
+`browser_window_monitor.enabled` for managed browser-window close detection.
+Monitoring must remain observational; closing or killing browser windows should
+remain outside LitLaunch.
 
 Choose a stable `LauncherConfig.title` for webapp monitoring. If the browser
 window title differs significantly from the configured title, window detection
@@ -68,11 +72,11 @@ litlaunch report --profile rolethread-webapp
 litlaunch create shortcut --profile rolethread-webapp
 ```
 
-Use the profile path when validating RoleThread's app-window lifecycle.
-Generic `litlaunch app.py` remains useful as a smoke test, but it does not apply
-RoleThread's profile settings such as app-window mode, fixed browser policy, or
-window monitoring. Close-to-shutdown behavior requires an explicit monitored
-webapp launch path.
+Use the profile path when validating RoleThread's intended app-window
+lifecycle. Generic `litlaunch app.py` remains useful as a smoke test and now
+exercises LitLaunch's managed browser-window lifecycle where supported, but it
+does not apply RoleThread's profile settings such as app-window mode, fixed
+browser policy, profile-specific monitoring, or packaged-app choices.
 
 RoleThread still owns product policy, app-specific settings, packaged resource
 layout, and user-facing support text. LitLaunch owns the generic Streamlit

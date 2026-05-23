@@ -89,12 +89,23 @@ Both forms use the same internal launch pipeline. Bare profile names such as
 `litlaunch my-webapp` are intentionally unsupported; use `--profile` to keep
 profile launches distinct from paths and future commands.
 
-Window monitoring is webapp-only. CLI webapp launches enable app-window close
-monitoring by default where window monitoring is supported; use
-`--no-monitor-window` only when you intentionally want an unmonitored app
-window.
+Browser-window monitoring is enabled by default for browser-mode CLI launches
+where LitLaunch can use a Chromium browser. LitLaunch creates a managed
+temporary Chromium profile, opens a new top-level browser window, observes that
+exact window, and routes close-to-shutdown through the same graceful
+`RuntimeSession.stop()` path. If no confident browser window is observed,
+LitLaunch falls back cleanly to the manual `Ctrl+C` stop path.
+
+Use `--no-monitor-browser-window` when you intentionally want browser mode to
+keep running until `Ctrl+C` or backend exit.
+
+CLI webapp launches enable app-window close monitoring by default where window
+monitoring is supported; use `--no-monitor-window` only when you intentionally
+want an unmonitored app window.
 
 ```powershell
+litlaunch run app.py --mode browser --browser edge
+litlaunch run app.py --mode browser --browser edge --no-monitor-browser-window
 litlaunch run app.py --mode webapp
 litlaunch run app.py --mode webapp --title "My Streamlit App"
 litlaunch run app.py --mode webapp --graceful-timeout 15
@@ -104,20 +115,19 @@ litlaunch run app.py --mode webapp --monitor-stable-polls 3
 litlaunch run app.py --mode webapp --no-monitor-window
 ```
 
-`--title` sets the expected runtime/app-window title. For monitor-window flows,
-choose a stable title that matches the browser app-mode window closely enough
-for detection.
+`--title` sets the expected runtime/app-window title. For monitored webapp
+flows, choose a stable title that matches the browser app-mode window closely
+enough for detection.
 
-`--graceful-timeout` controls the backend-exit wait after a monitored app-window
-close triggers graceful shutdown.
+`--graceful-timeout` controls the backend-exit wait after a monitored browser
+or app-window close triggers graceful shutdown.
 
 `--monitor-appear-timeout`, `--monitor-poll-interval`, and
 `--monitor-stable-polls` tune observational window detection only. They do not
 make LitLaunch own, close, or kill browser windows.
 
 Window monitoring matches title, Chromium window class/process signals,
-baseline handles, and stable polling. It does not inspect browser URLs; choose a
-stable `--title` for monitored webapp flows.
+baseline handles, and stable polling. It does not inspect browser URLs.
 
 ## Streamlit Passthrough
 
@@ -168,6 +178,11 @@ litlaunch app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-ex
 `internal_network` allows deliberate non-loopback use only with explicit
 acknowledgement. Trust modes govern LitLaunch runtime behavior; they do not
 secure the Streamlit application.
+
+Wildcard bind addresses remain bind/listen addresses. LitLaunch still uses a
+client URL such as `http://127.0.0.1:8501` or `http://[::1]:8501` for health
+checks and local browser launch while Streamlit remains bound to the requested
+network-visible host.
 
 For Streamlit-native TLS, pass Streamlit's cert/key settings through the same
 flag/profile path. LitLaunch reports these settings in diagnostics, but does
@@ -294,6 +309,12 @@ enabled = true
 appear_timeout = 60
 poll_interval = 1
 stable_polls = 2
+
+[profiles.my-webapp.browser_window_monitor]
+enabled = true
+appear_timeout = 8
+poll_interval = 0.2
+stable_polls = 2
 ```
 
 or the equivalent `pyproject.toml` table:
@@ -310,9 +331,11 @@ the port. If both `litlaunch.toml` and `pyproject.toml` contain profiles, use
 `--config` so LitLaunch does not guess.
 
 `run --profile` uses the profile runtime path. If the profile enables
-`window_monitor`, LitLaunch runs the monitored webapp flow; otherwise it uses
-the normal launcher runtime flow. `command --profile` and `inspect --profile`
-remain plan-oriented and do not launch the backend or browser.
+`window_monitor`, LitLaunch runs the monitored webapp flow. If it enables
+`browser_window_monitor`, LitLaunch runs the managed browser-window flow.
+Otherwise it uses the normal launcher runtime flow. `command --profile` and
+`inspect --profile` remain plan-oriented and do not launch the backend or
+browser.
 
 Governance-oriented profile examples:
 

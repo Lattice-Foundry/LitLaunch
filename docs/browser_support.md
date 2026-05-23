@@ -7,9 +7,9 @@ detection and adapters.
 
 | Browser | Browser mode | App-mode | Notes |
 | --- | --- | --- | --- |
-| Microsoft Edge | Supported | Supported | Strongest Windows app-mode target. |
-| Chrome / Chromium | Supported | Supported | Used first on macOS/Linux app-mode preference. |
-| Default browser | Supported | Not app-mode | Full browser fallback only. |
+| Microsoft Edge | Supported | Supported | Strongest Windows app-mode and managed browser-window target. |
+| Chrome / Chromium | Supported | Supported | Supported for app-mode and managed browser-window launches where available. |
+| Default browser | Supported | Not app-mode | LitLaunch may resolve a Chromium default into a managed browser-window launch; otherwise it remains full-browser fallback only. |
 
 ## App-Mode
 
@@ -21,6 +21,29 @@ litlaunch run app.py --mode webapp --browser chrome
 ```
 
 Default browser mode does not provide Chromium app-mode semantics.
+
+## Managed Browser-Window Mode
+
+Browser mode is not general tab ownership. When LitLaunch can use Edge or
+Chrome/Chromium, it may launch a managed browser window instead:
+
+- create a temporary Chromium user-data directory
+- suppress first-run/default-browser/sync prompts where supported
+- launch with a new top-level browser window
+- snapshot windows before and after launch
+- observe the exact new window handle
+- close window -> graceful backend shutdown
+
+LitLaunch never kills browser processes or closes unrelated windows. If a
+managed window cannot be identified confidently, browser mode falls back to the
+manual `Ctrl+C` stop path.
+
+Disable managed browser-window monitoring when you want plain browser-mode
+ownership:
+
+```powershell
+litlaunch run app.py --browser edge --no-monitor-browser-window
+```
 
 ## Fallback Policy
 
@@ -50,6 +73,8 @@ capability and reports the launch failure without retrying alternatives.
 - Browser processes are not owned or killed.
 - Browser profile and process reuse are browser behavior, not LitLaunch state.
 - App-mode depends on Chromium-compatible command-line behavior.
+- Managed browser-window lifecycle is best-effort and currently strongest on
+  Windows with Edge or Chrome/Chromium.
 
 Resolution is deterministic: LitLaunch starts from the requested browser choice,
 checks whether that browser can satisfy the requested mode, and only considers a

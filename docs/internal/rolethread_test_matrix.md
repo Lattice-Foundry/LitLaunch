@@ -18,7 +18,8 @@
 
 | Area | Scenario | Command shape | Expected result |
 | --- | --- | --- | --- |
-| Browser mode | Windows normal browser launch | `litlaunch run <app.py> --mode browser --browser default` | Backend starts, default browser opens, CLI waits on backend. |
+| Browser mode | Windows managed browser-window launch | `litlaunch run <app.py> --mode browser --browser edge` | Backend starts, managed browser window opens, close-to-shutdown works or fallback says Ctrl+C remains the shutdown path. |
+| Browser fallback | Browser launch without monitor | `litlaunch run <app.py> --mode browser --browser edge --no-monitor-browser-window` | Backend starts, browser opens, CLI waits for Ctrl+C/backend exit. |
 | Edge app-mode | Windows Edge webapp | `litlaunch run <app.py> --mode webapp --browser edge` | Backend starts, Edge app window opens, no browser ownership. |
 | Chrome app-mode | Windows Chrome/Chromium webapp | `litlaunch run <app.py> --mode webapp --browser chrome` | Backend starts if Chrome/Chromium is available; unavailable case is clear. |
 | Fallback | Auto browser fallback | `litlaunch run <app.py> --mode webapp --browser auto` | App-mode capable browser selected when available. |
@@ -27,6 +28,7 @@
 | Backend failure | App import/startup crash | RoleThread app with forced startup failure | Backend exits early; message suggests app crash or CLI args. |
 | Health timeout | Slow or stuck startup | Reduced timeout if exposed by integration harness | Timeout message distinguishes running backend from early exit. |
 | Monitor supported | Windows Edge app-mode monitoring | `litlaunch run <app.py> --mode webapp --browser edge --monitor-window` | Close app window, LitLaunch detects close and stops backend. |
+| Browser monitor supported | Windows Edge managed browser-window monitoring | `litlaunch run <app.py> --mode browser --browser edge` | Close managed browser window, LitLaunch detects close and stops backend. |
 | Monitor unsupported | Unsupported platform/provider | Same command on unsupported host | Explicit unsupported result; no silent success. |
 | Graceful shutdown | Hooks succeed | Registered RoleThread hooks | Hooks run once, backend stops cleanly. |
 | Forced fallback | Graceful shutdown unavailable | Fake or blocked endpoint | Backend fallback termination only applies to owned process. |
@@ -50,6 +52,14 @@ For app-mode and monitor-window tests:
 - Record console output for a successful RoleThread webapp launch with
   monitoring enabled after the app window has closed and backend shutdown has
   completed.
+
+For browser-window tests:
+
+- Confirm LitLaunch opens a managed top-level Edge/Chrome window.
+- Confirm closing that specific window triggers graceful shutdown when observed.
+- Confirm fallback output tells the user to press Ctrl+C when no managed window
+  can be observed.
+- Confirm no unrelated browser windows are closed or killed.
 
 ## Packaged And Unpackaged Expectations
 

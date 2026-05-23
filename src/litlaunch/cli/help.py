@@ -98,9 +98,13 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  --browser auto|edge|chrome|default",
             "  --trust-mode development|strict_local|internal_network",
             "  --allow-network-exposure",
+            "  --no-monitor-browser-window",
             "  --monitor-window",
             "  --no-monitor-window",
             "  --verbose",
+            "",
+            "Browser mode uses managed browser-window monitoring where supported.",
+            "Webapp mode uses app-window monitoring where supported.",
             "",
             style.warning(
                 "Bare profile names are intentionally not supported; "
@@ -173,6 +177,11 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  Runtime Governance summarizes allowed/blocked posture.",
             "  Runtime Exposure shows host scope and acknowledgement state.",
             "  Transport Security shows Streamlit-native TLS and plaintext risk.",
+            "",
+            (
+                "Wildcard hosts bind Streamlit to the requested network-visible "
+                "address; LitLaunch health/browser checks use a local client URL."
+            ),
             "",
             style.warning(
                 "TLS encrypts transport but does not add app authentication."

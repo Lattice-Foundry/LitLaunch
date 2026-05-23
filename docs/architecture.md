@@ -108,9 +108,10 @@ same `LauncherConfig` and `LaunchPlan` used by non-profile flows.
 
 `run_profile()` connects a loaded `LaunchProfile` to runtime execution. If
 `profile.monitor_window` is enabled, it delegates to `run_monitored_webapp()`.
-If monitoring is disabled, it uses the normal `StreamlitLauncher.run()` path.
-Both paths return `MonitoredRunResult` so integrations can inspect launch,
-monitor, and exit status consistently.
+If `profile.monitor_browser_window` is enabled, it delegates to the managed
+browser-window runner. If monitoring is disabled, it uses the normal
+`StreamlitLauncher.run()` path. All monitored paths return `MonitoredRunResult`
+so integrations can inspect launch, monitor, and exit status consistently.
 
 `RuntimeSession.wait()` with no timeout waits until the backend exits. Timed
 waits return `None` if the timeout expires and leave the backend running with
@@ -169,19 +170,24 @@ do not retain browser process ownership
 ```
 
 Browser launch is command-based for Chromium adapters and `webbrowser.open` for
-default browser mode.
+default browser mode. Managed browser-window launches use Chromium command-line
+arguments with a temporary LitLaunch profile directory, a new top-level window,
+and prompt-suppression flags where supported. That gives LitLaunch a safer
+window lifecycle signal without taking browser process ownership.
 
 ## Monitoring Flow
 
 ```text
-optional --monitor-window
+optional webapp --monitor-window or browser-window monitor
 capture baseline windows
 launch runtime
-observe app-mode window
+observe app-mode window or new managed browser window
 on close: RuntimeSession.stop()
 ```
 
-The monitor observes only. Shutdown remains a session responsibility.
+The monitor observes only. Shutdown remains a session responsibility. If a
+browser-window target cannot be identified confidently, LitLaunch falls back to
+the manual Ctrl+C stop path.
 
 `run_monitored_webapp()` is the high-level helper for integrations that want the
 standard monitored app-mode flow without manually assembling platform detection,

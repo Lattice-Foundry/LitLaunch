@@ -4,9 +4,9 @@ LitLaunch is a runtime-governance and operational-launch layer for Streamlit
 applications. It helps developers run Streamlit apps cleanly, predictably, and
 locally first, without replacing Streamlit or hiding runtime ownership.
 
-It starts Streamlit backends, resolves browser launch strategy, supports browser
-and Chromium app-mode flows, provides opt-in graceful shutdown, and exposes
-diagnostics without pretending to secure the app itself.
+It starts Streamlit backends, resolves browser launch strategy, supports
+managed browser-window and Chromium app-mode flows, provides opt-in graceful
+shutdown, and exposes diagnostics without pretending to secure the app itself.
 
 LitLaunch is developed and maintained by LatticeFoundry, a software division of
 Sierra Cognitive Group, LLC. LitLaunch is not affiliated with Streamlit.
@@ -35,8 +35,9 @@ session = launcher.start()
 ```
 
 That is enough to get local-first defaults, explicit backend ownership, health
-checks, automatic browser launch, browser capability detection, clean shutdown
-handling, app-mode support where available, and diagnostics/reporting tools.
+checks, automatic browser launch, browser capability detection, managed
+browser-window lifecycle where supported, clean shutdown handling, app-mode
+support where available, and diagnostics/reporting tools.
 
 No shell scripts. No browser automation hacks. No custom runtime glue.
 
@@ -122,7 +123,7 @@ when the app is intentionally exposed beyond the local machine.
 
 - Start Streamlit through explicit, shell-free command construction.
 - Own and stop only the Streamlit backend process LitLaunch starts.
-- Open a normal browser or Chromium app-mode window.
+- Open a managed browser window or Chromium app-mode window.
 - Resolve Edge, Chrome/Chromium, and default-browser capability.
 - Provide tokened loopback graceful shutdown hooks for app cleanup.
 - Inspect local runtime readiness without launching the app.
@@ -134,7 +135,8 @@ LitLaunch is infrastructure, not magic orchestration.
 
 - Backend ownership is explicit through `RuntimeSession`.
 - Browser processes are launched but never owned, killed, or controlled.
-- Window monitoring is observational only.
+- Window monitoring is observational only. LitLaunch may observe a managed
+  browser/app window, but it does not kill or close browser processes.
 - Commands are argument tuples, never shell strings.
 - Runtime dependencies remain stdlib-first; Python 3.10 uses the lightweight
   `tomli` backport for TOML profile loading.
@@ -418,10 +420,12 @@ to control the backend child process without mutating global environment state.
 
 ## App-Mode And Monitoring
 
-`--mode webapp` opens a Chromium app-mode window when an app-mode capable
-browser is available. `--monitor-window` is optional and currently strongest on
-Windows with Edge or Chrome/Chromium. Monitoring observes app windows only; it
-does not own or kill browser processes.
+Browser mode can use a managed temporary Chromium profile and a new top-level
+browser window so closing that window can trigger graceful shutdown where
+supported. Webapp mode opens a Chromium app-mode window when an app-mode
+capable browser is available. Monitoring remains observational: LitLaunch does
+not own, close, or kill browser processes. If browser-window monitoring cannot
+identify a window confidently, Ctrl+C remains the shutdown path.
 
 See [docs/browser_support.md](docs/browser_support.md) and
 [docs/window_monitoring.md](docs/window_monitoring.md).

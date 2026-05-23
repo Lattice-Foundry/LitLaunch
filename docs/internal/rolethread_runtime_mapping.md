@@ -24,7 +24,7 @@ concepts so integration work does not duplicate responsibilities.
 | Fallback behavior | `allow_browser_fallback` and browser resolution | RoleThread decides whether fallback is acceptable per flow. |
 | Shutdown cleanup | `LauncherRuntime` and shutdown hooks | Keep cleanup functions in RoleThread app code; use LitLaunch hook runtime. |
 | Graceful stop/fallback | `RuntimeSession.stop()` | Let LitLaunch request graceful shutdown and terminate only its owned backend if needed. |
-| Window close observation | windowing monitor plus `RuntimeSession.monitor_window()` | Use only for opt-in webapp app-mode flows. |
+| Window close observation | windowing monitor, `RuntimeSession.monitor_window()`, and managed browser-window runner | Use for webapp app-mode flows and browser-mode profiles that explicitly enable browser-window monitoring. |
 | Runtime diagnostics | `litlaunch report`, `litlaunch inspect --json`, or `litlaunch inspect --bundle` | Use for prelaunch validation and support bundles. |
 | Console output | `ConsoleRenderer` | LitLaunch emits runtime mechanics; RoleThread owns product messaging. |
 
@@ -39,7 +39,7 @@ RoleThread should gradually stop owning:
 - browser fallback logic.
 - Edge/Chrome path detection.
 - health endpoint polling.
-- window-close observation mechanics.
+- window-close observation mechanics for webapp or managed browser-window flows.
 - duplicated local diagnostics for launch readiness.
 
 ## What RoleThread Still Owns

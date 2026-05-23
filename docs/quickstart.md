@@ -149,7 +149,9 @@ result = run_profile(profile)
 
 When `window_monitor.enabled = true`, `run_profile()` uses the monitored webapp
 runner and applies the profile's graceful timeout and monitor config. When
-monitoring is disabled, it uses the normal launcher runtime path.
+`browser_window_monitor.enabled = true`, it uses the managed browser-window
+runtime path. When monitoring is disabled, it uses the normal launcher runtime
+path.
 
 ## Python API
 
@@ -190,6 +192,11 @@ print(plan.health_url)
 `build_launch_plan()` is intended for diagnostics, integration tests, and
 configuration parity checks. It resolves ports and browser strategy but does
 not launch Streamlit or a browser.
+
+If a config binds Streamlit to a wildcard host such as `0.0.0.0` or `::`,
+`plan.app_url` and `plan.health_url` use the loopback client URL that LitLaunch
+can actually connect to, while the backend command still binds Streamlit to the
+requested host.
 
 ## Custom Backend Commands
 
@@ -240,8 +247,9 @@ Use `launcher.with_port(port)` when you need a copy of an existing launcher
 with a fixed port. The returned launcher preserves injected managers, browser
 helpers, renderer, and clock while leaving the original launcher unchanged.
 
-`LauncherConfig.title` is used for display and browser/app-window matching
-where monitoring applies. Choose a stable title for monitored webapp flows.
+`LauncherConfig.title` is used for display and app-window matching where
+webapp monitoring applies. Browser-window monitoring relies primarily on a
+managed temporary Chromium profile and pre-launch/post-launch window snapshots.
 If the actual app window title differs significantly, `--monitor-window` may
 timeout; use `--title` to override the expected title.
 

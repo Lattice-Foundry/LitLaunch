@@ -73,17 +73,41 @@ litlaunch run app.py --mode browser --browser default
 
 ## Window Monitoring Unsupported
 
-`--monitor-window` is experimental and currently strongest on Windows with
-Chromium app-mode.
+`--monitor-window` is for webapp/app-window monitoring and is currently
+strongest on Windows with Chromium app-mode. Browser mode uses the separate
+managed browser-window monitor when LitLaunch can use Edge or Chrome/Chromium.
 
 Next steps:
 
 ```powershell
 litlaunch run app.py --mode webapp
 litlaunch run app.py --mode webapp --browser edge --monitor-window --verbose
+litlaunch run app.py --browser edge --verbose
 ```
 
-Omit `--monitor-window` when close detection is not required.
+Omit `--monitor-window` for unmonitored webapp mode. Use
+`--no-monitor-browser-window` when browser mode should keep running until
+Ctrl+C or backend exit.
+
+If browser-window monitoring falls back, LitLaunch should say that Ctrl+C
+remains the shutdown path. That fallback is expected when a new top-level
+browser window cannot be identified confidently.
+
+## Network Exposure Launch Times Out
+
+When binding Streamlit to a wildcard host such as `0.0.0.0` or `::`,
+LitLaunch should still health-check through a local client URL such as
+`127.0.0.1` or `::1`. If a network-exposed launch times out after Streamlit
+prints its Local/Network URLs, run with verbose output and capture the health
+URL:
+
+```powershell
+litlaunch run app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure --verbose
+```
+
+The runtime warning is expected for non-loopback hosts. It means exposure is
+intentional and still operationally visible; it does not mean LitLaunch failed
+the launch.
 
 ## Shutdown Uses Fallback Termination
 

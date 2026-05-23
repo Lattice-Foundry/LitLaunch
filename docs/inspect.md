@@ -53,6 +53,11 @@ With a target app, the report adds:
 - health URL preview
 - browser resolution summary
 
+For wildcard bind hosts such as `0.0.0.0` and `::`, URL previews use the local
+client URL LitLaunch can connect to for browser launch and health checks, while
+the host binding/posture items still show the configured network-visible bind
+address.
+
 The posture sections are operational, not a compliance rating or policy engine.
 They help identify local-only versus network-visible runtime configuration, but
 LitLaunch does not authenticate users, terminate TLS, or secure the Streamlit

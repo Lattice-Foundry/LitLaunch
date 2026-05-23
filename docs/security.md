@@ -49,6 +49,13 @@ For automation environments, `LITLAUNCH_ALLOW_NETWORK_EXPOSURE=1` can provide
 the same acknowledgement. Use that only where the deployment boundary is already
 understood.
 
+Wildcard bind addresses such as `0.0.0.0` and `::` are listen addresses, not
+the client URL LitLaunch should connect to. LitLaunch keeps Streamlit bound to
+the requested host, but uses a local client URL such as
+`http://127.0.0.1:8501` or `http://[::1]:8501` for health checks and local
+browser launch. The network-exposure warning still applies because the backend
+may be reachable through the local network or broader network.
+
 ## Trust Modes
 
 Trust modes declare the operational intent for a launch. They govern LitLaunch

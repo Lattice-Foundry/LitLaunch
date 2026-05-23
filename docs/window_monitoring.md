@@ -2,15 +2,24 @@
 
 Window monitoring is experimental and observational.
 
-It is intended for Chromium app-mode flows where closing the app window should
-trigger graceful backend shutdown. CLI `--mode webapp` launches enable it by
-default where supported; profile launches follow the profile's
-`window_monitor.enabled` setting.
+It covers two related lifecycle paths:
+
+- monitored webapp/app-window mode, where closing the Chromium app-mode window
+  triggers graceful backend shutdown
+- managed browser-window mode, where LitLaunch opens a temporary Chromium
+  profile in a new top-level browser window and observes that exact window
+
+CLI `--mode webapp` launches enable app-window monitoring by default where
+supported. Browser-mode CLI launches attempt managed browser-window monitoring
+by default when LitLaunch can use Edge or Chrome/Chromium. Profile launches
+follow the profile's `window_monitor.enabled` and
+`browser_window_monitor.enabled` settings.
 
 ## Use
 
 ```powershell
 litlaunch run app.py --mode webapp --browser edge
+litlaunch run app.py --mode browser --browser edge
 ```
 
 If app cleanup needs more time after the window closes:
@@ -35,7 +44,9 @@ litlaunch run app.py --mode webapp --title "My Streamlit App"
 ```
 
 Use `--no-monitor-window` when you intentionally want a webapp/app-window
-launch that keeps running until Ctrl+C or the backend exits on its own.
+launch that keeps running until Ctrl+C or the backend exits on its own. Use
+`--no-monitor-browser-window` when you intentionally want browser mode to keep
+running until Ctrl+C or backend exit.
 
 ## Supported Path
 
@@ -43,8 +54,10 @@ Strongest current path:
 
 - Windows 10 or Windows 11
 - Edge or Chrome/Chromium
-- Chromium app-mode
-- visible top-level app window
+- Chromium app-mode for webapp monitoring
+- managed temporary Chromium profile plus a new top-level window for
+  browser-window monitoring
+- visible top-level app/browser window
 
 Unsupported platforms fail clearly when monitoring is enabled.
 
@@ -54,6 +67,8 @@ Window monitoring:
 
 - observes candidate windows
 - waits for a stable matching app-mode window
+- can snapshot browser windows before launch and identify a new managed
+  browser window after launch
 - waits for close signals
 - reports monitor outcomes
 
@@ -69,6 +84,11 @@ Window monitoring does not:
 
 When a close is observed, `RuntimeSession.stop()` performs graceful shutdown and
 owned-backend fallback termination if needed.
+
+Managed browser-window mode does not claim general browser-tab ownership. It is
+best-effort window observation. If Chromium reuses an existing window, policy
+blocks the managed profile, or no confident new top-level window is observed,
+LitLaunch reports that fallback and `Ctrl+C` remains the shutdown path.
 
 `--graceful-timeout` controls how long the CLI waits for the backend to exit
 after a monitored-window shutdown request is accepted before using the
@@ -105,6 +125,21 @@ if result.exit_code:
     print(result.message)
 ```
 
+For browser-mode profiles, enable the browser-window monitor explicitly:
+
+```toml
+[profiles.browser-window]
+app_path = "app.py"
+mode = "browser"
+browser = "edge"
+
+[profiles.browser-window.browser_window_monitor]
+enabled = true
+appear_timeout = 8
+poll_interval = 0.2
+stable_polls = 2
+```
+
 ## Timeout Behavior
 
 If no stable app window is observed before timeout, the monitor reports timeout.
@@ -112,7 +147,8 @@ The CLI treats explicit monitor failure as nonzero and stops the owned backend.
 
 ## Matching Boundary
 
-LitLaunch currently matches monitored app-mode windows using:
+LitLaunch currently matches monitored app-mode and managed browser windows
+using:
 
 - window title
 - Chromium window class signals
@@ -120,10 +156,12 @@ LitLaunch currently matches monitored app-mode windows using:
 - baseline handle exclusion
 - stable polling
 
-It does not inspect browser URLs. URL inspection would require browser
-automation, remote debugging, accessibility scraping, or process command-line
-inspection, and those approaches are intentionally outside the current
-observational monitoring contract.
+It does not inspect browser URLs. Browser-window mode relies on a managed
+temporary Chromium profile and pre-launch/post-launch window snapshots rather
+than browser automation. URL inspection would require browser automation,
+remote debugging, accessibility scraping, or process command-line inspection,
+and those approaches are intentionally outside the current observational
+monitoring contract.
 
 Choose a stable `LauncherConfig.title` / `--title` for monitored webapp flows.
 If the visible app-mode window title differs significantly from the expected
@@ -132,10 +170,15 @@ title, monitoring may time out.
 ## Future Work
 
 Potential future work includes more platform providers and richer monitor
-diagnostics. Monitoring should remain optional unless a future release clearly
-defines safe defaults.
+diagnostics. Monitoring should remain observational unless a future release
+clearly defines safer defaults.
 
 For app-window flows, the recommended manual smoke check is to launch with
 `--mode webapp --monitor-window`, confirm a separate Chromium app-mode window
 appears with the expected title, and close that window to verify LitLaunch stops
 only the owned backend session.
+
+For browser-window flows, launch with `litlaunch app.py --browser edge`,
+confirm the managed browser window opens without first-run/sync prompts, then
+close that window and verify LitLaunch runs graceful shutdown. If the monitor
+falls back, stop the session with Ctrl+C.

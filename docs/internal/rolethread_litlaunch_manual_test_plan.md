@@ -129,15 +129,15 @@ Validate what humans actually see while running RoleThread.
 
 | ID | Status | Effort | Command / Action | Expected Result | Record If It Fails | Severity | Feature Area |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| CON-01 | Not run | Light | `litlaunch app.py` | Normal output is concise; Streamlit native URL block remains familiar; LitLaunch lines use status blocks. | Console screenshot. | Medium | Console normal |
-| CON-02 | Not run | Light | `litlaunch app.py --verbose` | Verbose-only startup/shutdown details appear; no secret values. | Console excerpt. | Medium | Console verbose |
-| CON-03 | Not run | Light | `litlaunch app.py --quiet` | Nonessential output is suppressed; important failures still show if triggered. | Output and whether shutdown remains understandable. | Medium | Console quiet |
-| CON-04 | Not run | Light | `litlaunch app.py --no-color` | No ANSI escapes; labels remain aligned and readable. | Captured output. | Low/Polish | Console no-color |
-| CON-05 | Not run | Medium | `litlaunch app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure` then stop with `Ctrl+C`. | Runtime warning mentions network exposure and plaintext HTTP if TLS is absent; `Ctrl+C` reports a user stop, not an error. | Warning text and shutdown excerpt. | High | Security messaging |
-| CON-06 | Not run | Medium | `litlaunch app.py --host 0.0.0.0 --trust-mode strict_local --allow-network-exposure` | Fails before backend start; normal error is bounded to error/cause/verbose guidance. | Full error output. | Blocker | Error formatting |
-| CON-07 | Not run | Medium | Force a missing app path: `litlaunch missing.py` | Error is clear, cause is shown, and output suggests verbose/diagnostics without a giant traceback. | Full error output. | High | Error formatting |
-| CON-08 | Not run | Medium | Close RoleThread via managed browser window or webapp window. | Dynamic RoleThread hook messages render through LitLaunch status grammar once RoleThread migrates; current direct `[RoleThread]` lines should be recorded as RoleThread-side artifacts. | Hook lines and whether they are direct prints. | Medium | Hook presentation |
-| CON-09 | Not run | Medium | `litlaunch app.py --verbose`, then close window. | Verbose-only hook success/details show only in verbose; errors would remain visible in normal. | Hook section output. | Medium | Hook visibility |
+| CON-01 | Complete | Light | `litlaunch app.py` | Normal output is concise; Streamlit native URL block remains familiar; LitLaunch lines use status blocks. | Console screenshot. | Medium | Console normal |
+| CON-02 | Complete | Light | `litlaunch app.py --verbose` | Verbose-only startup/shutdown details appear; no secret values. | Console excerpt. | Medium | Console verbose |
+| CON-03 | Complete | Light | `litlaunch app.py --quiet` | Nonessential output is suppressed; important failures still show if triggered. | Output and whether shutdown remains understandable. | Medium | Console quiet |
+| CON-04 | Complete | Light | `litlaunch app.py --no-color` | No ANSI escapes; labels remain aligned and readable. | Captured output. | Low/Polish | Console no-color |
+| CON-05 | Complete | Medium | `litlaunch app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure` then stop with `Ctrl+C`. | Runtime warning mentions network exposure and plaintext HTTP if TLS is absent; `Ctrl+C` reports a user stop, not an error. | Warning text and shutdown excerpt. | High | Security messaging |
+| CON-06 | Complete | Medium | `litlaunch app.py --host 0.0.0.0 --trust-mode strict_local --allow-network-exposure` | Fails before backend start; normal error is bounded to error/cause/verbose guidance. | Full error output. | Blocker | Error formatting |
+| CON-07 | Complete | Medium | Force a missing app path: `litlaunch missing.py` | Error is clear, cause is shown, and output suggests verbose/diagnostics without a giant traceback. | Full error output. | High | Error formatting |
+| CON-08 | Complete | Medium | Close RoleThread via managed browser window or webapp window. | Dynamic RoleThread hook messages render through LitLaunch status grammar once RoleThread migrates; current direct `[RoleThread]` lines should be recorded as RoleThread-side artifacts. | Hook lines and whether they are direct prints. | Medium | Hook presentation |
+| CON-09 | Complete | Medium | `litlaunch app.py --verbose`, then close window. | Verbose-only hook success/details show only in verbose; errors would remain visible in normal. | Hook section output. | Medium | Hook visibility |
 
 ## E. Profile And Shortcut Tests: 30-60 Minutes
 

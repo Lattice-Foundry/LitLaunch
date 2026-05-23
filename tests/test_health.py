@@ -47,6 +47,16 @@ def test_ipv6_app_and_health_urls_use_brackets():
     assert build_streamlit_health_url("::1", 8501) == "http://[::1]:8501/_stcore/health"
 
 
+def test_wildcard_bind_addresses_use_loopback_client_urls():
+    assert build_streamlit_app_url("0.0.0.0", 8501) == "http://127.0.0.1:8501"
+    assert (
+        build_streamlit_health_url("0.0.0.0", 8501)
+        == "http://127.0.0.1:8501/_stcore/health"
+    )
+    assert build_streamlit_app_url("::", 8501) == "http://[::1]:8501"
+    assert build_streamlit_health_url("::", 8501) == "http://[::1]:8501/_stcore/health"
+
+
 def test_check_once_true_on_successful_response():
     checker = HealthChecker(opener=lambda url, timeout: FakeResponse(204))
 

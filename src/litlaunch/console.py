@@ -250,7 +250,11 @@ class ConsoleRenderer:
     def runtime_ready(self, url: str | None = None) -> None:
         """Render a concise runtime-ready message."""
 
-        message = "Runtime: ready" if url is None else f"Runtime: ready at {url}"
+        message = (
+            "Runtime: ready"
+            if url is None
+            else f"Runtime: ready locally at {url}"
+        )
         self.success(message)
 
     def render_browser_resolution(

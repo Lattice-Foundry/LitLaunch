@@ -144,9 +144,9 @@ def test_console_renderer_phase_and_elapsed_shape():
     output = stream.getvalue()
     assert "[   ok   ] LitLaunch Starting runtime..." in output
     assert "[LitLaunch]" not in output
-    assert "[   ok   ] Backend: starting Streamlit..." in output
-    assert "[   ok   ] Health: ready in 1.2s." in output
-    assert "[   ok   ] Runtime: ready at http://127.0.0.1:8501." in output
+    assert "[   ok   ] Backend: Starting Streamlit..." in output
+    assert "[   ok   ] Health: Ready in 1.2s." in output
+    assert "[   ok   ] Runtime: Ready locally at http://127.0.0.1:8501." in output
     assert format_elapsed(0.04) == "0.0s"
 
 
@@ -173,8 +173,8 @@ def test_console_renderer_color_roles_for_runtime_header_status_and_phase():
     assert f"{THEME_COLORS[streamlit_blue].ansi}ready" not in output
     assert strip_ansi(output).splitlines() == [
         "[   ok   ] LitLaunch Starting runtime...",
-        "[   ok   ] Backend: starting Streamlit...",
-        "[   ok   ] Health: ready.",
+        "[   ok   ] Backend: Starting Streamlit...",
+        "[   ok   ] Health: Ready.",
         "[ error  ] Failed.",
     ]
 
@@ -206,7 +206,7 @@ def test_console_renderer_quiet_suppresses_normal_output_but_not_errors():
     assert "[ error  ] Failure." in output
 
 
-def test_console_renderer_info_status_uses_fixed_width_green_label():
+def test_console_renderer_info_status_uses_fixed_width_warning_label():
     stream = StringIO()
     renderer = ConsoleRenderer(
         theme=ConsoleTheme(use_color=True),
@@ -217,7 +217,7 @@ def test_console_renderer_info_status_uses_fixed_width_green_label():
     renderer.info_status("OS: windows")
 
     output = stream.getvalue()
-    assert THEME_COLORS[success_green].ansi in output
+    assert THEME_COLORS[muted_amber].ansi in output
     assert strip_ansi(output) == "[  info  ] OS: windows.\n"
 
 
@@ -289,13 +289,13 @@ def test_failure_guidance_can_render_warning_level():
     renderer = ConsoleRenderer(theme=ConsoleTheme(use_color=False), stream=stream)
 
     renderer.failure_guidance(
-        "Shutdown: using backend termination fallback.",
+        "Shutdown: Using backend termination fallback.",
         likely_cause="The backend did not stop through graceful shutdown.",
         level="warning",
     )
 
     output = stream.getvalue()
-    assert "[  warn  ] Shutdown: using backend termination fallback." in output
+    assert "[  warn  ] Shutdown: Using backend termination fallback." in output
     assert "[ cause  ] The backend did not stop through graceful shutdown." in output
     assert output.count("[  next  ]") == 1
 
@@ -752,7 +752,7 @@ def test_console_renderer_monitor_status_rendering():
 
     output = stream.getvalue()
     assert "[   ok   ] Monitor: Window closed; requesting shutdown." in output
-    assert "Monitor: window monitoring is unavailable." in output
+    assert "Monitor: Window monitoring is unavailable." in output
     assert "[ cause  ] Unsupported." in output
     assert "Likely cause" not in output
 

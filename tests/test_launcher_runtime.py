@@ -172,6 +172,20 @@ def test_launcher_builds_app_and_health_urls_with_resolved_port():
     assert launcher.build_health_url() == build_streamlit_health_url("127.0.0.1", 8600)
 
 
+def test_launcher_uses_loopback_client_urls_for_wildcard_bind():
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            host="0.0.0.0",
+            allow_network_exposure=True,
+        ),
+        port_manager=FakePortManager(8600),
+    )
+
+    assert launcher.build_app_url() == "http://127.0.0.1:8600"
+    assert launcher.build_health_url() == "http://127.0.0.1:8600/_stcore/health"
+
+
 def test_with_port_preserves_injected_dependencies():
     port_manager = FakePortManager(8600)
     process_manager = FakeProcessManager()
@@ -252,6 +266,33 @@ def test_start_backend_resolves_port_builds_command_and_waits_for_health():
         LaunchState.HEALTH_CHECKING,
         LaunchState.HEALTHY,
     ]
+
+
+def test_start_backend_binds_wildcard_but_health_checks_loopback():
+    process_manager = FakeProcessManager()
+    health_checker = FakeHealthChecker(healthy=True)
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            host="0.0.0.0",
+            allow_network_exposure=True,
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        health_checker=health_checker,
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend(
+        health_timeout_seconds=3.0,
+        health_interval_seconds=0.1,
+    )
+
+    assert session.result.ok is True
+    assert session.url == "http://127.0.0.1:8600"
+    assert session.command is not None
+    assert session.command[session.command.index("--server.address") + 1] == "0.0.0.0"
+    assert health_checker.calls == [("http://127.0.0.1:8600/_stcore/health", 3.0, 0.1)]
 
 
 def test_build_launch_plan_resolves_fixed_port_without_starting_or_launching():
@@ -611,7 +652,7 @@ def test_health_timeout_console_guidance_is_actionable():
 
     output = stream.getvalue()
     assert session.ok is False
-    assert "Health: backend did not become healthy before timeout." in output
+    assert "Health: Backend did not become healthy before timeout." in output
     assert "[ cause  ] The app started but did not report ready in time." in output
     assert output.count("[  next  ]") == 1
     assert "Run Streamlit directly to see any app traceback." not in output
@@ -657,7 +698,7 @@ def test_backend_early_exit_console_guidance_is_actionable():
 
     output = stream.getvalue()
     assert session.ok is False
-    assert "Backend: exited before becoming healthy." in output
+    assert "Backend: Exited before becoming healthy." in output
     assert (
         "Streamlit may be missing or the app may have crashed during startup." in output
     )
@@ -846,11 +887,11 @@ def test_browser_failure_console_guidance_is_actionable():
 
     output = stream.getvalue()
     assert session.ok is False
-    assert "Browser: launch failed; stopping backend." in output
+    assert "Browser: Launch failed; stopping backend." in output
     assert "Check that the requested browser is installed and launchable." not in output
     assert "--browser default" not in output
     assert output.count("[ error  ]") == 1
-    assert "[   ok   ] Backend: port 8605 released." in output
+    assert "[   ok   ] Backend: Port 8605 released." in output
 
 
 def test_run_browser_mode_can_use_default_browser_path():
@@ -936,14 +977,14 @@ def test_launcher_emits_high_level_console_messages_without_tokens():
     assert session.ok is True
     assert "[   ok   ] LitLaunch Starting runtime..." in output
     assert "[LitLaunch]" not in output
-    assert "[   ok   ] Backend: starting Streamlit..." not in output
-    assert "Backend: started Streamlit in" in output
+    assert "[   ok   ] Backend: Starting Streamlit..." not in output
+    assert "Backend: Started Streamlit in" in output
     assert "Backend PID: 999" not in output
-    assert "[   ok   ] Health: waiting for Streamlit...\n\n" in output
-    assert "Health: ready in" in output
+    assert "[   ok   ] Health: Waiting for Streamlit...\n\n" in output
+    assert "Health: Ready in" in output
     assert "Browser: opening Edge app window" not in output
-    assert "Browser: browser launched in" in output
-    assert "Runtime: ready at http://127.0.0.1:8609" in output
+    assert "Browser: Browser launched in" in output
+    assert "Runtime: Ready locally at http://127.0.0.1:8609" in output
     assert token not in output
 
 
@@ -968,5 +1009,5 @@ def test_launcher_verbose_console_emits_command_detail():
     output = stream.getvalue()
     assert session.ok is True
     assert "Command:" in output
-    assert "[   ok   ] Backend: starting Streamlit..." in output
+    assert "[   ok   ] Backend: Starting Streamlit..." in output
     assert "--server.port 8612" in output

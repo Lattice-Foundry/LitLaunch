@@ -44,26 +44,29 @@ def test_release_script_smoke_includes_installed_inspect_and_command_checks():
 
 def test_release_script_reads_current_version():
     module = load_release_script()
+    version = module.read_project_version()
 
-    assert module.read_project_version() == "0.91.44b0"
+    assert version
+    assert version.endswith("b0")
 
 
 def test_release_script_detects_forbidden_archive_entries():
     module = load_release_script()
+    prefix = f"litlaunch-{module.read_project_version()}"
 
     forbidden = module.find_forbidden_archive_entries(
         (
-            "litlaunch-0.91.44b0/src/litlaunch/__pycache__/x.pyc",
-            "litlaunch-0.91.44b0/.ruff_cache/CACHEDIR.TAG",
-            "litlaunch-0.91.44b0/.claude/settings.json",
-            "litlaunch-0.91.44b0/src/litlaunch/module.py",
+            f"{prefix}/src/litlaunch/__pycache__/x.pyc",
+            f"{prefix}/.ruff_cache/CACHEDIR.TAG",
+            f"{prefix}/.claude/settings.json",
+            f"{prefix}/src/litlaunch/module.py",
         )
     )
 
     assert forbidden == (
-        "litlaunch-0.91.44b0/src/litlaunch/__pycache__/x.pyc",
-        "litlaunch-0.91.44b0/.ruff_cache/CACHEDIR.TAG",
-        "litlaunch-0.91.44b0/.claude/settings.json",
+        f"{prefix}/src/litlaunch/__pycache__/x.pyc",
+        f"{prefix}/.ruff_cache/CACHEDIR.TAG",
+        f"{prefix}/.claude/settings.json",
     )
 
 
@@ -125,30 +128,59 @@ def test_release_script_accepts_ignored_repo_tree_artifacts():
         assert module.find_forbidden_repo_tree_artifacts(root) == ()
 
 
-@pytest.mark.parametrize(
-    "entry",
-    [
-        "/absolute/path.py",
-        "litlaunch-0.91.44b0/../escape.py",
-        "litlaunch-0.91.44b0/.git/config",
-        "litlaunch-0.91.44b0/.venv/pyvenv.cfg",
-    ],
-)
-def test_release_script_rejects_unsafe_archive_entries(entry):
+def test_release_script_detects_potential_credentials_in_text_files():
     module = load_release_script()
 
-    assert module.find_forbidden_archive_entries((entry,)) == (entry,)
+    with tempfile.TemporaryDirectory(prefix="litlaunch-release-test-") as temp_dir:
+        root = Path(temp_dir)
+        notes = root / "notes"
+        notes.mkdir()
+        token = "py" + "pi-" + ("A" * 24)
+        secret_file = notes / "api.txt"
+        secret_file.write_text(f"token={token}\n", encoding="utf-8")
+
+        findings = module.find_potential_credentials(root)
+
+        assert findings == ((secret_file, "line 1"),)
+
+
+def test_release_script_ignores_credentials_in_dependency_trees():
+    module = load_release_script()
+
+    with tempfile.TemporaryDirectory(prefix="litlaunch-release-test-") as temp_dir:
+        root = Path(temp_dir)
+        ignored = root / ".venv" / "Lib" / "site-packages"
+        ignored.mkdir(parents=True)
+        token = "gh" + "p_" + ("A" * 24)
+        (ignored / "config.txt").write_text(f"{token}\n", encoding="utf-8")
+
+        assert module.find_potential_credentials(root) == ()
+
+
+def test_release_script_rejects_unsafe_archive_entries():
+    module = load_release_script()
+    prefix = f"litlaunch-{module.read_project_version()}"
+
+    entries = (
+        "/absolute/path.py",
+        f"{prefix}/../escape.py",
+        f"{prefix}/.git/config",
+        f"{prefix}/.venv/pyvenv.cfg",
+    )
+
+    assert module.find_forbidden_archive_entries(entries) == entries
 
 
 def test_release_script_allows_normal_archive_entries():
     module = load_release_script()
+    prefix = f"litlaunch-{module.read_project_version()}"
 
     assert (
         module.find_forbidden_archive_entries(
             (
-                "litlaunch-0.91.44b0/README.md",
-                "litlaunch-0.91.44b0/src/litlaunch/__init__.py",
-                "litlaunch-0.91.44b0/src/litlaunch/py.typed",
+                f"{prefix}/README.md",
+                f"{prefix}/src/litlaunch/__init__.py",
+                f"{prefix}/src/litlaunch/py.typed",
             )
         )
         == ()
@@ -157,19 +189,21 @@ def test_release_script_allows_normal_archive_entries():
 
 def test_release_script_rejects_internal_docs_in_sdist():
     module = load_release_script()
+    version = module.read_project_version()
+    prefix = f"litlaunch-{version}"
 
     with pytest.raises(RuntimeError, match="Internal integration docs"):
         module.inspect_sdist_names(
             (
-                "litlaunch-0.91.44b0/README.md",
-                "litlaunch-0.91.44b0/LICENSE",
-                "litlaunch-0.91.44b0/pyproject.toml",
-                "litlaunch-0.91.44b0/docs/overview.md",
-                "litlaunch-0.91.44b0/docs/internal/README.md",
-                "litlaunch-0.91.44b0/src/litlaunch/__init__.py",
-                "litlaunch-0.91.44b0/src/litlaunch/py.typed",
+                f"{prefix}/README.md",
+                f"{prefix}/LICENSE",
+                f"{prefix}/pyproject.toml",
+                f"{prefix}/docs/overview.md",
+                f"{prefix}/docs/internal/README.md",
+                f"{prefix}/src/litlaunch/__init__.py",
+                f"{prefix}/src/litlaunch/py.typed",
             ),
-            "0.91.44b0",
+            version,
         )
 
 

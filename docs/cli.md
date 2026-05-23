@@ -96,7 +96,8 @@ exact window, and routes close-to-shutdown through the same graceful
 LitLaunch falls back cleanly to the manual `Ctrl+C` stop path.
 
 Use `--no-monitor-browser-window` when you intentionally want browser mode to
-keep running until `Ctrl+C` or backend exit.
+keep running until `Ctrl+C` or backend exit. Use `--monitor-browser-window` to
+request browser-window monitoring explicitly in scripts or profile overrides.
 
 CLI webapp launches enable app-window close monitoring by default where window
 monitoring is supported; use `--no-monitor-window` only when you intentionally
@@ -104,6 +105,7 @@ want an unmonitored app window.
 
 ```powershell
 litlaunch run app.py --mode browser --browser edge
+litlaunch run app.py --mode browser --browser edge --monitor-browser-window
 litlaunch run app.py --mode browser --browser edge --no-monitor-browser-window
 litlaunch run app.py --mode webapp
 litlaunch run app.py --mode webapp --title "My Streamlit App"
@@ -127,6 +129,14 @@ make LitLaunch own, close, or kill browser windows.
 
 Window monitoring matches title, Chromium window class/process signals,
 baseline handles, and stable polling. It does not inspect browser URLs.
+
+Use `--browser-arg VALUE` only when a launch needs an additional browser
+command-line argument. It is repeatable and applies to the browser launch, not
+to Streamlit:
+
+```powershell
+litlaunch run app.py --browser edge --browser-arg=--kiosk
+```
 
 ## Streamlit Passthrough
 

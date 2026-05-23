@@ -46,6 +46,43 @@ STALE_REPO_ROOT_GENERATED_NAMES = frozenset(
         "litlaunch-support-bundle.zip",
     }
 )
+CREDENTIAL_TOKEN_PREFIXES = (
+    "pypi-",
+    "ghp_",
+    "gho_",
+    "ghu_",
+    "ghs_",
+    "ghr_",
+    "github_pat_",
+    "glpat-",
+)
+CREDENTIAL_TOKEN_PATTERN = re.compile(
+    r"\b(?:"
+    + "|".join(re.escape(prefix) for prefix in CREDENTIAL_TOKEN_PREFIXES)
+    + r")[A-Za-z0-9_\-=]{12,}\b"
+)
+CREDENTIAL_SCAN_SUFFIXES = frozenset(
+    {
+        "",
+        ".bat",
+        ".cfg",
+        ".command",
+        ".desktop",
+        ".html",
+        ".ini",
+        ".json",
+        ".md",
+        ".ps1",
+        ".py",
+        ".sh",
+        ".toml",
+        ".txt",
+        ".xml",
+        ".yaml",
+        ".yml",
+    }
+)
+CREDENTIAL_SCAN_MAX_BYTES = 2_000_000
 
 
 @dataclass(frozen=True)
@@ -85,6 +122,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     version = read_project_version()
     ensure_no_suspicious_repo_root_artifacts()
+    ensure_no_credentials()
 
     if not args.keep_dist:
         clean_dist()
@@ -294,6 +332,41 @@ def ensure_no_suspicious_repo_root_artifacts(root: Path = PROJECT_ROOT) -> None:
     if forbidden:
         joined = ", ".join(_display_path(path, root) for path in forbidden)
         raise RuntimeError(f"Forbidden repo-tree artifacts found: {joined}")
+
+
+def find_potential_credentials(
+    root: Path = PROJECT_ROOT,
+) -> tuple[tuple[Path, str], ...]:
+    """Return project text files containing obvious credential token prefixes."""
+
+    findings: list[tuple[Path, str]] = []
+    ignored = {root / name for name in IGNORED_REPO_TREE_DIRS}
+    for path in root.rglob("*"):
+        if _is_under_ignored_dir(path, ignored) or not path.is_file():
+            continue
+        if path.suffix.lower() not in CREDENTIAL_SCAN_SUFFIXES:
+            continue
+        try:
+            if path.stat().st_size > CREDENTIAL_SCAN_MAX_BYTES:
+                continue
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for line_number, line in enumerate(text.splitlines(), 1):
+            if CREDENTIAL_TOKEN_PATTERN.search(line):
+                findings.append((path, f"line {line_number}"))
+    return tuple(findings)
+
+
+def ensure_no_credentials(root: Path = PROJECT_ROOT) -> None:
+    """Raise if release-target text files contain obvious credentials."""
+
+    findings = find_potential_credentials(root)
+    if findings:
+        joined = ", ".join(
+            f"{_display_path(path, root)}:{location}" for path, location in findings
+        )
+        raise RuntimeError(f"Potential credentials found: {joined}")
 
 
 def find_forbidden_repo_tree_artifacts(root: Path = PROJECT_ROOT) -> tuple[Path, ...]:

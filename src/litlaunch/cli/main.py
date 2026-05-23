@@ -70,10 +70,13 @@ _LAUNCH_OPTION_NAMES = frozenset(
         "--monitor-appear-timeout",
         "--monitor-poll-interval",
         "--monitor-stable-polls",
+        "--monitor-browser-window",
+        "--no-monitor-browser-window",
         "--no-browser-fallback",
         "--allow-network-exposure",
         "--streamlit-flag",
         "--app-arg",
+        "--browser-arg",
     }
 )
 _GLOBAL_FLAG_NAMES = frozenset({"--no-color", "--quiet", "--verbose", "-h", "--help"})

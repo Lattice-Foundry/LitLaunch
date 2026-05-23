@@ -4,6 +4,7 @@ import argparse
 import importlib
 import json
 import re
+import subprocess
 import sys
 import tempfile
 from contextlib import contextmanager
@@ -399,6 +400,21 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "litlaunch --profile my-webapp" in help_text
     assert re.search(r"litlaunch\s+report --profile my-webapp", help_text)
     assert "console-preview" not in help_text
+
+
+def test_cli_run_help_shows_monitor_and_browser_arg_flags(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["run", "--help"])
+
+    output = strip_ansi(capsys.readouterr().out)
+    assert exc_info.value.code == 0
+    assert "--monitor-browser-window" in output
+    assert "--no-monitor-browser-window" in output
+    assert "--browser-arg" in output
+    assert "Choose browser-tab mode or app-window webapp mode" in output
+    assert "Choose browser launch strategy" in output
+    assert "Request a Streamlit backend port" in output
+    assert "Set the Streamlit bind host" in output
 
 
 def test_cli_workflow_help_menu_lists_topics():
@@ -1390,6 +1406,19 @@ def test_cli_version_returns_zero_and_prints_version():
     assert f"LitLaunch {__version__}" in stream.getvalue()
 
 
+def test_python_m_litlaunch_invokes_cli_help():
+    result = subprocess.run(
+        (sys.executable, "-m", "litlaunch", "--help"),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "usage: litlaunch" in strip_ansi(result.stdout)
+    assert "litlaunch app.py" in strip_ansi(result.stdout)
+
+
 def test_cli_platform_outputs_summary_and_verbose_details():
     stream = StringIO()
 
@@ -1527,7 +1556,7 @@ def test_cli_inspect_json_returns_parseable_json():
     assert data["title"] == "LitLaunch Inspect"
     assert data["schema_version"] == 1
     assert data["generated_by"] == "litlaunch"
-    assert data["litlaunch_version"] == "0.91.44b0"
+    assert data["litlaunch_version"] == __version__
     assert "generated_at_utc" in data
     assert data["sections"][0]["title"] == "Platform"
     assert collector.collect_calls[0]["app_path"] is None

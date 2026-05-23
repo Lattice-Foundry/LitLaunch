@@ -46,15 +46,30 @@ def add_runtime_flags(
         "--title",
         help="Set the runtime title used for browser/app-mode window matching.",
     )
-    parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
-    parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
+    parser.add_argument(
+        "--mode",
+        choices=[item.value for item in LaunchMode],
+        help="Choose browser-tab mode or app-window webapp mode.",
+    )
+    parser.add_argument(
+        "--browser",
+        choices=[item.value for item in BrowserChoice],
+        help="Choose browser launch strategy: auto, edge, chrome, or default.",
+    )
     parser.add_argument(
         "--trust-mode",
         choices=[item.value for item in TrustMode],
         help="Set the operational trust mode for this launch.",
     )
-    parser.add_argument("--port", type=int)
-    parser.add_argument("--host")
+    parser.add_argument(
+        "--port",
+        type=int,
+        help="Request a Streamlit backend port. Auto-port may move if busy.",
+    )
+    parser.add_argument(
+        "--host",
+        help="Set the Streamlit bind host. Loopback is the local-first default.",
+    )
     parser.add_argument(
         "--no-auto-port",
         action="store_false",
@@ -110,14 +125,17 @@ def add_runtime_flags(
             action="store_true",
             dest="monitor_browser_window",
             default=None,
-            help=argparse.SUPPRESS,
+            help=(
+                "Monitor LitLaunch's managed Chromium browser window and stop "
+                "runtime on close."
+            ),
         )
         parser.add_argument(
             "--no-monitor-browser-window",
             action="store_false",
             dest="monitor_browser_window",
             default=None,
-            help=argparse.SUPPRESS,
+            help="Disable managed browser-window close monitoring.",
         )
     parser.add_argument(
         "--no-browser-fallback",
@@ -155,7 +173,7 @@ def add_runtime_flags(
         "--browser-arg",
         action="append",
         default=[],
-        help=argparse.SUPPRESS,
+        help="Add a browser command-line argument for this launch. Repeatable.",
     )
 
 

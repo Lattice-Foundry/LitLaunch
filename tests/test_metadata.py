@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 
 try:
@@ -6,6 +7,22 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
     import tomli as tomllib
 
 REPO_ROOT = Path(__file__).parents[1]
+VERSION_FILE = REPO_ROOT / "src" / "litlaunch" / "version.py"
+
+
+def current_version() -> str:
+    module = ast.parse(VERSION_FILE.read_text(encoding="utf-8"))
+    for node in module.body:
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "__version__"
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            return node.value.value
+    raise AssertionError("Could not parse LitLaunch version.")
 
 
 def test_pyproject_metadata_includes_console_and_typing_classifiers():
@@ -14,8 +31,8 @@ def test_pyproject_metadata_includes_console_and_typing_classifiers():
     )
 
     classifiers = set(pyproject["project"]["classifiers"])
-    assert "Development Status :: 5 - Production/Stable" in classifiers
-    assert "Development Status :: 4 - Beta" not in classifiers
+    assert "Development Status :: 4 - Beta" in classifiers
+    assert "Development Status :: 5 - Production/Stable" not in classifiers
     assert "Development Status :: 3 - Alpha" not in classifiers
     assert "Development Status :: 2 - Pre-Alpha" not in classifiers
     assert "Environment :: Console" in classifiers
@@ -57,7 +74,7 @@ def test_pyproject_urls_use_canonical_repository_location():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert "## 0.91.44b0" in changelog
+    assert f"## {current_version()}" in changelog
     assert "## 0.91.0b0" in changelog
     assert "## 0.85.0" in changelog
     assert "## 0.23.0" in changelog

@@ -47,15 +47,30 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Render a sanitized standalone HTML diagnostics report.",
     )
-    parser.add_argument("--mode", choices=[item.value for item in LaunchMode])
-    parser.add_argument("--browser", choices=[item.value for item in BrowserChoice])
+    parser.add_argument(
+        "--mode",
+        choices=[item.value for item in LaunchMode],
+        help="Evaluate browser-tab or app-window webapp mode.",
+    )
+    parser.add_argument(
+        "--browser",
+        choices=[item.value for item in BrowserChoice],
+        help="Evaluate browser launch strategy: auto, edge, chrome, or default.",
+    )
     parser.add_argument(
         "--trust-mode",
         choices=[item.value for item in TrustMode],
         help="Set the operational trust mode for posture diagnostics.",
     )
-    parser.add_argument("--port", type=int)
-    parser.add_argument("--host")
+    parser.add_argument(
+        "--port",
+        type=int,
+        help="Evaluate a requested Streamlit backend port.",
+    )
+    parser.add_argument(
+        "--host",
+        help="Evaluate the Streamlit bind host for runtime posture.",
+    )
     parser.add_argument(
         "--no-auto-port",
         action="store_false",
@@ -111,7 +126,10 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
         choices=[item.value for item in TrustMode],
         help="Set the operational trust mode for posture diagnostics.",
     )
-    parser.add_argument("--host")
+    parser.add_argument(
+        "--host",
+        help="Evaluate the Streamlit bind host for runtime posture.",
+    )
     parser.add_argument(
         "--allow-network-exposure",
         action="store_true",

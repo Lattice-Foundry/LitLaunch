@@ -1,10 +1,19 @@
 # Changelog
 
-LitLaunch is in beta stabilization. Entries are intentionally concise while the
-public API finishes settling.
+LitLaunch uses pre-release package versions until the coordinated ecosystem
+launch. Public documentation is stable-facing while release notes remain
+concise.
 
 ## 0.91.44b0
 
+- Aligned PyPI metadata with the pre-release version line while keeping public
+  docs stable-facing.
+- Added release hygiene checks for obvious credential token prefixes and removed
+  the stale local API note file.
+- Exposed browser-window monitor flags and browser argument passthrough in CLI
+  help so command reference matches runtime behavior.
+- Added `python -m litlaunch` module execution parity with the `litlaunch`
+  console script.
 - Added `ShutdownHookStatus` so shutdown hooks can return run-specific console
   messages, verbose-only visibility, or suppress routine no-op success output
   without printing raw app-owned status lines.
@@ -429,7 +438,7 @@ public API finishes settling.
 
 ## 0.91.0b0
 
-- Entered the 0.9x beta stabilization band with beta package metadata and
+- Entered the 0.9x pre-release package line with matching package metadata and
   classifier alignment.
 - Reflected the profiles/runtime, diagnostics, backend-provider, monitoring, and
   organization milestones completed before TestPyPI rehearsal.

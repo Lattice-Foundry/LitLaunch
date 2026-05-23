@@ -8,6 +8,7 @@ from litlaunch.browsers import (
     ChromeAdapter,
     DefaultBrowserAdapter,
     EdgeAdapter,
+    detect_default_chromium_browser,
 )
 from litlaunch.platforms import PlatformDetector
 
@@ -96,6 +97,38 @@ def test_default_browser_detection_uses_platform_capability():
 
     assert adapter.detect(platform_info("Windows")).available is True
     assert adapter.detect(platform_info("Plan9")).available is False
+
+
+def test_default_chromium_browser_detection_reads_windows_user_choice():
+    def registry_reader(key_path, value_name):
+        assert value_name == "ProgId"
+        assert "UrlAssociations" in key_path
+        return "MSEdgeHTM"
+
+    browser = detect_default_chromium_browser(
+        platform_info("Windows"),
+        registry_value_reader=registry_reader,
+    )
+
+    assert browser == BrowserKind.EDGE
+
+
+def test_default_chromium_browser_detection_returns_none_for_non_chromium():
+    browser = detect_default_chromium_browser(
+        platform_info("Windows"),
+        registry_value_reader=lambda key_path, value_name: "FirefoxURL",
+    )
+
+    assert browser is None
+
+
+def test_default_chromium_browser_detection_is_windows_only():
+    browser = detect_default_chromium_browser(
+        platform_info("Linux"),
+        registry_value_reader=lambda key_path, value_name: "ChromeHTML",
+    )
+
+    assert browser is None
 
 
 def test_windows_auto_app_mode_prefers_edge_before_chrome():

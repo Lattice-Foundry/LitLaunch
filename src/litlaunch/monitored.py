@@ -399,7 +399,7 @@ def _wait_for_browser_window_lifecycle(
     render_phase_start(
         session.console_renderer,
         ConsolePhase.MONITOR,
-        "watching browser window",
+        "scanning for browser instance",
     )
     result = _select_new_browser_window(
         monitor,
@@ -414,7 +414,7 @@ def _wait_for_browser_window_lifecycle(
     render_phase_success(
         session.console_renderer,
         ConsolePhase.MONITOR,
-        "browser window observed",
+        "Success! Tracking browser window",
     )
     close_result = _wait_for_browser_window_close(
         session,

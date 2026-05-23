@@ -155,7 +155,7 @@ class ConsoleRenderer:
         label_text = self._style(f"{label}:", label_color)
         message_text = (
             (
-                f"{_strip_sentence_punctuation(message)} "
+                f"{_capitalize_sentence_start(_strip_sentence_punctuation(message))} "
                 f"in {format_elapsed(elapsed_seconds)}"
             )
             if elapsed_seconds is not None
@@ -392,7 +392,7 @@ class ConsoleRenderer:
 
         if self.mode == ConsoleMode.QUIET:
             return
-        self._emit_status("info", self.theme.success, message)
+        self._emit_status("info", self.theme.warning, message)
 
     def next_step(self, message: str) -> None:
         """Render one concise follow-up action line."""
@@ -481,7 +481,10 @@ class ConsoleRenderer:
         if not separator or label not in CONSOLE_CATEGORY_LABELS:
             return message
         color = hook_orange if label == "Hook" else self.theme.label
-        return f"{self._style(label + separator, color)}{rest}"
+        return (
+            f"{self._style(label + separator, color)}"
+            f"{_capitalize_sentence_start(rest)}"
+        )
 
     def _format_category_message(
         self,
@@ -537,7 +540,7 @@ def _ensure_terminal_punctuation(message: str) -> str:
 
 
 def _ensure_ellipsis(message: str) -> str:
-    stripped = _strip_sentence_punctuation(message)
+    stripped = _capitalize_sentence_start(_strip_sentence_punctuation(message))
     return f"{stripped}..."
 
 
@@ -545,7 +548,7 @@ def _punctuate_phase_message(message: str) -> str:
     stripped = message.strip()
     visible = strip_ansi(stripped)
     if visible.endswith((".", "!", "?")):
-        return stripped
+        return _capitalize_sentence_start(stripped)
     normalized = visible.lower()
     if normalized.startswith(
         (
@@ -558,5 +561,28 @@ def _punctuate_phase_message(message: str) -> str:
             "saving ",
         )
     ):
-        return f"{_strip_sentence_punctuation(stripped)}..."
-    return f"{_strip_sentence_punctuation(stripped)}."
+        return f"{_capitalize_sentence_start(_strip_sentence_punctuation(stripped))}..."
+    return f"{_capitalize_sentence_start(_strip_sentence_punctuation(stripped))}."
+
+
+def _capitalize_sentence_start(message: str) -> str:
+    """Capitalize visible sentence starts without rewriting existing acronyms."""
+
+    result: list[str] = []
+    capitalize_next = True
+    for index, char in enumerate(message):
+        if char.isalpha():
+            result.append(char.upper() if capitalize_next else char)
+            capitalize_next = False
+            continue
+        result.append(char)
+        next_char = message[index + 1] if index + 1 < len(message) else ""
+        previous_char = message[index - 1] if index > 0 else ""
+        if char in ".!?" and not (previous_char.isdigit() and next_char.isdigit()):
+            capitalize_next = True
+            continue
+        if char.isspace():
+            continue
+        if index == 0:
+            capitalize_next = False
+    return "".join(result)

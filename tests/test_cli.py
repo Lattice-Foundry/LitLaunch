@@ -43,6 +43,7 @@ from litlaunch.windowing import (
 
 EXAMPLE_APP = Path("examples/minimal_app/app.py")
 CLI_MAIN_MODULE = importlib.import_module("litlaunch.cli.main")
+CLI_COMMANDS_MODULE = importlib.import_module("litlaunch.cli.commands")
 CLI_INSPECT_MODULE = importlib.import_module("litlaunch.cli.inspect")
 
 
@@ -1938,8 +1939,10 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.config.streamlit_args == ()
     assert launcher.console_renderer is not None
     assert session.wait_calls == 1
-    assert "Runtime active at http://127.0.0.1:8501" in stream.getvalue()
-    assert "Press Ctrl+C to stop this session." in stream.getvalue()
+    output = stream.getvalue()
+    assert "Runtime active at http://127.0.0.1:8501" not in output
+    assert "Browser monitor fallback requires manual stop." in output
+    assert "Press Ctrl+C to stop this session." in output
 
 
 def test_cli_root_app_path_shorthand_uses_run_pipeline():
@@ -2508,8 +2511,10 @@ def test_cli_run_webapp_no_monitor_window_opt_out_waits_for_backend():
     assert code == 0
     assert session.wait_calls == 1
     assert session.monitor_calls == []
-    assert "Runtime active at http://127.0.0.1:8501" in stream.getvalue()
-    assert "Press Ctrl+C to stop this session." in stream.getvalue()
+    output = stream.getvalue()
+    assert "Runtime active at http://127.0.0.1:8501" not in output
+    assert "No monitor mode requires manual stop." in output
+    assert "Press Ctrl+C to stop this session." in output
 
 
 def test_cli_run_webapp_default_monitoring_skips_unsupported_platform():
@@ -2563,6 +2568,35 @@ def test_cli_run_browser_mode_attempts_browser_window_monitor_by_default():
         arg for arg in browser_args if arg.startswith("--user-data-dir=")
     )
     assert not Path(user_data_arg.split("=", 1)[1]).exists()
+
+
+def test_cli_run_default_browser_uses_detected_chromium_for_browser_monitor(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        CLI_COMMANDS_MODULE,
+        "detect_default_chromium_browser",
+        lambda platform_info: BrowserKind.EDGE,
+    )
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+    monitor = FakeCliMonitor()
+
+    code = main(
+        ["run", str(EXAMPLE_APP), "--browser", "default"],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+        platform_detector_factory=FakePlatformDetector,
+        window_monitor_factory=lambda platform_info: monitor,
+    )
+
+    assert code == 0
+    assert session.wait_calls == 1
+    launcher = FakeLauncher.instances[0]
+    assert launcher.config.browser == BrowserChoice.EDGE
+    browser_args = launcher.config.extra_browser_args
+    assert "--new-window" in browser_args
+    assert any(arg.startswith("--user-data-dir=") for arg in browser_args)
 
 
 def test_cli_run_browser_mode_hidden_monitor_opt_out_preserves_plain_wait():
@@ -2624,7 +2658,8 @@ def test_cli_run_browser_window_monitor_stops_on_window_close():
     assert session.stop_calls == 1
     assert session.wait_calls == 0
     assert "--new-window" in FakeLauncher.instances[0].config.extra_browser_args
-    assert "Monitor: watching browser window" in output
+    assert "Monitor: Scanning for browser instance" in output
+    assert "Monitor: Success! Tracking browser window" in output
     assert "Monitor: Browser window closed; requesting shutdown." in output
 
 

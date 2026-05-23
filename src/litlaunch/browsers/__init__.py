@@ -8,7 +8,10 @@ from litlaunch.browsers.base import (
     BrowserResolution,
 )
 from litlaunch.browsers.chrome import ChromeAdapter
-from litlaunch.browsers.default import DefaultBrowserAdapter
+from litlaunch.browsers.default import (
+    DefaultBrowserAdapter,
+    detect_default_chromium_browser,
+)
 from litlaunch.browsers.edge import EdgeAdapter
 from litlaunch.browsers.launch import BrowserLauncher
 from litlaunch.browsers.registry import BrowserRegistry, create_default_browser_registry
@@ -25,4 +28,5 @@ __all__ = [
     "DefaultBrowserAdapter",
     "EdgeAdapter",
     "create_default_browser_registry",
+    "detect_default_chromium_browser",
 ]

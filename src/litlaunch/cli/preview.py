@@ -284,7 +284,7 @@ def render_console_preview(console: ConsoleRenderer) -> None:
     )
     console.phase_success(
         ConsolePhase.SHUTDOWN,
-        "complete; backend stopped cleanly",
+        "Backend stopped cleanly",
         elapsed_seconds=0.2,
     )
     console.success("Backend: port 8501 released")

@@ -409,7 +409,7 @@ class RuntimeSession:
                 self.console_renderer,
                 ConsolePhase.SHUTDOWN if expected_shutdown else ConsolePhase.BACKEND,
                 (
-                    "complete; backend stopped cleanly"
+                    "Backend stopped cleanly"
                     if expected_shutdown
                     else "exited cleanly"
                 ),

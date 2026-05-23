@@ -11,6 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from litlaunch.browsers import BrowserKind, detect_default_chromium_browser
 from litlaunch.cli.common import (
     CliContext,
     mode,
@@ -132,16 +133,19 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
     monitor_options = monitor_options_from_args(args, profile, config)
     browser_window_options = browser_window_monitor_options_from_args(args, profile)
     with ExitStack() as cleanup:
+        platform_detector = context.platform_detector_factory()
+        platform_info = platform_detector.detect()
         if (
             getattr(args, "monitor_browser_window", None) is None
             and config.mode == LaunchMode.BROWSER
         ):
             browser_window_options = replace(browser_window_options, enabled=True)
-        if browser_window_options.enabled and profile is None:
+        if browser_window_options.enabled:
             config = _prepare_managed_browser_window_config(
                 config,
                 dry_run=bool(args.dry_run),
                 cleanup=cleanup,
+                platform_info=platform_info,
             )
         if monitor_options.enabled and config.mode != LaunchMode.WEBAPP:
             raise LitLaunchError("--monitor-window is only valid with --mode webapp.")
@@ -149,11 +153,10 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
             raise LitLaunchError(
                 "browser-window monitoring is only valid with --mode browser."
             )
-        platform_detector = context.platform_detector_factory()
         if (
             monitor_options.enabled
             and not monitor_options.explicit
-            and not platform_detector.detect().supports_window_monitoring
+            and not platform_info.supports_window_monitoring
         ):
             monitor_options = MonitorOptions(
                 enabled=False,
@@ -231,8 +234,18 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
             and run_result.monitor_result.closed
         ):
             return run_result.exit_code
+        if (
+            browser_window_options.enabled
+            and run_result.monitor_result is None
+            and not session.is_running()
+        ):
+            cli_renderer.info_status("Session stopped by user")
+            return run_result.exit_code
 
-        cli_renderer.success(f"Runtime active at {session.url}")
+        if browser_window_options.enabled:
+            cli_renderer.info_status("Browser monitor fallback requires manual stop")
+        else:
+            cli_renderer.info_status("No monitor mode requires manual stop")
         cli_renderer.info_status("Press Ctrl+C to stop this session")
         if session.process is None:
             return 0
@@ -242,6 +255,7 @@ def cmd_run(args: argparse.Namespace, context: CliContext) -> int:
         except KeyboardInterrupt:
             cli_renderer.warning("Runtime: interrupt received; stopping runtime.")
             session.stop()
+            cli_renderer.info_status("Session stopped by user")
             return 0
 
         return int(returncode or 0)
@@ -292,17 +306,17 @@ def _prepare_managed_browser_window_config(
     *,
     dry_run: bool,
     cleanup: ExitStack,
+    platform_info,
 ):
     """Return browser config that encourages a monitorable top-level window."""
 
     if config.mode != LaunchMode.BROWSER:
         return config
-    if config.browser == BrowserChoice.DEFAULT:
+
+    browser = _managed_browser_choice(config.browser, platform_info)
+    if browser == BrowserChoice.DEFAULT:
         return config
 
-    browser = (
-        BrowserChoice.EDGE if config.browser == BrowserChoice.AUTO else config.browser
-    )
     extra_args = config.extra_browser_args
     if not dry_run:
         profile_dir = _create_managed_browser_profile_dir()
@@ -316,6 +330,20 @@ def _prepare_managed_browser_window_config(
         extra_args = _with_browser_window_arg(extra_args)
 
     return replace(config, browser=browser, extra_browser_args=extra_args)
+
+
+def _managed_browser_choice(browser: BrowserChoice, platform_info) -> BrowserChoice:
+    if browser == BrowserChoice.AUTO:
+        return BrowserChoice.EDGE
+    if browser != BrowserChoice.DEFAULT:
+        return browser
+
+    default_kind = detect_default_chromium_browser(platform_info)
+    if default_kind == BrowserKind.EDGE:
+        return BrowserChoice.EDGE
+    if default_kind == BrowserKind.CHROME:
+        return BrowserChoice.CHROME
+    return BrowserChoice.DEFAULT
 
 
 def _with_browser_window_arg(args: tuple[str, ...]) -> tuple[str, ...]:

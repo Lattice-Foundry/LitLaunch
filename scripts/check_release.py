@@ -18,9 +18,18 @@ from dataclasses import dataclass
 from email.parser import Parser
 from pathlib import Path, PurePosixPath
 
+from packaging.version import Version
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
+    import tomli as tomllib
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DIST_DIR = PROJECT_ROOT / "dist"
 VERSION_FILE = PROJECT_ROOT / "src" / "litlaunch" / "version.py"
+PYPROJECT_FILE = PROJECT_ROOT / "pyproject.toml"
+STABLE_DEVELOPMENT_CLASSIFIER = "Development Status :: 5 - Production/Stable"
 
 FORBIDDEN_ARCHIVE_COMPONENTS = frozenset(
     {
@@ -37,7 +46,21 @@ MALFORMED_VERSION_FRAGMENT_PATTERN = re.compile(r"^\d+(?:\.\d+){1,3}`?$")
 FORBIDDEN_REPO_CACHE_DIRS = frozenset({"__pycache__"})
 FORBIDDEN_REPO_BYTECODE_SUFFIXES = (".pyc", ".pyo")
 IGNORED_REPO_TREE_DIRS = frozenset(
-    {".git", ".venv", ".pytest_cache", ".ruff_cache", "dist"}
+    {
+        ".git",
+        ".mypy_cache",
+        ".nox",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".tox",
+        ".venv",
+        "__pycache__",
+        "build",
+        "dist",
+        "env",
+        "node_modules",
+        "venv",
+    }
 )
 REPO_ROOT_TEMP_DIR_PATTERN = re.compile(r"^litlaunch-test-")
 STALE_REPO_ROOT_GENERATED_NAMES = frozenset(
@@ -121,6 +144,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = build_parser().parse_args(argv)
     version = read_project_version()
+    ensure_classifier_version_consistency(version)
     ensure_no_suspicious_repo_root_artifacts()
     ensure_no_credentials()
 
@@ -155,6 +179,38 @@ def read_project_version(version_file: Path = VERSION_FILE) -> str:
         ):
             return node.value.value
     raise RuntimeError(f"Could not find __version__ in {version_file}")
+
+
+def read_pyproject_classifiers(
+    pyproject_file: Path = PYPROJECT_FILE,
+) -> tuple[str, ...]:
+    """Read project classifiers from pyproject metadata."""
+
+    data = tomllib.loads(pyproject_file.read_text(encoding="utf-8"))
+    project = data.get("project", {})
+    classifiers = project.get("classifiers", ())
+    return tuple(str(classifier) for classifier in classifiers)
+
+
+def ensure_classifier_version_consistency(
+    version: str,
+    classifiers: Sequence[str] | None = None,
+) -> None:
+    """Ensure release classifiers do not contradict PEP 440 version semantics."""
+
+    resolved_classifiers = (
+        read_pyproject_classifiers() if classifiers is None else tuple(classifiers)
+    )
+    if STABLE_DEVELOPMENT_CLASSIFIER not in resolved_classifiers:
+        return
+
+    parsed_version = Version(version)
+    if parsed_version.is_prerelease:
+        raise RuntimeError(
+            "Stable package classifier cannot be used with a prerelease version. "
+            f"Version: {version}; classifier: {STABLE_DEVELOPMENT_CLASSIFIER}. "
+            "Use a beta/pre-release classifier or publish a stable PEP 440 version."
+        )
 
 
 def clean_dist(dist_dir: Path = DIST_DIR) -> None:
@@ -300,6 +356,9 @@ def inspect_sdist_names(names: Sequence[str], version: str) -> None:
     internal_prefix = f"{prefix}docs/internal/"
     if any(name.startswith(internal_prefix) for name in names):
         raise RuntimeError("Internal integration docs must not be included in sdist.")
+    notes_prefix = f"{prefix}notes/"
+    if any(name.startswith(notes_prefix) for name in names):
+        raise RuntimeError("Local notes must not be included in sdist.")
 
 
 def find_suspicious_repo_root_artifacts(

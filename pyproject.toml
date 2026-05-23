@@ -38,6 +38,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "build>=1.2",
+  "packaging>=24",
   "pytest>=8",
   "ruff>=0.5",
   "tomli>=2; python_version < '3.11'",
@@ -61,6 +62,7 @@ packages = ["src/litlaunch"]
 [tool.hatch.build.targets.sdist]
 exclude = [
   "/docs/internal",
+  "/notes",
 ]
 
 [tool.hatch.version]

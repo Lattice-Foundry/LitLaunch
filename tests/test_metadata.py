@@ -48,6 +48,7 @@ def test_pyproject_dev_extras_include_release_tools():
 
     dev_dependencies = set(pyproject["project"]["optional-dependencies"]["dev"])
     assert "build>=1.2" in dev_dependencies
+    assert "packaging>=24" in dev_dependencies
     assert "tomli>=2; python_version < '3.11'" in dev_dependencies
     assert "twine>=6" in dev_dependencies
 

@@ -18,6 +18,9 @@ concise.
   one clear governance path, consolidated shutdown loopback checks through the
   shared exposure helper, and reframed internal developer notes away from public
   documentation.
+- Hardened release automation with classifier/version consistency checks,
+  broader credential scanner coverage, notes exclusion checks, and less fragile
+  version-maintenance tests.
 - Added `ShutdownHookStatus` so shutdown hooks can return run-specific console
   messages, verbose-only visibility, or suppress routine no-op success output
   without printing raw app-owned status lines.

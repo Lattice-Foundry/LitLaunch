@@ -6,6 +6,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from packaging.version import Version
+
+from litlaunch.version import __version__
 
 REPO_ROOT = Path(__file__).parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "check_release.py"
@@ -46,8 +49,36 @@ def test_release_script_reads_current_version():
     module = load_release_script()
     version = module.read_project_version()
 
-    assert version
-    assert version.endswith("b0")
+    assert version == __version__
+    assert Version(version).is_prerelease
+
+
+def test_release_script_allows_beta_classifier_with_prerelease_version():
+    module = load_release_script()
+
+    module.ensure_classifier_version_consistency(
+        "1.0.0b1",
+        ("Development Status :: 4 - Beta",),
+    )
+
+
+def test_release_script_allows_stable_classifier_with_stable_version():
+    module = load_release_script()
+
+    module.ensure_classifier_version_consistency(
+        "1.0.0",
+        ("Development Status :: 5 - Production/Stable",),
+    )
+
+
+def test_release_script_rejects_stable_classifier_with_prerelease_version():
+    module = load_release_script()
+
+    with pytest.raises(RuntimeError, match="Stable package classifier"):
+        module.ensure_classifier_version_consistency(
+            "1.0.0rc1",
+            ("Development Status :: 5 - Production/Stable",),
+        )
 
 
 def test_release_script_detects_forbidden_archive_entries():
@@ -128,14 +159,22 @@ def test_release_script_accepts_ignored_repo_tree_artifacts():
         assert module.find_forbidden_repo_tree_artifacts(root) == ()
 
 
-def test_release_script_detects_potential_credentials_in_text_files():
+@pytest.mark.parametrize(
+    "token",
+    [
+        "py" + "pi-" + ("A" * 24),
+        "gh" + "p_" + ("A" * 24),
+        "github" + "_pat_" + ("A" * 32),
+        "gl" + "pat-" + ("A" * 24),
+    ],
+)
+def test_release_script_detects_potential_credentials_in_text_files(token: str):
     module = load_release_script()
 
     with tempfile.TemporaryDirectory(prefix="litlaunch-release-test-") as temp_dir:
         root = Path(temp_dir)
         notes = root / "notes"
         notes.mkdir()
-        token = "py" + "pi-" + ("A" * 24)
         secret_file = notes / "api.txt"
         secret_file.write_text(f"token={token}\n", encoding="utf-8")
 
@@ -153,6 +192,33 @@ def test_release_script_ignores_credentials_in_dependency_trees():
         ignored.mkdir(parents=True)
         token = "gh" + "p_" + ("A" * 24)
         (ignored / "config.txt").write_text(f"{token}\n", encoding="utf-8")
+
+        assert module.find_potential_credentials(root) == ()
+
+
+def test_release_script_skips_binary_or_unreadable_credential_candidates():
+    module = load_release_script()
+
+    with tempfile.TemporaryDirectory(prefix="litlaunch-release-test-") as temp_dir:
+        root = Path(temp_dir)
+        binary = root / "image.png"
+        binary.write_bytes(b"\x89PNG\r\n\x1a\n" + b"pypi-" + (b"A" * 24))
+        unreadable_text = root / "notes.txt"
+        unreadable_text.write_bytes(b"\xff\xfe\x00pypi-" + (b"A" * 24))
+
+        assert module.find_potential_credentials(root) == ()
+
+
+def test_release_script_skips_large_credential_candidates():
+    module = load_release_script()
+
+    with tempfile.TemporaryDirectory(prefix="litlaunch-release-test-") as temp_dir:
+        root = Path(temp_dir)
+        large = root / "large.txt"
+        large.write_text(
+            "x" * (module.CREDENTIAL_SCAN_MAX_BYTES + 1) + "\n" + "pypi-" + ("A" * 24),
+            encoding="utf-8",
+        )
 
         assert module.find_potential_credentials(root) == ()
 
@@ -200,6 +266,26 @@ def test_release_script_rejects_internal_docs_in_sdist():
                 f"{prefix}/pyproject.toml",
                 f"{prefix}/docs/overview.md",
                 f"{prefix}/docs/internal/README.md",
+                f"{prefix}/src/litlaunch/__init__.py",
+                f"{prefix}/src/litlaunch/py.typed",
+            ),
+            version,
+        )
+
+
+def test_release_script_rejects_local_notes_in_sdist():
+    module = load_release_script()
+    version = module.read_project_version()
+    prefix = f"litlaunch-{version}"
+
+    with pytest.raises(RuntimeError, match="Local notes"):
+        module.inspect_sdist_names(
+            (
+                f"{prefix}/README.md",
+                f"{prefix}/LICENSE",
+                f"{prefix}/pyproject.toml",
+                f"{prefix}/docs/overview.md",
+                f"{prefix}/notes/api.txt",
                 f"{prefix}/src/litlaunch/__init__.py",
                 f"{prefix}/src/litlaunch/py.typed",
             ),

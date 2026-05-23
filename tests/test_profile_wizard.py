@@ -183,7 +183,7 @@ def test_profile_wizard_back_navigation_preserves_values(
         [
             "",
             "first-name",
-            "back",
+            "r",
             "second-name",
             "",
             "",
@@ -200,6 +200,22 @@ def test_profile_wizard_back_navigation_preserves_values(
     assert (
         load_profile("second-name", tmp_path / "litlaunch.toml").name == "second-name"
     )
+
+
+def test_profile_wizard_renders_step_context_and_navigation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    result, output = run_wizard(
+        tmp_path,
+        monkeypatch,
+        ["", "nav-test", "", "", "", "", "", "", "", "n"],
+    )
+
+    assert result is not None
+    assert "About:" in output
+    assert "Navigation:" in output
+    assert "type 'back', 'b', or 'r' to return" in output
 
 
 def test_profile_wizard_dry_run_previews_without_writing(

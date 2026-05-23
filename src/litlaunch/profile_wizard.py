@@ -25,7 +25,7 @@ from litlaunch.windowing import WindowMonitorConfig
 
 InputFunc = Callable[[], str]
 
-BACK_COMMANDS = {"back", "b"}
+BACK_COMMANDS = {"back", "b", "r", "return"}
 QUIT_COMMANDS = {"quit", "q", "exit", "cancel"}
 
 
@@ -89,6 +89,7 @@ class _WizardState:
 class _WizardStep:
     title: str
     handler: Callable[[_WizardState, _WizardIo], None]
+    context: str
     skip: Callable[[_WizardState], bool] = lambda _state: False
 
 
@@ -153,7 +154,6 @@ def _run_profile_wizard(
     )
     steps = _wizard_steps(platform_is_windows=platform_is_windows)
 
-    _render_header(io)
     index = 0
     while index < len(steps):
         if steps[index].skip(state):
@@ -197,18 +197,72 @@ def _run_profile_wizard(
 
 def _wizard_steps(*, platform_is_windows: bool) -> tuple[_WizardStep, ...]:
     return (
-        _WizardStep("Setup mode", _step_setup_mode),
-        _WizardStep("Profile name", _step_profile_name),
-        _WizardStep("App path", _step_app_path),
-        _WizardStep("App title", _step_title),
-        _WizardStep("Launch experience", _step_launch_experience),
-        _WizardStep("Browser", _step_browser),
-        _WizardStep("Host", _step_host, skip=_simple_mode),
-        _WizardStep("Port", _step_port, skip=_simple_mode),
-        _WizardStep("Auto-port", _step_auto_port, skip=_simple_mode),
-        _WizardStep("Browser fallback", _step_browser_fallback, skip=_simple_mode),
-        _WizardStep("Headless", _step_headless, skip=_simple_mode),
-        _WizardStep("Extra browser args", _step_extra_browser_args, skip=_simple_mode),
+        _WizardStep(
+            "Setup mode",
+            _step_setup_mode,
+            "Choose the guided Simple flow or the full Advanced profile surface.",
+        ),
+        _WizardStep(
+            "Profile name",
+            _step_profile_name,
+            "Name the reusable launch profile you will run with --profile.",
+        ),
+        _WizardStep(
+            "App path",
+            _step_app_path,
+            "Point LitLaunch at the Streamlit entrypoint for this profile.",
+        ),
+        _WizardStep(
+            "App title",
+            _step_title,
+            "Set the friendly title used in app-window and shortcut workflows.",
+        ),
+        _WizardStep(
+            "Launch experience",
+            _step_launch_experience,
+            "Choose App window for the polished recommended experience.",
+        ),
+        _WizardStep(
+            "Browser",
+            _step_browser,
+            "Choose which browser family LitLaunch should prefer.",
+        ),
+        _WizardStep(
+            "Host",
+            _step_host,
+            "Choose the network interface Streamlit should bind to.",
+            skip=_simple_mode,
+        ),
+        _WizardStep(
+            "Port",
+            _step_port,
+            "Choose a fixed Streamlit port or leave it on automatic selection.",
+            skip=_simple_mode,
+        ),
+        _WizardStep(
+            "Auto-port",
+            _step_auto_port,
+            "Decide whether LitLaunch may move to another port if needed.",
+            skip=_simple_mode,
+        ),
+        _WizardStep(
+            "Browser fallback",
+            _step_browser_fallback,
+            "Allow LitLaunch to fall back if the preferred browser is unavailable.",
+            skip=_simple_mode,
+        ),
+        _WizardStep(
+            "Headless",
+            _step_headless,
+            "Choose whether to override LitLaunch's Streamlit headless default.",
+            skip=_simple_mode,
+        ),
+        _WizardStep(
+            "Extra browser args",
+            _step_extra_browser_args,
+            "Add optional browser command-line arguments for this profile.",
+            skip=_simple_mode,
+        ),
         _WizardStep(
             "Monitor window",
             lambda state, io: _step_monitor_window(
@@ -216,35 +270,73 @@ def _wizard_steps(*, platform_is_windows: bool) -> tuple[_WizardStep, ...]:
                 io,
                 platform_is_windows=platform_is_windows,
             ),
+            "Track the app window so closing it can stop the backend cleanly.",
             skip=lambda state: state.launch_experience != "webapp",
         ),
         _WizardStep(
             "Graceful timeout",
             _step_graceful_timeout,
+            "Set how long shutdown cleanup may run before fallback termination.",
             skip=lambda state: _simple_mode(state) or not state.monitor_window,
         ),
         _WizardStep(
             "Monitor appear timeout",
             _step_monitor_appear_timeout,
+            "Set how long LitLaunch should wait for the app window to appear.",
             skip=lambda state: _simple_mode(state) or not state.monitor_window,
         ),
         _WizardStep(
             "Monitor poll interval",
             _step_monitor_poll_interval,
+            "Set how often LitLaunch checks the monitored app window.",
             skip=lambda state: _simple_mode(state) or not state.monitor_window,
         ),
         _WizardStep(
             "Monitor stable polls",
             _step_monitor_stable_polls,
+            "Set how many stable checks confirm the intended app window.",
             skip=lambda state: _simple_mode(state) or not state.monitor_window,
         ),
-        _WizardStep("Streamlit flags", _step_streamlit_flags, skip=_simple_mode),
-        _WizardStep("Streamlit args", _step_streamlit_args, skip=_simple_mode),
-        _WizardStep("App args", _step_app_args, skip=_simple_mode),
-        _WizardStep("Working directory", _step_cwd, skip=_simple_mode),
-        _WizardStep("Extra environment", _step_extra_env, skip=_simple_mode),
-        _WizardStep("Output config file", _step_config_path),
-        _WizardStep("Preview and confirm", _step_preview_confirm),
+        _WizardStep(
+            "Streamlit flags",
+            _step_streamlit_flags,
+            "Add Streamlit config flags such as server.maxUploadSize=200.",
+            skip=_simple_mode,
+        ),
+        _WizardStep(
+            "Streamlit args",
+            _step_streamlit_args,
+            "Add raw Streamlit CLI arguments when a flag is not enough.",
+            skip=_simple_mode,
+        ),
+        _WizardStep(
+            "App args",
+            _step_app_args,
+            "Add arguments passed after -- to your Streamlit app.",
+            skip=_simple_mode,
+        ),
+        _WizardStep(
+            "Working directory",
+            _step_cwd,
+            "Choose the working directory used when the profile launches.",
+            skip=_simple_mode,
+        ),
+        _WizardStep(
+            "Extra environment",
+            _step_extra_env,
+            "Add profile-specific environment variables stored in litlaunch.toml.",
+            skip=_simple_mode,
+        ),
+        _WizardStep(
+            "Output config file",
+            _step_config_path,
+            "Choose which litlaunch.toml file will receive the profile.",
+        ),
+        _WizardStep(
+            "Preview and confirm",
+            _step_preview_confirm,
+            "Review the final profile before LitLaunch writes anything.",
+        ),
     )
 
 
@@ -858,27 +950,21 @@ def _read_answer(io: _WizardIo) -> str:
     return answer
 
 
-def _render_header(io: _WizardIo) -> None:
-    _write(
-        io.stream,
-        style_text("Create Profile Wizard", streamlit_blue, use_color=io.use_color),
-    )
-    _write(io.stream, "Choose Simple mode or Advanced mode.")
-    _write(io.stream, "Press Enter to accept any value shown in brackets.")
-    _write(io.stream, "Type 'back' to revisit the previous step, or 'quit' to cancel.")
-    _write(io.stream, "")
-
-
 def _render_step_header(
     io: _WizardIo,
     state: _WizardState,
     steps: tuple[_WizardStep, ...],
     index: int,
 ) -> None:
+    _clear_screen(io.stream)
     visible_steps = [step for step in steps if not step.skip(state)]
     current = sum(1 for step in steps[:index] if not step.skip(state)) + 1
     title = steps[index].title
     mode = "Advanced" if state.setup_mode == "advanced" else "Simple"
+    _write(
+        io.stream,
+        style_text("Create Profile Wizard", streamlit_blue, use_color=io.use_color),
+    )
     mode_text = style_text(mode, help_magenta, use_color=io.use_color)
     step_text = style_text(
         f"Step {current} of {len(visible_steps)} - {title}",
@@ -887,6 +973,7 @@ def _render_step_header(
     )
     _write(io.stream, f"{mode_text} - {step_text}")
     _render_current_data(io, state)
+    _render_step_notes(io, steps[index])
 
 
 def _render_current_data(io: _WizardIo, state: _WizardState) -> None:
@@ -902,6 +989,20 @@ def _render_current_data(io: _WizardIo, state: _WizardState) -> None:
         )
         value_text = style_text(str(value), terminal_green, use_color=io.use_color)
         _write(io.stream, f"{label_text} {value_text}")
+    _write(io.stream, "")
+
+
+def _render_step_notes(io: _WizardIo, step: _WizardStep) -> None:
+    label = style_text("About:", streamlit_blue, use_color=io.use_color)
+    _write(io.stream, f"{label} {step.context}")
+    label = style_text("Navigation:", streamlit_blue, use_color=io.use_color)
+    _write(
+        io.stream,
+        (
+            f"{label} Enter accepts bracketed or marked defaults; "
+            "type 'back', 'b', or 'r' to return; 'quit' or 'q' to cancel."
+        ),
+    )
     _write(io.stream, "")
 
 
@@ -1028,6 +1129,16 @@ def _write_warning_status(
 
 def _write(stream: TextIO, message: str) -> None:
     stream.write(f"{message}\n")
+    flush = getattr(stream, "flush", None)
+    if callable(flush):
+        flush()
+
+
+def _clear_screen(stream: TextIO) -> None:
+    isatty = getattr(stream, "isatty", None)
+    if not callable(isatty) or not isatty():
+        return
+    stream.write("\033[2J\033[H")
     flush = getattr(stream, "flush", None)
     if callable(flush):
         flush()

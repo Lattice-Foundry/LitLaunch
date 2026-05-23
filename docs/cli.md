@@ -54,9 +54,8 @@ litlaunch help examples
 litlaunch help dev
 ```
 
-`litlaunch help dev` documents internal developer-facing console preview
-tooling. It is useful for contributors, but it is not a stable public workflow
-contract.
+`litlaunch help dev` documents hidden developer-facing console rendering
+tooling. It is useful for contributors, but it is not a main user workflow.
 
 ## Run
 
@@ -194,7 +193,7 @@ litlaunch run app.py --host 0.0.0.0 --trust-mode internal_network --allow-networ
   --streamlit-flag server.sslKeyFile=key.pem
 ```
 
-## Command Preview
+## Command Planning
 
 ```powershell
 litlaunch command app.py --server.runOnSave true -- --workspace demo
@@ -255,11 +254,11 @@ trust mode, host exposure scope, acknowledgement state, Streamlit-native TLS
 posture, and plaintext network-exposure risk. They are operational posture
 reports, not compliance ratings.
 
-## Developer Console Preview
+## Developer Console Rendering
 
-LitLaunch includes hidden developer-facing preview tooling for console renderer
-work. These commands are intended for rapid formatting, category, color, and
-verbosity review; they are not a stable public output contract.
+LitLaunch includes hidden developer-facing tooling for console renderer
+work. These commands are an internal developer workflow for rapid formatting,
+category, color, and verbosity review.
 
 ```powershell
 litlaunch console-preview --all
@@ -268,7 +267,7 @@ litlaunch console-preview --verbose
 ```
 
 `--all` renders both normal and verbose examples. `--normal` and `--verbose`
-render only that console mode. The preview does not start Streamlit, open a
+render only that console mode. This tooling does not start Streamlit, open a
 browser, inspect windows, or touch ports. Some values are simulated so the
 output resembles real runtime views, including backend IDs, URLs, browser
 fallbacks, monitor statuses, and shutdown hook results.
@@ -415,7 +414,7 @@ Shortcut creation writes an OS-native project-local shortcut under
 
 - Windows: `.lnk`
 - Linux: `.desktop`
-- macOS: `.app` bundle, currently beta until broader community validation
+- macOS: `.app` bundle, with limited validation until broader community testing
 
 Use `--kind script` for the simpler `.bat`, `.sh`, or `.command` fallback form.
 Shortcut creation does not launch the app, modify the Desktop, register Start

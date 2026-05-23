@@ -14,7 +14,7 @@ StreamlitLauncher
       +--> PortManager
       +--> StreamlitCommandBuilder
       +--> BackendCommandProvider builds backend command
-      +--> build_launch_plan() previews resolved behavior
+      +--> build_launch_plan() resolves behavior without starting it
       +--> ProcessManager starts backend
       +--> HealthChecker waits for Streamlit health
       +--> BrowserRegistry resolves capability
@@ -24,9 +24,9 @@ StreamlitLauncher
 RuntimeSession owns backend process
 ```
 
-## Beta API Stability
+## Public API Surface
 
-During the 0.9x beta band, these public surfaces are intended to stabilize:
+These public surfaces are supported:
 
 - `LauncherConfig`
 - `StreamlitLauncher`
@@ -39,11 +39,7 @@ During the 0.9x beta band, these public surfaces are intended to stabilize:
 - `LauncherRuntime` shutdown hooks and shutdown completion callback APIs
 - diagnostics report and rendering APIs, including `HTMLDiagnosticsRenderer`
 
-Breaking changes are still possible before 1.0. The stronger API freeze target
-is `1.0.0-rc1`.
-
-These surfaces remain experimental or implementation-oriented and may evolve
-faster:
+These surfaces are implementation-oriented and may evolve faster:
 
 - windowing provider internals
 - Windows HWND/provider implementation details
@@ -52,9 +48,8 @@ faster:
 - private helper modules and modules not exported from `litlaunch.__all__`
 
 LitLaunch is a runtime platform, not a packager. Packaged apps should use the
-`BackendCommandProvider` seam when they need custom backend commands. Future
-packaging tooling may build on this contract, but packaging automation is not
-part of the beta runtime API.
+`BackendCommandProvider` seam when they need custom backend commands.
+Packaging automation remains outside LitLaunch's runtime API.
 
 ## RuntimeSession
 
@@ -82,9 +77,9 @@ explicit lifecycle entry point. Both return a `RuntimeSession`.
 and a fixed port, leaving the original launcher unchanged.
 
 `build_launch_plan()` returns a `LaunchPlan` for diagnostics, tests, and
-integration previews. It resolves the backend port, command, URLs, browser
+integration checks. It resolves the backend port, command, URLs, browser
 resolution, backend description, working directory, app args, Streamlit flags,
-passthrough args, and redacted environment preview without starting a backend
+passthrough args, and redacted environment display without starting a backend
 process or opening a browser.
 
 `StreamlitBackendCommandProvider` is the default command provider and preserves
@@ -120,7 +115,7 @@ the session state unchanged.
 ## Backend Lifecycle
 
 ```text
-optional build_launch_plan() preview
+optional build_launch_plan() dry run
 resolve port
 build backend command through provider
 start backend process with configured cwd/env

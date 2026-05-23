@@ -1,13 +1,12 @@
-"""Internal console-preview tooling for LitLaunch developers.
+"""Internal console rendering checks for LitLaunch developers.
 
-The preview command renders representative runtime console scenarios without
+The console-preview command renders representative runtime console scenarios without
 starting a backend, opening a browser, touching ports, or collecting real
 diagnostics. It exists so LitLaunch contributors can review terminal alignment,
 colors, category labels, verbosity separation, and future screenshot candidates.
 
-This is intentionally internal developer tooling, not a stable public API. The
-preview scenarios and exact output may evolve as console wording and diagnostics
-rendering mature.
+This is intentionally internal developer tooling. The rendered scenarios and
+exact output may evolve as console wording and diagnostics rendering changes.
 """
 
 from __future__ import annotations
@@ -37,21 +36,21 @@ def add_console_preview_flags(parser: argparse.ArgumentParser) -> None:
         action="store_const",
         const="all",
         default="all",
-        help="Preview normal and verbose console output.",
+        help="Render normal and verbose console output.",
     )
     group.add_argument(
         "--normal",
         dest="preview_mode",
         action="store_const",
         const="normal",
-        help="Preview normal-mode console output.",
+        help="Render normal-mode console output.",
     )
     group.add_argument(
         "--verbose",
         dest="preview_mode",
         action="store_const",
         const="verbose",
-        help="Preview verbose-mode console output.",
+        help="Render verbose-mode console output.",
     )
 
 

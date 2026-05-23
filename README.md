@@ -11,10 +11,6 @@ shutdown, and exposes diagnostics without pretending to secure the app itself.
 LitLaunch is developed and maintained by LatticeFoundry, a software division of
 Sierra Cognitive Group, LLC. LitLaunch is not affiliated with Streamlit.
 
-Current status: beta stabilization and TestPyPI rehearsal readiness. The
-runtime is usable for integration work, with the public API intended to
-stabilize through the beta band.
-
 ## Why LitLaunch?
 
 LitLaunch gets Streamlit apps running cleanly with a small amount of code or a
@@ -75,8 +71,8 @@ backend lifecycle, graceful shutdown, diagnostics/reporting, working-directory
 handling, repeatable launch workflows, and platform-specific launch behavior.
 
 LitLaunch is designed to behave consistently across Windows, Linux, and macOS.
-Windows and Linux receive first-party manual validation; macOS support is beta
-until community testing broadens.
+Windows and Linux receive first-party manual validation; macOS support has
+limited validation until community testing broadens.
 
 That makes it a strong fit for internal business tools, analyst dashboards,
 local AI utilities, and desktop-style Streamlit apps that need more operational
@@ -282,8 +278,8 @@ paths still write exactly where you ask.
 Shortcut generation uses native project-local artifacts by default: `.lnk` on
 Windows, `.desktop` on Linux, and a small `.app` bundle on macOS. Use
 `litlaunch create shortcut --profile NAME --kind script` when you prefer the
-simple `.bat`, `.sh`, or `.command` script form. macOS support is treated as beta
-until it receives broader community validation.
+simple `.bat`, `.sh`, or `.command` script form. macOS shortcut support has
+limited validation until broader community testing expands.
 
 Python integrations can run the same configured profile through `run_profile()`:
 
@@ -343,7 +339,7 @@ result = run_monitored_webapp(
 The monitored runner observes the app window and returns a
 `MonitoredRunResult`. It does not own, kill, close, or control browser windows.
 
-Preview launch behavior without starting Streamlit or opening a browser:
+Show launch behavior without starting Streamlit or opening a browser:
 
 ```python
 plan = StreamlitLauncher(config).build_launch_plan()
@@ -387,30 +383,29 @@ launcher = StreamlitLauncher(
 Custom backend commands must bind the requested host/port and expose the
 Streamlit health endpoint used by LitLaunch.
 
-## Beta API Stability
+## Public API Surface
 
-The beta-stable public surfaces are the configuration, launcher, launch-plan,
+The supported public surfaces are the configuration, launcher, launch-plan,
 profile, monitored-runner, backend-command-provider, app shutdown, and inspect
 diagnostics APIs documented in [docs/architecture.md](docs/architecture.md).
-Breaking changes remain possible before 1.0, but these APIs are intended to
-stabilize through the 0.9x beta band. Window provider internals, low-level
-browser/window matching details, and console presentation internals remain more
-experimental.
+Window provider internals, low-level browser/window matching details, and
+console presentation internals are implementation details and may evolve faster
+than the public API.
 
-## Feature Status
+## Supported Capabilities
 
-| Area | Status | Notes |
+| Area | Support | Notes |
 | --- | --- | --- |
-| Streamlit backend launch | Beta | Shell-free command construction and owned backend process management. |
-| Backend command providers | Beta | Optional command-only seam for packaged/embedded integrations. |
-| Browser mode | Beta | Uses default browser or detected Chromium browser capability. |
-| Chromium app-mode | Beta | Edge and Chrome/Chromium adapters first. |
-| Browser fallback | Beta | Explicit browser choices can fall back unless disabled. |
-| Graceful shutdown hooks | Beta | Opt-in app runtime, tokened loopback endpoint, optional app completion callback, fallback backend termination. |
-| Inspect diagnostics | Beta | HTML, JSON, and sanitized bundle output. No app launch. |
-| Window monitoring | Experimental | Opt-in, Windows Chromium app-mode first, observational only. |
-| Packaging guidance | Notes only | LitLaunch supports packaged apps conceptually but does not own packaging. |
-| Diagnostics dashboard | Not implemented | Future work; no local diagnostics server exists today. |
+| Streamlit backend launch | Supported | Shell-free command construction and owned backend process management. |
+| Backend command providers | Supported | Optional command-only seam for packaged/embedded integrations. |
+| Browser mode | Supported | Uses default browser or detected Chromium browser capability. |
+| Chromium app-mode | Supported | Edge and Chrome/Chromium adapters first. |
+| Browser fallback | Supported | Explicit browser choices can fall back unless disabled. |
+| Graceful shutdown hooks | Supported | Opt-in app runtime, tokened loopback endpoint, optional app completion callback, fallback backend termination. |
+| Inspect diagnostics | Supported | HTML, JSON, and sanitized bundle output. No app launch. |
+| Window monitoring | Supported | Windows Chromium app-mode and managed browser-window observation where platform support is available. |
+| Packaging guidance | Supported guidance | LitLaunch supports packaged app runtime workflows but does not own packaging. |
+| Diagnostics dashboard | Out of scope | No local diagnostics server exists today. |
 
 ## Common CLI Examples
 

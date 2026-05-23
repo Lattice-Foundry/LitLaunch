@@ -85,7 +85,7 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         default=[],
         metavar="KEY=VALUE",
         type=parse_streamlit_flag,
-        help="Add a Streamlit flag for diagnostics preview. Repeatable.",
+        help="Add a Streamlit flag for diagnostics context. Repeatable.",
     )
     parser.add_argument(
         "--output",
@@ -127,7 +127,7 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
         default=[],
         metavar="KEY=VALUE",
         type=parse_streamlit_flag,
-        help="Add a Streamlit flag for diagnostics preview. Repeatable.",
+        help="Add a Streamlit flag for diagnostics context. Repeatable.",
     )
     parser.add_argument(
         "--output",

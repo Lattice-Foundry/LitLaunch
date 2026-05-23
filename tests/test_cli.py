@@ -523,7 +523,7 @@ def test_cli_workflow_help_dev_topic_frames_internal_preview_tooling():
     assert "litlaunch console-preview --all" in output
     assert "litlaunch console-preview --normal" in output
     assert "litlaunch console-preview --verbose" in output
-    assert "not a stable public workflow contract" in output
+    assert "internal developer workflow" in output
 
 
 def test_cli_workflow_help_all_includes_main_topics():

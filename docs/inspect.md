@@ -31,8 +31,8 @@ litlaunch inspect --profile my-webapp --html --output litlaunch-report.html
 HTML output is the recommended human-readable diagnostics artifact. It is a
 standalone, dependency-free report meant to be readable at a glance, printable,
 and shareable after review. It includes LitLaunch version, platform capability,
-Streamlit availability, browser capability/resolution, target launch plan
-preview, and profile runtime settings when a profile is loaded. It does not
+Streamlit availability, browser capability/resolution, target launch-plan
+details, and profile runtime settings when a profile is loaded. It does not
 start a local server, run JavaScript, load external CSS, inspect browser URLs,
 launch Streamlit, or open a browser.
 
@@ -48,12 +48,12 @@ With a target app, the report adds:
   incomplete TLS configuration, and network-visible plaintext HTTP risk
 - operational posture reminders for loopback shutdown hooks, browser ownership,
   diagnostics privacy, and plaintext profile environment values when present
-- command preview
-- app URL preview
-- health URL preview
+- command display
+- app URL display
+- health URL display
 - browser resolution summary
 
-For wildcard bind hosts such as `0.0.0.0` and `::`, URL previews use the local
+For wildcard bind hosts such as `0.0.0.0` and `::`, URL displays use the local
 client URL LitLaunch can connect to for browser launch and health checks, while
 the host binding/posture items still show the configured network-visible bind
 address.
@@ -108,7 +108,7 @@ for LitLaunch's local diagnostics workflow, but it is not a cryptographic
 scrubber. Encoded, base64, URL-wrapped, or heavily reformatted secrets may not
 always be detected. Review support bundles before sharing them publicly.
 
-## Not Implemented
+## Dashboard Scope
 
 There is no local diagnostics dashboard or diagnostics web server today.
 

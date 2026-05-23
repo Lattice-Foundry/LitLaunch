@@ -14,7 +14,7 @@ available when the project needs more repeatable launch behavior or operational
 visibility. LitLaunch can run inside packaged/distributed Streamlit apps across
 Windows, Linux, and macOS, but it does not create installers or replace
 packaging tools. Windows and Linux receive first-party manual validation; macOS
-support is beta until community testing broadens.
+support has limited validation until community testing broadens.
 
 ## Run The Minimal Example
 
@@ -105,7 +105,7 @@ poll_interval = 1
 stable_polls = 2
 ```
 
-Run, inspect, or preview the profile:
+Run, inspect, or show the launch plan for the profile:
 
 ```powershell
 litlaunch --profile my-webapp
@@ -182,7 +182,7 @@ The returned `RuntimeSession` owns the backend process. Stop it explicitly.
 `run()` is the friendly entry point; `start()` is the explicit lifecycle entry
 point. Both return a live `RuntimeSession`.
 
-Preview the resolved launch behavior without starting the backend or opening a
+Show the resolved launch behavior without starting the backend or opening a
 browser:
 
 ```python

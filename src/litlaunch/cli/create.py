@@ -54,7 +54,7 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
     profile_parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Preview the generated profile TOML without writing it.",
+        help="Show the generated profile TOML without writing it.",
     )
     profile_parser.add_argument(
         "--force",
@@ -102,7 +102,7 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
     shortcut_parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Preview the shortcut path and content without writing it.",
+        help="Show the shortcut path and content without writing it.",
     )
     shortcut_parser.set_defaults(create_handler=cmd_create_shortcut)
 

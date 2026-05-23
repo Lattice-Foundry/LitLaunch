@@ -14,7 +14,8 @@ def test_pyproject_metadata_includes_console_and_typing_classifiers():
     )
 
     classifiers = set(pyproject["project"]["classifiers"])
-    assert "Development Status :: 4 - Beta" in classifiers
+    assert "Development Status :: 5 - Production/Stable" in classifiers
+    assert "Development Status :: 4 - Beta" not in classifiers
     assert "Development Status :: 3 - Alpha" not in classifiers
     assert "Development Status :: 2 - Pre-Alpha" not in classifiers
     assert "Environment :: Console" in classifiers
@@ -131,7 +132,7 @@ def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
 
     assert "source checkout" in readme
     assert "own Streamlit app path" in readme
-    assert "beta stabilization" in (REPO_ROOT / "docs" / "installation.md").read_text(
+    assert "Package Install" in (REPO_ROOT / "docs" / "installation.md").read_text(
         encoding="utf-8"
     )
     assert "source-tree fixture" in quickstart
@@ -147,7 +148,7 @@ def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
     assert "litlaunch help launch" in cli
     assert "litlaunch help diagnostics" in cli
     assert "litlaunch --help" in cli
-    assert "not a stable public workflow" in cli
+    assert "internal developer workflow" in cli
     assert "Some values are simulated" in cli
     assert "orange `Hook:` category" in quickstart
     assert "hook message text stays unstyled" in quickstart
@@ -172,23 +173,24 @@ def test_docs_document_current_cli_tools_workflows():
     assert "can optionally create" in quickstart
 
 
-def test_docs_clarify_beta_api_stability_policy():
+def test_docs_clarify_public_api_surface_policy():
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     architecture = (REPO_ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
 
-    assert "## Beta API Stability" in readme
-    assert "## Beta API Stability" in architecture
+    assert "## Public API Surface" in readme
+    assert "## Public API Surface" in architecture
     assert "`LauncherConfig`" in architecture
     assert (
         "`BackendCommandProvider`, `BackendCommand`, and `BackendCommandContext`"
         in architecture
     )
     assert "`HTMLDiagnosticsRenderer`" in architecture
-    assert "1.0.0-rc1" in architecture
     assert "Window provider internals" in readme
     assert "not a packager" in architecture
-    assert "packaging automation is not" in architecture
-    assert "part of the beta runtime API" in architecture
+    assert (
+        "Packaging automation remains outside LitLaunch's runtime API" in architecture
+    )
+    assert "outside LitLaunch's runtime API" in architecture
 
 
 def test_docs_clarify_redaction_limits_and_deferred_visual_placeholders():

@@ -1,6 +1,8 @@
 # Window Monitoring
 
-Window monitoring is experimental and observational.
+Window monitoring is observational: LitLaunch watches supported browser or
+app-window surfaces and reacts to lifecycle signals without owning, killing, or
+closing browser processes.
 
 It covers two related lifecycle paths:
 

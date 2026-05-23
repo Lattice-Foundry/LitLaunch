@@ -66,7 +66,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  profiles     Reuse settings from litlaunch.toml or pyproject.toml.",
             "  tools        Create profiles and project assets.",
             "  examples     Copy/paste common commands.",
-            f"  dev          {style.warning('Internal developer preview tooling.')}",
+            f"  dev          {style.warning('Internal developer tooling.')}",
             "",
             style.label("Try:"),
             *style.commands(
@@ -140,7 +140,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             ),
             "",
             "JSON is machine-readable. Bundles are copyable support artifacts.",
-            "Use --streamlit-flag to preview Streamlit-native TLS settings.",
+            "Use --streamlit-flag to show Streamlit-native TLS settings.",
         )
     if topic == "security":
         return _join(
@@ -167,7 +167,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
                 ),
             ),
             "",
-            style.label("Streamlit-native TLS preview:"),
+            style.label("Streamlit-native TLS example:"),
             *style.commands(
                 "litlaunch report app.py --host 0.0.0.0 --trust-mode internal_network "
                 "--allow-network-exposure --streamlit-flag server.sslCertFile=cert.pem "
@@ -247,7 +247,8 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             ),
             "  Native shortcuts are .lnk on Windows, .desktop on Linux, and",
             "  .app bundles on macOS. Use --kind script for .bat/.sh/.command.",
-            "  macOS shortcut support is beta until community validation expands.",
+            "  macOS shortcut support has limited validation until community",
+            "  testing expands.",
         )
     if topic == "examples":
         return _join(
@@ -271,7 +272,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             style.label("Troubleshoot with more detail:"),
             *style.commands("litlaunch app.py --verbose"),
             "",
-            style.label("Preview the backend command:"),
+            style.label("Show the backend command:"),
             *style.commands(
                 "litlaunch command app.py",
                 "litlaunch command --profile my-webapp",
@@ -294,7 +295,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             style.heading("Developer tooling"),
             "",
             style.warning(
-                "Console preview is internal developer-facing tooling, not a "
+                "Console rendering checks are internal developer-facing tooling, not a "
                 "main user workflow."
             ),
             "Use it for rapid formatting, color, category, and verbosity review.",
@@ -306,7 +307,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
                 "litlaunch console-preview --verbose",
             ),
             "",
-            "Preview output is not a stable public workflow contract. Some values "
+            "Console rendering output is an internal developer workflow. Some values "
             "are simulated to resemble real runtime views.",
         )
     if topic == "all":

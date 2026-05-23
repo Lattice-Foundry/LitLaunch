@@ -1,7 +1,5 @@
 # Installation
 
-LitLaunch is currently in beta stabilization and TestPyPI rehearsal readiness.
-
 ## Source Checkout
 
 For development:
@@ -39,7 +37,7 @@ python -m pip install litlaunch
 The local development environment currently uses Python 3.14.5. Package metadata
 allows Python 3.10 and newer. CI currently checks Python 3.10 through 3.14 on
 Windows, Linux, and macOS. Windows and Linux receive first-party manual
-validation; macOS behavior should be treated as beta until community testing
+validation; macOS behavior has limited validation until community testing
 expands.
 
 Do not assume packaged-app behavior has been validated unless the integration

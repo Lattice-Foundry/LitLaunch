@@ -21,6 +21,9 @@ concise.
 - Hardened release automation with classifier/version consistency checks,
   broader credential scanner coverage, notes exclusion checks, and less fragile
   version-maintenance tests.
+- Extracted profile wizard state/rendering/navigation helpers and managed
+  browser-window monitoring into cohesive internal modules without changing
+  runtime behavior.
 - Added `ShutdownHookStatus` so shutdown hooks can return run-specific console
   messages, verbose-only visibility, or suppress routine no-op success output
   without printing raw app-owned status lines.

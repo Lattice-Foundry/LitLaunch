@@ -3,17 +3,49 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TextIO
 
-from litlaunch.colors import help_magenta, muted_amber, streamlit_blue, terminal_green
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
-from litlaunch.console_style import status_prefix, style_text
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.exposure import classify_host_exposure
 from litlaunch.platforms import PlatformInfo
 from litlaunch.profile_detection import AppRootDetection, detect_app_root
+from litlaunch.profile_wizard_navigation import previous_step_index
+from litlaunch.profile_wizard_rendering import (
+    preview_profile as _preview_profile,
+)
+from litlaunch.profile_wizard_rendering import (
+    render_step_header as _render_step_header,
+)
+from litlaunch.profile_wizard_rendering import (
+    write as _write,
+)
+from litlaunch.profile_wizard_rendering import (
+    write_warning_status as _write_warning_status,
+)
+from litlaunch.profile_wizard_state import (
+    BACK_COMMANDS,
+    QUIT_COMMANDS,
+    InputFunc,
+    ProfileWizardCancelled,
+    ProfileWizardOptions,
+)
+from litlaunch.profile_wizard_state import (
+    WizardBack as _WizardBack,
+)
+from litlaunch.profile_wizard_state import (
+    WizardIo as _WizardIo,
+)
+from litlaunch.profile_wizard_state import (
+    WizardQuit as _WizardQuit,
+)
+from litlaunch.profile_wizard_state import (
+    WizardState as _WizardState,
+)
+from litlaunch.profile_wizard_state import (
+    WizardStep as _WizardStep,
+)
 from litlaunch.profile_writer import ProfileWriteResult, write_litlaunch_profile
 from litlaunch.profiles import LaunchProfile, load_profiles
 from litlaunch.shortcut_writer import (
@@ -22,82 +54,6 @@ from litlaunch.shortcut_writer import (
     write_shortcut,
 )
 from litlaunch.windowing import WindowMonitorConfig
-
-InputFunc = Callable[[], str]
-
-BACK_COMMANDS = {"back", "b", "r", "return"}
-QUIT_COMMANDS = {"quit", "q", "exit", "cancel"}
-
-
-class ProfileWizardCancelled(Exception):
-    """Raised when profile creation is cancelled by the user."""
-
-
-class _WizardBack(Exception):
-    """Internal control flow for moving to the previous wizard step."""
-
-
-class _WizardQuit(Exception):
-    """Internal control flow for clean wizard cancellation."""
-
-
-@dataclass(frozen=True)
-class ProfileWizardOptions:
-    """Prefilled options for ``litlaunch create profile``."""
-
-    name: str | None = None
-    app_path: str | Path | None = None
-    config_path: str | Path | None = None
-    dry_run: bool = False
-    force: bool = False
-    use_color: bool = True
-
-
-@dataclass
-class _WizardState:
-    detection: AppRootDetection
-    config_path: Path
-    existing_names: set[str]
-    setup_mode: str | None = None
-    profile_name: str | None = None
-    app_path: Path | None = None
-    title: str | None = None
-    launch_experience: str | None = None
-    browser: str | None = None
-    host: str = "127.0.0.1"
-    port: int | None = None
-    auto_port: bool = True
-    headless: bool | None = None
-    allow_browser_fallback: bool = True
-    allow_network_exposure: bool = False
-    cwd: Path | None = None
-    streamlit_flags: dict[str, str | int | float | bool | None] = field(
-        default_factory=dict
-    )
-    streamlit_args: list[str] = field(default_factory=list)
-    app_args: list[str] = field(default_factory=list)
-    extra_browser_args: list[str] = field(default_factory=list)
-    extra_env: dict[str, str] = field(default_factory=dict)
-    monitor_window: bool | None = None
-    graceful_timeout: float = 3.0
-    monitor_config: WindowMonitorConfig = WindowMonitorConfig()
-    force: bool = False
-    write_confirmed: bool = False
-
-
-@dataclass(frozen=True)
-class _WizardStep:
-    title: str
-    handler: Callable[[_WizardState, _WizardIo], None]
-    context: str
-    skip: Callable[[_WizardState], bool] = lambda _state: False
-
-
-@dataclass(frozen=True)
-class _WizardIo:
-    stream: TextIO
-    input_func: InputFunc
-    use_color: bool
 
 
 def run_profile_wizard(
@@ -164,7 +120,7 @@ def _run_profile_wizard(
             steps[index].handler(state, io)
             index += 1
         except _WizardBack:
-            previous_index = _previous_step_index(steps, state, index)
+            previous_index = previous_step_index(steps, state, index)
             if previous_index == index:
                 _write(io.stream, "Already at the first step.")
             index = previous_index
@@ -950,163 +906,6 @@ def _read_answer(io: _WizardIo) -> str:
     return answer
 
 
-def _render_step_header(
-    io: _WizardIo,
-    state: _WizardState,
-    steps: tuple[_WizardStep, ...],
-    index: int,
-) -> None:
-    _clear_screen(io.stream)
-    visible_steps = [step for step in steps if not step.skip(state)]
-    current = sum(1 for step in steps[:index] if not step.skip(state)) + 1
-    title = steps[index].title
-    mode = "Advanced" if state.setup_mode == "advanced" else "Simple"
-    _write(
-        io.stream,
-        style_text("Create Profile Wizard", streamlit_blue, use_color=io.use_color),
-    )
-    mode_text = style_text(mode, help_magenta, use_color=io.use_color)
-    step_text = style_text(
-        f"Step {current} of {len(visible_steps)} - {title}",
-        streamlit_blue,
-        use_color=io.use_color,
-    )
-    _write(io.stream, f"{mode_text} - {step_text}")
-    _render_current_data(io, state)
-    _render_step_notes(io, steps[index])
-
-
-def _render_current_data(io: _WizardIo, state: _WizardState) -> None:
-    values = _current_data_values(state)
-    if not values:
-        return
-    _write(io.stream, "Current profile:")
-    for label, value in values:
-        label_text = style_text(
-            f"  {label}:",
-            streamlit_blue,
-            use_color=io.use_color,
-        )
-        value_text = style_text(str(value), terminal_green, use_color=io.use_color)
-        _write(io.stream, f"{label_text} {value_text}")
-    _write(io.stream, "")
-
-
-def _render_step_notes(io: _WizardIo, step: _WizardStep) -> None:
-    label = style_text("About:", streamlit_blue, use_color=io.use_color)
-    _write(io.stream, f"{label} {step.context}")
-    label = style_text("Navigation:", streamlit_blue, use_color=io.use_color)
-    _write(
-        io.stream,
-        (
-            f"{label} Enter accepts bracketed or marked defaults; "
-            "type 'back', 'b', or 'r' to return; 'quit' or 'q' to cancel."
-        ),
-    )
-    _write(io.stream, "")
-
-
-def _current_data_values(state: _WizardState) -> tuple[tuple[str, str], ...]:
-    values: list[tuple[str, str]] = []
-    if state.profile_name:
-        values.append(("Name", state.profile_name))
-    if state.app_path:
-        values.append(("App", str(state.app_path)))
-    if state.title:
-        values.append(("Title", state.title))
-    if state.launch_experience:
-        launch = "App window" if state.launch_experience == "webapp" else "Browser tab"
-        values.append(("Launch", launch))
-    if state.browser:
-        values.append(("Browser", state.browser))
-    if state.setup_mode == "advanced":
-        values.append(("Host", state.host))
-        values.append(("Port", "auto" if state.port is None else str(state.port)))
-        values.append(("Auto-port", "enabled" if state.auto_port else "disabled"))
-        fallback = "enabled" if state.allow_browser_fallback else "disabled"
-        values.append(("Browser fallback", fallback))
-        if state.allow_network_exposure:
-            values.append(("Network exposure", "acknowledged"))
-        if state.headless is not None:
-            values.append(("Headless", str(state.headless).lower()))
-        if state.cwd is not None:
-            values.append(("Cwd", str(state.cwd)))
-        _append_count(values, "Streamlit flags", len(state.streamlit_flags))
-        _append_count(values, "Streamlit args", len(state.streamlit_args))
-        _append_count(values, "App args", len(state.app_args))
-        _append_count(values, "Browser args", len(state.extra_browser_args))
-        _append_count(values, "Env vars", len(state.extra_env))
-    if state.launch_experience == "webapp" and state.monitor_window is not None:
-        values.append(("Monitor", "enabled" if state.monitor_window else "disabled"))
-    if state.config_path:
-        values.append(("Config", str(state.config_path)))
-    return tuple(values)
-
-
-def _append_count(
-    values: list[tuple[str, str]],
-    label: str,
-    count: int,
-) -> None:
-    if count:
-        values.append((label, str(count)))
-
-
-def _previous_step_index(
-    steps: tuple[_WizardStep, ...],
-    state: _WizardState,
-    index: int,
-) -> int:
-    for previous in range(index - 1, -1, -1):
-        if not steps[previous].skip(state):
-            return previous
-    return index
-
-
-def _preview_profile(
-    stream: TextIO,
-    profile: LaunchProfile,
-    *,
-    config_path: Path,
-    launch_experience: str,
-) -> None:
-    _write(stream, "")
-    _write(stream, "Profile preview")
-    _write(stream, f"Profile: {profile.name}")
-    _write(stream, f"Config: {config_path}")
-    _write(stream, f"App: {profile.config.app_path}")
-    _write(stream, f"Title: {profile.config.title}")
-    label = "App window" if launch_experience == "webapp" else "Browser tab"
-    _write(stream, f"Launch experience: {label}")
-    _write(stream, f"Browser: {profile.config.browser.value}")
-    _write(stream, f"Host: {profile.config.host}")
-    port = "auto" if profile.config.port is None else str(profile.config.port)
-    _write(stream, f"Port: {port}")
-    auto_port = "enabled" if profile.config.auto_port else "disabled"
-    _write(stream, f"Auto-port: {auto_port}")
-    fallback = "enabled" if profile.config.allow_browser_fallback else "disabled"
-    _write(stream, f"Browser fallback: {fallback}")
-    if profile.config.allow_network_exposure:
-        _write(stream, "Network exposure: acknowledged")
-    if profile.config.headless is not None:
-        _write(stream, f"Headless: {str(profile.config.headless).lower()}")
-    if profile.config.cwd is not None:
-        _write(stream, f"Working directory: {profile.config.cwd}")
-    monitor_status = "enabled" if profile.monitor_window else "disabled"
-    _write(stream, f"Monitor window: {monitor_status}")
-    if profile.config.streamlit_flags:
-        _write(stream, f"Streamlit flags: {len(profile.config.streamlit_flags)}")
-    if profile.config.streamlit_args:
-        _write(stream, f"Streamlit args: {len(profile.config.streamlit_args)}")
-    if profile.config.app_args:
-        _write(stream, f"App args: {len(profile.config.app_args)}")
-    if profile.config.extra_browser_args:
-        _write(stream, f"Extra browser args: {len(profile.config.extra_browser_args)}")
-    if profile.config.extra_env:
-        _write(stream, f"Extra env vars: {len(profile.config.extra_env)}")
-    _write(stream, "")
-
-
 def _nonempty(value: str) -> str:
     if not value.strip():
         raise ConfigurationError("value cannot be empty.")
@@ -1118,27 +917,3 @@ def _litlaunch_toml_path(value: str) -> str:
     if path.name != "litlaunch.toml":
         raise ConfigurationError("create profile writes only litlaunch.toml.")
     return value
-
-
-def _write_warning_status(
-    stream: TextIO, message: str, use_color: bool = False
-) -> None:
-    prefix = status_prefix("warn", muted_amber, use_color=use_color)
-    _write(stream, f"{prefix} {message}")
-
-
-def _write(stream: TextIO, message: str) -> None:
-    stream.write(f"{message}\n")
-    flush = getattr(stream, "flush", None)
-    if callable(flush):
-        flush()
-
-
-def _clear_screen(stream: TextIO) -> None:
-    isatty = getattr(stream, "isatty", None)
-    if not callable(isatty) or not isatty():
-        return
-    stream.write("\033[2J\033[H")
-    flush = getattr(stream, "flush", None)
-    if callable(flush):
-        flush()

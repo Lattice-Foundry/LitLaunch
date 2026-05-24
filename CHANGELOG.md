@@ -8,6 +8,12 @@ package classifier remains `Development Status :: 4 - Beta` until the final
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.0rc4 - Release Candidate
+
+- Improved generated diagnostics pages with human-readable runtime session
+  summaries from runtime event logs while preserving raw JSONL event access and
+  event-mix chart support.
+
 ## 1.0.0rc3 - Release Candidate
 
 - Updated generated diagnostics pages to parse native runtime event JSONL logs

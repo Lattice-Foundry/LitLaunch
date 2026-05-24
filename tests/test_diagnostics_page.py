@@ -77,6 +77,7 @@ def test_generated_page_contains_real_diagnostics_sections():
     assert "Runtime Summary" in source
     assert "Posture" in source
     assert "Operational Snapshot" in source
+    assert "Runtime Sessions" in source
     assert "Diagnostics Status Mix" in source
     assert "Runtime Event Mix" in source
     assert "Section Attention Map" in source
@@ -107,6 +108,9 @@ def test_generated_page_contains_expected_helper_functions():
         "_render_write_artifact_group",
         "_render_sections",
         "_render_event_trail",
+        "_render_runtime_sessions",
+        "_render_runtime_session_summary",
+        "_render_runtime_session_timeline",
         "_inject_litlaunch_styles",
         "_theme_tokens",
         "_chart_theme_tokens",
@@ -122,6 +126,12 @@ def test_generated_page_contains_expected_helper_functions():
         "_event_category_counts",
         "_extract_event_category",
         "_extract_json_event_category",
+        "_runtime_event_records_from_lines",
+        "_parse_runtime_event_record",
+        "_group_runtime_sessions",
+        "_summarize_runtime_session",
+        "_friendly_event_name",
+        "_format_duration",
         "_runtime_event_log_path",
         "_item_status",
         "_compact_metric_value",
@@ -304,6 +314,178 @@ def test_generated_page_counts_jsonl_runtime_event_categories(tmp_path):
     event_category_counts = namespace["_event_category_counts"]
 
     assert event_category_counts() == {category: 1 for category in categories}
+
+
+def test_generated_page_groups_runtime_sessions_newest_first():
+    namespace: dict[str, object] = {}
+    exec(_source_for(), namespace)  # noqa: S102 - generated source is under test.
+    records_from_lines = namespace["_runtime_event_records_from_lines"]
+    group_runtime_sessions = namespace["_group_runtime_sessions"]
+
+    lines = [
+        json.dumps(
+            {
+                "timestamp": "2026-05-24T12:00:00+00:00",
+                "level": "info",
+                "category": "launch",
+                "name": "launch_planned",
+                "message": "Runtime launch planned.",
+                "details": {"mode": "browser"},
+            },
+        ),
+        json.dumps(
+            {
+                "timestamp": "2026-05-24T12:00:01+00:00",
+                "level": "info",
+                "category": "backend",
+                "name": "backend_started",
+                "message": "Backend process started.",
+                "details": {"host": "127.0.0.1", "port": 8501},
+            },
+        ),
+        json.dumps(
+            {
+                "timestamp": "2026-05-24T12:05:00+00:00",
+                "level": "info",
+                "category": "launch",
+                "name": "launch_planned",
+                "message": "Runtime launch planned.",
+                "details": {"mode": "webapp"},
+            },
+        ),
+        json.dumps(
+            {
+                "timestamp": "2026-05-24T12:05:02+00:00",
+                "level": "info",
+                "category": "browser",
+                "name": "browser_launched",
+                "message": "Browser launched.",
+                "details": {"browser": "Microsoft Edge", "mode": "webapp"},
+            },
+        ),
+        "not json",
+    ]
+
+    sessions = group_runtime_sessions(records_from_lines(lines))
+
+    assert len(sessions) == 2
+    assert sessions[0][0]["details"]["mode"] == "webapp"
+    assert sessions[1][0]["details"]["mode"] == "browser"
+
+
+def test_generated_page_summarizes_runtime_session_duration_and_status():
+    namespace: dict[str, object] = {}
+    exec(_source_for(), namespace)  # noqa: S102 - generated source is under test.
+    records_from_lines = namespace["_runtime_event_records_from_lines"]
+    summarize_runtime_session = namespace["_summarize_runtime_session"]
+
+    records = records_from_lines(
+        [
+            json.dumps(
+                {
+                    "timestamp": "2026-05-24T12:00:00+00:00",
+                    "level": "info",
+                    "category": "launch",
+                    "name": "launch_planned",
+                    "message": "Runtime launch planned.",
+                    "details": {
+                        "mode": "webapp",
+                        "browser": "edge",
+                        "host": "127.0.0.1",
+                        "port": 8501,
+                    },
+                },
+            ),
+            json.dumps(
+                {
+                    "timestamp": "2026-05-24T12:00:01+00:00",
+                    "level": "info",
+                    "category": "backend",
+                    "name": "backend_started",
+                    "message": "Backend process started.",
+                    "details": {"pid": 1234, "host": "127.0.0.1", "port": 8501},
+                },
+            ),
+            json.dumps(
+                {
+                    "timestamp": "2026-05-24T12:00:10+00:00",
+                    "level": "info",
+                    "category": "monitor",
+                    "name": "monitor_started",
+                    "message": "Window monitoring started.",
+                    "details": {"target": "RoleThread Lite", "mode": "webapp"},
+                },
+            ),
+            json.dumps(
+                {
+                    "timestamp": "2026-05-24T12:00:38.800000+00:00",
+                    "level": "info",
+                    "category": "port",
+                    "name": "port_released",
+                    "message": "Backend port released.",
+                    "details": {"host": "127.0.0.1", "port": 8501},
+                },
+            ),
+        ]
+    )
+
+    summary = summarize_runtime_session(records)
+
+    assert summary["status"] == "Clean shutdown"
+    assert summary["status_level"] == "ok"
+    assert summary["title"] == "Webapp launched in edge"
+    assert "Backend healthy on 127.0.0.1:8501" in summary["subtitle"]
+    assert "Monitoring window: RoleThread Lite" in summary["subtitle"]
+    assert summary["fields"]["Duration"] == "38.8s"
+    assert summary["fields"]["Backend PID"] == "1234"
+
+
+def test_generated_page_summarizes_missing_shutdown_as_running():
+    namespace: dict[str, object] = {}
+    exec(_source_for(), namespace)  # noqa: S102 - generated source is under test.
+    records_from_lines = namespace["_runtime_event_records_from_lines"]
+    summarize_runtime_session = namespace["_summarize_runtime_session"]
+
+    records = records_from_lines(
+        [
+            json.dumps(
+                {
+                    "timestamp": "2026-05-24T12:00:00+00:00",
+                    "level": "info",
+                    "category": "launch",
+                    "name": "launch_planned",
+                    "message": "Runtime launch planned.",
+                    "details": {"mode": "browser"},
+                },
+            ),
+            json.dumps(
+                {
+                    "timestamp": "2026-05-24T12:00:01+00:00",
+                    "level": "info",
+                    "category": "health",
+                    "name": "health_ready",
+                    "message": "Health check passed.",
+                    "details": {"host": "127.0.0.1", "port": 8501},
+                },
+            ),
+        ]
+    )
+
+    summary = summarize_runtime_session(records)
+
+    assert summary["status"] == "Running"
+    assert summary["fields"]["Duration"] == "running"
+
+
+def test_generated_page_friendly_event_labels_and_malformed_events():
+    namespace: dict[str, object] = {}
+    exec(_source_for(), namespace)  # noqa: S102 - generated source is under test.
+    friendly_event_name = namespace["_friendly_event_name"]
+    records_from_lines = namespace["_runtime_event_records_from_lines"]
+
+    assert friendly_event_name("health_ready") == "Health check passed"
+    assert friendly_event_name("custom_runtime_event") == "Custom Runtime Event"
+    assert records_from_lines(["{malformed", json.dumps(["not", "object"])]) == []
 
 
 def test_generated_page_keeps_plain_event_line_category_parsing():

@@ -10,20 +10,28 @@ from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.exposure import classify_host_exposure
 from litlaunch.platforms import PlatformInfo
-from litlaunch.profile_detection import AppRootDetection, detect_app_root
-from litlaunch.profile_wizard_rendering import (
+from litlaunch.shortcut_writer import (
+    ShortcutRequest,
+    build_shortcut_plan,
+    write_shortcut,
+)
+from litlaunch.windowing import WindowMonitorConfig
+
+from .core import LaunchProfile, load_profiles
+from .detection import AppRootDetection, detect_app_root
+from .rendering import (
     preview_profile as _preview_profile,
 )
-from litlaunch.profile_wizard_rendering import (
+from .rendering import (
     render_step_header as _render_step_header,
 )
-from litlaunch.profile_wizard_rendering import (
+from .rendering import (
     write as _write,
 )
-from litlaunch.profile_wizard_rendering import (
+from .rendering import (
     write_warning_status as _write_warning_status,
 )
-from litlaunch.profile_wizard_state import (
+from .state import (
     BACK_COMMANDS,
     QUIT_COMMANDS,
     InputFunc,
@@ -31,29 +39,22 @@ from litlaunch.profile_wizard_state import (
     ProfileWizardOptions,
     previous_step_index,
 )
-from litlaunch.profile_wizard_state import (
+from .state import (
     WizardBack as _WizardBack,
 )
-from litlaunch.profile_wizard_state import (
+from .state import (
     WizardIo as _WizardIo,
 )
-from litlaunch.profile_wizard_state import (
+from .state import (
     WizardQuit as _WizardQuit,
 )
-from litlaunch.profile_wizard_state import (
+from .state import (
     WizardState as _WizardState,
 )
-from litlaunch.profile_wizard_state import (
+from .state import (
     WizardStep as _WizardStep,
 )
-from litlaunch.profile_writer import ProfileWriteResult, write_litlaunch_profile
-from litlaunch.profiles import LaunchProfile, load_profiles
-from litlaunch.shortcut_writer import (
-    ShortcutRequest,
-    build_shortcut_plan,
-    write_shortcut,
-)
-from litlaunch.windowing import WindowMonitorConfig
+from .writer import ProfileWriteResult, write_litlaunch_profile
 
 
 def run_profile_wizard(

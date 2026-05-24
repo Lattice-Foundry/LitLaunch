@@ -7,8 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TextIO
 
-from litlaunch.profile_detection import AppRootDetection
 from litlaunch.windowing import WindowMonitorConfig
+
+from .detection import AppRootDetection
 
 InputFunc = Callable[[], str]
 

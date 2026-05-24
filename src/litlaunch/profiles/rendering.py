@@ -7,8 +7,9 @@ from typing import TextIO
 
 from litlaunch.colors import help_magenta, muted_amber, streamlit_blue, terminal_green
 from litlaunch.console_style import status_prefix, style_text
-from litlaunch.profile_wizard_state import WizardIo, WizardState, WizardStep
-from litlaunch.profiles import LaunchProfile
+
+from .core import LaunchProfile
+from .state import WizardIo, WizardState, WizardStep
 
 
 def render_step_header(

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from litlaunch.profile_detection import detect_app_root
+from litlaunch.profiles.detection import detect_app_root
 
 
 def write(path: Path, text: str = "print('hello')\n") -> Path:

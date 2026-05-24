@@ -10,12 +10,12 @@ import pytest
 from litlaunch.config import BrowserChoice, LaunchMode
 from litlaunch.console import strip_ansi
 from litlaunch.platforms import Architecture, OperatingSystem, PlatformInfo
-from litlaunch.profile_wizard import (
+from litlaunch.profiles import load_profile
+from litlaunch.profiles.wizard import (
     ProfileWizardCancelled,
     ProfileWizardOptions,
     run_profile_wizard,
 )
-from litlaunch.profiles import load_profile
 
 
 @pytest.fixture

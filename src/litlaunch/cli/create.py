@@ -7,12 +7,12 @@ from pathlib import Path
 
 from litlaunch.cli.common import CliContext
 from litlaunch.cli.config import add_profile_flags
-from litlaunch.profile_wizard import (
+from litlaunch.profiles import load_profile
+from litlaunch.profiles.wizard import (
     ProfileWizardCancelled,
     ProfileWizardOptions,
     run_profile_wizard,
 )
-from litlaunch.profiles import load_profile
 from litlaunch.shortcut_writer import (
     ShortcutKind,
     ShortcutRequest,

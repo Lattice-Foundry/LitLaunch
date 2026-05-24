@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from litlaunch import profile_writer
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
 from litlaunch.exceptions import ConfigurationError
-from litlaunch.profile_writer import write_litlaunch_profile
 from litlaunch.profiles import LaunchProfile, load_profile
+from litlaunch.profiles import writer as profile_writer
+from litlaunch.profiles.writer import write_litlaunch_profile
 from litlaunch.windowing import WindowMonitorConfig
 
 

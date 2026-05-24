@@ -1,7 +1,9 @@
 import re
 from importlib.metadata import version
+from pathlib import Path
 
 import litlaunch
+import litlaunch.profiles
 from litlaunch import (
     THEME_COLORS,
     Architecture,
@@ -178,6 +180,18 @@ def test_public_imports_are_available():
     assert load_profiles
     assert run_monitored_webapp
     assert run_profile
+
+
+def test_profile_package_exports_public_profile_api():
+    assert litlaunch.profiles.LaunchProfile is LaunchProfile
+    assert litlaunch.profiles.load_profile is load_profile
+    assert litlaunch.profiles.load_profiles is load_profiles
+
+
+def test_profile_subsystem_has_no_root_level_modules():
+    package_root = Path(litlaunch.__file__).parent
+
+    assert not list(package_root.glob("profile*.py"))
 
 
 def test_public_all_is_explicit():

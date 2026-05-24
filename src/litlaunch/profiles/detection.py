@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from litlaunch.exceptions import ConfigurationError
-from litlaunch.profiles import load_profiles
+
+from .core import load_profiles
 
 
 @dataclass(frozen=True)

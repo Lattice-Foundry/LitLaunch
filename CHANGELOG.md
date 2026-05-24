@@ -8,6 +8,12 @@ package classifier remains `Development Status :: 4 - Beta` until the final
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.0rc5 - Release Candidate
+
+- Moved profile loading, writing, detection, and wizard internals into the
+  dedicated `litlaunch.profiles` package while preserving top-level profile
+  imports, CLI behavior, and profile file compatibility.
+
 ## 1.0.0rc4 - Release Candidate
 
 - Improved generated diagnostics pages with human-readable runtime session

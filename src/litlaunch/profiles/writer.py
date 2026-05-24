@@ -11,8 +11,9 @@ from pathlib import Path
 from typing import Any
 
 from litlaunch.exceptions import ConfigurationError
-from litlaunch.profiles import LaunchProfile, load_profile, load_profiles
 from litlaunch.windowing import WindowMonitorConfig
+
+from .core import LaunchProfile, load_profile, load_profiles
 
 try:  # pragma: no cover - exercised on Python 3.11+
     import tomllib

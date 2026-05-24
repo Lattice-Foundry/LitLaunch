@@ -16,6 +16,10 @@ def _function_names(source: str) -> set[str]:
     return {node.name for node in module.body if isinstance(node, ast.FunctionDef)}
 
 
+def _source_for(**kwargs) -> str:
+    return DiagnosticsPageBuilder("diagnostics.py", **kwargs).render()
+
+
 def test_create_diagnostics_page_writes_valid_python(tmp_path):
     output_path = create_diagnostics_page(
         output_path=tmp_path / "ui" / "litlaunch_diagnostics.py",
@@ -29,6 +33,8 @@ def test_create_diagnostics_page_writes_valid_python(tmp_path):
     assert "RoleThread Lite" in source
     assert "rolethread-webapp" in source
     assert "import streamlit as st" in source
+    assert "Runtime Summary" in source
+    assert "Support Artifacts" in source
 
 
 def test_builder_api_writes_custom_function_and_creates_parent(tmp_path):
@@ -53,6 +59,83 @@ def test_builder_render_returns_parseable_source_without_writing(tmp_path):
 
     assert "render_litlaunch_diagnostics" in _function_names(source)
     assert not (tmp_path / "diagnostics.py").exists()
+
+
+def test_generated_page_contains_real_diagnostics_sections():
+    source = _source_for()
+
+    assert "Diagnostics content will be rendered here" not in source
+    assert "Runtime Summary" in source
+    assert "Posture" in source
+    assert "Diagnostics Details" in source
+    assert "Runtime Governance" in source
+    assert "Runtime Exposure" in source
+    assert "Transport Security" in source
+    assert "Browser/Platform" in source
+
+
+def test_generated_page_contains_expected_helper_functions():
+    source = _source_for()
+    functions = _function_names(source)
+
+    assert {
+        "render_litlaunch_diagnostics",
+        "_collect_diagnostics",
+        "_render_summary",
+        "_render_posture_cards",
+        "_render_artifact_actions",
+        "_render_sections",
+        "_render_event_trail",
+    }.issubset(functions)
+
+
+def test_generated_page_imports_existing_litlaunch_apis():
+    source = _source_for()
+
+    assert "from litlaunch import DiagnosticCollector, load_profile" in source
+    assert "HTMLDiagnosticsRenderer" in source
+    assert "JSONDiagnosticsRenderer" in source
+    assert "SanitizedBundleRenderer" in source
+    assert "from litlaunch.artifacts import reports_dir" in source
+
+
+def test_generated_page_reflects_artifact_paths_without_autowrite():
+    source = _source_for()
+
+    assert ".litlaunch/reports/" in source
+    assert "only when you click a write button" in source
+    assert "litlaunch-report.html" in source
+    assert "litlaunch-report.json" in source
+    assert "litlaunch-support-bundle.txt" in source
+
+
+def test_generated_page_includes_project_and_event_options():
+    source = _source_for(
+        project_root="X:/apps/example",
+        event_log_path=".litlaunch/events/runtime.log",
+    )
+
+    assert "PROJECT_ROOT = 'X:" in source
+    assert "apps" in source
+    assert "example" in source
+    assert "INCLUDE_EVENTS = True" in source
+    assert "EVENT_LOG_PATH = '.litlaunch" in source
+    assert "runtime.log" in source
+    assert "Runtime Event Trail" in source
+
+
+def test_generated_page_can_disable_event_trail():
+    source = _source_for(include_events=False)
+
+    assert "INCLUDE_EVENTS = False" in source
+    assert "EVENT_LOG_PATH = None" in source
+
+
+def test_generated_page_has_no_rolethread_names_unless_configured():
+    source = _source_for()
+
+    assert "RoleThread" not in source
+    assert "rolethread-webapp" not in source
 
 
 def test_existing_file_requires_overwrite(tmp_path):

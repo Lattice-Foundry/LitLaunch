@@ -4,6 +4,12 @@ LitLaunch uses pre-release package versions until the coordinated ecosystem
 launch. Public documentation is stable-facing while release notes remain
 concise.
 
+## 0.91.47b0
+
+- Expanded generated diagnostics pages from a skeleton into a Streamlit-native
+  support surface with runtime summary cards, posture sections, diagnostics
+  expanders, support artifact downloads/writes, and optional event-log display.
+
 ## 0.91.46b0
 
 - Added the initial diagnostics page generator API for writing app-owned,

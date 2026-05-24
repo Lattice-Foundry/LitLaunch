@@ -123,10 +123,11 @@ when the app is intentionally exposed beyond the local machine.
 
 ### Generate app-owned support pages
 
-LitLaunch can generate a small Streamlit-native diagnostics page skeleton that
-host apps own, mount, and customize themselves. This keeps support surfaces
-close to the app without making LitLaunch a dashboard framework or adding
-Streamlit as a LitLaunch dependency.
+LitLaunch can generate a small Streamlit-native diagnostics/support page that
+host apps own, mount, and customize themselves. It can render runtime posture,
+diagnostic sections, support artifacts, and an optional runtime event trail
+without making LitLaunch a dashboard framework or adding Streamlit as a
+LitLaunch dependency.
 
 ```python
 from litlaunch import create_diagnostics_page

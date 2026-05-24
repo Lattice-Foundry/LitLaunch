@@ -142,8 +142,23 @@ create_diagnostics_page(
 )
 ```
 
-The generated page reads recent lines from that file if it exists. LitLaunch
-does not create a logging framework, rotate files, or send telemetry.
+For packaged apps that choose log paths at runtime, provide an environment
+variable plus a fallback path:
+
+```python
+create_diagnostics_page(
+    output_path="ui/litlaunch_diagnostics.py",
+    app_name="RoleThread Lite",
+    profile_name="rolethread-webapp",
+    event_log_path=".litlaunch/runtime-events.log",
+    event_log_env_var="ROLETHREAD_LAUNCHER_LOG_PATH",
+)
+```
+
+The generated page checks the environment variable first. If it is not set, it
+uses the fallback `event_log_path`. If neither is configured, the event trail
+shows a concise “not configured” message. LitLaunch does not create a logging
+framework, rotate files, or send telemetry.
 
 ![Support artifacts and runtime event trail](assets/screenshots/diagnostics-page-artifacts-events.png)
 

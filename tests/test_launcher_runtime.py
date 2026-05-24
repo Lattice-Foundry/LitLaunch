@@ -1,5 +1,7 @@
+import json
 import os
 from io import StringIO
+from pathlib import Path
 
 from litlaunch import LauncherConfig, LaunchMode, RuntimeEvent
 from litlaunch.backend import BackendCommand, BackendCommandContext
@@ -232,6 +234,44 @@ def test_runtime_event_sink_does_not_receive_raw_env_secrets():
     )
     assert "super-secret-token" not in rendered
     assert "cookie-secret" not in rendered
+
+
+def test_runtime_event_log_file_receives_launch_events_and_composes_sink(
+    tmp_path: Path,
+):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    events: list[RuntimeEvent] = []
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path=app,
+            runtime_event_log=".litlaunch/runtime-events.log",
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        event_sink=events.append,
+        clock=FakeClock(),
+    )
+
+    session = launcher.start()
+
+    assert session.ok is True
+    assert [event.name for event in events] == [
+        "launch_planned",
+        "backend_starting",
+        "backend_started",
+        "health_ready",
+        "browser_launched",
+    ]
+    event_path = tmp_path / ".litlaunch" / "runtime-events.log"
+    records = [
+        json.loads(line) for line in event_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert [record["name"] for record in records] == [event.name for event in events]
+    assert all("details" in record for record in records)
 
 
 def test_runtime_event_sink_exception_does_not_break_launch():

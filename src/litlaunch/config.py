@@ -60,6 +60,7 @@ class LauncherConfig:
     trust_mode: TrustMode | str = TrustMode.DEVELOPMENT
     cwd: str | Path | None = None
     extra_env: Mapping[str, str] = field(default_factory=dict)
+    runtime_event_log: str | Path | None = None
     streamlit_flags: StreamlitFlags = field(default_factory=dict)
     streamlit_args: Sequence[str] = field(default_factory=tuple)
     app_args: Sequence[str] = field(default_factory=tuple)
@@ -75,6 +76,10 @@ class LauncherConfig:
         port = _normalize_port(self.port)
         auto_port = True if port is None else bool(self.auto_port)
         cwd = _normalize_optional_path(self.cwd, "cwd")
+        runtime_event_log = _normalize_optional_path(
+            self.runtime_event_log,
+            "runtime_event_log",
+        )
         extra_env = _normalize_env_mapping(self.extra_env)
         streamlit_args = _normalize_string_sequence(
             self.streamlit_args,
@@ -109,6 +114,7 @@ class LauncherConfig:
         object.__setattr__(self, "trust_mode", trust_mode)
         object.__setattr__(self, "cwd", cwd)
         object.__setattr__(self, "extra_env", extra_env)
+        object.__setattr__(self, "runtime_event_log", runtime_event_log)
         object.__setattr__(self, "streamlit_args", streamlit_args)
         object.__setattr__(self, "app_args", app_args)
         object.__setattr__(self, "extra_browser_args", extra_browser_args)

@@ -28,6 +28,7 @@ class DiagnosticsPageOptions:
     overwrite: bool = False
     include_events: bool = True
     event_log_path: str | Path | None = None
+    event_log_env_var: str | None = None
     theme: str = "auto"
 
     def __post_init__(self) -> None:
@@ -76,6 +77,11 @@ class DiagnosticsPageOptions:
                 "event_log_path",
                 _normalize_required_path(self.event_log_path, "event_log_path"),
             )
+        object.__setattr__(
+            self,
+            "event_log_env_var",
+            _normalize_optional_env_var(self.event_log_env_var),
+        )
 
 
 class DiagnosticsPageBuilder:
@@ -93,6 +99,7 @@ class DiagnosticsPageBuilder:
         overwrite: bool = False,
         include_events: bool = True,
         event_log_path: str | Path | None = None,
+        event_log_env_var: str | None = None,
         theme: str = "auto",
     ) -> None:
         self.options = DiagnosticsPageOptions(
@@ -105,6 +112,7 @@ class DiagnosticsPageBuilder:
             overwrite=overwrite,
             include_events=include_events,
             event_log_path=event_log_path,
+            event_log_env_var=event_log_env_var,
             theme=theme,
         )
 
@@ -150,6 +158,7 @@ def create_diagnostics_page(
     overwrite: bool = False,
     include_events: bool = True,
     event_log_path: str | Path | None = None,
+    event_log_env_var: str | None = None,
     theme: str = "auto",
 ) -> Path:
     """Create an app-owned Streamlit diagnostics/support page."""
@@ -164,6 +173,7 @@ def create_diagnostics_page(
         overwrite=overwrite,
         include_events=include_events,
         event_log_path=event_log_path,
+        event_log_env_var=event_log_env_var,
         theme=theme,
     ).write()
 
@@ -175,6 +185,7 @@ def _render_page_template(options: DiagnosticsPageOptions) -> str:
     event_log_path = repr(
         str(options.event_log_path) if options.event_log_path else None
     )
+    event_log_env_var = repr(options.event_log_env_var)
     include_events = repr(bool(options.include_events))
     page_title = repr(options.page_title)
     theme = repr(options.theme)
@@ -190,6 +201,7 @@ from __future__ import annotations
 from html import escape
 from pathlib import Path
 import traceback
+import os
 from typing import Any
 
 
@@ -198,6 +210,7 @@ PROFILE_NAME = __PROFILE_NAME__
 PROJECT_ROOT = __PROJECT_ROOT__
 INCLUDE_EVENTS = __INCLUDE_EVENTS__
 EVENT_LOG_PATH = __EVENT_LOG_PATH__
+EVENT_LOG_ENV_VAR = __EVENT_LOG_ENV_VAR__
 PAGE_TITLE = __PAGE_TITLE__
 THEME = __THEME__
 
@@ -765,7 +778,7 @@ def _render_status_mix_chart(st: Any, data: dict[str, Any]) -> None:
     st.vega_lite_chart(
         rows,
         spec,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -802,7 +815,7 @@ def _render_event_mix_chart(st: Any, counts: dict[str, int]) -> None:
     st.vega_lite_chart(
         rows,
         spec,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -848,7 +861,7 @@ def _render_section_attention_chart(st: Any, data: dict[str, Any]) -> None:
     st.vega_lite_chart(
         rows,
         spec,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -971,7 +984,8 @@ def _render_event_trail(st: Any) -> None:
 
     _render_section_spacer(st)
     st.subheader("Runtime Event Trail")
-    if not EVENT_LOG_PATH:
+    event_path = _runtime_event_log_path()
+    if event_path is None:
         _render_notice(
             st,
             "info",
@@ -979,7 +993,6 @@ def _render_event_trail(st: Any) -> None:
         )
         return
 
-    event_path = _resolve_project_path(EVENT_LOG_PATH)
     if not event_path.is_file():
         _render_notice(st, "info", "No runtime event log found.")
         st.code(str(event_path))
@@ -1031,9 +1044,11 @@ def _section_attention_rows(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _event_category_counts() -> dict[str, int]:
-    if not INCLUDE_EVENTS or not EVENT_LOG_PATH:
+    if not INCLUDE_EVENTS:
         return {}
-    event_path = _resolve_project_path(EVENT_LOG_PATH)
+    event_path = _runtime_event_log_path()
+    if event_path is None:
+        return {}
     if not event_path.is_file():
         return {}
     counts: dict[str, int] = {}
@@ -1253,6 +1268,16 @@ def _resolve_project_path(value: str) -> Path:
     if path.is_absolute():
         return path
     return _project_root() / path
+
+
+def _runtime_event_log_path() -> Path | None:
+    if EVENT_LOG_ENV_VAR:
+        env_value = os.environ.get(EVENT_LOG_ENV_VAR)
+        if env_value:
+            return _resolve_project_path(env_value)
+    if EVENT_LOG_PATH:
+        return _resolve_project_path(EVENT_LOG_PATH)
+    return None
 '''
     return (
         template.replace("__APP_NAME__", app_name)
@@ -1260,6 +1285,7 @@ def _resolve_project_path(value: str) -> Path:
         .replace("__PROJECT_ROOT__", project_root)
         .replace("__INCLUDE_EVENTS__", include_events)
         .replace("__EVENT_LOG_PATH__", event_log_path)
+        .replace("__EVENT_LOG_ENV_VAR__", event_log_env_var)
         .replace("__PAGE_TITLE__", page_title)
         .replace("__THEME__", theme)
         .replace("__FUNCTION_NAME__", generated_function)
@@ -1333,6 +1359,18 @@ def _normalize_optional_text(value: str | None) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _normalize_optional_env_var(value: str | None) -> str | None:
+    normalized = _normalize_optional_text(value)
+    if normalized is None:
+        return None
+    if not normalized.replace("_", "").isalnum() or normalized[0].isdigit():
+        raise ConfigurationError(
+            f"diagnostics page event_log_env_var is not a valid environment "
+            f"variable name: {normalized!r}"
+        )
+    return normalized
 
 
 def _is_relative_to(path: Path, parent: Path) -> bool:

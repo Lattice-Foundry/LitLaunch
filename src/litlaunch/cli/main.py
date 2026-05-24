@@ -77,6 +77,7 @@ _LAUNCH_OPTION_NAMES = frozenset(
         "--streamlit-flag",
         "--app-arg",
         "--browser-arg",
+        "--event-log",
     }
 )
 _GLOBAL_FLAG_NAMES = frozenset({"--no-color", "--quiet", "--verbose", "-h", "--help"})

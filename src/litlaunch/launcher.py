@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
+from litlaunch.artifacts import project_root_for_config
 from litlaunch.backend import (
     BackendCommandProvider,
     StreamlitBackendCommandProvider,
@@ -17,7 +18,12 @@ from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResoluti
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.console import ConsolePhase, ConsoleRenderer
-from litlaunch.events import RuntimeEventEmitter, RuntimeEventSink
+from litlaunch.events import (
+    RuntimeEventEmitter,
+    RuntimeEventSink,
+    compose_runtime_event_sinks,
+    create_runtime_event_file_sink,
+)
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.exposure import classify_host_exposure
 from litlaunch.governance import validate_runtime_governance
@@ -76,8 +82,9 @@ class StreamlitLauncher:
         )
         self.console_renderer = console_renderer
         self.event_sink = event_sink
+        resolved_event_sink = self._runtime_event_sink(event_sink)
         self.event_emitter = RuntimeEventEmitter(
-            event_sink,
+            resolved_event_sink,
             console_renderer=console_renderer,
         )
         self.clock = clock
@@ -399,6 +406,20 @@ class StreamlitLauncher:
             console_renderer=self.console_renderer,
             event_sink=self.event_sink,
             clock=self.clock,
+        )
+
+    def _runtime_event_sink(
+        self,
+        event_sink: RuntimeEventSink | None,
+    ) -> RuntimeEventSink | None:
+        if self.config.runtime_event_log is None:
+            return event_sink
+        event_log_path = self.config.runtime_event_log.expanduser()
+        if not event_log_path.is_absolute():
+            event_log_path = project_root_for_config(self.config) / event_log_path
+        return compose_runtime_event_sinks(
+            event_sink,
+            create_runtime_event_file_sink(event_log_path),
         )
 
     def _record(

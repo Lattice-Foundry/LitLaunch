@@ -120,6 +120,7 @@ def test_generated_page_contains_expected_helper_functions():
         "_section_attention_rows",
         "_event_category_counts",
         "_extract_event_category",
+        "_runtime_event_log_path",
         "_item_status",
         "_compact_metric_value",
         "_status_class",
@@ -155,6 +156,7 @@ def test_generated_page_includes_project_and_event_options():
     source = _source_for(
         project_root="X:/apps/example",
         event_log_path=".litlaunch/events/runtime.log",
+        event_log_env_var="ROLETHREAD_LAUNCHER_LOG_PATH",
     )
 
     assert "PROJECT_ROOT = 'X:" in source
@@ -162,7 +164,9 @@ def test_generated_page_includes_project_and_event_options():
     assert "example" in source
     assert "INCLUDE_EVENTS = True" in source
     assert "EVENT_LOG_PATH = '.litlaunch" in source
+    assert "EVENT_LOG_ENV_VAR = 'ROLETHREAD_LAUNCHER_LOG_PATH'" in source
     assert "runtime.log" in source
+    assert "_runtime_event_log_path" in source
     assert "Runtime Event Trail" in source
 
 
@@ -177,6 +181,8 @@ def test_generated_page_defaults_to_auto_theme():
     assert "_THEME_AUTO" in source
     assert "light_page_override" in source
     assert "st.vega_lite_chart" in source
+    assert 'width="stretch"' in source
+    assert "use_container_width" not in source
     assert "chart_bg" in source
 
 
@@ -191,6 +197,14 @@ def test_generated_page_accepts_theme_modes(theme):
 def test_generated_page_rejects_unknown_theme(tmp_path):
     with pytest.raises(ConfigurationError, match="theme"):
         DiagnosticsPageBuilder(tmp_path / "diagnostics.py", theme="neon")
+
+
+def test_generated_page_rejects_invalid_event_log_env_var(tmp_path):
+    with pytest.raises(ConfigurationError, match="event_log_env_var"):
+        DiagnosticsPageBuilder(
+            tmp_path / "diagnostics.py",
+            event_log_env_var="bad-name",
+        )
 
 
 def test_generated_page_can_disable_event_trail():
@@ -222,6 +236,21 @@ def test_generated_page_status_helpers_map_colors_sensibly():
     assert (
         compact_metric_value("Browser/Platform", "Selected Microsoft Edge.") == "Edge"
     )
+
+
+def test_generated_page_event_log_resolver_prefers_env_var(monkeypatch):
+    namespace: dict[str, object] = {}
+    source = _source_for(
+        project_root="X:/project",
+        event_log_path=".litlaunch/fallback.log",
+        event_log_env_var="LITLAUNCH_EVENT_LOG",
+    )
+    exec(source, namespace)  # noqa: S102 - generated source is under test.
+    monkeypatch.setenv("LITLAUNCH_EVENT_LOG", "runtime/from-env.log")
+
+    event_log_path = namespace["_runtime_event_log_path"]()
+
+    assert event_log_path.parts[-2:] == ("runtime", "from-env.log")
 
 
 def test_existing_file_requires_overwrite(tmp_path):

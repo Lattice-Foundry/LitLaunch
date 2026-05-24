@@ -39,6 +39,7 @@ CONFIG_FIELDS = {
     "trust_mode",
     "cwd",
     "extra_env",
+    "runtime_event_log",
     "streamlit_flags",
     "streamlit_args",
     "app_args",
@@ -216,6 +217,14 @@ def _profile_from_mapping(
     config_values["app_path"] = _profile_path(config_values["app_path"], base_dir)
     if "cwd" in config_values and config_values["cwd"] is not None:
         config_values["cwd"] = _profile_path(config_values["cwd"], base_dir)
+    if (
+        "runtime_event_log" in config_values
+        and config_values["runtime_event_log"] is not None
+    ):
+        config_values["runtime_event_log"] = _profile_path(
+            config_values["runtime_event_log"],
+            base_dir,
+        )
 
     window_values = values.get("window_monitor", {})
     if window_values is None:

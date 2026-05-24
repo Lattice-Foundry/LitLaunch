@@ -33,7 +33,11 @@ from litlaunch.diagnostics_page import (
     DiagnosticsPageOptions,
     create_diagnostics_page,
 )
-from litlaunch.events import RuntimeEvent, RuntimeEventSink
+from litlaunch.events import (
+    RuntimeEvent,
+    RuntimeEventSink,
+    create_runtime_event_file_sink,
+)
 from litlaunch.exceptions import (
     BrowserError,
     CommandBuildError,
@@ -153,6 +157,7 @@ __all__ = [
     "RuntimeSession",
     "RuntimeEvent",
     "RuntimeEventSink",
+    "create_runtime_event_file_sink",
     "run_profile",
     "run_monitored_webapp",
     "ShutdownClient",

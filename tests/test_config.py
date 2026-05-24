@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from litlaunch import (
@@ -115,6 +117,20 @@ def test_cwd_normalizes_to_optional_path():
 def test_empty_cwd_raises_configuration_error():
     with pytest.raises(ConfigurationError, match="cwd cannot be empty"):
         LauncherConfig(app_path="app.py", cwd=" ")
+
+
+def test_runtime_event_log_normalizes_to_optional_path():
+    config = LauncherConfig(
+        app_path="app.py",
+        runtime_event_log=".litlaunch/runtime-events.log",
+    )
+
+    assert config.runtime_event_log == Path(".litlaunch/runtime-events.log")
+
+
+def test_empty_runtime_event_log_raises_configuration_error():
+    with pytest.raises(ConfigurationError, match="runtime_event_log cannot be empty"):
+        LauncherConfig(app_path="app.py", runtime_event_log=" ")
 
 
 def test_extra_env_is_copy_safe_and_string_normalized():

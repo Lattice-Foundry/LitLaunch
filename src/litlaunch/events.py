@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from types import MappingProxyType
 
 from litlaunch.console import ConsoleMode, ConsoleRenderer
+from litlaunch.redaction import redact_sensitive_text
 
 RUNTIME_EVENT_LEVELS = frozenset({"info", "warning", "error"})
 RUNTIME_EVENT_CATEGORIES = frozenset(
@@ -62,6 +65,82 @@ class RuntimeEvent:
 
 
 RuntimeEventSink = Callable[[RuntimeEvent], None]
+
+_SENSITIVE_DETAIL_MARKERS = (
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "api_key",
+    "apikey",
+    "api-key",
+    "key",
+)
+
+
+def create_runtime_event_file_sink(path: str | Path) -> RuntimeEventSink:
+    """Create a tiny JSONL file sink for local runtime lifecycle events."""
+
+    event_path = Path(path)
+
+    def write_event(event: RuntimeEvent) -> None:
+        resolved = event_path.expanduser()
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        record = {
+            "timestamp": event.timestamp.isoformat(),
+            "level": event.level,
+            "category": event.category,
+            "name": event.name,
+            "message": redact_sensitive_text(event.message),
+            "details": _safe_event_details(event.details),
+        }
+        with resolved.open("a", encoding="utf-8", newline="\n") as file:
+            file.write(json.dumps(record, sort_keys=True) + "\n")
+
+    return write_event
+
+
+def compose_runtime_event_sinks(
+    *sinks: RuntimeEventSink | None,
+) -> RuntimeEventSink | None:
+    """Return one sink that invokes each provided sink in order."""
+
+    active_sinks = tuple(sink for sink in sinks if sink is not None)
+    if not active_sinks:
+        return None
+    if len(active_sinks) == 1:
+        return active_sinks[0]
+
+    def write_event(event: RuntimeEvent) -> None:
+        first_error: Exception | None = None
+        for sink in active_sinks:
+            try:
+                sink(event)
+            except Exception as exc:
+                if first_error is None:
+                    first_error = exc
+        if first_error is not None:
+            raise first_error
+
+    return write_event
+
+
+def _safe_event_details(details: Mapping[str, str]) -> dict[str, str]:
+    safe: dict[str, str] = {}
+    for key, value in details.items():
+        key_text = str(key)
+        if _sensitive_detail_key(key_text):
+            safe[key_text] = "<redacted>"
+        else:
+            safe[key_text] = redact_sensitive_text(value)
+    return safe
+
+
+def _sensitive_detail_key(key: str) -> bool:
+    normalized = key.lower().replace("-", "_")
+    return any(
+        marker.replace("-", "_") in normalized for marker in _SENSITIVE_DETAIL_MARKERS
+    )
 
 
 class RuntimeEventEmitter:

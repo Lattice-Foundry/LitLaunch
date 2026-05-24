@@ -46,6 +46,7 @@ cwd = "."
 streamlit_args = ["--server.runOnSave", "true"]
 app_args = ["--workspace", "demo"]
 extra_browser_args = ["--new-window"]
+runtime_event_log = ".litlaunch/runtime-events.log"
 graceful_timeout = 15
 
 [profiles.my-webapp.extra_env]
@@ -87,6 +88,9 @@ stable_polls = 2
     assert profile.config.streamlit_args == ("--server.runOnSave", "true")
     assert profile.config.app_args == ("--workspace", "demo")
     assert profile.config.extra_browser_args == ("--new-window",)
+    assert profile.config.runtime_event_log == tmp_path / ".litlaunch" / (
+        "runtime-events.log"
+    )
     assert profile.monitor_window is True
     assert profile.graceful_timeout_seconds == 15.0
     assert profile.window_monitor_config == WindowMonitorConfig(

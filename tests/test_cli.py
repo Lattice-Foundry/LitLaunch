@@ -1969,6 +1969,8 @@ def test_cli_run_builds_config_and_waits_for_backend():
             "server.maxUploadSize=20",
             "--app-arg",
             "dataset.json",
+            "--event-log",
+            ".litlaunch/runtime-events.log",
         ],
         stream=stream,
         launcher_factory=reset_fake_launcher(session),
@@ -1987,6 +1989,7 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.config.streamlit_flags["server.maxUploadSize"] == "20"
     assert launcher.config.app_args == ("dataset.json",)
     assert launcher.config.streamlit_args == ()
+    assert launcher.config.runtime_event_log == Path(".litlaunch/runtime-events.log")
     assert launcher.console_renderer is not None
     assert session.wait_calls == 1
     output = stream.getvalue()
@@ -2036,6 +2039,7 @@ app_path = "app.py"
 title = "Profile App"
 mode = "browser"
 port = 8501
+runtime_event_log = ".litlaunch/runtime-events.log"
 """,
             encoding="utf-8",
         )
@@ -2055,6 +2059,9 @@ port = 8501
     assert launcher.config.app_path == app
     assert launcher.config.title == "Profile App"
     assert launcher.config.port == 8502
+    assert launcher.config.runtime_event_log == output_dir / ".litlaunch" / (
+        "runtime-events.log"
+    )
     assert launcher.run_calls == 1
     assert session.wait_calls == 1
 

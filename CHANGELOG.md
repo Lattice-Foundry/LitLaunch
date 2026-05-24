@@ -8,6 +8,18 @@ package classifier remains `Development Status :: 4 - Beta` until the final
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.0rc2 - Release Candidate
+
+- Added optional runtime event log support for CLI/profile/Python launches via
+  `runtime_event_log`, `--event-log`, and the local JSONL
+  `create_runtime_event_file_sink()` helper.
+- Composed runtime event log sinks with app-provided `event_sink` callbacks so
+  packaged apps can keep product logs without losing custom integration hooks.
+- Improved generated diagnostics pages with an env-var-first event log resolver
+  and fallback path support for app-data or project-local runtime logs.
+- Updated generated diagnostics page charts for Streamlit's `width="stretch"`
+  API to avoid `use_container_width` deprecation warnings.
+
 ## 1.0.0rc1 - Release Candidate
 
 Summary:

@@ -79,6 +79,7 @@ from litlaunch import (
     WindowTarget,
     __version__,
     create_diagnostics_page,
+    create_runtime_event_file_sink,
     create_window_monitor,
     get_theme_color,
     hook_orange,
@@ -141,6 +142,7 @@ def test_public_imports_are_available():
     assert RuntimeEvent
     assert RuntimeEventSink
     assert RuntimeSession
+    assert create_runtime_event_file_sink
     assert SanitizedBundleRenderer
     assert LauncherRuntime
     assert ShutdownClient
@@ -231,6 +233,7 @@ def test_public_all_is_explicit():
         "RuntimeEvent",
         "RuntimeEventSink",
         "RuntimeSession",
+        "create_runtime_event_file_sink",
         "run_monitored_webapp",
         "run_profile",
         "SanitizedBundleRenderer",

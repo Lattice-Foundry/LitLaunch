@@ -152,6 +152,26 @@ def test_profile_writer_round_trips_non_default_trust_mode(tmp_path: Path):
     assert loaded.config.trust_mode == TrustMode.STRICT_LOCAL
 
 
+def test_profile_writer_round_trips_runtime_event_log(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(
+            app_path=app,
+            runtime_event_log=tmp_path / ".litlaunch" / "runtime-events.log",
+        ),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert 'runtime_event_log = ".litlaunch' in result.toml
+    assert loaded.config.runtime_event_log == tmp_path / ".litlaunch" / (
+        "runtime-events.log"
+    )
+
+
 def test_profile_writer_round_trips_browser_window_monitor(tmp_path: Path):
     app = tmp_path / "app.py"
     app.write_text("print('hello')\n", encoding="utf-8")

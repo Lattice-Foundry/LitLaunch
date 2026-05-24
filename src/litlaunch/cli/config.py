@@ -175,6 +175,12 @@ def add_runtime_flags(
         default=[],
         help="Add a browser command-line argument for this launch. Repeatable.",
     )
+    parser.add_argument(
+        "--event-log",
+        help=(
+            "Append structured runtime events to a local JSONL file for this launch."
+        ),
+    )
 
 
 def add_profile_flags(parser: argparse.ArgumentParser) -> None:
@@ -255,6 +261,12 @@ def runtime_config_from_args(
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
         extra_env=profile_config.extra_env if profile_config is not None else {},
+        runtime_event_log=profile_value(
+            args.event_log,
+            profile_config,
+            "runtime_event_log",
+            None,
+        ),
         streamlit_flags=merge_streamlit_flags(
             profile_config.streamlit_flags if profile_config is not None else {},
             args.streamlit_flag,

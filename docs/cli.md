@@ -142,6 +142,19 @@ to Streamlit:
 litlaunch run app.py --browser edge --browser-arg=--kiosk
 ```
 
+## Runtime Event Logs
+
+Use `--event-log PATH` when a CLI launch should append structured LitLaunch
+runtime events to a local JSONL file:
+
+```powershell
+litlaunch app.py --event-log .litlaunch/runtime-events.log
+```
+
+Event logs are local files only. LitLaunch does not upload, rotate, or manage
+them. Relative paths resolve from the project root for the launch, parent
+directories are created as needed, and sink failures do not stop the runtime.
+
 ## Streamlit Passthrough
 
 Unknown arguments before `--` are forwarded to Streamlit:
@@ -331,6 +344,7 @@ headless = true
 allow_browser_fallback = false
 allow_network_exposure = false
 trust_mode = "development"
+runtime_event_log = ".litlaunch/runtime-events.log"
 graceful_timeout = 15
 
 [profiles.my-webapp.window_monitor]

@@ -216,6 +216,7 @@ def __FUNCTION_NAME__() -> None:
     data = report.to_dict()
     _render_summary(st, data)
     _render_posture_cards(st, data)
+    _render_operational_snapshot(st, data)
     _render_artifact_actions(st, report)
     _render_sections(st, data)
     _render_event_trail(st)
@@ -532,6 +533,63 @@ def _render_posture_cards(st: Any, data: dict[str, Any]) -> None:
             _render_posture_card(st, label, _compact_metric_value(label, value), status)
 
 
+def _render_operational_snapshot(st: Any, data: dict[str, Any]) -> None:
+    _render_section_spacer(st)
+    st.subheader("Operational Snapshot")
+    status_column, activity_column = st.columns(2)
+    with status_column:
+        _render_status_mix_chart(st, data)
+    with activity_column:
+        event_counts = _event_category_counts()
+        if event_counts:
+            _render_event_mix_chart(st, event_counts)
+        else:
+            _render_section_attention_chart(st, data)
+
+
+def _render_status_mix_chart(st: Any, data: dict[str, Any]) -> None:
+    st.markdown("**Diagnostics Status Mix**")
+    rows = _status_mix_rows(data)
+    st.bar_chart(
+        rows,
+        x="status",
+        y="count",
+        color="color",
+        horizontal=True,
+        height=220,
+    )
+
+
+def _render_event_mix_chart(st: Any, counts: dict[str, int]) -> None:
+    st.markdown("**Runtime Event Mix**")
+    rows = [
+        {"category": category, "count": count}
+        for category, count in sorted(counts.items())
+    ]
+    st.bar_chart(
+        rows,
+        x="category",
+        y="count",
+        color="#3EB489",
+        height=220,
+    )
+
+
+def _render_section_attention_chart(st: Any, data: dict[str, Any]) -> None:
+    st.markdown("**Section Attention Map**")
+    rows = _section_attention_rows(data)
+    if not rows:
+        _render_notice(st, "info", "No section attention data is available.")
+        return
+    st.bar_chart(
+        rows,
+        x="section",
+        y=["errors", "warnings"],
+        color=["#E74C3C", "#F4F15A"],
+        height=220,
+    )
+
+
 def _render_artifact_actions(st: Any, report: Any) -> None:
     from litlaunch import (
         HTMLDiagnosticsRenderer,
@@ -670,6 +728,70 @@ def _render_event_trail(st: Any) -> None:
     _render_muted(st, f"Showing {len(recent_lines)} recent lines from:")
     st.code(str(event_path))
     st.code("\\n".join(recent_lines) or "No events recorded yet.")
+
+
+def _status_mix_rows(data: dict[str, Any]) -> list[dict[str, Any]]:
+    counts = {"ok": 0, "info": 0, "warning": 0, "error": 0}
+    for section in data.get("sections", []):
+        for item in section.get("items", []):
+            status = _normalize_status(str(item.get("status", "info")))
+            counts[status] += 1
+    return [
+        {"status": "OK", "count": counts["ok"], "color": "#3EB489"},
+        {"status": "Info", "count": counts["info"], "color": "#1A73E8"},
+        {"status": "Warning", "count": counts["warning"], "color": "#F4F15A"},
+        {"status": "Error", "count": counts["error"], "color": "#E74C3C"},
+    ]
+
+
+def _section_attention_rows(data: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for section in data.get("sections", []):
+        title = str(section.get("title", "Untitled"))
+        warning_count = 0
+        error_count = 0
+        for item in section.get("items", []):
+            status = _normalize_status(str(item.get("status", "info")))
+            if status == "warning":
+                warning_count += 1
+            elif status == "error":
+                error_count += 1
+        if warning_count or error_count:
+            rows.append(
+                {
+                    "section": title,
+                    "warnings": warning_count,
+                    "errors": error_count,
+                }
+            )
+    return rows
+
+
+def _event_category_counts() -> dict[str, int]:
+    if not INCLUDE_EVENTS or not EVENT_LOG_PATH:
+        return {}
+    event_path = _resolve_project_path(EVENT_LOG_PATH)
+    if not event_path.is_file():
+        return {}
+    counts: dict[str, int] = {}
+    for line in event_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        category = _extract_event_category(line)
+        if category:
+            counts[category] = counts.get(category, 0) + 1
+    return counts
+
+
+def _extract_event_category(line: str) -> str | None:
+    marker = "category="
+    if marker in line:
+        category = line.split(marker, 1)[1].split()[0].strip(" ,;")
+        return category or None
+    if "litlaunch_event" in line:
+        parts = line.split()
+        if len(parts) >= 4:
+            value = parts[3].strip("[]")
+            return value or None
+    return None
 
 
 def _render_posture_card(st: Any, label: str, value: str, status: str) -> None:

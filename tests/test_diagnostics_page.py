@@ -73,6 +73,10 @@ def test_generated_page_contains_real_diagnostics_sections():
     assert "litlaunch-row" in source
     assert "Runtime Summary" in source
     assert "Posture" in source
+    assert "Operational Snapshot" in source
+    assert "Diagnostics Status Mix" in source
+    assert "Runtime Event Mix" in source
+    assert "Section Attention Map" in source
     assert "Diagnostics Details" in source
     assert "Runtime Governance" in source
     assert "Runtime Exposure" in source
@@ -91,6 +95,10 @@ def test_generated_page_contains_expected_helper_functions():
         "_collect_diagnostics",
         "_render_summary",
         "_render_posture_cards",
+        "_render_operational_snapshot",
+        "_render_status_mix_chart",
+        "_render_event_mix_chart",
+        "_render_section_attention_chart",
         "_render_artifact_actions",
         "_render_download_artifact_group",
         "_render_write_artifact_group",
@@ -102,6 +110,10 @@ def test_generated_page_contains_expected_helper_functions():
         "_render_posture_card",
         "_render_diagnostic_row",
         "_render_section_spacer",
+        "_status_mix_rows",
+        "_section_attention_rows",
+        "_event_category_counts",
+        "_extract_event_category",
         "_item_status",
         "_compact_metric_value",
         "_status_class",

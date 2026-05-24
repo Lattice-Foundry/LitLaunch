@@ -4,6 +4,11 @@ LitLaunch uses pre-release package versions until the coordinated ecosystem
 launch. Public documentation is stable-facing while release notes remain
 concise.
 
+## 0.91.52b0
+
+- Added a generated diagnostics page Operational Snapshot section with
+  Streamlit-native status, event, and attention charts.
+
 ## 0.91.51b0
 
 - Added status-colored runtime summary values and more breathing room between

@@ -9,6 +9,8 @@ concise.
 - Added `auto`, `light`, and `dark` theme modes for generated diagnostics pages
   while keeping the existing polished dark appearance as the canonical dark
   theme.
+- Polished generated diagnostics page documentation and README positioning with
+  support-workflow guidance and screenshots.
 
 ## 0.91.52b0
 

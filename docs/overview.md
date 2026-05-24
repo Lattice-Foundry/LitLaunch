@@ -44,6 +44,7 @@ Implemented:
 - Graceful shutdown hooks
 - JSON/HTML/bundle inspect diagnostics
 - Runtime governance, exposure, and transport posture diagnostics
+- App-owned Streamlit diagnostics/support page generation
 - Profile wizard and lightweight project-local shortcut generation
 - Packaged/distributed workflow support on Windows, Linux, and macOS
   through the same runtime primitives
@@ -54,7 +55,7 @@ Implemented:
 Out of scope:
 
 - Local diagnostics dashboard/server
-- Runtime log viewer
+- Hosted runtime log viewer
 - Background monitor threads
 - Packaging automation
 - Installer creation

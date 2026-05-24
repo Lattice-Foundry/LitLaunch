@@ -124,10 +124,12 @@ when the app is intentionally exposed beyond the local machine.
 ### Generate app-owned support pages
 
 LitLaunch can generate a small Streamlit-native diagnostics/support page that
-host apps own, mount, and customize themselves. It can render runtime posture,
-diagnostic sections, support artifacts, and an optional runtime event trail
-without making LitLaunch a dashboard framework or adding Streamlit as a
-LitLaunch dependency.
+host apps own, mount, and customize themselves. It gives packaged apps,
+internal tools, and local-first products a ready support hub for runtime
+posture, diagnostic sections, support artifacts, operational snapshot charts,
+and an optional runtime event trail.
+
+![LitLaunch generated diagnostics page overview](https://raw.githubusercontent.com/Lattice-Foundry/LitLaunch/main/docs/assets/screenshots/diagnostics-page-overview.png)
 
 ```python
 from litlaunch import create_diagnostics_page
@@ -138,6 +140,21 @@ create_diagnostics_page(
     profile_name="my-webapp",
 )
 ```
+
+Then mount the generated function wherever it belongs in your Streamlit app:
+
+```python
+from ui.litlaunch_diagnostics import render_litlaunch_diagnostics
+
+render_litlaunch_diagnostics()
+```
+
+The generated page imports Streamlit inside app-owned generated code; LitLaunch
+itself does not add Streamlit as a package dependency. `theme="auto"` is the
+default and preferred mode, `dark` is the polished LitLaunch/RoleThread support
+style, and `light` is a functional starting point for light apps. The generated
+theme tokens are centralized so teams can quickly adjust the page to match
+their product.
 
 ## What It Solves
 

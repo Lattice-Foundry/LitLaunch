@@ -142,6 +142,33 @@ use `trust_mode = "strict_local"` for loopback-only tools. Intentional internal
 network profiles should use `trust_mode = "internal_network"` plus explicit
 `allow_network_exposure = true`.
 
+## Generate A Support Page
+
+Apps that want an in-app diagnostics/support surface can generate an editable
+Streamlit page:
+
+```python
+from litlaunch import create_diagnostics_page
+
+create_diagnostics_page(
+    output_path="ui/litlaunch_diagnostics.py",
+    app_name="My App",
+    profile_name="my-webapp",
+)
+```
+
+Then mount it wherever it fits the app's navigation:
+
+```python
+from ui.litlaunch_diagnostics import render_litlaunch_diagnostics
+
+render_litlaunch_diagnostics()
+```
+
+The generated page is app-owned code. It imports Streamlit inside the generated
+module, uses `theme="auto"` by default, and can be customized after generation
+to match the host app.
+
 Python integrations can use the same profile runtime path:
 
 ```python

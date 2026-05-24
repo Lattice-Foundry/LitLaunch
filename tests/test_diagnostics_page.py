@@ -35,6 +35,8 @@ def test_create_diagnostics_page_writes_valid_python(tmp_path):
     assert "import streamlit as st" in source
     assert "Runtime Summary" in source
     assert "Support Artifacts" in source
+    assert "This app-owned page summarizes runtime diagnostics" not in source
+    assert "Diagnostics are intended for support review" not in source
 
 
 def test_builder_api_writes_custom_function_and_creates_parent(tmp_path):

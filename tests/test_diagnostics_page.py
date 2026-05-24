@@ -1,5 +1,6 @@
 import ast
 import builtins
+import json
 
 import pytest
 
@@ -120,6 +121,7 @@ def test_generated_page_contains_expected_helper_functions():
         "_section_attention_rows",
         "_event_category_counts",
         "_extract_event_category",
+        "_extract_json_event_category",
         "_runtime_event_log_path",
         "_item_status",
         "_compact_metric_value",
@@ -251,6 +253,72 @@ def test_generated_page_event_log_resolver_prefers_env_var(monkeypatch):
     event_log_path = namespace["_runtime_event_log_path"]()
 
     assert event_log_path.parts[-2:] == ("runtime", "from-env.log")
+
+
+def test_generated_page_counts_jsonl_runtime_event_categories(tmp_path):
+    event_path = tmp_path / ".litlaunch" / "runtime-events.log"
+    event_path.parent.mkdir()
+    categories = [
+        "launch",
+        "backend",
+        "health",
+        "browser",
+        "monitor",
+        "shutdown",
+        "hook",
+        "port",
+    ]
+    lines = [
+        json.dumps(
+            {
+                "timestamp": "2026-05-24T12:00:00+00:00",
+                "level": "info",
+                "category": category,
+                "name": f"{category}_event",
+                "message": f"{category.title()} event.",
+                "details": {"secret": "not counted or rendered"},
+            },
+            sort_keys=True,
+        )
+        for category in categories
+    ]
+    lines.extend(
+        [
+            "not json",
+            "{not json",
+            json.dumps(["not", "an", "object"]),
+            json.dumps({"category": ""}),
+            json.dumps({"category": 123}),
+            json.dumps({"details": {"category": "ignored"}}),
+        ]
+    )
+    event_path.write_text("\n".join(lines), encoding="utf-8")
+
+    namespace: dict[str, object] = {}
+    source = _source_for(
+        project_root=tmp_path,
+        event_log_path=".litlaunch/runtime-events.log",
+    )
+    exec(source, namespace)  # noqa: S102 - generated source is under test.
+
+    event_category_counts = namespace["_event_category_counts"]
+
+    assert event_category_counts() == {category: 1 for category in categories}
+
+
+def test_generated_page_keeps_plain_event_line_category_parsing():
+    namespace: dict[str, object] = {}
+    exec(_source_for(), namespace)  # noqa: S102 - generated source is under test.
+    extract_event_category = namespace["_extract_event_category"]
+
+    assert (
+        extract_event_category(
+            "litlaunch_event level=info category=browser name=browser_launched"
+        )
+        == "browser"
+    )
+    assert extract_event_category("legacy category=backend name=started") == "backend"
+    assert extract_event_category("{malformed") is None
 
 
 def test_existing_file_requires_overwrite(tmp_path):

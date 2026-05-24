@@ -11,7 +11,6 @@ from litlaunch.exceptions import ConfigurationError
 from litlaunch.exposure import classify_host_exposure
 from litlaunch.platforms import PlatformInfo
 from litlaunch.profile_detection import AppRootDetection, detect_app_root
-from litlaunch.profile_wizard_navigation import previous_step_index
 from litlaunch.profile_wizard_rendering import (
     preview_profile as _preview_profile,
 )
@@ -30,6 +29,7 @@ from litlaunch.profile_wizard_state import (
     InputFunc,
     ProfileWizardCancelled,
     ProfileWizardOptions,
+    previous_step_index,
 )
 from litlaunch.profile_wizard_state import (
     WizardBack as _WizardBack,

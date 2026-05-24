@@ -4,18 +4,17 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchState
-from litlaunch.monitored_browser import run_monitored_browser_window
 from litlaunch.monitored_common import (
     coerce_launcher,
     create_monitor,
     session_is_running,
 )
-from litlaunch.monitored_types import MonitoredRunResult
 from litlaunch.platforms import PlatformDetector, PlatformInfo
 from litlaunch.profiles import LaunchProfile
 from litlaunch.runtime_console import render_window_monitor_result
@@ -30,6 +29,18 @@ from litlaunch.windowing import (
     WindowTarget,
     create_window_monitor,
 )
+
+
+@dataclass(frozen=True)
+class MonitoredRunResult:
+    """Structured result for a monitored runtime run."""
+
+    exit_code: int
+    session: RuntimeSession | None
+    monitor_result: WindowMonitorResult | None
+    message: str
+    launched: bool
+    stopped_cleanly: bool
 
 
 def run_monitored_webapp(
@@ -250,6 +261,33 @@ def run_profile(
         message=session.result.message,
         launched=session.ok,
         stopped_cleanly=session.process is None or not session_is_running(session),
+    )
+
+
+def run_monitored_browser_window(
+    launcher_or_config: StreamlitLauncher | LauncherConfig,
+    *,
+    window_monitor_config: WindowMonitorConfig | None = None,
+    graceful_timeout_seconds: float = 3.0,
+    platform_detector: PlatformDetector | None = None,
+    window_monitor_factory: Callable[
+        [PlatformInfo], WindowMonitor
+    ] = create_window_monitor,
+    monitor: WindowMonitor | None = None,
+    launcher_factory: type[StreamlitLauncher] = StreamlitLauncher,
+) -> MonitoredRunResult:
+    """Run browser mode with best-effort browser-window observation."""
+
+    from litlaunch.monitored_browser import run_monitored_browser_window as _run
+
+    return _run(
+        launcher_or_config,
+        window_monitor_config=window_monitor_config,
+        graceful_timeout_seconds=graceful_timeout_seconds,
+        platform_detector=platform_detector,
+        window_monitor_factory=window_monitor_factory,
+        monitor=monitor,
+        launcher_factory=launcher_factory,
     )
 
 

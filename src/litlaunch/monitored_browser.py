@@ -10,13 +10,13 @@ from litlaunch.console import ConsolePhase
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.launcher import StreamlitLauncher
 from litlaunch.lifecycle import LaunchState
+from litlaunch.monitored import MonitoredRunResult
 from litlaunch.monitored_common import (
     attach_console_renderer,
     coerce_launcher,
     create_monitor,
     session_is_running,
 )
-from litlaunch.monitored_types import MonitoredRunResult
 from litlaunch.platforms import PlatformDetector, PlatformInfo
 from litlaunch.runtime_console import (
     render_phase_start,

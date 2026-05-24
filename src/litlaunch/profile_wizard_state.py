@@ -91,3 +91,16 @@ class WizardStep:
     handler: Callable[[WizardState, WizardIo], None]
     context: str
     skip: Callable[[WizardState], bool] = lambda _state: False
+
+
+def previous_step_index(
+    steps: tuple[WizardStep, ...],
+    state: WizardState,
+    index: int,
+) -> int:
+    """Return the nearest previous visible wizard step index."""
+
+    for previous in range(index - 1, -1, -1):
+        if not steps[previous].skip(state):
+            return previous
+    return index

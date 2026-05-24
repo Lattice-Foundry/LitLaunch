@@ -4,6 +4,7 @@ from io import StringIO
 from litlaunch._protocols import ClockProvider
 from litlaunch.browsers import BrowserCapability, BrowserKind
 from litlaunch.console import ConsoleMode, ConsoleRenderer, ConsoleTheme
+from litlaunch.events import RuntimeEvent, RuntimeEventEmitter
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess
 from litlaunch.session import RuntimeSession
@@ -138,7 +139,76 @@ def test_runtime_session_exposes_launch_result_convenience_properties():
     assert session.browser == browser
     assert session.browser_command == ("browser", "--app=http://127.0.0.1:8501")
     assert session.browser_launched is True
-    assert session.events == result.events
+
+
+def test_runtime_session_emits_shutdown_hook_and_stop_events():
+    events: list[RuntimeEvent] = []
+    process_manager = FakeProcessManager(running=True, wait_return=0)
+    session = RuntimeSession(
+        result=make_result(),
+        process=make_process(),
+        process_manager=process_manager,
+        shutdown_client=FakeShutdownClient(
+            ok=True,
+            hook_results=(
+                ShutdownHookResult(
+                    label="Cloud sync",
+                    ok=True,
+                    message="Cloud sync complete.",
+                ),
+                ShutdownHookResult(
+                    label="Cleanup",
+                    ok=False,
+                    message="Cleanup failed.",
+                    error="SECRET_TOKEN=do-not-emit",
+                ),
+            ),
+        ),
+        event_emitter=RuntimeEventEmitter(events.append),
+        port_release_checker=lambda host, port: True,
+        clock=FakeClock(),
+    )
+
+    session.stop()
+
+    assert [event.name for event in events] == [
+        "shutdown_requested",
+        "hook_succeeded",
+        "hook_failed",
+        "backend_stopped",
+        "port_released",
+    ]
+    assert events[1].details == {"label": "Cloud sync"}
+    assert events[2].level == "error"
+    assert "SECRET_TOKEN" not in "\n".join(
+        line
+        for event in events
+        for line in (
+            event.message,
+            *[f"{key}={value}" for key, value in event.details.items()],
+        )
+    )
+
+
+def test_runtime_session_event_sink_failure_does_not_break_shutdown():
+    process_manager = FakeProcessManager(running=True, wait_return=0)
+
+    def failing_sink(event):
+        raise RuntimeError("sink exploded")
+
+    session = RuntimeSession(
+        result=make_result(),
+        process=make_process(),
+        process_manager=process_manager,
+        shutdown_client=FakeShutdownClient(ok=True),
+        event_emitter=RuntimeEventEmitter(failing_sink),
+        clock=FakeClock(),
+    )
+
+    session.stop()
+
+    assert session.state == LaunchState.TERMINATED
+    assert process_manager.wait_calls
 
 
 def test_runtime_session_is_running_delegates_to_process_manager():

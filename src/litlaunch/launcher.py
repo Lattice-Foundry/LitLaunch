@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import replace
+from pathlib import Path
 from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
@@ -16,6 +17,7 @@ from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResoluti
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.console import ConsolePhase, ConsoleRenderer
+from litlaunch.events import RuntimeEventEmitter, RuntimeEventSink
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.exposure import classify_host_exposure
 from litlaunch.governance import validate_runtime_governance
@@ -46,7 +48,7 @@ class StreamlitLauncher:
 
     def __init__(
         self,
-        config: LauncherConfig,
+        config: LauncherConfig | str | Path,
         *,
         port_manager: PortManager | None = None,
         process_manager: ProcessManager | None = None,
@@ -55,14 +57,17 @@ class StreamlitLauncher:
         browser_launcher: BrowserLauncher | None = None,
         backend_command_provider: BackendCommandProvider | None = None,
         console_renderer: ConsoleRenderer | None = None,
+        event_sink: RuntimeEventSink | None = None,
         clock: ClockProvider = time,
     ) -> None:
-        self.config = config
-        self.command_builder = StreamlitCommandBuilder(config)
+        self.config = (
+            config if isinstance(config, LauncherConfig) else LauncherConfig(config)
+        )
+        self.command_builder = StreamlitCommandBuilder(self.config)
         self.backend_command_provider = (
             backend_command_provider or StreamlitBackendCommandProvider()
         )
-        self.port_manager = port_manager or PortManager(config.host)
+        self.port_manager = port_manager or PortManager(self.config.host)
         self.process_manager = process_manager or ProcessManager()
         self.health_checker = health_checker or HealthChecker()
         self.browser_registry = browser_registry or create_default_browser_registry()
@@ -70,6 +75,11 @@ class StreamlitLauncher:
             registry=self.browser_registry
         )
         self.console_renderer = console_renderer
+        self.event_sink = event_sink
+        self.event_emitter = RuntimeEventEmitter(
+            event_sink,
+            console_renderer=console_renderer,
+        )
         self.clock = clock
 
     def build_command(self) -> tuple[str, ...]:
@@ -141,18 +151,22 @@ class StreamlitLauncher:
         """Start the Streamlit backend without launching a browser."""
 
         render_runtime_header(self.console_renderer, self.config)
+        self._emit_launch_planned()
         self._enforce_network_exposure_acknowledgement()
+        self._emit_backend_starting()
         backend_start = self._start_backend(
             wait_for_health=wait_for_health,
             health_timeout_seconds=health_timeout_seconds,
             health_interval_seconds=health_interval_seconds,
         )
+        self._emit_backend_start_result(backend_start.result)
         return RuntimeSession(
             result=backend_start.result,
             process=backend_start.process,
             process_manager=self.process_manager,
             shutdown_client=backend_start.shutdown_client,
             console_renderer=self.console_renderer,
+            event_emitter=self.event_emitter,
             port_release_checker=self.port_manager.is_port_available,
             clock=self.clock,
         )
@@ -171,13 +185,16 @@ class StreamlitLauncher:
         """
 
         render_runtime_header(self.console_renderer, self.config)
+        self._emit_launch_planned()
         self._enforce_network_exposure_acknowledgement()
+        self._emit_backend_starting()
         backend_start = self._start_backend(
             wait_for_health=True,
             health_timeout_seconds=health_timeout_seconds,
             health_interval_seconds=health_interval_seconds,
         )
         backend_result = backend_start.result
+        self._emit_backend_start_result(backend_result)
         managed_process = backend_start.process
         if (
             not backend_result.ok
@@ -190,6 +207,7 @@ class StreamlitLauncher:
                 process_manager=self.process_manager,
                 shutdown_client=None,
                 console_renderer=self.console_renderer,
+                event_emitter=self.event_emitter,
                 port_release_checker=self.port_manager.is_port_available,
                 clock=self.clock,
             )
@@ -285,6 +303,7 @@ class StreamlitLauncher:
                 process_manager=self.process_manager,
                 shutdown_client=None,
                 console_renderer=self.console_renderer,
+                event_emitter=self.event_emitter,
                 port_release_checker=self.port_manager.is_port_available,
                 clock=self.clock,
             )
@@ -295,6 +314,16 @@ class StreamlitLauncher:
             ConsolePhase.BROWSER,
             browser_result.message,
             elapsed_seconds=browser_elapsed,
+        )
+        self.event_emitter.emit(
+            "browser_launched",
+            category="browser",
+            message=browser_result.message,
+            details={
+                "browser": browser_name,
+                "mode": self.config.mode.value,
+                "url": backend_result.url,
+            },
         )
         render_runtime_ready(self.console_renderer, backend_result.url)
         result = LaunchResult(
@@ -315,6 +344,7 @@ class StreamlitLauncher:
             process_manager=self.process_manager,
             shutdown_client=backend_start.shutdown_client,
             console_renderer=self.console_renderer,
+            event_emitter=self.event_emitter,
             port_release_checker=self.port_manager.is_port_available,
             clock=self.clock,
         )
@@ -367,6 +397,7 @@ class StreamlitLauncher:
             browser_launcher=self.browser_launcher,
             backend_command_provider=self.backend_command_provider,
             console_renderer=self.console_renderer,
+            event_sink=self.event_sink,
             clock=self.clock,
         )
 
@@ -388,8 +419,6 @@ class StreamlitLauncher:
             self.console_renderer.render_launch_event(event)
 
     def _render_port_release_if_verified(self, url: str | None) -> None:
-        if self.console_renderer is None:
-            return
         host_port = _parse_url_host_port(url)
         if host_port is None:
             return
@@ -399,7 +428,14 @@ class StreamlitLauncher:
         except Exception:
             return
         if released:
-            self.console_renderer.success(f"Backend: port {port} released")
+            if self.console_renderer is not None:
+                self.console_renderer.success(f"Backend: port {port} released")
+            self.event_emitter.emit(
+                "port_released",
+                category="port",
+                message=f"Backend port {port} released.",
+                details={"host": host, "port": port},
+            )
 
     def _enforce_network_exposure_acknowledgement(self) -> None:
         exposure = classify_host_exposure(self.config.host)
@@ -414,6 +450,58 @@ class StreamlitLauncher:
             validate_runtime_governance(self.config)
         except ValueError as exc:
             raise LitLaunchError(str(exc)) from exc
+
+    def _emit_launch_planned(self) -> None:
+        self.event_emitter.emit(
+            "launch_planned",
+            category="launch",
+            message="Runtime launch planned.",
+            details={
+                "app_path": self.config.app_path,
+                "mode": self.config.mode.value,
+                "browser": self.config.browser.value,
+                "host": self.config.host,
+                "port": self.config.port or "auto",
+            },
+        )
+
+    def _emit_backend_starting(self) -> None:
+        self.event_emitter.emit(
+            "backend_starting",
+            category="backend",
+            message="Backend startup requested.",
+            details={"host": self.config.host, "port": self.config.port or "auto"},
+        )
+
+    def _emit_backend_start_result(self, result: LaunchResult) -> None:
+        host_port = _parse_url_host_port(result.url)
+        details: dict[str, object] = {}
+        if result.pid is not None:
+            details["pid"] = result.pid
+        if host_port is not None:
+            details["host"], details["port"] = host_port
+        if result.pid is not None:
+            self.event_emitter.emit(
+                "backend_started",
+                category="backend",
+                message="Backend process started.",
+                details=details,
+            )
+        if result.ok and result.state == LaunchState.HEALTHY:
+            self.event_emitter.emit(
+                "health_ready",
+                category="health",
+                message="Streamlit health check passed.",
+                details=details,
+            )
+        elif not result.ok:
+            self.event_emitter.emit(
+                "backend_start_failed",
+                category="backend",
+                level="error",
+                message="Backend startup failed.",
+                details=details,
+            )
 
 
 def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:

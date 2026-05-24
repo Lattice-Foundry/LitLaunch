@@ -483,6 +483,7 @@ See [docs/inspect.md](docs/inspect.md) and
 - [Quickstart](docs/quickstart.md)
 - [CLI](docs/cli.md)
 - [Security And Trust Boundaries](docs/security.md)
+- [Runtime Events](docs/runtime_events.md)
 - [Browser Support](docs/browser_support.md)
 - [Window Monitoring](docs/window_monitoring.md)
 - [Inspect](docs/inspect.md)

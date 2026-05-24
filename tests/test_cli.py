@@ -24,6 +24,7 @@ from litlaunch.cli import build_parser, main
 from litlaunch.colors import THEME_COLORS, muted_amber, streamlit_blue, terminal_green
 from litlaunch.config import BrowserChoice, LaunchMode, TrustMode
 from litlaunch.console import strip_ansi
+from litlaunch.events import RuntimeEventEmitter
 from litlaunch.inspect import (
     DiagnosticItem,
     DiagnosticSection,
@@ -168,6 +169,8 @@ class FakeSession:
         self.running = ok
         self.console_renderer = None
         self.events = []
+        self.runtime_events = []
+        self.event_emitter = RuntimeEventEmitter(self.runtime_events.append)
         self.result = LaunchResult(
             ok=ok,
             state=LaunchState.RUNNING if ok else LaunchState.FAILED,

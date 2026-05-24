@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
 from litlaunch.console import ConsoleMode, ConsolePhase, ConsoleRenderer
+from litlaunch.events import RuntimeEventEmitter
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.runtime_console import (
@@ -43,6 +44,7 @@ class RuntimeSession:
         process_manager: ProcessManager,
         shutdown_client: ShutdownClient | None = None,
         console_renderer: ConsoleRenderer | None = None,
+        event_emitter: RuntimeEventEmitter | None = None,
         port_release_checker: Callable[[str, int], bool] | None = None,
         clock: ClockProvider = time,
     ) -> None:
@@ -51,6 +53,7 @@ class RuntimeSession:
         self.process_manager = process_manager
         self._shutdown_client = shutdown_client
         self.console_renderer = console_renderer
+        self.event_emitter = event_emitter or RuntimeEventEmitter()
         self._port_release_checker = port_release_checker
         self.clock = clock
         self._events = list(result.events)
@@ -139,6 +142,11 @@ class RuntimeSession:
             ConsolePhase.SHUTDOWN,
             "requested",
             verbose_only=True,
+        )
+        self.event_emitter.emit(
+            "shutdown_requested",
+            category="shutdown",
+            message="Runtime shutdown requested.",
         )
 
         if self._shutdown_client is not None and self.is_running():
@@ -240,6 +248,11 @@ class RuntimeSession:
                 "Owned backend process stopped.",
                 render=False,
             )
+            self.event_emitter.emit(
+                "backend_stopped",
+                category="backend",
+                message="Backend process was already stopped.",
+            )
             render_phase_success(
                 self.console_renderer,
                 ConsolePhase.SHUTDOWN,
@@ -278,6 +291,11 @@ class RuntimeSession:
             LaunchState.TERMINATED,
             "Owned backend process stopped.",
             render=False,
+        )
+        self.event_emitter.emit(
+            "backend_stopped",
+            category="backend",
+            message="Backend process stopped through termination fallback.",
         )
         render_phase_success(
             self.console_renderer,
@@ -329,6 +347,12 @@ class RuntimeSession:
             LaunchState.WINDOW_MONITORING,
             "Window monitoring started.",
             render=False,
+        )
+        self.event_emitter.emit(
+            "monitor_started",
+            category="monitor",
+            message="App-window monitoring started.",
+            details={"target": target.title, "mode": "webapp"},
         )
         render_phase_start(
             self.console_renderer,
@@ -405,6 +429,12 @@ class RuntimeSession:
                 else "Backend: exited cleanly"
             )
             self.add_event(LaunchState.TERMINATED, message, render=False)
+            self.event_emitter.emit(
+                "backend_stopped",
+                category="backend",
+                message="Backend process stopped cleanly.",
+                details={"returncode": code},
+            )
             render_phase_success(
                 self.console_renderer,
                 ConsolePhase.SHUTDOWN if expected_shutdown else ConsolePhase.BACKEND,
@@ -418,6 +448,13 @@ class RuntimeSession:
             f"Owned backend process exited with code {code}.",
             render=False,
         )
+        self.event_emitter.emit(
+            "backend_stopped",
+            category="backend",
+            level="error",
+            message=f"Backend process exited with code {code}.",
+            details={"returncode": code},
+        )
         render_failure_guidance(
             self.console_renderer,
             f"Backend: exited with code {code}.",
@@ -428,7 +465,7 @@ class RuntimeSession:
         )
 
     def _render_port_release_if_verified(self) -> None:
-        if self.console_renderer is None or self._port_release_checker is None:
+        if self._port_release_checker is None:
             return
         host_port = _parse_url_host_port(self.result.url)
         if host_port is None:
@@ -439,16 +476,29 @@ class RuntimeSession:
         except Exception:
             return
         if released:
-            self.console_renderer.success(f"Backend: port {port} released")
+            if self.console_renderer is not None:
+                self.console_renderer.success(f"Backend: port {port} released")
+            self.event_emitter.emit(
+                "port_released",
+                category="port",
+                message=f"Backend port {port} released.",
+                details={"host": host, "port": port},
+            )
 
     def _render_shutdown_hook_results(
         self,
         hook_results: tuple[ShutdownHookResult, ...],
     ) -> None:
-        if self.console_renderer is None:
-            return
         for hook_result in hook_results:
-            self.console_renderer.render_shutdown_hook_result(hook_result)
+            self.event_emitter.emit(
+                "hook_succeeded" if hook_result.ok else "hook_failed",
+                category="hook",
+                level="info" if hook_result.ok else "error",
+                message=hook_result.message,
+                details={"label": hook_result.label},
+            )
+            if self.console_renderer is not None:
+                self.console_renderer.render_shutdown_hook_result(hook_result)
 
     def _is_verbose_console(self) -> bool:
         return (

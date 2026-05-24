@@ -4,6 +4,7 @@ import pytest
 
 from litlaunch import LauncherConfig, LaunchMode, LaunchProfile
 from litlaunch.browsers import BrowserCapability, BrowserKind
+from litlaunch.events import RuntimeEventEmitter
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.monitored import (
     MonitoredRunResult,
@@ -99,6 +100,8 @@ class FakeSession:
         self.running = ok
         self.console_renderer = None
         self.events = []
+        self.runtime_events = []
+        self.event_emitter = RuntimeEventEmitter(self.runtime_events.append)
 
     def monitor_window(self, monitor, target, **kwargs):
         self.monitor_calls.append((monitor, target, kwargs))
@@ -505,6 +508,7 @@ def test_run_monitored_browser_window_stops_when_new_browser_hwnd_closes():
     assert session.stop_calls == [((), {"graceful_timeout_seconds": 5.0})]
     assert monitor.capture_calls[0].app_mode is False
     assert monitor.capture_calls[0].browser_kind is None
+    assert [event.name for event in session.runtime_events] == ["monitor_started"]
 
 
 def test_run_monitored_browser_window_no_new_hwnd_falls_back_to_ctrl_c():

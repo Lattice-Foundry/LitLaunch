@@ -1,7 +1,7 @@
 import os
 from io import StringIO
 
-from litlaunch import LauncherConfig, LaunchMode
+from litlaunch import LauncherConfig, LaunchMode, RuntimeEvent
 from litlaunch.backend import BackendCommand, BackendCommandContext
 from litlaunch.browsers import (
     BrowserCapability,
@@ -160,6 +160,107 @@ def fake_browser(kind=BrowserKind.EDGE):
         supports_app_mode=kind != BrowserKind.DEFAULT,
         supports_full_browser=True,
     )
+
+
+def test_launcher_accepts_app_path_string_with_event_sink():
+    events = []
+    sink = events.append
+
+    launcher = StreamlitLauncher("app.py", event_sink=sink)
+
+    assert launcher.config == LauncherConfig("app.py")
+    assert launcher.event_sink is sink
+
+
+def test_runtime_event_sink_receives_basic_launch_lifecycle_events():
+    events: list[RuntimeEvent] = []
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8600),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        event_sink=events.append,
+        clock=FakeClock(),
+    )
+
+    session = launcher.start()
+
+    assert session.ok is True
+    assert [event.name for event in events] == [
+        "launch_planned",
+        "backend_starting",
+        "backend_started",
+        "health_ready",
+        "browser_launched",
+    ]
+    assert {event.level for event in events} == {"info"}
+    assert events[0].category == "launch"
+    assert events[0].timestamp.tzinfo is not None
+    assert events[2].details["pid"] == "999"
+    assert events[3].details["port"] == "8600"
+    assert events[-1].category == "browser"
+
+
+def test_runtime_event_sink_does_not_receive_raw_env_secrets():
+    events: list[RuntimeEvent] = []
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            extra_env={"APP_TOKEN": "super-secret-token"},
+            streamlit_args=("--server.cookieSecret", "cookie-secret"),
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        event_sink=events.append,
+        clock=FakeClock(),
+    )
+
+    launcher.start()
+
+    rendered = "\n".join(
+        line
+        for event in events
+        for line in (
+            event.message,
+            *[f"{key}={value}" for key, value in event.details.items()],
+        )
+    )
+    assert "super-secret-token" not in rendered
+    assert "cookie-secret" not in rendered
+
+
+def test_runtime_event_sink_exception_does_not_break_launch():
+    stream = StringIO()
+    console = ConsoleRenderer(
+        mode=ConsoleMode.VERBOSE,
+        stream=stream,
+        theme=ConsoleTheme(use_color=False),
+    )
+
+    def failing_sink(event):
+        raise RuntimeError("sink exploded")
+
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8600),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        console_renderer=console,
+        event_sink=failing_sink,
+        clock=FakeClock(),
+    )
+
+    session = launcher.start()
+
+    assert session.ok is True
+    assert stream.getvalue().count("Runtime: Event sink failed") == 1
 
 
 def test_launcher_builds_app_and_health_urls_with_resolved_port():

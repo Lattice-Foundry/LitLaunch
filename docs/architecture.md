@@ -82,6 +82,11 @@ resolution, backend description, working directory, app args, Streamlit flags,
 passthrough args, and redacted environment display without starting a backend
 process or opening a browser.
 
+Python integrations can attach an optional runtime event sink to
+`StreamlitLauncher` when they need product logs or support trails. The sink is a
+small structured callback surface, not telemetry or a logging framework, and
+runtime behavior continues even if the sink fails.
+
 `StreamlitBackendCommandProvider` is the default command provider and preserves
 the normal `python -m streamlit run ...` source-app command. Custom providers
 may supply a different command tuple for packaged or embedded apps, but they do

@@ -28,6 +28,7 @@ from litlaunch.console import (
     ConsoleRenderer,
     ConsoleTheme,
 )
+from litlaunch.events import RuntimeEvent, RuntimeEventSink
 from litlaunch.exceptions import (
     BrowserError,
     CommandBuildError,
@@ -143,6 +144,8 @@ __all__ = [
     "load_profile",
     "load_profiles",
     "RuntimeSession",
+    "RuntimeEvent",
+    "RuntimeEventSink",
     "run_profile",
     "run_monitored_webapp",
     "ShutdownClient",

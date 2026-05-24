@@ -4,6 +4,12 @@ LitLaunch uses pre-release package versions until the coordinated ecosystem
 launch. Public documentation is stable-facing while release notes remain
 concise.
 
+## 0.91.45b0
+
+- Added a tiny optional `RuntimeEvent` sink API for Python integrations that
+  need product logs or support trails for core LitLaunch lifecycle milestones
+  without scraping console output or adding telemetry.
+
 ## 0.91.44b0
 
 - Aligned PyPI metadata with the pre-release version line while keeping public

@@ -174,6 +174,12 @@ def wait_for_browser_window_lifecycle(
         ConsolePhase.MONITOR,
         "scanning for browser instance",
     )
+    session.event_emitter.emit(
+        "monitor_started",
+        category="monitor",
+        message="Browser-window monitoring started.",
+        details={"mode": "browser", "target": target.title},
+    )
     result = select_new_browser_window(
         monitor,
         target,

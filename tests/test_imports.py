@@ -50,6 +50,8 @@ from litlaunch import (
     PortManager,
     ProcessError,
     ProcessManager,
+    RuntimeEvent,
+    RuntimeEventSink,
     RuntimeSession,
     SanitizedBundleRenderer,
     ShutdownClient,
@@ -131,6 +133,8 @@ def test_public_imports_are_available():
     assert PollingWindowMonitor
     assert issubclass(ProcessError, LitLaunchError)
     assert ProcessManager
+    assert RuntimeEvent
+    assert RuntimeEventSink
     assert RuntimeSession
     assert SanitizedBundleRenderer
     assert LauncherRuntime
@@ -216,6 +220,8 @@ def test_public_all_is_explicit():
         "PortManager",
         "ProcessError",
         "ProcessManager",
+        "RuntimeEvent",
+        "RuntimeEventSink",
         "RuntimeSession",
         "run_monitored_webapp",
         "run_profile",

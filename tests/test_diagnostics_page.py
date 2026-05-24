@@ -67,6 +67,8 @@ def test_generated_page_contains_real_diagnostics_sections():
     assert "Diagnostics content will be rendered here" not in source
     assert "litlaunch-meta-label" in source
     assert "litlaunch-slug" in source
+    assert "litlaunch-summary-value" in source
+    assert "litlaunch-section" in source
     assert "litlaunch-posture-card" in source
     assert "litlaunch-row" in source
     assert "Runtime Summary" in source
@@ -96,8 +98,10 @@ def test_generated_page_contains_expected_helper_functions():
         "_render_event_trail",
         "_inject_litlaunch_styles",
         "_render_page_intro",
+        "_render_summary_value",
         "_render_posture_card",
         "_render_diagnostic_row",
+        "_render_section_spacer",
         "_item_status",
         "_compact_metric_value",
         "_status_class",

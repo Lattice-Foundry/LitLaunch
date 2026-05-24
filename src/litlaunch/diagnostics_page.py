@@ -296,6 +296,35 @@ def _inject_litlaunch_styles(st: Any) -> None:
     font-size: 0.9rem;
     line-height: 1.45;
 }
+.litlaunch-section {
+    margin-top: 2.05rem;
+}
+.litlaunch-section-compact {
+    margin-top: 1.35rem;
+}
+.litlaunch-summary-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin-top: 0.12rem;
+}
+.litlaunch-summary-label {
+    color: #E8E8E8;
+    font-size: 0.88rem;
+    line-height: 1.35;
+}
+.litlaunch-text-ok {
+    color: #3EB489;
+}
+.litlaunch-text-info {
+    color: #F4F15A;
+}
+.litlaunch-text-warning {
+    color: #F4F15A;
+}
+.litlaunch-text-error {
+    color: #E74C3C;
+}
 .litlaunch-notice {
     border-left: 3px solid #1A73E8;
     border-radius: 0.42rem;
@@ -434,13 +463,31 @@ def _render_collection_error(st: Any, message: str | None, detail: str | None) -
 
 
 def _render_summary(st: Any, data: dict[str, Any]) -> None:
+    _render_section_spacer(st)
     st.subheader("Runtime Summary")
     columns = st.columns(4)
-    status = "OK" if data.get("ok") else "Needs attention"
-    columns[0].metric("Diagnostics", status)
-    columns[1].metric("Errors", data.get("errors", 0))
-    columns[2].metric("Warnings", data.get("warnings", 0))
-    columns[3].metric("LitLaunch", data.get("litlaunch_version", "unknown"))
+    errors = int(data.get("errors", 0) or 0)
+    warnings = int(data.get("warnings", 0) or 0)
+    diagnostics_status = "OK" if data.get("ok") else "Needs attention"
+    diagnostics_level = "ok" if data.get("ok") else ("error" if errors else "warning")
+    with columns[0]:
+        _render_summary_value(st, "Diagnostics", diagnostics_status, diagnostics_level)
+    with columns[1]:
+        _render_summary_value(st, "Errors", str(errors), "error" if errors else "ok")
+    with columns[2]:
+        _render_summary_value(
+            st,
+            "Warnings",
+            str(warnings),
+            "warning" if warnings else "ok",
+        )
+    with columns[3]:
+        _render_summary_value(
+            st,
+            "LitLaunch",
+            str(data.get("litlaunch_version", "unknown")),
+            "ok",
+        )
 
     metadata = {
         "App": APP_NAME or "not configured",
@@ -453,6 +500,7 @@ def _render_summary(st: Any, data: dict[str, Any]) -> None:
 
 
 def _render_posture_cards(st: Any, data: dict[str, Any]) -> None:
+    _render_section_spacer(st)
     st.subheader("Posture")
     sections = _sections(data)
     cards = (
@@ -511,6 +559,7 @@ def _render_artifact_actions(st: Any, report: Any) -> None:
         },
     }
 
+    _render_section_spacer(st)
     st.subheader("Support Artifacts")
     _render_muted(
         st,
@@ -571,6 +620,7 @@ def _write_report_artifact(file_name: str, content: str) -> Path:
 
 
 def _render_sections(st: Any, data: dict[str, Any]) -> None:
+    _render_section_spacer(st)
     st.subheader("Diagnostics Details")
     sections = _sections(data)
     for section in data.get("sections", []):
@@ -598,6 +648,7 @@ def _render_event_trail(st: Any) -> None:
     if not INCLUDE_EVENTS:
         return
 
+    _render_section_spacer(st)
     st.subheader("Runtime Event Trail")
     if not EVENT_LOG_PATH:
         _render_notice(
@@ -629,6 +680,19 @@ def _render_posture_card(st: Any, label: str, value: str, status: str) -> None:
             f"<div class='litlaunch-posture-label'>{_html(label)}</div>"
             f"<div class='litlaunch-posture-value'>{_html(value)}</div>"
             f"<div class='litlaunch-posture-status'>{_html(status_label)}</div>"
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
+
+
+def _render_summary_value(st: Any, label: str, value: str, status: str) -> None:
+    status_class = f"litlaunch-text-{_normalize_status(status)}"
+    st.markdown(
+        (
+            "<div>"
+            f"<div class='litlaunch-summary-label'>{_html(label)}</div>"
+            f"<div class='litlaunch-summary-value {status_class}'>{_html(value)}</div>"
             "</div>"
         ),
         unsafe_allow_html=True,
@@ -688,6 +752,11 @@ def _render_muted(st: Any, message: str) -> None:
         f"<div class='litlaunch-muted'>{_html(message)}</div>",
         unsafe_allow_html=True,
     )
+
+
+def _render_section_spacer(st: Any, *, compact: bool = False) -> None:
+    class_name = "litlaunch-section-compact" if compact else "litlaunch-section"
+    st.markdown(f"<div class='{class_name}'></div>", unsafe_allow_html=True)
 
 
 def _meta_pair(label: str, value: str) -> str:

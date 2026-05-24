@@ -495,6 +495,7 @@ def _render_summary(st: Any, data: dict[str, Any]) -> None:
         "Project root": str(_project_root()),
         "Generated": str(data.get("generated_at_utc", "unknown")),
     }
+    _render_section_spacer(st, compact=True)
     with st.expander("Runtime metadata", expanded=False):
         _render_key_value_rows(st, metadata)
 

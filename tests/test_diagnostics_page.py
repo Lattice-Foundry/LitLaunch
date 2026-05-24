@@ -65,6 +65,10 @@ def test_generated_page_contains_real_diagnostics_sections():
     source = _source_for()
 
     assert "Diagnostics content will be rendered here" not in source
+    assert "litlaunch-meta-label" in source
+    assert "litlaunch-slug" in source
+    assert "litlaunch-posture-card" in source
+    assert "litlaunch-row" in source
     assert "Runtime Summary" in source
     assert "Posture" in source
     assert "Diagnostics Details" in source
@@ -88,8 +92,13 @@ def test_generated_page_contains_expected_helper_functions():
         "_render_artifact_actions",
         "_render_sections",
         "_render_event_trail",
+        "_inject_litlaunch_styles",
+        "_render_page_intro",
+        "_render_posture_card",
+        "_render_diagnostic_row",
         "_item_status",
         "_compact_metric_value",
+        "_status_class",
     }.issubset(functions)
 
 
@@ -140,6 +149,23 @@ def test_generated_page_has_no_rolethread_names_unless_configured():
 
     assert "RoleThread" not in source
     assert "rolethread-webapp" not in source
+
+
+def test_generated_page_status_helpers_map_colors_sensibly():
+    namespace: dict[str, object] = {}
+    exec(_source_for(), namespace)  # noqa: S102 - generated source is under test.
+
+    status_class = namespace["_status_class"]
+    compact_metric_value = namespace["_compact_metric_value"]
+
+    assert status_class("ok") == "litlaunch-status-ok"
+    assert status_class("warning") == "litlaunch-status-warning"
+    assert status_class("error") == "litlaunch-status-error"
+    assert status_class("unknown") == "litlaunch-status-info"
+    assert compact_metric_value("Transport Security", "not_configured") == "No TLS"
+    assert (
+        compact_metric_value("Browser/Platform", "Selected Microsoft Edge.") == "Edge"
+    )
 
 
 def test_existing_file_requires_overwrite(tmp_path):

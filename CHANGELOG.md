@@ -4,6 +4,12 @@ LitLaunch uses pre-release package versions until the coordinated ecosystem
 launch. Public documentation is stable-facing while release notes remain
 concise.
 
+## 0.91.49b0
+
+- Polished generated diagnostics pages with compact support-page styling,
+  slug-style metadata, status-colored posture cards, and row-based diagnostic
+  details inspired by real RoleThread visual validation.
+
 ## 0.91.48b0
 
 - Polished generated diagnostics pages after RoleThread visual validation with

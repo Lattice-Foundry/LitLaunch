@@ -72,6 +72,8 @@ def test_generated_page_contains_real_diagnostics_sections():
     assert "Runtime Exposure" in source
     assert "Transport Security" in source
     assert "Browser/Platform" in source
+    assert "No TLS" in source
+    assert "Edge" in source
 
 
 def test_generated_page_contains_expected_helper_functions():
@@ -86,6 +88,8 @@ def test_generated_page_contains_expected_helper_functions():
         "_render_artifact_actions",
         "_render_sections",
         "_render_event_trail",
+        "_item_status",
+        "_compact_metric_value",
     }.issubset(functions)
 
 

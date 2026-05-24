@@ -4,6 +4,12 @@ LitLaunch uses pre-release package versions until the coordinated ecosystem
 launch. Public documentation is stable-facing while release notes remain
 concise.
 
+## 0.91.48b0
+
+- Polished generated diagnostics pages after RoleThread visual validation with
+  compact posture metrics and clearer path rendering for artifacts and event
+  logs.
+
 ## 0.91.47b0
 
 - Expanded generated diagnostics pages from a skeleton into a Streamlit-native

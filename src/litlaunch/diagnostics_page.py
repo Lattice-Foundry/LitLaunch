@@ -296,27 +296,27 @@ def _render_posture_cards(st: Any, data: dict[str, Any]) -> None:
         (
             "Runtime Governance",
             _item_message(sections, "Runtime Governance", "Launch posture"),
-            _section_status(sections, "Runtime Governance"),
+            _item_status(sections, "Runtime Governance", "Launch posture"),
         ),
         (
             "Runtime Exposure",
             _item_message(sections, "Runtime Exposure", "Exposure scope"),
-            _section_status(sections, "Runtime Exposure"),
+            _item_status(sections, "Runtime Exposure", "Exposure scope"),
         ),
         (
             "Transport Security",
             _item_message(sections, "Transport Security", "TLS configuration"),
-            _section_status(sections, "Transport Security"),
+            _item_status(sections, "Transport Security", "TLS configuration"),
         ),
         (
             "Browser/Platform",
             _item_message(sections, "Browsers", "Browser resolution"),
-            _section_status(sections, "Browsers"),
+            _item_status(sections, "Browsers", "Browser resolution"),
         ),
     )
     columns = st.columns(len(cards))
     for column, (label, value, status) in zip(columns, cards):
-        column.metric(label, value or "not reported", status)
+        column.metric(label, _compact_metric_value(label, value), status)
 
 
 def _render_artifact_actions(st: Any, report: Any) -> None:
@@ -385,7 +385,8 @@ def _render_artifact_column(
         )
         if st.button(f"Write {label}", key=f"{button_key}_write"):
             path = _write_report_artifact(file_name, content)
-            st.success(f"Wrote {path}")
+            st.success(f"Wrote {label}.")
+            st.code(str(path))
 
 
 def _write_report_artifact(file_name: str, content: str) -> Path:
@@ -442,12 +443,14 @@ def _render_event_trail(st: Any) -> None:
 
     event_path = _resolve_project_path(EVENT_LOG_PATH)
     if not event_path.is_file():
-        st.info(f"No runtime event log found at {event_path}.")
+        st.info("No runtime event log found.")
+        st.code(str(event_path))
         return
 
     lines = event_path.read_text(encoding="utf-8", errors="replace").splitlines()
     recent_lines = lines[-80:]
-    st.caption(f"Showing {len(recent_lines)} recent lines from {event_path}.")
+    st.caption(f"Showing {len(recent_lines)} recent lines from:")
+    st.code(str(event_path))
     st.code("\\n".join(recent_lines) or "No events recorded yet.")
 
 
@@ -479,6 +482,40 @@ def _item_message(
         if item.get("name") == item_name:
             return str(item.get("message", ""))
     return None
+
+
+def _item_status(
+    sections: dict[str, list[dict[str, Any]]],
+    title: str,
+    item_name: str,
+) -> str:
+    for item in sections.get(title, []):
+        if item.get("name") == item_name:
+            return str(item.get("status", "info")).lower()
+    return _section_status(sections, title)
+
+
+def _compact_metric_value(label: str, value: str | None) -> str:
+    if not value:
+        return "not reported"
+    normalized = value.strip()
+    if label == "Transport Security":
+        if normalized == "not_configured":
+            return "No TLS"
+        if normalized == "configured":
+            return "TLS"
+        if normalized == "incomplete":
+            return "Incomplete"
+    if label == "Browser/Platform":
+        if "Microsoft Edge" in normalized:
+            return "Edge"
+        if "Chrome" in normalized or "Chromium" in normalized:
+            return "Chrome"
+        if "Default browser" in normalized:
+            return "Default"
+    if normalized == "wildcard_bind":
+        return "wildcard"
+    return normalized.replace("_", " ")
 
 
 def _project_root() -> Path:

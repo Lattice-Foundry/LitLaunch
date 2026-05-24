@@ -1,4 +1,4 @@
-"""Generate app-owned Streamlit diagnostics page skeletons."""
+"""Generate app-owned Streamlit diagnostics/support pages."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ class DiagnosticsPageOptions:
 
 
 class DiagnosticsPageBuilder:
-    """Write a readable Streamlit diagnostics page skeleton for a host app."""
+    """Write a readable Streamlit diagnostics/support page for a host app."""
 
     def __init__(
         self,
@@ -152,7 +152,7 @@ def create_diagnostics_page(
     event_log_path: str | Path | None = None,
     theme: str = "auto",
 ) -> Path:
-    """Create an app-owned Streamlit diagnostics page skeleton."""
+    """Create an app-owned Streamlit diagnostics/support page."""
 
     return DiagnosticsPageBuilder(
         output_path,

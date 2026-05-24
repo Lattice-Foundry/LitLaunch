@@ -12,6 +12,18 @@ from litlaunch.config import TrustMode
 
 NETWORK_EXPOSURE_ENV = "LITLAUNCH_ALLOW_NETWORK_EXPOSURE"
 
+__all__ = [
+    "ExposureAssessment",
+    "ExposureScope",
+    "HostExposure",
+    "NETWORK_EXPOSURE_ENV",
+    "assess_runtime_exposure",
+    "classify_exposure_scope",
+    "classify_host_exposure",
+    "is_loopback_host",
+    "network_exposure_acknowledged",
+]
+
 
 class ExposureScope(str, Enum):
     """Operational exposure categories for configured host bindings."""

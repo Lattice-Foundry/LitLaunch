@@ -28,6 +28,7 @@ pip-wheel-metadata/
 .tox/
 .nox/
 .hypothesis/
+.claude/
 
 # Local environment and secrets
 .env
@@ -48,8 +49,6 @@ desktop.ini
 *.tmp
 *.temp
 .litlaunch/
-
-# ai tooling cache
 
 # dev personal files
 notes/

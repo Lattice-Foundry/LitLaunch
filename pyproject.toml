@@ -61,6 +61,7 @@ packages = ["src/litlaunch"]
 
 [tool.hatch.build.targets.sdist]
 exclude = [
+  "/.claude",
   "/docs/internal",
   "/notes",
 ]

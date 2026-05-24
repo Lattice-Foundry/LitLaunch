@@ -1,9 +1,9 @@
 # Diagnostics Page Generator
 
-LitLaunch can generate a small Streamlit-native diagnostics/support page for
-host applications. The generated file belongs to the app after it is written:
-you decide where to mount it, how to style it, and whether to customize or
-replace it.
+LitLaunch can generate a Streamlit-native diagnostics/support page for host
+applications. The generated file belongs to the app after it is written: you
+decide where to mount it, how to style it, and whether to customize or replace
+it.
 
 LitLaunch itself does not depend on Streamlit for this feature. The generated
 page imports Streamlit inside its render function so generation works even in
@@ -57,6 +57,11 @@ render_litlaunch_diagnostics()
 LitLaunch does not add the page to your navigation automatically. The host app
 owns that choice because Streamlit apps organize navigation, menus, sidebars,
 and support areas differently.
+
+The generator is intentionally Python API-first because page integration is
+host-app driven. Apps can call it from setup scripts, build tooling, or dev
+utilities. A CLI generator can remain a future option if projects need it, but
+LitLaunch does not auto-mount generated pages.
 
 ## What The Generated Page Includes
 

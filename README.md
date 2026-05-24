@@ -123,11 +123,11 @@ when the app is intentionally exposed beyond the local machine.
 
 ### Generate app-owned support pages
 
-LitLaunch can generate a small Streamlit-native diagnostics/support page that
-host apps own, mount, and customize themselves. It gives packaged apps,
-internal tools, and local-first products a ready support hub for runtime
-posture, diagnostic sections, support artifacts, operational snapshot charts,
-and an optional runtime event trail.
+LitLaunch can generate a Streamlit-native diagnostics/support page that host
+apps own, mount, and customize themselves. It gives packaged apps, internal
+tools, and local-first products a ready support hub for runtime posture,
+diagnostic sections, support artifacts, operational snapshot charts, and an
+optional runtime event trail.
 
 ![LitLaunch generated diagnostics page overview](https://raw.githubusercontent.com/Lattice-Foundry/LitLaunch/main/docs/assets/screenshots/diagnostics-page-overview.png)
 

@@ -43,6 +43,10 @@ Details are intended for safe operational metadata such as host, port, mode,
 browser, PID, or hook label. LitLaunch does not include raw environment values
 or secret-bearing command previews in runtime event details.
 
+If your sink adds custom event details or writes events to disk, that app-owned
+sink is responsible for redacting app-specific sensitive data before persisting
+or sharing the log.
+
 If the sink raises an exception, LitLaunch suppresses the failure and continues
 the runtime lifecycle. In verbose console mode, LitLaunch emits one concise
 warning that the event sink failed.

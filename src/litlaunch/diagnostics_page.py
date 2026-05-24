@@ -493,63 +493,70 @@ def _render_artifact_actions(st: Any, report: Any) -> None:
     html_report = HTMLDiagnosticsRenderer(include_details=True).render(report)
     json_report = JSONDiagnosticsRenderer().render(report)
     support_bundle = SanitizedBundleRenderer(include_details=True).render(report)
+    artifacts = {
+        "HTML report": {
+            "file_name": "litlaunch-report.html",
+            "content": html_report,
+            "mime": "text/html",
+        },
+        "JSON diagnostics": {
+            "file_name": "litlaunch-report.json",
+            "content": json_report,
+            "mime": "application/json",
+        },
+        "Support bundle": {
+            "file_name": "litlaunch-support-bundle.txt",
+            "content": support_bundle,
+            "mime": "text/plain",
+        },
+    }
 
     st.subheader("Support Artifacts")
     _render_muted(
         st,
-        "Downloads are generated in memory. Files are written under "
-        ".litlaunch/reports/ only when you click a write button.",
+        "Downloads are generated in memory. Writes create persistent artifacts "
+        "under .litlaunch/reports/.",
     )
-    columns = st.columns(3)
-    _render_artifact_column(
-        st,
-        columns[0],
-        label="HTML report",
-        file_name="litlaunch-report.html",
-        content=html_report,
-        mime="text/html",
-        button_key="litlaunch_html",
-    )
-    _render_artifact_column(
-        st,
-        columns[1],
-        label="JSON diagnostics",
-        file_name="litlaunch-report.json",
-        content=json_report,
-        mime="application/json",
-        button_key="litlaunch_json",
-    )
-    _render_artifact_column(
-        st,
-        columns[2],
-        label="Support bundle",
-        file_name="litlaunch-support-bundle.txt",
-        content=support_bundle,
-        mime="text/plain",
-        button_key="litlaunch_bundle",
-    )
+    download_column, write_column = st.columns(2)
+    _render_download_artifact_group(st, download_column, artifacts)
+    _render_write_artifact_group(st, write_column, artifacts)
 
 
-def _render_artifact_column(
+def _render_download_artifact_group(
     st: Any,
     column: Any,
-    *,
-    label: str,
-    file_name: str,
-    content: str,
-    mime: str,
-    button_key: str,
+    artifacts: dict[str, dict[str, str]],
 ) -> None:
     with column:
-        st.download_button(
-            f"Download {label}",
-            data=content.encode("utf-8"),
-            file_name=file_name,
-            mime=mime,
-            key=f"{button_key}_download",
+        label = st.selectbox(
+            "Download Artifact",
+            options=list(artifacts),
+            key="litlaunch_download_artifact_select",
         )
-        if st.button(f"Write {label}", key=f"{button_key}_write"):
-            path = _write_report_artifact(file_name, content)
+        artifact = artifacts[label]
+        st.download_button(
+            "Download",
+            data=artifact["content"].encode("utf-8"),
+            file_name=artifact["file_name"],
+            mime=artifact["mime"],
+            key="litlaunch_download_artifact_button",
+        )
+
+
+def _render_write_artifact_group(
+    st: Any,
+    column: Any,
+    artifacts: dict[str, dict[str, str]],
+) -> None:
+    with column:
+        label = st.selectbox(
+            "Write Artifact",
+            options=list(artifacts),
+            key="litlaunch_write_artifact_select",
+        )
+        artifact = artifacts[label]
+        if st.button("Write", key="litlaunch_write_artifact_button"):
+            path = _write_report_artifact(artifact["file_name"], artifact["content"])
             _render_notice(st, "ok", f"Wrote {label}.")
             st.code(str(path))
 

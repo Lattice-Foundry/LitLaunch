@@ -4,6 +4,11 @@ LitLaunch uses pre-release package versions until the coordinated ecosystem
 launch. Public documentation is stable-facing while release notes remain
 concise.
 
+## 0.91.50b0
+
+- Simplified generated diagnostics page support artifact controls into compact
+  download/write workflows with one selector and one action button per column.
+
 ## 0.91.49b0
 
 - Polished generated diagnostics pages with compact support-page styling,

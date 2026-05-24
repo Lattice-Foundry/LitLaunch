@@ -90,6 +90,8 @@ def test_generated_page_contains_expected_helper_functions():
         "_render_summary",
         "_render_posture_cards",
         "_render_artifact_actions",
+        "_render_download_artifact_group",
+        "_render_write_artifact_group",
         "_render_sections",
         "_render_event_trail",
         "_inject_litlaunch_styles",
@@ -116,10 +118,15 @@ def test_generated_page_reflects_artifact_paths_without_autowrite():
     source = _source_for()
 
     assert ".litlaunch/reports/" in source
-    assert "only when you click a write button" in source
+    assert "Downloads are generated in memory" in source
+    assert "Writes create persistent artifacts" in source
+    assert "Download Artifact" in source
+    assert "Write Artifact" in source
     assert "litlaunch-report.html" in source
     assert "litlaunch-report.json" in source
     assert "litlaunch-support-bundle.txt" in source
+    assert "Write HTML report" not in source
+    assert "Download HTML report" not in source
 
 
 def test_generated_page_includes_project_and_event_options():

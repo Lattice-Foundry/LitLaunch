@@ -121,6 +121,23 @@ governance/posture reporting, and sanitized diagnostics bundles. Normal
 localhost workflows stay frictionless; advanced runtime controls are available
 when the app is intentionally exposed beyond the local machine.
 
+### Generate app-owned support pages
+
+LitLaunch can generate a small Streamlit-native diagnostics page skeleton that
+host apps own, mount, and customize themselves. This keeps support surfaces
+close to the app without making LitLaunch a dashboard framework or adding
+Streamlit as a LitLaunch dependency.
+
+```python
+from litlaunch import create_diagnostics_page
+
+create_diagnostics_page(
+    output_path="ui/litlaunch_diagnostics.py",
+    app_name="My App",
+    profile_name="my-webapp",
+)
+```
+
 ## What It Solves
 
 - Start Streamlit through explicit, shell-free command construction.
@@ -484,6 +501,7 @@ See [docs/inspect.md](docs/inspect.md) and
 - [CLI](docs/cli.md)
 - [Security And Trust Boundaries](docs/security.md)
 - [Runtime Events](docs/runtime_events.md)
+- [Diagnostics Page Generator](docs/diagnostics_page.md)
 - [Browser Support](docs/browser_support.md)
 - [Window Monitoring](docs/window_monitoring.md)
 - [Inspect](docs/inspect.md)

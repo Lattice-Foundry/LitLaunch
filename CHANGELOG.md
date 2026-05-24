@@ -4,6 +4,12 @@ LitLaunch uses pre-release package versions until the coordinated ecosystem
 launch. Public documentation is stable-facing while release notes remain
 concise.
 
+## 0.91.46b0
+
+- Added the initial diagnostics page generator API for writing app-owned,
+  Streamlit-native support page skeletons without adding Streamlit as a
+  LitLaunch dependency.
+
 ## 0.91.45b0
 
 - Added a tiny optional `RuntimeEvent` sink API for Python integrations that

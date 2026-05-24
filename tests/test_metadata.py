@@ -113,6 +113,7 @@ def test_docs_foundation_exists_and_links_from_readme():
         "browser_support.md",
         "window_monitoring.md",
         "inspect.md",
+        "diagnostics_page.md",
         "troubleshooting.md",
         "architecture.md",
         "integration/rolethread.md",

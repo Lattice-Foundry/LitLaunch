@@ -28,6 +28,11 @@ from litlaunch.console import (
     ConsoleRenderer,
     ConsoleTheme,
 )
+from litlaunch.diagnostics_page import (
+    DiagnosticsPageBuilder,
+    DiagnosticsPageOptions,
+    create_diagnostics_page,
+)
 from litlaunch.events import RuntimeEvent, RuntimeEventSink
 from litlaunch.exceptions import (
     BrowserError,
@@ -117,6 +122,8 @@ __all__ = [
     "DiagnosticItem",
     "DiagnosticSection",
     "DiagnosticStatus",
+    "DiagnosticsPageBuilder",
+    "DiagnosticsPageOptions",
     "DiagnosticsReport",
     "HTMLDiagnosticsRenderer",
     "JSONDiagnosticsRenderer",
@@ -169,6 +176,7 @@ __all__ = [
     "WindowMonitorStatus",
     "WindowTarget",
     "__version__",
+    "create_diagnostics_page",
     "create_window_monitor",
     "is_chromium_window",
     "is_hex_color",

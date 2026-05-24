@@ -24,6 +24,8 @@ from litlaunch import (
     DiagnosticCollector,
     DiagnosticItem,
     DiagnosticSection,
+    DiagnosticsPageBuilder,
+    DiagnosticsPageOptions,
     DiagnosticsReport,
     DiagnosticStatus,
     HealthChecker,
@@ -76,6 +78,7 @@ from litlaunch import (
     WindowsWindowProvider,
     WindowTarget,
     __version__,
+    create_diagnostics_page,
     create_window_monitor,
     get_theme_color,
     hook_orange,
@@ -110,6 +113,8 @@ def test_public_imports_are_available():
     assert DiagnosticItem
     assert DiagnosticSection
     assert DiagnosticStatus.OK.value == "ok"
+    assert DiagnosticsPageBuilder
+    assert DiagnosticsPageOptions
     assert DiagnosticsReport
     assert HTMLDiagnosticsRenderer
     assert HealthChecker
@@ -161,6 +166,7 @@ def test_public_imports_are_available():
     assert WindowMonitorResult
     assert WindowMonitorStatus.WINDOW_CLOSED.value == "window_closed"
     assert WindowTarget
+    assert create_diagnostics_page
     assert create_window_monitor
     assert get_theme_color("streamlit_blue")
     assert is_chromium_window
@@ -195,6 +201,8 @@ def test_public_all_is_explicit():
         "DiagnosticItem",
         "DiagnosticSection",
         "DiagnosticStatus",
+        "DiagnosticsPageBuilder",
+        "DiagnosticsPageOptions",
         "DiagnosticsReport",
         "HTMLDiagnosticsRenderer",
         "HealthChecker",
@@ -250,6 +258,7 @@ def test_public_all_is_explicit():
         "WindowsChromiumWindowMonitor",
         "WindowsWindowProvider",
         "__version__",
+        "create_diagnostics_page",
         "create_window_monitor",
         "get_theme_color",
         "hook_orange",

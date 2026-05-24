@@ -105,6 +105,10 @@ def test_generated_page_contains_expected_helper_functions():
         "_render_sections",
         "_render_event_trail",
         "_inject_litlaunch_styles",
+        "_theme_tokens",
+        "_chart_theme_tokens",
+        "_chart_config",
+        "_chart_axis_config",
         "_render_page_intro",
         "_render_summary_value",
         "_render_posture_card",
@@ -158,6 +162,33 @@ def test_generated_page_includes_project_and_event_options():
     assert "EVENT_LOG_PATH = '.litlaunch" in source
     assert "runtime.log" in source
     assert "Runtime Event Trail" in source
+
+
+def test_generated_page_defaults_to_auto_theme():
+    options = DiagnosticsPageOptions(output_path="diagnostics.py")
+    source = _source_for()
+
+    assert options.theme == "auto"
+    assert "THEME = 'auto'" in source
+    assert "_THEME_DARK" in source
+    assert "_THEME_LIGHT" in source
+    assert "_THEME_AUTO" in source
+    assert "light_page_override" in source
+    assert "st.vega_lite_chart" in source
+    assert "chart_bg" in source
+
+
+@pytest.mark.parametrize("theme", ["auto", "light", "dark"])
+def test_generated_page_accepts_theme_modes(theme):
+    source = _source_for(theme=theme)
+
+    assert f"THEME = '{theme}'" in source
+    assert "var(--primary-color" in source
+
+
+def test_generated_page_rejects_unknown_theme(tmp_path):
+    with pytest.raises(ConfigurationError, match="theme"):
+        DiagnosticsPageBuilder(tmp_path / "diagnostics.py", theme="neon")
 
 
 def test_generated_page_can_disable_event_trail():

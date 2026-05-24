@@ -18,6 +18,7 @@ create_diagnostics_page(
     output_path="ui/litlaunch_diagnostics.py",
     app_name="RoleThread Lite",
     profile_name="rolethread-webapp",
+    theme="auto",
 )
 ```
 
@@ -32,6 +33,7 @@ DiagnosticsPageBuilder(
     page_title="Runtime Diagnostics",
     app_name="RoleThread Lite",
     profile_name="rolethread-webapp",
+    theme="dark",
     overwrite=False,
 ).write()
 ```
@@ -54,6 +56,7 @@ diagnostics with LitLaunch's existing diagnostics APIs and renders:
 - runtime governance posture
 - runtime exposure posture
 - transport security posture
+- Streamlit-native operational snapshot charts
 - platform, browser, target, and profile diagnostic sections
 - in-memory downloads for HTML diagnostics, JSON diagnostics, and support bundle
 - optional write buttons for `.litlaunch/reports/` artifacts
@@ -64,6 +67,29 @@ writes files when a user clicks a write button.
 
 This feature is not telemetry, a hosted dashboard, or a Streamlit framework.
 LitLaunch only writes starter code; the host application owns the page.
+
+## Theme Modes
+
+Set `theme` when generating the page:
+
+```python
+create_diagnostics_page(
+    output_path="ui/litlaunch_diagnostics.py",
+    app_name="RoleThread Lite",
+    theme="dark",
+)
+```
+
+Supported values are:
+
+- `auto` - default; uses host-friendly Streamlit/CSS variables where practical.
+- `dark` - LitLaunch's polished dark support-page style, used by RoleThread
+  validation.
+- `light` - a readable light equivalent for light Streamlit apps.
+
+The generated file includes compact `_THEME_DARK`, `_THEME_LIGHT`, and
+`_THEME_AUTO` token dictionaries near the top. Because the file is app-owned,
+developers can edit those tokens directly after generation.
 
 ## Runtime Event Trail
 

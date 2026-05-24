@@ -4,6 +4,12 @@ LitLaunch uses pre-release package versions until the coordinated ecosystem
 launch. Public documentation is stable-facing while release notes remain
 concise.
 
+## 0.91.53b0
+
+- Added `auto`, `light`, and `dark` theme modes for generated diagnostics pages
+  while keeping the existing polished dark appearance as the canonical dark
+  theme.
+
 ## 0.91.52b0
 
 - Added a generated diagnostics page Operational Snapshot section with

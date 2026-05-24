@@ -60,8 +60,8 @@ and support areas differently.
 
 The generator is intentionally Python API-first because page integration is
 host-app driven. Apps can call it from setup scripts, build tooling, or dev
-utilities. A CLI generator can remain a future option if projects need it, but
-LitLaunch does not auto-mount generated pages.
+utilities. If a team wants command-line generation, wrap the Python call in the
+project's own setup command. LitLaunch does not auto-mount generated pages.
 
 ## What The Generated Page Includes
 

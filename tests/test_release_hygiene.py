@@ -53,11 +53,12 @@ def test_release_script_reads_current_version():
     assert Version(version).is_prerelease
 
 
-def test_release_script_allows_beta_classifier_with_prerelease_version():
+@pytest.mark.parametrize("version", ["1.0.0b1", "1.0.0rc1"])
+def test_release_script_allows_beta_classifier_with_prerelease_version(version: str):
     module = load_release_script()
 
     module.ensure_classifier_version_consistency(
-        "1.0.0b1",
+        version,
         ("Development Status :: 4 - Beta",),
     )
 

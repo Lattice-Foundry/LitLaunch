@@ -75,31 +75,21 @@ def test_pyproject_urls_use_canonical_repository_location():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert f"## {current_version()}" in changelog
-    assert "## 0.91.0b0" in changelog
-    assert "## 0.85.0" in changelog
-    assert "## 0.23.0" in changelog
-    assert "## 0.22.0" in changelog
-    assert "## 0.21.0" in changelog
-    assert "## 0.20.0" in changelog
-    assert "## 0.19.0" in changelog
-    assert "## 0.16.1" in changelog
-    assert "## 0.16.0" in changelog
-    assert "## 0.15.0" in changelog
-    assert "## 0.14.0" in changelog
-    assert "## 0.13.2" in changelog
-    assert "## 0.13.1" in changelog
-    assert "## 0.13.0" in changelog
-    assert "## 0.12.0" in changelog
-    assert "## 0.11.0" in changelog
-    assert "## 0.10.0" in changelog
-    assert "## 0.9.1" in changelog
-    assert "## 0.9.0" in changelog
-    assert "## 0.8.4" in changelog
-    assert "## 0.8.3" in changelog
-    assert "## 0.8.2" in changelog
-    assert "## 0.8.1" in changelog
-    assert "## 0.8.0" in changelog
+    assert f"## {current_version()} - Release Candidate" in changelog
+    assert "## Beta Development Era" in changelog
+    assert "## Alpha Development Era" in changelog
+    assert "Granular pre-release history is preserved in git" in changelog
+    for milestone in (
+        "Managed Chromium browser-window lifecycle",
+        "`ShutdownHookStatus`",
+        "Runtime event sink API",
+        "Generated Streamlit-native diagnostics/support page API",
+        "Runtime governance layer",
+        "Streamlit-native TLS detection",
+        "Native shortcut generation",
+        "Release hygiene tooling",
+    ):
+        assert milestone in changelog
 
 
 def test_docs_foundation_exists_and_links_from_readme():

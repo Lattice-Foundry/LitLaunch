@@ -77,7 +77,9 @@ def test_generated_page_contains_real_diagnostics_sections():
     assert "Runtime Summary" in source
     assert "Posture" in source
     assert "Operational Snapshot" in source
-    assert "Runtime Sessions" in source
+    assert "Runtime Event Trail" in source
+    assert "Raw Runtime Event Trail" in source
+    assert "litlaunch-console" in source
     assert "Diagnostics Status Mix" in source
     assert "Runtime Event Mix" in source
     assert "Section Attention Map" in source
@@ -111,6 +113,11 @@ def test_generated_page_contains_expected_helper_functions():
         "_render_runtime_sessions",
         "_render_runtime_session_summary",
         "_render_runtime_session_timeline",
+        "_render_runtime_session_console",
+        "_console_event_line",
+        "_console_status_label",
+        "_console_phase_label",
+        "_console_event_message",
         "_inject_litlaunch_styles",
         "_theme_tokens",
         "_chart_theme_tokens",
@@ -132,11 +139,23 @@ def test_generated_page_contains_expected_helper_functions():
         "_summarize_runtime_session",
         "_friendly_event_name",
         "_format_duration",
+        "_safe_detail",
         "_runtime_event_log_path",
         "_item_status",
         "_compact_metric_value",
         "_status_class",
     }.issubset(functions)
+
+
+def test_generated_page_places_runtime_events_after_main_sections():
+    source = _source_for()
+
+    assert source.index("_render_artifact_actions(st, report)") < source.index(
+        "_render_sections(st, data)"
+    )
+    assert source.index("_render_sections(st, data)") < source.index(
+        "_render_runtime_sessions(st)"
+    )
 
 
 def test_generated_page_imports_existing_litlaunch_apis():
@@ -486,6 +505,42 @@ def test_generated_page_friendly_event_labels_and_malformed_events():
     assert friendly_event_name("health_ready") == "Health check passed"
     assert friendly_event_name("custom_runtime_event") == "Custom Runtime Event"
     assert records_from_lines(["{malformed", json.dumps(["not", "object"])]) == []
+
+
+def test_generated_page_formats_console_replay_lines():
+    namespace: dict[str, object] = {}
+    exec(_source_for(), namespace)  # noqa: S102 - generated source is under test.
+    console_event_line = namespace["_console_event_line"]
+    console_status_label = namespace["_console_status_label"]
+
+    assert console_status_label("info") == "[   ok   ]"
+    assert console_status_label("warning") == "[  warn  ]"
+    assert console_status_label("error") == "[ error  ]"
+
+    backend_line = console_event_line(
+        {
+            "name": "backend_started",
+            "category": "backend",
+            "level": "info",
+            "details": {"pid": 1234, "host": "127.0.0.1", "port": 8501},
+        }
+    )
+    warning_line = console_event_line(
+        {
+            "name": "hook_failed",
+            "category": "hook",
+            "level": "error",
+            "details": {"label": "Cloud sync"},
+        }
+    )
+
+    assert "[   ok   ]" in backend_line
+    assert "Backend:" in backend_line
+    assert "Started Streamlit with PID 1234 on 127.0.0.1:8501." in backend_line
+    assert "[ error  ]" in warning_line
+    assert "Hook:" in warning_line
+    assert "Cloud sync failed." in warning_line
+    assert "{'name'" not in backend_line
 
 
 def test_generated_page_keeps_plain_event_line_category_parsing():

@@ -88,7 +88,7 @@ def current_data_values(state: WizardState) -> tuple[tuple[str, str], ...]:
         launch = "App window" if state.launch_experience == "webapp" else "Browser tab"
         values.append(("Launch", launch))
     if state.browser:
-        values.append(("Browser", state.browser))
+        values.append(("Browser", display_browser_choice(state.browser)))
     if state.setup_mode == "advanced":
         values.append(("Host", state.host))
         values.append(("Port", "auto" if state.port is None else str(state.port)))
@@ -124,6 +124,15 @@ def append_count(
         values.append((label, str(count)))
 
 
+def display_browser_choice(browser: str) -> str:
+    """Return a human-facing browser name for profile preview output."""
+
+    normalized = str(browser).strip()
+    if normalized.casefold() == "edge":
+        return "Edge"
+    return normalized
+
+
 def preview_profile(
     stream: TextIO,
     profile: LaunchProfile,
@@ -141,7 +150,7 @@ def preview_profile(
     write(stream, f"Title: {profile.config.title}")
     label = "App window" if launch_experience == "webapp" else "Browser tab"
     write(stream, f"Launch experience: {label}")
-    write(stream, f"Browser: {profile.config.browser.value}")
+    write(stream, f"Browser: {display_browser_choice(profile.config.browser.value)}")
     write(stream, f"Host: {profile.config.host}")
     port = "auto" if profile.config.port is None else str(profile.config.port)
     write(stream, f"Port: {port}")

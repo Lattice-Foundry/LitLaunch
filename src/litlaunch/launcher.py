@@ -480,7 +480,7 @@ class StreamlitLauncher:
             details={
                 "app_path": self.config.app_path,
                 "mode": self.config.mode.value,
-                "browser": self.config.browser.value,
+                "browser": _display_browser_choice(self.config.browser.value),
                 "host": self.config.host,
                 "port": self.config.port or "auto",
             },
@@ -544,3 +544,10 @@ def _browser_launch_display_mode(
     if any(str(arg).strip().lower() == "--new-window" for arg in extra_args):
         return "window"
     return "tab"
+
+
+def _display_browser_choice(browser: str) -> str:
+    normalized = str(browser).strip()
+    if normalized.casefold() == "edge":
+        return "Edge"
+    return normalized

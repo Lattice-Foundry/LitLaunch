@@ -452,7 +452,7 @@ def test_generated_page_summarizes_runtime_session_duration_and_status():
 
     assert summary["status"] == "Clean shutdown"
     assert summary["status_level"] == "ok"
-    assert summary["title"] == "Webapp launched in edge"
+    assert summary["title"] == "Webapp launched in Edge"
     assert "Backend healthy on 127.0.0.1:8501" in summary["subtitle"]
     assert "Monitoring window: RoleThread Lite" in summary["subtitle"]
     assert summary["fields"]["Duration"] == "38.8s"

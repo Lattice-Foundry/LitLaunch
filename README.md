@@ -526,7 +526,7 @@ See [docs/inspect.md](docs/inspect.md) and
 - [Inspect](docs/inspect.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Architecture](docs/architecture.md)
-- [RoleThread Integration Notes](docs/integration/rolethread.md)
+- [RoleThread Lite Integration](docs/integration/rolethread.md)
 - [Packaging Notes](docs/integration/packaging_notes.md)
 
 ## Non-Goals

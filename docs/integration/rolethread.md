@@ -1,18 +1,20 @@
-# RoleThread Integration Notes
+# RoleThread Lite Integration
 
-RoleThread can consume LitLaunch as an external package for runtime ownership,
-diagnostics, profile-driven launch configuration, and optional project-local
-shortcut generation.
+RoleThread Lite uses LitLaunch as its runtime launch layer while keeping product
+behavior owned by RoleThread. The integration is a concrete example of how a
+local-first Streamlit product can delegate launch orchestration, runtime
+lifecycle, browser/app-window strategy, diagnostics, and support artifacts to
+LitLaunch without making LitLaunch a RoleThread-specific launcher.
 
-These notes describe expectations, not a current dependency. LitLaunch must not
-import RoleThread or assume RoleThread paths, names, environment variables, or
-packaging behavior.
+LitLaunch remains a standalone runtime package. It must not import RoleThread or
+assume RoleThread paths, names, environment variables, packaging behavior, data
+models, workflows, or product policy.
 
-## Expected Integration Shape
+## Integration Shape
 
-RoleThread should provide:
+RoleThread Lite supplies application-specific launch inputs:
 
-- app path
+- app entrypoint
 - stable title for display and app-window matching
 - launch mode
 - browser preference
@@ -22,31 +24,38 @@ RoleThread should provide:
 - optional managed browser-window choice
 - optional shutdown hooks inside the app
 
-LitLaunch should provide:
+LitLaunch supplies generic runtime mechanics:
 
 - backend process ownership
-- command construction
+- shell-free command construction
 - port resolution
 - health checking
 - browser resolution and launch
 - managed browser-window lifecycle when enabled
 - graceful shutdown request/fallback
-- inspect diagnostics
+- inspect diagnostics and support artifacts
+
+RoleThread owns the application workflow, user experience, product settings,
+packaging choices, data handling, and support messaging. LitLaunch owns only the
+generic Streamlit runtime layer it starts and observes.
 
 ## Runtime Expectations
 
-RoleThread should treat `RuntimeSession` as the backend lifecycle owner. If
+RoleThread Lite should treat `RuntimeSession` as the backend lifecycle owner. If
 RoleThread adds UI or packaged-launcher behavior, it should still call
 `session.stop()` rather than managing backend PIDs independently.
 
 ## Shutdown Hooks
 
-RoleThread app code can register cleanup hooks through `LauncherRuntime`.
-Hook labels and color metadata should remain app-level presentation metadata.
+RoleThread app code can register cleanup hooks through `LauncherRuntime` when
+product cleanup is needed during shutdown. The cleanup behavior belongs to
+RoleThread; LitLaunch provides the hook runtime, status rendering, and shutdown
+coordination. Hook labels and color metadata remain app-level presentation
+metadata.
 
 ## Window Monitoring
 
-RoleThread may opt into `--monitor-window` or equivalent API behavior for
+RoleThread Lite can opt into `--monitor-window` or equivalent API behavior for
 Windows Chromium app-mode flows. Browser-mode profiles can opt into
 `browser_window_monitor.enabled` for managed browser-window close detection.
 Monitoring must remain observational; closing or killing browser windows should
@@ -58,7 +67,7 @@ may timeout.
 
 ## Launch Profiles
 
-RoleThread or similar apps can store reusable development, browser-tab,
+RoleThread Lite and similar apps can store reusable development, browser-tab,
 app-window, and packaged-style runtime settings in `litlaunch.toml` profiles.
 Use `litlaunch create profile` for an interactive starting point, then commit or
 ship the resulting configuration according to the downstream app's policy.
@@ -78,7 +87,18 @@ exercises LitLaunch's managed browser-window lifecycle where supported, but it
 does not apply RoleThread's profile settings such as app-window mode, fixed
 browser policy, profile-specific monitoring, or packaged-app choices.
 
-RoleThread still owns product policy, app-specific settings, packaged resource
-layout, and user-facing support text. LitLaunch owns the generic Streamlit
-runtime mechanics and returns `RuntimeSession` ownership for the backend process
-it starts.
+## Boundary Summary
+
+RoleThread Lite integration should stay thin and explicit:
+
+- LitLaunch should not train models, transform RoleThread data, or implement
+  RoleThread product logic.
+- LitLaunch should not own RoleThread auth, hosting, TLS termination, reverse
+  proxies, telemetry, cloud logging, packaging, installer behavior, or update
+  policy.
+- RoleThread should not require LitLaunch internals or private modules.
+- RoleThread-specific behavior should be expressed as app configuration,
+  profile values, app arguments, shutdown hooks, or app-owned support text.
+
+This boundary keeps LitLaunch useful for RoleThread Lite while preserving the
+same integration model for other Streamlit products.

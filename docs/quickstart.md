@@ -3,18 +3,19 @@
 LitLaunch keeps the first run simple:
 
 ```powershell
-litlaunch app.py
+litlaunch app.py --mode webapp
 ```
 
 That local-first path gives you explicit backend ownership, Streamlit health
-checks, browser launch, clean shutdown handling, and diagnostics/reporting
-without shell scripts or custom runtime glue. Profiles, shortcuts, shutdown
-hooks, packaged-app runtime workflows, trust modes, and report tooling are
-available when the project needs more repeatable launch behavior or operational
-visibility. LitLaunch can run inside packaged/distributed Streamlit apps across
-Windows, Linux, and macOS, but it does not create installers or replace
-packaging tools. Windows and Linux receive first-party manual validation; macOS
-support has limited validation until community testing broadens.
+checks, browser capability detection, an app-window experience where supported,
+clean shutdown handling, and diagnostics/reporting without shell scripts or
+custom runtime glue. Profiles, shortcuts, shutdown hooks, packaged-app runtime
+workflows, trust modes, and report tooling are available when the project needs
+more repeatable launch behavior or operational visibility. LitLaunch can run
+inside packaged/distributed Streamlit apps across Windows, Linux, and macOS, but
+it does not create installers or replace packaging tools. Windows and Linux
+receive first-party manual validation; macOS support has limited validation
+until community testing broadens.
 
 ## Run The Minimal Example
 
@@ -54,7 +55,7 @@ Use `litlaunch --help` or a command-specific `--help` flag for reference help.
 ## Use Your Own App
 
 ```powershell
-litlaunch app.py
+litlaunch app.py --mode webapp
 ```
 
 With Streamlit flags:

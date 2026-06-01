@@ -20,7 +20,7 @@ reinventing.
 ### Launch your app with sensible defaults
 
 ```powershell
-litlaunch app.py
+litlaunch app.py --mode webapp
 ```
 
 CLI examples use the installed `litlaunch` command. `python -m litlaunch ...`
@@ -35,9 +35,8 @@ session = launcher.start()
 ```
 
 That is enough to get local-first defaults, explicit backend ownership, health
-checks, automatic browser launch, browser capability detection, managed
-browser-window lifecycle where supported, clean shutdown handling, app-mode
-support where available, and diagnostics/reporting tools.
+checks, browser capability detection, an app-window experience where supported,
+clean shutdown handling, and diagnostics/reporting tools.
 
 No shell scripts. No browser automation hacks. No custom runtime glue.
 

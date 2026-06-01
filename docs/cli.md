@@ -66,7 +66,7 @@ tooling. It is useful for contributors, but it is not a main user workflow.
 Friendly shorthand:
 
 ```powershell
-litlaunch app.py
+litlaunch app.py --mode webapp
 litlaunch app.py --mode webapp --browser edge
 litlaunch --profile my-webapp
 litlaunch --profile my-webapp --port 8502

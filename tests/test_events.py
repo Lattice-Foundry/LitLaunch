@@ -1,6 +1,6 @@
 import json
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from types import MappingProxyType
 
@@ -20,7 +20,7 @@ def test_runtime_event_normalizes_values_and_freezes_details():
         category=" Launch ",
         level=" INFO ",
         message=" Launch planned ",
-        timestamp=datetime(2026, 5, 24, tzinfo=UTC),
+        timestamp=datetime(2026, 5, 24, tzinfo=timezone.utc),
         details={"port": 8501, "browser": "edge"},
     )
 
@@ -47,7 +47,7 @@ def test_runtime_event_rejects_invalid_values(kwargs, message):
         "category": "launch",
         "level": "info",
         "message": "Launch planned",
-        "timestamp": datetime(2026, 5, 24, tzinfo=UTC),
+        "timestamp": datetime(2026, 5, 24, tzinfo=timezone.utc),
     }
     values.update(kwargs)
 
@@ -75,7 +75,7 @@ def test_runtime_event_file_sink_writes_jsonl_and_creates_parent_dirs():
             category="launch",
             level="info",
             message="Launch planned token=abc123",
-            timestamp=datetime(2026, 5, 24, tzinfo=UTC),
+            timestamp=datetime(2026, 5, 24, tzinfo=timezone.utc),
             details={"port": 8501, "api_token": "abc123", "mode": "webapp"},
         )
 

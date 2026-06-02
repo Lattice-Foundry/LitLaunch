@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from types import MappingProxyType
 
@@ -174,7 +174,7 @@ class RuntimeEventEmitter:
             category=category,
             level=level,
             message=message,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             details={str(key): str(value) for key, value in (details or {}).items()},
         )
         try:

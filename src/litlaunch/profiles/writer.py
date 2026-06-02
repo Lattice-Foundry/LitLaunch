@@ -207,6 +207,16 @@ def _atomic_write_text(path: Path, content: str) -> None:
 
 def _display_path(path: Path, base_dir: Path) -> str:
     try:
+        return str(path.relative_to(base_dir))
+    except ValueError:
+        pass
+    try:
+        resolved_path = path.resolve(strict=False)
+        resolved_base_dir = base_dir.resolve(strict=False)
+        return str(resolved_path.relative_to(resolved_base_dir))
+    except (OSError, ValueError):
+        pass
+    try:
         return os.path.relpath(path, base_dir)
     except ValueError:
         return str(path)

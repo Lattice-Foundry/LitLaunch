@@ -466,7 +466,7 @@ def test_run_profile_can_create_launcher_from_profile_config():
 
 def browser_monitor_config():
     return WindowMonitorConfig(
-        appear_timeout_seconds=0.01,
+        appear_timeout_seconds=0.1,
         poll_interval_seconds=0.001,
         stable_poll_count=2,
         require_app_mode=False,

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from litlaunch.exceptions import ConfigurationError
 
-from .core import load_profiles
+from .core import _presentation_path, load_profiles
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ def detect_app_root(cwd: str | Path | None = None) -> AppRootDetection:
     """Detect deterministic profile defaults from a working directory."""
 
     root = Path.cwd() if cwd is None else Path(cwd)
-    root = root.resolve()
+    root = _presentation_path(root)
     config_path = root / "litlaunch.toml"
     existing_profile_names = _existing_profile_names(config_path)
     return AppRootDetection(

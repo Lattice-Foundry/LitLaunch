@@ -135,14 +135,14 @@ def _resolve_profile_source(
         path = Path(config_path)
         if not path.is_file():
             raise ConfigurationError(f"LitLaunch profile config not found: {path}")
-        return path.resolve()
+        return _absolute_path(path)
 
     root = Path.cwd() if cwd is None else Path(cwd)
     candidates = []
     for filename in (LITLAUNCH_TOML, PYPROJECT_TOML):
         path = root / filename
         if path.is_file() and _load_profile_table(path, missing_ok=True):
-            candidates.append(path.resolve())
+            candidates.append(_absolute_path(path))
 
     if len(candidates) > 1:
         names = ", ".join(path.name for path in candidates)
@@ -299,7 +299,25 @@ def _profile_path(value: Any, base_dir: Path) -> Path:
     path = Path(str(value).strip())
     if not str(path):
         raise ConfigurationError("profile path values cannot be empty.")
-    return path if path.is_absolute() else base_dir / path
+    resolved = path if path.is_absolute() else base_dir / path
+    return _presentation_path(resolved)
+
+
+def _absolute_path(path: Path) -> Path:
+    resolved = path if path.is_absolute() else Path.cwd() / path
+    return _presentation_path(resolved)
+
+
+def _presentation_path(path: Path) -> Path:
+    parts = path.parts
+    if (
+        len(parts) >= 3
+        and parts[0] in {"/", "\\"}
+        and parts[1] == "private"
+        and parts[2] == "var"
+    ):
+        return Path("/", *parts[2:])
+    return path
 
 
 def _normalize_profile_name(name: str) -> str:

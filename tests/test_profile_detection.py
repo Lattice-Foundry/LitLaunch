@@ -28,7 +28,7 @@ def test_detects_app_py_as_strong_default():
         assert detection.app_path_strength == "strong"
         assert detection.suggested_profile_name.startswith("rolethread-test")
         assert detection.suggested_title.startswith("Rolethread Test")
-        assert detection.config_path == root.resolve() / "litlaunch.toml"
+        assert detection.config_path == root / "litlaunch.toml"
         assert detection.config_exists is False
 
 

@@ -8,6 +8,7 @@ import pytest
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.profiles import LaunchProfile, load_profile
+from litlaunch.profiles.core import _presentation_path
 from litlaunch.profiles import writer as profile_writer
 from litlaunch.profiles.writer import write_litlaunch_profile
 from litlaunch.windowing import WindowMonitorConfig
@@ -169,6 +170,37 @@ def test_profile_writer_round_trips_runtime_event_log(tmp_path: Path):
     assert 'runtime_event_log = ".litlaunch' in result.toml
     assert loaded.config.runtime_event_log == tmp_path / ".litlaunch" / (
         "runtime-events.log"
+    )
+
+
+def test_display_path_handles_different_spellings_of_same_directory(
+    tmp_path: Path,
+    monkeypatch,
+):
+    base_dir = tmp_path / "spelled-one"
+    app_path = tmp_path / "spelled-two" / "app.py"
+    canonical_base = tmp_path / "canonical"
+    real_resolve = Path.resolve
+
+    def fake_resolve(path: Path, *args, **kwargs):
+        if path == base_dir:
+            return canonical_base
+        if path == app_path:
+            return canonical_base / "app.py"
+        return real_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", fake_resolve)
+
+    assert profile_writer._display_path(app_path, base_dir) == "app.py"
+
+
+def test_profile_paths_prefer_macos_var_presentation():
+    path = Path(
+        "/private/var/folders/example/T/litlaunch-profile-test/app.py"
+    )
+
+    assert _presentation_path(path).as_posix() == (
+        "/var/folders/example/T/litlaunch-profile-test/app.py"
     )
 
 

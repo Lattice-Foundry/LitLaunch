@@ -195,9 +195,7 @@ def test_display_path_handles_different_spellings_of_same_directory(
 
 
 def test_profile_paths_prefer_macos_var_presentation():
-    path = Path(
-        "/private/var/folders/example/T/litlaunch-profile-test/app.py"
-    )
+    path = Path("/private/var/folders/example/T/litlaunch-profile-test/app.py")
 
     assert _presentation_path(path).as_posix() == (
         "/var/folders/example/T/litlaunch-profile-test/app.py"

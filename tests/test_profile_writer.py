@@ -8,8 +8,8 @@ import pytest
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.profiles import LaunchProfile, load_profile
-from litlaunch.profiles.core import _presentation_path
 from litlaunch.profiles import writer as profile_writer
+from litlaunch.profiles.core import _presentation_path
 from litlaunch.profiles.writer import write_litlaunch_profile
 from litlaunch.windowing import WindowMonitorConfig
 

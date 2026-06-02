@@ -442,7 +442,8 @@ Shortcut creation writes an OS-native project-local shortcut under
 
 - Windows: `.lnk`
 - Linux: `.desktop`
-- macOS: `.app` bundle, with limited validation until broader community testing
+- macOS: `.app` bundle, with lighter first-party validation while community
+  coverage broadens
 
 Use `--kind script` for the simpler `.bat`, `.sh`, or `.command` fallback form.
 Shortcut creation does not launch the app, modify the Desktop, register Start

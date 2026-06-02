@@ -14,8 +14,8 @@ workflows, trust modes, and report tooling are available when the project needs
 more repeatable launch behavior or operational visibility. LitLaunch can run
 inside packaged/distributed Streamlit apps across Windows, Linux, and macOS, but
 it does not create installers or replace packaging tools. Windows and Linux
-receive first-party manual validation; macOS support has limited validation
-until community testing broadens.
+receive first-party manual validation. macOS support is available with lighter
+first-party validation while community coverage broadens.
 
 ## Run The Minimal Example
 

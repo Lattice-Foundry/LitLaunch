@@ -87,7 +87,8 @@ artifacts with a single `.litlaunch/` entry.
 Generated shortcuts are native project-local artifacts by default: `.lnk` on
 Windows, `.desktop` on Linux, and a small `.app` bundle on macOS. Use
 `--kind script` for `.bat`, `.sh`, or `.command` fallback scripts. macOS shortcut
-support has limited validation until broader community testing expands.
+support is available with lighter first-party validation while community
+coverage broadens.
 
 Shortcuts are not installer artifacts, do not register with desktop menus, and
 are not automatically placed on the Desktop, Start Menu, Dock, or distro-specific

@@ -111,8 +111,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="litlaunch",
         description="Lightweight Streamlit launcher/runtime tooling.",
         epilog=(
-            "Common workflows: litlaunch app.py | litlaunch --profile my-webapp | "
-            "litlaunch report --profile my-webapp"
+            "Common workflows: litlaunch app.py --mode webapp | "
+            "litlaunch --profile my-webapp | litlaunch report --profile my-webapp"
         ),
         parents=[parent],
         formatter_class=LitLaunchHelpFormatter,

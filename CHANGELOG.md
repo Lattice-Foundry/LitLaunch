@@ -1,12 +1,21 @@
 # Changelog
 
-LitLaunch uses PEP 440 pre-release versions until the coordinated
-LitLaunch / RoleThread launch. Public documentation is stable-facing while the
-package classifier remains `Development Status :: 4 - Beta` until the final
-`1.0.0` release.
+LitLaunch uses PEP 440 public versions. The `1.0.0` release is the first stable
+LitLaunch release and aligns with the coordinated LitLaunch / RoleThread
+launch.
 
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
+
+## 1.0.0 - Stable
+
+- Promoted LitLaunch from the release-candidate line to the first stable
+  release, with the PyPI classifier set to
+  `Development Status :: 5 - Production/Stable`.
+- Preserved the narrow runtime-governance scope: LitLaunch owns launch
+  orchestration, backend lifecycle, browser/app-window strategy, diagnostics,
+  profiles, shortcuts, runtime events, shutdown, and support artifacts without
+  replacing or securing Streamlit applications.
 
 ## 1.0.0rc6 - Release Candidate
 

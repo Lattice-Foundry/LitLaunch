@@ -26,7 +26,7 @@ python scripts/check_release.py
 
 ## Package Install
 
-After publication:
+Install from PyPI:
 
 ```powershell
 python -m pip install litlaunch
@@ -47,8 +47,8 @@ console script directory is not on `PATH`.
 The local development environment currently uses Python 3.14.5. Package metadata
 allows Python 3.10 and newer. CI currently checks Python 3.10 through 3.14 on
 Windows, Linux, and macOS. Windows and Linux receive first-party manual
-validation; macOS behavior has limited validation until community testing
-expands.
+validation. macOS behavior is supported with lighter first-party validation
+while community coverage broadens.
 
 Do not assume packaged-app behavior has been validated unless the integration
 notes for that packaging path say so.

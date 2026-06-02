@@ -399,8 +399,8 @@ def test_cli_parser_builds_and_help_lists_commands():
     assert "run" in help_text
     assert "create" in help_text
     assert "source-checkout minimal example" in help_text
-    assert "litlaunch app.py" in help_text
-    assert "litlaunch --profile my-webapp" in help_text
+    assert "litlaunch app.py --mode webapp" in help_text
+    assert re.search(r"litlaunch --profile my-\s*webapp", help_text)
     assert re.search(r"litlaunch\s+report --profile my-webapp", help_text)
     assert "console-preview" not in help_text
 
@@ -446,9 +446,9 @@ def test_cli_workflow_help_launch_topic():
     output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "Launch workflows" in output
-    assert "litlaunch app.py" in output
+    assert "litlaunch app.py --mode webapp" in output
     assert "litlaunch --profile NAME" in output
-    assert "litlaunch run app.py" in output
+    assert "litlaunch run app.py --mode webapp" in output
     assert "litlaunch run --profile NAME" in output
     assert "--monitor-window" in output
     assert "--no-monitor-window" in output
@@ -1419,7 +1419,7 @@ def test_python_m_litlaunch_invokes_cli_help():
 
     assert result.returncode == 0
     assert "usage: litlaunch" in strip_ansi(result.stdout)
-    assert "litlaunch app.py" in strip_ansi(result.stdout)
+    assert "litlaunch app.py --mode webapp" in strip_ansi(result.stdout)
 
 
 def test_cli_platform_outputs_summary_and_verbose_details():

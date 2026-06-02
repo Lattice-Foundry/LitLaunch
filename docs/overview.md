@@ -26,8 +26,8 @@ workflows stay simple; packaged/distributed app workflows can reuse the same
 runtime layer across Windows, Linux, and macOS; trust modes, exposure
 diagnostics, and transport posture reporting are available when a project needs
 stronger operational visibility. Windows and Linux receive first-party manual
-validation; macOS support has limited validation until community testing
-broadens.
+validation. macOS support is available with lighter first-party validation while
+community coverage broadens.
 
 ## Current Scope
 

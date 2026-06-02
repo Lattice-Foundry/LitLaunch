@@ -50,7 +50,7 @@ def test_release_script_reads_current_version():
     version = module.read_project_version()
 
     assert version == __version__
-    assert Version(version).is_prerelease
+    assert not Version(version).is_prerelease
 
 
 @pytest.mark.parametrize("version", ["1.0.0b1", "1.0.0rc1"])

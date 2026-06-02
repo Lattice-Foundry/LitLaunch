@@ -31,8 +31,8 @@ def test_pyproject_metadata_includes_console_and_typing_classifiers():
     )
 
     classifiers = set(pyproject["project"]["classifiers"])
-    assert "Development Status :: 4 - Beta" in classifiers
-    assert "Development Status :: 5 - Production/Stable" not in classifiers
+    assert "Development Status :: 5 - Production/Stable" in classifiers
+    assert "Development Status :: 4 - Beta" not in classifiers
     assert "Development Status :: 3 - Alpha" not in classifiers
     assert "Development Status :: 2 - Pre-Alpha" not in classifiers
     assert "Environment :: Console" in classifiers
@@ -75,7 +75,7 @@ def test_pyproject_urls_use_canonical_repository_location():
 def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert f"## {current_version()} - Release Candidate" in changelog
+    assert f"## {current_version()} - Stable" in changelog
     assert "## Beta Development Era" in changelog
     assert "## Alpha Development Era" in changelog
     assert "Granular pre-release history is preserved in git" in changelog

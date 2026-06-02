@@ -74,8 +74,8 @@ backend lifecycle, graceful shutdown, diagnostics/reporting, working-directory
 handling, repeatable launch workflows, and platform-specific launch behavior.
 
 LitLaunch is designed to behave consistently across Windows, Linux, and macOS.
-Windows and Linux receive first-party manual validation; macOS support has
-limited validation until community testing broadens.
+Windows and Linux receive first-party manual validation. macOS is supported with
+lighter first-party validation while community coverage broadens.
 
 That makes it a strong fit for internal business tools, analyst dashboards,
 local AI utilities, and desktop-style Streamlit apps that need more operational
@@ -201,7 +201,7 @@ editable install command above. Python import metadata is produced during
 installation, so stale editable installs can report an older package metadata
 version even when `litlaunch.__version__` has changed in the source tree.
 
-After package publication, normal installs will use:
+Install from PyPI:
 
 ```powershell
 python -m pip install litlaunch
@@ -317,8 +317,8 @@ paths still write exactly where you ask.
 Shortcut generation uses native project-local artifacts by default: `.lnk` on
 Windows, `.desktop` on Linux, and a small `.app` bundle on macOS. Use
 `litlaunch create shortcut --profile NAME --kind script` when you prefer the
-simple `.bat`, `.sh`, or `.command` script form. macOS shortcut support has
-limited validation until broader community testing expands.
+simple `.bat`, `.sh`, or `.command` script form. macOS shortcut support is
+available with lighter first-party validation while community coverage broadens.
 
 Python integrations can run the same configured profile through `run_profile()`:
 
@@ -541,7 +541,7 @@ See [docs/inspect.md](docs/inspect.md) and
 
 ## Versioning
 
-LitLaunch uses `0.0.0` style internal versioning:
+LitLaunch uses PEP 440 public versions:
 
 - Patch bumps are for fixes, cleanup, and basic hardening passes.
 - Minor bumps are for larger internal milestones and feature work.

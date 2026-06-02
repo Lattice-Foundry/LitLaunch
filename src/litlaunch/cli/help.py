@@ -83,13 +83,13 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "",
             style.label("Friendly:"),
             *style.commands(
-                "litlaunch app.py",
+                "litlaunch app.py --mode webapp",
                 "litlaunch --profile NAME",
             ),
             "",
             style.label("Explicit:"),
             *style.commands(
-                "litlaunch run app.py",
+                "litlaunch run app.py --mode webapp",
                 "litlaunch run --profile NAME",
             ),
             "",
@@ -247,15 +247,15 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             ),
             "  Native shortcuts are .lnk on Windows, .desktop on Linux, and",
             "  .app bundles on macOS. Use --kind script for .bat/.sh/.command.",
-            "  macOS shortcut support has limited validation until community",
-            "  testing expands.",
+            "  macOS shortcut support has lighter first-party validation",
+            "  while community coverage broadens.",
         )
     if topic == "examples":
         return _join(
             style.heading("Examples"),
             "",
             style.label("Launch an app:"),
-            *style.commands("litlaunch app.py"),
+            *style.commands("litlaunch app.py --mode webapp"),
             "",
             style.label("Launch a profile:"),
             *style.commands("litlaunch --profile my-webapp"),
@@ -270,7 +270,7 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             ),
             "",
             style.label("Troubleshoot with more detail:"),
-            *style.commands("litlaunch app.py --verbose"),
+            *style.commands("litlaunch app.py --mode webapp --verbose"),
             "",
             style.label("Show the backend command:"),
             *style.commands(
@@ -316,9 +316,9 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "",
             style.label("Launch:"),
             *style.commands(
-                "litlaunch app.py",
+                "litlaunch app.py --mode webapp",
                 "litlaunch --profile NAME",
-                "litlaunch run app.py",
+                "litlaunch run app.py --mode webapp",
             ),
             "",
             style.label("Diagnostics:"),

@@ -1,5 +1,23 @@
 # Installation
 
+## Package Install
+
+Install from PyPI:
+
+```powershell
+python -m pip install litlaunch
+```
+
+Verify the CLI entry points:
+
+```powershell
+litlaunch --help
+python -m litlaunch --help
+```
+
+The module form is useful when the environment can import LitLaunch but the
+console script directory is not on `PATH`.
+
 ## Source Checkout
 
 For development:
@@ -23,24 +41,6 @@ python -m ruff check .
 python -m ruff format --check .
 python scripts/check_release.py
 ```
-
-## Package Install
-
-Install from PyPI:
-
-```powershell
-python -m pip install litlaunch
-```
-
-Verify the CLI entry points:
-
-```powershell
-litlaunch --help
-python -m litlaunch --help
-```
-
-The module form is useful when the environment can import LitLaunch but the
-console script directory is not on `PATH`.
 
 ## Python Versions
 

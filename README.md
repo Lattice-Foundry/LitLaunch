@@ -190,7 +190,13 @@ See [docs/philosophy.md](docs/philosophy.md) and
 
 ## Install
 
-From a source checkout:
+Install from PyPI:
+
+```powershell
+python -m pip install litlaunch
+```
+
+From a source checkout for development:
 
 ```powershell
 python -m pip install -e .[dev]
@@ -201,10 +207,11 @@ editable install command above. Python import metadata is produced during
 installation, so stale editable installs can report an older package metadata
 version even when `litlaunch.__version__` has changed in the source tree.
 
-Install from PyPI:
+Verify the CLI:
 
 ```powershell
-python -m pip install litlaunch
+litlaunch --help
+python -m litlaunch --help
 ```
 
 The development environment currently uses Python 3.14.5. Package metadata
@@ -213,16 +220,21 @@ across Windows, Linux, and macOS.
 
 ## Quickstart
 
-Run an app from the CLI:
+Run your app from the CLI:
 
 ```powershell
-litlaunch examples/minimal_app/app.py
+litlaunch app.py --mode webapp
 ```
 
-The `examples/minimal_app` path exists in a source checkout. Installed package
-users should point LitLaunch at their own Streamlit app path. The explicit
-`litlaunch run examples/minimal_app/app.py` form remains available for scripts
-and power-user workflows.
+Point LitLaunch at your own Streamlit app path. The explicit
+`litlaunch run app.py --mode webapp` form remains available for scripts and
+power-user workflows.
+
+From a source checkout, you can also try the minimal example:
+
+```powershell
+litlaunch examples/minimal_app/app.py --mode webapp
+```
 
 Use workflow help when you want guidance instead of command reference:
 
@@ -235,16 +247,10 @@ litlaunch help diagnostics
 Use `litlaunch --help` or `litlaunch run --help` for argparse command and flag
 reference.
 
-Run in Chromium app-mode:
-
-```powershell
-litlaunch examples/minimal_app/app.py --mode webapp --browser auto
-```
-
 Inspect local readiness without launching:
 
 ```powershell
-litlaunch report examples/minimal_app/app.py
+litlaunch report app.py
 ```
 
 Use a reusable project profile:
@@ -284,7 +290,7 @@ stable_polls = 2
 ```powershell
 litlaunch --profile my-webapp
 litlaunch command --profile my-webapp
-litlaunch report --profile my-webapp
+litlaunch report --profile my-webapp --open
 ```
 
 Profiles can live in `litlaunch.toml` or under `[tool.litlaunch]` in

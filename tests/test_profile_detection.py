@@ -18,7 +18,7 @@ def tmp_path():
 
 
 def test_detects_app_py_as_strong_default():
-    with tempfile.TemporaryDirectory(prefix="RoleThread Test-") as path:
+    with tempfile.TemporaryDirectory(prefix="Example App Test-") as path:
         root = Path(path)
         write(root / "app.py")
 
@@ -26,8 +26,8 @@ def test_detects_app_py_as_strong_default():
 
         assert detection.app_path == Path("app.py")
         assert detection.app_path_strength == "strong"
-        assert detection.suggested_profile_name.startswith("rolethread-test")
-        assert detection.suggested_title.startswith("Rolethread Test")
+        assert detection.suggested_profile_name.startswith("example-app-test")
+        assert detection.suggested_title.startswith("Example App Test")
         assert detection.config_path == root / "litlaunch.toml"
         assert detection.config_exists is False
 

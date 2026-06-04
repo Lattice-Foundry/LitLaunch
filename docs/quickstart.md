@@ -112,7 +112,7 @@ Run, inspect, or show the launch plan for the profile:
 ```powershell
 litlaunch --profile my-webapp
 litlaunch command --profile my-webapp
-litlaunch report --profile my-webapp
+litlaunch report --profile my-webapp --open
 litlaunch create shortcut --profile my-webapp
 ```
 

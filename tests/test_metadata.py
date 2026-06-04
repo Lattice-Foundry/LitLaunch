@@ -117,13 +117,14 @@ def test_docs_foundation_exists_and_links_from_readme():
         assert f"docs/{doc}" in readme
 
 
-def test_internal_docs_are_excluded_from_sdist_config():
+def test_local_notes_are_excluded_from_sdist_config():
     pyproject = tomllib.loads(
         (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     )
 
     exclude = pyproject["tool"]["hatch"]["build"]["targets"]["sdist"]["exclude"]
-    assert "/docs/internal" in exclude
+    assert "/notes" in exclude
+    assert "/docs/internal" not in exclude
 
 
 def test_dead_diagnostics_module_has_been_removed():
@@ -207,20 +208,20 @@ def test_docs_clarify_redaction_limits_and_deferred_visual_placeholders():
     troubleshooting = (REPO_ROOT / "docs" / "troubleshooting.md").read_text(
         encoding="utf-8"
     )
-    validation_notes = (
-        REPO_ROOT / "docs" / "internal" / "release_validation_notes.md"
-    ).read_text(encoding="utf-8")
 
     assert "pattern-based" in inspect_doc
     assert "Encoded, base64, URL-wrapped" in inspect_doc
     assert "Review support bundles before sharing" in inspect_doc
     assert "home/user path prefixes" in troubleshooting
-    assert "Visual Documentation" in validation_notes
-    assert "Runtime Profiles" in validation_notes
     screenshot_placeholder = "[screenshot" + " needed]"
     diagram_placeholder = "[diagram" + " needed]"
-    assert screenshot_placeholder not in validation_notes
-    assert diagram_placeholder not in validation_notes
+    public_docs = [REPO_ROOT / "README.md"]
+    public_docs.extend((REPO_ROOT / "docs").glob("*.md"))
+    public_docs.extend((REPO_ROOT / "docs" / "integration").glob("*.md"))
+    for path in public_docs:
+        text = path.read_text(encoding="utf-8")
+        assert screenshot_placeholder not in text
+        assert diagram_placeholder not in text
 
 
 def test_docs_clarify_with_port_title_and_streamlit_passthrough_policy():
@@ -240,22 +241,8 @@ def test_docs_clarify_with_port_title_and_streamlit_passthrough_policy():
     assert "does not deduplicate repeated user-supplied" in cli
 
 
-def test_internal_docs_exist_but_are_not_linked_from_public_docs():
-    internal_docs = [
-        "README.md",
-        "rolethread_integration_plan.md",
-        "rolethread_handoff_checklist.md",
-        "rolethread_runtime_mapping.md",
-        "rolethread_test_matrix.md",
-        "release_validation_notes.md",
-    ]
-
-    for doc in internal_docs:
-        path = REPO_ROOT / "docs" / "internal" / doc
-        text = path.read_text(encoding="utf-8")
-        assert path.is_file()
-        assert "INTERNAL" in text
-        assert text.strip()
+def test_internal_docs_are_not_tracked_in_public_repo():
+    assert not (REPO_ROOT / "docs" / "internal").exists()
 
     public_paths = [REPO_ROOT / "README.md"]
     public_paths.extend((REPO_ROOT / "docs").glob("*.md"))

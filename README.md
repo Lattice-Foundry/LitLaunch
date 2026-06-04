@@ -190,7 +190,7 @@ See [docs/philosophy.md](docs/philosophy.md) and
 
 ## Install
 
-Install from PyPI:
+Install from [PyPI](https://pypi.org/project/litlaunch/1.0.0/):
 
 ```powershell
 python -m pip install litlaunch

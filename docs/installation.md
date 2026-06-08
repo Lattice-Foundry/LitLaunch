@@ -26,7 +26,7 @@ python scripts/check_release.py
 
 ## Package Install
 
-Install from PyPI:
+Install from [PyPI](https://pypi.org/project/litlaunch/):
 
 ```powershell
 python -m pip install litlaunch

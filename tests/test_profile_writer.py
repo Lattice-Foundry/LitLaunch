@@ -173,6 +173,21 @@ def test_profile_writer_round_trips_runtime_event_log(tmp_path: Path):
     )
 
 
+def test_profile_writer_round_trips_visible_streamlit_chrome_policy(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(app_path=app, show_streamlit_chrome=True),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert "show_streamlit_chrome = true" in result.toml
+    assert loaded.config.show_streamlit_chrome is True
+
+
 def test_display_path_handles_different_spellings_of_same_directory(
     tmp_path: Path,
     monkeypatch,
@@ -238,6 +253,7 @@ def test_profile_writer_omits_default_trust_mode(tmp_path: Path):
     result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml", dry_run=True)
 
     assert "trust_mode" not in result.toml
+    assert "show_streamlit_chrome" not in result.toml
 
 
 def test_profile_writer_keeps_existing_file_when_atomic_write_fails(

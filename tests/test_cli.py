@@ -290,6 +290,9 @@ class FakeLauncher:
             streamlit_flags=self.config.streamlit_flags,
             streamlit_args=self.config.streamlit_args,
             extra_env_preview="none",
+            streamlit_chrome_policy=(
+                "visible" if self.config.show_streamlit_chrome else "hidden"
+            ),
         )
 
     def run(self):
@@ -414,6 +417,7 @@ def test_cli_run_help_shows_monitor_and_browser_arg_flags(capsys):
     assert "--monitor-browser-window" in output
     assert "--no-monitor-browser-window" in output
     assert "--browser-arg" in output
+    assert "--show-streamlit-chrome" in output
     assert "Choose browser-tab mode or app-window webapp mode" in output
     assert "Choose browser launch strategy" in output
     assert "Request a Streamlit backend port" in output
@@ -1986,6 +1990,7 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.config.auto_port is True
     assert launcher.config.allow_browser_fallback is False
     assert launcher.config.trust_mode == TrustMode.STRICT_LOCAL
+    assert launcher.config.show_streamlit_chrome is False
     assert launcher.config.streamlit_flags["server.maxUploadSize"] == "20"
     assert launcher.config.app_args == ("dataset.json",)
     assert launcher.config.streamlit_args == ()
@@ -2011,6 +2016,7 @@ def test_cli_root_app_path_shorthand_uses_run_pipeline():
             "edge",
             "--port",
             "8600",
+            "--show-streamlit-chrome",
             "--no-monitor-window",
         ],
         stream=stream,
@@ -2023,6 +2029,7 @@ def test_cli_root_app_path_shorthand_uses_run_pipeline():
     assert launcher.config.mode == LaunchMode.WEBAPP
     assert launcher.config.browser == BrowserChoice.EDGE
     assert launcher.config.port == 8600
+    assert launcher.config.show_streamlit_chrome is True
     assert launcher.run_calls == 1
     assert session.wait_calls == 1
 
@@ -2165,6 +2172,7 @@ trust_mode = "internal_network"
 port = 8501
 auto_port = false
 headless = true
+show_streamlit_chrome = true
 streamlit_args = ["--server.runOnSave", "true"]
 app_args = ["--workspace", "demo"]
 """,
@@ -2195,6 +2203,7 @@ app_args = ["--workspace", "demo"]
     assert launcher.config.trust_mode == TrustMode.INTERNAL_NETWORK
     assert launcher.config.port == 8502
     assert launcher.config.auto_port is False
+    assert launcher.config.show_streamlit_chrome is True
     assert launcher.config.streamlit_args == ("--server.runOnSave", "true")
     assert launcher.config.app_args == ("--workspace", "demo")
     assert "--server.port 8502" in stream.getvalue()
@@ -2292,6 +2301,7 @@ port = 8501
 auto_port = false
 allow_browser_fallback = false
 headless = true
+show_streamlit_chrome = true
 streamlit_args = ["--theme.base=dark"]
 """,
             encoding="utf-8",
@@ -2316,6 +2326,7 @@ streamlit_args = ["--theme.base=dark"]
     assert call["port"] == 8501
     assert call["auto_port"] is False
     assert call["allow_browser_fallback"] is False
+    assert call["show_streamlit_chrome"] is True
     assert call["streamlit_args"] == ("--theme.base=dark",)
     assert call["profile_name"] == "default"
     assert call["monitor_window"] is False

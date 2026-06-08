@@ -8,13 +8,14 @@ litlaunch app.py --mode webapp
 
 That local-first path gives you explicit backend ownership, Streamlit health
 checks, browser capability detection, an app-window experience where supported,
-clean shutdown handling, and diagnostics/reporting without shell scripts or
-custom runtime glue. Profiles, shortcuts, shutdown hooks, packaged-app runtime
-workflows, trust modes, and report tooling are available when the project needs
-more repeatable launch behavior or operational visibility. LitLaunch can run
-inside packaged/distributed Streamlit apps across Windows, Linux, and macOS, but
-it does not create installers or replace packaging tools. Windows and Linux
-receive first-party manual validation. macOS support is available with lighter
+minimal Streamlit app chrome by default, clean shutdown handling, and
+diagnostics/reporting without shell scripts or custom runtime glue. Profiles,
+shortcuts, shutdown hooks, packaged-app runtime workflows, trust modes, and
+report tooling are available when the project needs more repeatable launch
+behavior or operational visibility. LitLaunch can run inside
+packaged/distributed Streamlit apps across Windows, Linux, and macOS, but it
+does not create installers or replace packaging tools. Windows and Linux receive
+first-party manual validation. macOS support is available with lighter
 first-party validation while community coverage broadens.
 
 ## Run The Minimal Example
@@ -56,6 +57,14 @@ Use `litlaunch --help` or a command-specific `--help` flag for reference help.
 
 ```powershell
 litlaunch app.py --mode webapp
+```
+
+LitLaunch hides Streamlit's default app toolbar/menu chrome by default through
+Streamlit's supported `client.toolbarMode = "minimal"` setting. Add
+`--show-streamlit-chrome` when you want Streamlit's default chrome visible:
+
+```powershell
+litlaunch app.py --mode webapp --show-streamlit-chrome
 ```
 
 With Streamlit flags:
@@ -220,6 +229,7 @@ plan = StreamlitLauncher(config).build_launch_plan()
 print(plan.command_display)
 print(plan.app_url)
 print(plan.health_url)
+print(plan.streamlit_chrome_policy)
 ```
 
 `build_launch_plan()` is intended for diagnostics, integration tests, and

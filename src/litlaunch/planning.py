@@ -60,6 +60,7 @@ def build_launch_plan(
         extra_env_preview=(
             format_env_preview(config.extra_env) if config.extra_env else "none"
         ),
+        streamlit_chrome_policy=streamlit_chrome_policy(config),
     )
 
 
@@ -107,3 +108,9 @@ def copy_streamlit_flags(flags):
     if hasattr(flags, "items"):
         return dict(flags.items())
     return tuple(flags)
+
+
+def streamlit_chrome_policy(config: LauncherConfig) -> str:
+    """Return the user-facing Streamlit app chrome policy name."""
+
+    return "visible" if config.show_streamlit_chrome else "hidden"

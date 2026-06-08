@@ -41,6 +41,7 @@ host = "127.0.0.1"
 port = 8501
 auto_port = false
 headless = true
+show_streamlit_chrome = true
 allow_browser_fallback = false
 cwd = "."
 streamlit_args = ["--server.runOnSave", "true"]
@@ -81,6 +82,7 @@ stable_polls = 2
     assert profile.config.port == 8501
     assert profile.config.auto_port is False
     assert profile.config.headless is True
+    assert profile.config.show_streamlit_chrome is True
     assert profile.config.allow_browser_fallback is False
     assert profile.config.cwd == tmp_path
     assert profile.config.extra_env["APP_ENV"] == "local"

@@ -49,6 +49,7 @@ dev = [
 Homepage = "https://github.com/Lattice-Foundry/LitLaunch"
 Repository = "https://github.com/Lattice-Foundry/LitLaunch"
 Issues = "https://github.com/Lattice-Foundry/LitLaunch/issues"
+PyPI = "https://pypi.org/project/litlaunch/"
 
 [project.scripts]
 litlaunch = "litlaunch.cli:main"

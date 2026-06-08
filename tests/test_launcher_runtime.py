@@ -465,6 +465,7 @@ def test_build_launch_plan_resolves_fixed_port_without_starting_or_launching():
     assert plan.backend_kind == "streamlit"
     assert "--server.port" in plan.command
     assert plan.command[plan.command.index("--server.port") + 1] == "8600"
+    assert plan.command[plan.command.index("--client.toolbarMode") + 1] == "minimal"
     assert plan.command_display
     assert "secret-value" not in plan.command_display
     assert "<redacted>" in plan.command_display
@@ -477,6 +478,7 @@ def test_build_launch_plan_resolves_fixed_port_without_starting_or_launching():
     assert plan.auto_port is False
     assert plan.mode == LaunchMode.BROWSER
     assert plan.headless is True
+    assert plan.streamlit_chrome_policy == "hidden"
     assert plan.browser_requested == BrowserChoice.AUTO
     assert plan.browser_resolution is not None
     assert plan.browser_resolution.selected == fake_browser()
@@ -487,6 +489,18 @@ def test_build_launch_plan_resolves_fixed_port_without_starting_or_launching():
     assert plan.extra_env_preview == "APP_MODE=demo, APP_TOKEN=<redacted>"
     assert process_manager.started == []
     assert browser_launcher.calls == []
+
+
+def test_build_launch_plan_reports_visible_streamlit_chrome_policy():
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", show_streamlit_chrome=True),
+        port_manager=FakePortManager(8600),
+    )
+
+    plan = launcher.build_launch_plan()
+
+    assert plan.streamlit_chrome_policy == "visible"
+    assert "--client.toolbarMode" not in plan.command
 
 
 def test_default_backend_provider_preserves_current_command_output():

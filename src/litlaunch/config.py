@@ -55,6 +55,7 @@ class LauncherConfig:
     port: int | None = None
     auto_port: bool = True
     headless: bool | None = None
+    show_streamlit_chrome: bool = False
     allow_browser_fallback: bool = True
     allow_network_exposure: bool = False
     trust_mode: TrustMode | str = TrustMode.DEVELOPMENT
@@ -91,6 +92,7 @@ class LauncherConfig:
             "extra_browser_args",
         )
         streamlit_flags = _normalize_streamlit_flags(self.streamlit_flags)
+        show_streamlit_chrome = bool(self.show_streamlit_chrome)
         _validate_webapp_headless(
             mode,
             self.headless,
@@ -119,6 +121,7 @@ class LauncherConfig:
         object.__setattr__(self, "app_args", app_args)
         object.__setattr__(self, "extra_browser_args", extra_browser_args)
         object.__setattr__(self, "streamlit_flags", streamlit_flags)
+        object.__setattr__(self, "show_streamlit_chrome", show_streamlit_chrome)
 
 
 def _normalize_path(value: str | Path) -> Path:

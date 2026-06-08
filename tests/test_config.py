@@ -21,6 +21,7 @@ def test_default_config_normalizes_correctly():
     assert config.host == "127.0.0.1"
     assert config.port is None
     assert config.auto_port is True
+    assert config.show_streamlit_chrome is False
     assert config.allow_browser_fallback is True
     assert config.trust_mode == TrustMode.DEVELOPMENT
 
@@ -46,6 +47,12 @@ def test_trust_mode_string_normalizes_to_enum():
     config = LauncherConfig(app_path="app.py", trust_mode="strict_local")
 
     assert config.trust_mode == TrustMode.STRICT_LOCAL
+
+
+def test_show_streamlit_chrome_normalizes_to_bool():
+    config = LauncherConfig(app_path="app.py", show_streamlit_chrome=1)
+
+    assert config.show_streamlit_chrome is True
 
 
 def test_invalid_trust_mode_raises_configuration_error():

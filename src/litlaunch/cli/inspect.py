@@ -72,6 +72,12 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         help="Evaluate the Streamlit bind host for runtime posture.",
     )
     parser.add_argument(
+        "--show-streamlit-chrome",
+        action="store_true",
+        default=None,
+        help="Evaluate diagnostics with Streamlit's default app chrome visible.",
+    )
+    parser.add_argument(
         "--no-auto-port",
         action="store_false",
         dest="auto_port",
@@ -129,6 +135,12 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--host",
         help="Evaluate the Streamlit bind host for runtime posture.",
+    )
+    parser.add_argument(
+        "--show-streamlit-chrome",
+        action="store_true",
+        default=None,
+        help="Evaluate diagnostics with Streamlit's default app chrome visible.",
     )
     parser.add_argument(
         "--allow-network-exposure",
@@ -265,6 +277,12 @@ def collect_diagnostics_report(
             profile_config,
             "allow_browser_fallback",
             True,
+        ),
+        show_streamlit_chrome=profile_value(
+            getattr(args, "show_streamlit_chrome", None),
+            profile_config,
+            "show_streamlit_chrome",
+            False,
         ),
         allow_network_exposure=profile_value(
             getattr(args, "allow_network_exposure", None),

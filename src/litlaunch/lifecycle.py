@@ -81,3 +81,4 @@ class LaunchPlan:
     streamlit_flags: Mapping[str, str | int | float | bool | None] | tuple[str, ...]
     streamlit_args: tuple[str, ...]
     extra_env_preview: str
+    streamlit_chrome_policy: str = "hidden"

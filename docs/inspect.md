@@ -49,6 +49,7 @@ With a target app, the report adds:
 - operational posture reminders for loopback shutdown hooks, browser ownership,
   diagnostics privacy, and plaintext profile environment values when present
 - command display
+- Streamlit app chrome policy
 - app URL display
 - health URL display
 - browser resolution summary

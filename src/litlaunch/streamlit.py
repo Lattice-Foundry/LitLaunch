@@ -8,6 +8,9 @@ from collections.abc import Mapping, Sequence
 from litlaunch.config import LauncherConfig
 from litlaunch.exceptions import CommandBuildError
 
+STREAMLIT_CHROME_POLICY_FLAG = "client.toolbarMode"
+STREAMLIT_CHROME_HIDDEN_VALUE = "minimal"
+
 
 class StreamlitCommandBuilder:
     """Build deterministic Streamlit command arguments from launcher config."""
@@ -45,6 +48,17 @@ class StreamlitCommandBuilder:
         resolved_port = self.config.port if port is None else port
         if resolved_port is not None and "server.port" not in user_flag_names:
             command.extend(("--server.port", str(resolved_port)))
+        if (
+            not self.config.show_streamlit_chrome
+            and _normalize_flag_name(STREAMLIT_CHROME_POLICY_FLAG)
+            not in user_flag_names
+        ):
+            command.extend(
+                (
+                    f"--{STREAMLIT_CHROME_POLICY_FLAG}",
+                    STREAMLIT_CHROME_HIDDEN_VALUE,
+                )
+            )
 
         command.extend(_format_streamlit_flags(self.config.streamlit_flags))
         command.extend(self.config.streamlit_args)

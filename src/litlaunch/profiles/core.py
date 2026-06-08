@@ -34,6 +34,7 @@ CONFIG_FIELDS = {
     "port",
     "auto_port",
     "headless",
+    "show_streamlit_chrome",
     "allow_browser_fallback",
     "allow_network_exposure",
     "trust_mode",

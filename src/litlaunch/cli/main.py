@@ -62,6 +62,7 @@ _LAUNCH_OPTION_NAMES = frozenset(
         "--trust-mode",
         "--port",
         "--host",
+        "--show-streamlit-chrome",
         "--no-auto-port",
         "--dry-run",
         "--monitor-window",

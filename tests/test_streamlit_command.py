@@ -49,6 +49,44 @@ def test_webapp_mode_uses_expected_headless_default():
     assert command[command.index("--server.headless") + 1] == "true"
 
 
+def test_streamlit_chrome_is_hidden_by_default():
+    command = StreamlitCommandBuilder(LauncherConfig(app_path="app.py")).build()
+
+    assert command[command.index("--client.toolbarMode") + 1] == "minimal"
+
+
+def test_show_streamlit_chrome_omits_litlaunch_toolbar_mode_default():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(app_path="app.py", show_streamlit_chrome=True),
+    ).build()
+
+    assert "--client.toolbarMode" not in command
+
+
+def test_user_streamlit_chrome_flag_prevents_duplicate_default_injection():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            streamlit_flags={"client.toolbarMode": "viewer"},
+        ),
+    ).build()
+
+    assert command.count("--client.toolbarMode") == 1
+    assert command[command.index("--client.toolbarMode") + 1] == "viewer"
+
+
+def test_raw_streamlit_chrome_arg_prevents_duplicate_default_injection():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            streamlit_args=("--client.toolbarMode=viewer",),
+        ),
+    ).build()
+
+    assert command.count("--client.toolbarMode") == 0
+    assert command.count("--client.toolbarMode=viewer") == 1
+
+
 def test_host_and_port_flags_are_included_correctly():
     command = StreamlitCommandBuilder(
         LauncherConfig(app_path="app.py", host="localhost", port=8502),

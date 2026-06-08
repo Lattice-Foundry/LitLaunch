@@ -36,7 +36,8 @@ session = launcher.start()
 
 That is enough to get local-first defaults, explicit backend ownership, health
 checks, browser capability detection, an app-window experience where supported,
-clean shutdown handling, and diagnostics/reporting tools.
+minimal Streamlit app chrome by default, clean shutdown handling, and
+diagnostics/reporting tools.
 
 No shell scripts. No browser automation hacks. No custom runtime glue.
 
@@ -158,6 +159,8 @@ their product.
 ## What It Solves
 
 - Start Streamlit through explicit, shell-free command construction.
+- Hide Streamlit's default app toolbar/menu chrome by default where Streamlit
+  supports it, with `--show-streamlit-chrome` to restore it.
 - Own and stop only the Streamlit backend process LitLaunch starts.
 - Open a managed browser window or Chromium app-mode window.
 - Resolve Edge, Chrome/Chromium, and default-browser capability.
@@ -201,7 +204,7 @@ editable install command above. Python import metadata is produced during
 installation, so stale editable installs can report an older package metadata
 version even when `litlaunch.__version__` has changed in the source tree.
 
-Install from PyPI:
+Install from [PyPI](https://pypi.org/project/litlaunch/):
 
 ```powershell
 python -m pip install litlaunch
@@ -240,6 +243,11 @@ Run in Chromium app-mode:
 ```powershell
 litlaunch examples/minimal_app/app.py --mode webapp --browser auto
 ```
+
+LitLaunch hides Streamlit's default app toolbar/menu chrome by default through
+Streamlit's supported `client.toolbarMode = "minimal"` setting. Use
+`--show-streamlit-chrome` when you intentionally want Streamlit's default
+toolbar/menu chrome visible for a launch.
 
 Inspect local readiness without launching:
 
@@ -384,6 +392,7 @@ Show launch behavior without starting Streamlit or opening a browser:
 plan = StreamlitLauncher(config).build_launch_plan()
 print(plan.command_display)
 print(plan.app_url)
+print(plan.streamlit_chrome_policy)
 ```
 
 `build_launch_plan()` is useful for diagnostics, integration tests, and
@@ -456,6 +465,7 @@ litlaunch browsers
 litlaunch command app.py --server.runOnSave true -- --workspace demo
 litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
+litlaunch run app.py --mode webapp --show-streamlit-chrome
 litlaunch run app.py --port 8501 --no-auto-port
 litlaunch run app.py --host 0.0.0.0 --allow-network-exposure
 litlaunch run app.py --trust-mode strict_local

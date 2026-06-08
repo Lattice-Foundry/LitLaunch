@@ -188,6 +188,9 @@ class FakeLauncher:
                 if self.config.extra_env
                 else "none"
             ),
+            streamlit_chrome_policy=(
+                "visible" if self.config.show_streamlit_chrome else "hidden"
+            ),
         )
 
     def run(self):
@@ -378,6 +381,7 @@ def test_collector_with_valid_app_path_builds_previews():
     assert report.ok is True
     assert "Target" in [section.title for section in report.sections]
     assert ("Target", "Command preview") in messages
+    assert messages[("Target", "Streamlit chrome policy")] == "hidden"
     assert messages[("Target", "Trust mode")] == "development"
     assert messages[("Target", "App URL preview")] == "http://127.0.0.1:8600"
     assert (
@@ -386,6 +390,16 @@ def test_collector_with_valid_app_path_builds_previews():
     )
     assert FakeLauncher.instances
     assert FakeLauncher.instances[0].run_calls == 0
+
+
+def test_collector_reports_visible_streamlit_chrome_policy():
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        show_streamlit_chrome=True,
+    )
+    messages = report_item_messages(report)
+
+    assert messages[("Target", "Streamlit chrome policy")] == "visible"
 
 
 def test_collector_reports_configured_trust_mode():

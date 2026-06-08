@@ -483,6 +483,9 @@ class StreamlitLauncher:
                 "browser": _display_browser_choice(self.config.browser.value),
                 "host": self.config.host,
                 "port": self.config.port or "auto",
+                "streamlit_chrome": (
+                    "visible" if self.config.show_streamlit_chrome else "hidden"
+                ),
             },
         )
 

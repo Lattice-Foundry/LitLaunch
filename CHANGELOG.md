@@ -7,6 +7,15 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.1 - Stable
+
+- Opened the post-launch patch line for public repository polish and follow-up
+  fixes after the `1.0.0` PyPI release.
+- Hid Streamlit's default app toolbar/menu chrome by default through
+  Streamlit's supported `client.toolbarMode = "minimal"` setting, with
+  `--show-streamlit-chrome` and `show_streamlit_chrome = true` restoring the
+  default Streamlit chrome when requested.
+
 ## 1.0.0 - Stable
 
 - Promoted LitLaunch from the release-candidate line to the first stable

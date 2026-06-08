@@ -71,6 +71,12 @@ def add_runtime_flags(
         help="Set the Streamlit bind host. Loopback is the local-first default.",
     )
     parser.add_argument(
+        "--show-streamlit-chrome",
+        action="store_true",
+        default=None,
+        help="Show Streamlit's default app toolbar/menu chrome for this launch.",
+    )
+    parser.add_argument(
         "--no-auto-port",
         action="store_false",
         dest="auto_port",
@@ -241,6 +247,12 @@ def runtime_config_from_args(
         port=profile_value(args.port, profile_config, "port", None),
         auto_port=profile_value(args.auto_port, profile_config, "auto_port", True),
         headless=profile_value(None, profile_config, "headless", None),
+        show_streamlit_chrome=profile_value(
+            getattr(args, "show_streamlit_chrome", None),
+            profile_config,
+            "show_streamlit_chrome",
+            False,
+        ),
         allow_browser_fallback=profile_value(
             args.allow_browser_fallback,
             profile_config,

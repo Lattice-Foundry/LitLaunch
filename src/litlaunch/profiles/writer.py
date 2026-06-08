@@ -115,6 +115,10 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
         lines.append(f"auto_port = {_toml_bool(config.auto_port)}")
     if config.headless is not None:
         lines.append(f"headless = {_toml_bool(config.headless)}")
+    if config.show_streamlit_chrome is not False:
+        lines.append(
+            f"show_streamlit_chrome = {_toml_bool(config.show_streamlit_chrome)}"
+        )
     if config.allow_browser_fallback is not True:
         lines.append(
             f"allow_browser_fallback = {_toml_bool(config.allow_browser_fallback)}"

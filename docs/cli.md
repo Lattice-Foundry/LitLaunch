@@ -83,6 +83,7 @@ litlaunch run app.py --port 8501 --host 127.0.0.1
 litlaunch run app.py --port 8501 --no-auto-port
 litlaunch run app.py --host 0.0.0.0 --allow-network-exposure
 litlaunch run app.py --no-browser-fallback
+litlaunch run app.py --show-streamlit-chrome
 litlaunch run app.py --dry-run
 litlaunch run --profile my-webapp
 litlaunch run --config litlaunch.toml --profile my-webapp
@@ -102,6 +103,12 @@ LitLaunch falls back cleanly to the manual `Ctrl+C` stop path.
 Use `--no-monitor-browser-window` when you intentionally want browser mode to
 keep running until `Ctrl+C` or backend exit. Use `--monitor-browser-window` to
 request browser-window monitoring explicitly in scripts or profile overrides.
+
+LitLaunch hides Streamlit's default app toolbar/menu chrome by default through
+Streamlit's supported `client.toolbarMode = "minimal"` setting. Use
+`--show-streamlit-chrome` when you intentionally want Streamlit's default
+toolbar/menu chrome visible for a launch. Profiles can set
+`show_streamlit_chrome = true` for the same opt-in behavior.
 
 CLI webapp launches enable app-window close monitoring by default where window
 monitoring is supported; use `--no-monitor-window` only when you intentionally

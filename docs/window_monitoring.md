@@ -90,8 +90,10 @@ Window monitoring does not:
 - inspect browser URLs
 - use browser automation, CDP, remote debugging, or address-bar scraping
 
-When a close is observed, `RuntimeSession.stop()` performs graceful shutdown and
-owned-backend fallback termination if needed.
+When a close is observed, `RuntimeSession.stop()` requests optional app-side
+cleanup when the app has enabled it, then stops only the owned backend process
+if needed. Plain Streamlit apps do not need app-side setup for the default close
+flow.
 
 Managed browser-window mode does not claim general browser-tab ownership. It is
 best-effort window observation. If Chromium reuses an existing window, policy

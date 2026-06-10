@@ -511,6 +511,10 @@ For monitored Streamlit windows, match the LitLaunch `--title` or profile
 conservative near-title drift, but aligned titles give the most reliable close
 detection.
 
+Plain Streamlit apps do not need app-side shutdown setup for the default
+window-close flow. Use `LauncherRuntime` hooks only when the app has custom
+cleanup work.
+
 See [docs/browser_support.md](docs/browser_support.md) and
 [docs/window_monitoring.md](docs/window_monitoring.md).
 

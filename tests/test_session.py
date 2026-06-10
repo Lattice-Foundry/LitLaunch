@@ -59,18 +59,35 @@ class FakeProcessManager:
         return self.wait_return
 
 
+_DEFAULT_STATUS_CODE = object()
+
+
 class FakeShutdownClient:
-    def __init__(self, *, ok=True, hook_results=()):
+    def __init__(
+        self,
+        *,
+        ok=True,
+        hook_results=(),
+        status_code=_DEFAULT_STATUS_CODE,
+        message=None,
+    ):
         self.ok = ok
         self.hook_results = hook_results
+        self.status_code = status_code
+        self.message = message
         self.calls = 0
 
     def request_shutdown(self):
         self.calls += 1
+        status_code = (
+            (200 if self.ok else 500)
+            if self.status_code is _DEFAULT_STATUS_CODE
+            else self.status_code
+        )
         return ShutdownRequestResult(
             ok=self.ok,
-            status_code=200 if self.ok else 500,
-            message="accepted" if self.ok else "failed",
+            status_code=status_code,
+            message=self.message or ("accepted" if self.ok else "failed"),
             hook_results=self.hook_results,
         )
 
@@ -717,6 +734,40 @@ def test_runtime_session_stop_fallback_console_guidance():
     assert "Shutdown: Using backend termination fallback." in output
     assert "LitLaunch will stop only the backend process it started." not in output
     assert "Use verbose mode for more runtime details." in output
+
+
+def test_runtime_session_stop_missing_cleanup_endpoint_is_expected_fallback():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process = make_process()
+    manager = FakeProcessManager()
+    shutdown_client = FakeShutdownClient(
+        ok=False,
+        status_code=None,
+        message="Shutdown request failed: connection refused",
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session.stop(timeout_seconds=2.0)
+
+    output = stream.getvalue()
+    assert "Shutdown: Graceful request failed." not in output
+    assert (
+        "Shutdown: App cleanup endpoint unavailable; stopping owned backend." in output
+    )
+    assert "did not opt into LitLaunch app-side cleanup hooks" in output
+    assert "No app setup is required unless the app needs custom cleanup." in output
+    assert manager.stop_calls == [(process, 2.0)]
 
 
 def test_runtime_session_stop_uses_fallback_when_graceful_wait_times_out():

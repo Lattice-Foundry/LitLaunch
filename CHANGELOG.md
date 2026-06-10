@@ -7,6 +7,15 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.6 - Stable
+
+- Treated missing app-side cleanup endpoints as the expected default for plain
+  Streamlit apps, rendering a warning instead of a graceful-shutdown error
+  before stopping the owned backend process.
+- Clarified that `LauncherRuntime` cleanup hooks are optional power-user
+  behavior for apps with real cleanup work, not required for the default
+  window-close experience.
+
 ## 1.0.5 - Stable
 
 - Hardened app-window and managed browser-window monitoring with shared,

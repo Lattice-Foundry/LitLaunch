@@ -305,7 +305,9 @@ overlap, but it does not deduplicate duplicate user options across both inputs.
 
 ## App-Side Shutdown Cleanup
 
-Streamlit apps can opt into graceful cleanup when launched by LitLaunch:
+Plain Streamlit apps do not need app-side setup for LitLaunch to stop the owned
+backend when a monitored window closes. Apps that have real cleanup work can
+opt into graceful cleanup when launched by LitLaunch:
 
 ```python
 from litlaunch import LauncherRuntime, ShutdownHookStatus

@@ -227,24 +227,30 @@ class RuntimeSession:
                     render=False,
                 )
                 self._render_shutdown_hook_results(request_result.hook_results)
-                if self._is_verbose_console():
-                    render_phase_warning(
+                if (
+                    request_result.status_code is None
+                    and not request_result.hook_results
+                ):
+                    self._render_cleanup_endpoint_unavailable(request_result.message)
+                else:
+                    if self._is_verbose_console():
+                        render_phase_warning(
+                            self.console_renderer,
+                            ConsolePhase.BACKEND,
+                            "graceful shutdown failed; using termination fallback",
+                        )
+                    render_failure_guidance(
                         self.console_renderer,
-                        ConsolePhase.BACKEND,
-                        "graceful shutdown failed; using termination fallback",
-                    )
-                render_failure_guidance(
-                    self.console_renderer,
-                    "Shutdown: graceful request failed.",
-                    likely_cause="The app did not accept the cleanup request.",
-                    next_steps=(
-                        (
-                            "Confirm the app calls "
-                            "LauncherRuntime.enable_shutdown_endpoint()."
+                        "Shutdown: graceful request failed.",
+                        likely_cause="The app did not accept the cleanup request.",
+                        next_steps=(
+                            (
+                                "Confirm the app calls "
+                                "LauncherRuntime.enable_shutdown_endpoint()."
+                            ),
+                            "Use verbose mode for more runtime details.",
                         ),
-                        "Use verbose mode for more runtime details.",
-                    ),
-                )
+                    )
 
         if not self.is_running():
             self._stopped = True
@@ -514,6 +520,26 @@ class RuntimeSession:
             )
             if self.console_renderer is not None:
                 self.console_renderer.render_shutdown_hook_result(hook_result)
+
+    def _render_cleanup_endpoint_unavailable(self, detail: str) -> None:
+        renderer = self.console_renderer
+        render_phase_warning(
+            renderer,
+            ConsolePhase.SHUTDOWN,
+            "app cleanup endpoint unavailable; stopping owned backend",
+        )
+        if renderer is None or renderer.mode == ConsoleMode.QUIET:
+            return
+        renderer.guidance_line(
+            "Likely cause",
+            "The app did not opt into LitLaunch app-side cleanup hooks.",
+        )
+        renderer.guidance_line(
+            "Next",
+            "No app setup is required unless the app needs custom cleanup.",
+        )
+        if renderer.mode == ConsoleMode.VERBOSE and detail:
+            renderer.detail(f"Shutdown request detail: {detail}")
 
     def _is_verbose_console(self) -> bool:
         return (

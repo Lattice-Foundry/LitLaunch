@@ -116,16 +116,21 @@ the launch.
 
 ## Shutdown Uses Fallback Termination
 
-LitLaunch first requests graceful app shutdown when the app enables the
-shutdown endpoint. If that fails or times out, LitLaunch terminates only the
-Streamlit backend process it started.
+Plain Streamlit apps can use LitLaunch without app-side shutdown setup. If no
+cleanup endpoint is available, LitLaunch stops only the Streamlit backend
+process it started. Apps that need custom cleanup can opt into the
+`LauncherRuntime` shutdown endpoint.
+
+If an app enables the shutdown endpoint and that request fails or times out,
+LitLaunch reports the cleanup problem and still terminates only the Streamlit
+backend process it started.
 
 The shutdown request itself uses a short client timeout so stop operations do
 not hang indefinitely. `RuntimeSession.stop(graceful_timeout_seconds=...)`
 controls how long LitLaunch waits for the backend to exit after a graceful
 request is accepted before using the owned-process fallback.
 
-Check:
+For apps that need custom cleanup, check:
 
 - app calls `LauncherRuntime.from_env()`
 - app calls `runtime.enable_shutdown_endpoint()`

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -16,6 +16,7 @@ from litlaunch.cli.commands import (
     cmd_version,
 )
 from litlaunch.cli.common import (
+    CliContext,
     build_context,
     renderer,
     source_checkout_example_path,
@@ -87,14 +88,16 @@ _GLOBAL_FLAG_NAMES = frozenset({"--no-color", "--quiet", "--verbose", "-h", "--h
 class LitLaunchHelpFormatter(argparse.HelpFormatter):
     """Argparse help formatter with LitLaunch's green metavar accent."""
 
-    def add_arguments(self, actions):
+    def add_arguments(self, actions: Iterable[argparse.Action]) -> None:
         visible_actions = [
             action for action in actions if action.help != argparse.SUPPRESS
         ]
         super().add_arguments(visible_actions)
 
-    def _set_color(self, color):
-        super()._set_color(color)
+    def _set_color(self, color: Any) -> None:
+        set_color = getattr(super(), "_set_color", None)
+        if set_color is not None:
+            set_color(color)
         apply_argparse_help_formatter_colors(self)
 
 
@@ -361,7 +364,7 @@ def _factory_overrides(**values: Any) -> dict[str, Any]:
     return {key: value for key, value in values.items() if value is not None}
 
 
-def _cmd_example(args: argparse.Namespace, context) -> int:
+def _cmd_example(args: argparse.Namespace, context: CliContext) -> int:
     example_path = source_checkout_example_path(Path(__file__).parent)
     if not example_path.is_file():
         renderer(args, context).error(

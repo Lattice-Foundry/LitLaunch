@@ -6,11 +6,7 @@ import ctypes
 import time
 from collections.abc import Callable, Sequence
 from contextlib import suppress
-
-try:
-    from ctypes import wintypes
-except ImportError:  # pragma: no cover - exercised on non-Windows hosts.
-    wintypes = None
+from typing import Any
 
 from litlaunch._protocols import ClockProvider
 from litlaunch.browsers import BrowserKind
@@ -18,6 +14,14 @@ from litlaunch.platforms import PlatformDetector, PlatformInfo
 from litlaunch.windowing.base import WindowInfo, WindowTarget
 from litlaunch.windowing.noop import NoopWindowMonitor
 from litlaunch.windowing.polling import PollingWindowMonitor
+
+_wintypes: Any
+try:
+    from ctypes import wintypes as _wintypes
+except ImportError:  # pragma: no cover - exercised on non-Windows hosts.
+    _wintypes = None
+
+wintypes: Any = _wintypes
 
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
@@ -41,6 +45,8 @@ class WindowsWindowProvider:
     ) -> None:
         self.is_windows = _is_windows() if is_windows is None else bool(is_windows)
         self.process_name_provider = process_name_provider
+        self.user32: Any | None
+        self.kernel32: Any | None
         if self.is_windows:
             self.user32 = user32 or ctypes.WinDLL("user32", use_last_error=True)
             self.kernel32 = kernel32 or self._load_kernel32()
@@ -69,8 +75,11 @@ class WindowsWindowProvider:
         return tuple(windows)
 
     def _capture_window(self, hwnd: int, windows: list[WindowInfo]) -> bool:
+        user32 = self.user32
+        if user32 is None:
+            return True
         try:
-            if not self.user32.IsWindowVisible(hwnd):
+            if not user32.IsWindowVisible(hwnd):
                 return True
 
             title = self._get_window_text(hwnd)
@@ -94,29 +103,38 @@ class WindowsWindowProvider:
         return True
 
     def _get_window_text(self, hwnd: int) -> str:
+        user32 = self.user32
+        if user32 is None:
+            return ""
         try:
-            length = int(self.user32.GetWindowTextLengthW(hwnd))
+            length = int(user32.GetWindowTextLengthW(hwnd))
         except AttributeError:
             length = 0
         buffer = ctypes.create_unicode_buffer(max(length + 1, 512))
         try:
-            self.user32.GetWindowTextW(hwnd, buffer, len(buffer))
+            user32.GetWindowTextW(hwnd, buffer, len(buffer))
         except (AttributeError, OSError):
             return ""
         return buffer.value
 
     def _get_class_name(self, hwnd: int) -> str:
+        user32 = self.user32
+        if user32 is None:
+            return ""
         buffer = ctypes.create_unicode_buffer(256)
         try:
-            self.user32.GetClassNameW(hwnd, buffer, len(buffer))
+            user32.GetClassNameW(hwnd, buffer, len(buffer))
         except (AttributeError, OSError):
             return ""
         return buffer.value
 
     def _get_window_pid(self, hwnd: int) -> int | None:
+        user32 = self.user32
+        if user32 is None:
+            return None
         pid = _DWORD()
         try:
-            self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         except (AttributeError, OSError):
             return None
         return int(pid.value) or None
@@ -154,7 +172,7 @@ class WindowsWindowProvider:
                 with suppress(AttributeError, OSError):
                     self.kernel32.CloseHandle(handle)
 
-    def _load_kernel32(self) -> object | None:
+    def _load_kernel32(self) -> Any | None:
         if self.process_name_provider is not None:
             return None
         return ctypes.WinDLL("kernel32", use_last_error=True)
@@ -278,25 +296,25 @@ def _is_windows() -> bool:
     return hasattr(ctypes, "WinDLL")
 
 
-def _DWORD(value: int = 0):
+def _DWORD(value: int = 0) -> Any:
     if wintypes is not None:
         return wintypes.DWORD(value)
     return ctypes.c_ulong(value)
 
 
-def _BOOL():
+def _BOOL() -> Any:
     if wintypes is not None:
         return wintypes.BOOL
     return ctypes.c_int
 
 
-def _HWND():
+def _HWND() -> Any:
     if wintypes is not None:
         return wintypes.HWND
     return ctypes.c_void_p
 
 
-def _LPARAM():
+def _LPARAM() -> Any:
     if wintypes is not None:
         return wintypes.LPARAM
     return ctypes.c_long

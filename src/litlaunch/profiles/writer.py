@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import os
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.windowing import WindowMonitorConfig
@@ -19,9 +19,9 @@ try:  # pragma: no cover - exercised on Python 3.11+
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
     try:
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as tomllib
     except ModuleNotFoundError:  # pragma: no cover - environment-specific
-        tomllib = None  # type: ignore[assignment]
+        tomllib = None
 
 
 @dataclass(frozen=True)
@@ -87,7 +87,7 @@ def _read_existing_profiles(path: Path) -> dict[str, LaunchProfile]:
     try:
         with path.open("rb") as file:
             data = tomllib.load(file)
-    except tomllib.TOMLDecodeError as exc:  # type: ignore[union-attr]
+    except tomllib.TOMLDecodeError as exc:
         raise ConfigurationError(f"Invalid TOML in {path}: {exc}") from exc
     if set(data) - {"profiles"}:
         raise ConfigurationError(
@@ -157,7 +157,10 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
             for key, value in sorted(config.streamlit_flags.items())
         )
     elif config.streamlit_flags:
-        lines.append(f"streamlit_flags = {_toml_array(config.streamlit_flags)}")
+        lines.append(
+            f"streamlit_flags = "
+            f"{_toml_array(cast(tuple[str, ...], config.streamlit_flags))}"
+        )
     if profile.monitor_window or profile.window_monitor_config != WindowMonitorConfig():
         monitor = profile.window_monitor_config
         lines.extend(("", f"[{profile_header}.window_monitor]"))
@@ -242,7 +245,7 @@ def _toml_value(value: Any) -> str:
     return _toml_string(str(value))
 
 
-def _toml_array(values) -> str:
+def _toml_array(values: Sequence[str]) -> str:
     return "[" + ", ".join(_toml_string(str(value)) for value in values) + "]"
 
 

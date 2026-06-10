@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
+from typing import Any
 
 from litlaunch.colors import THEME_COLORS
 
@@ -63,7 +64,7 @@ def configure_argparse_help_colors() -> None:
     )
 
 
-def apply_argparse_help_formatter_colors(formatter) -> None:
+def apply_argparse_help_formatter_colors(formatter: Any) -> None:
     """Apply LitLaunch argparse color choices to one formatter instance."""
 
     try:

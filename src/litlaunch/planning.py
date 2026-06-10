@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 from litlaunch.backend import (
     BackendCommand,
@@ -10,7 +10,7 @@ from litlaunch.backend import (
     BackendCommandProvider,
 )
 from litlaunch.browsers import BrowserResolution
-from litlaunch.config import LauncherConfig
+from litlaunch.config import FlagValue, LauncherConfig, NormalizedStreamlitFlags
 from litlaunch.exceptions import CommandBuildError
 from litlaunch.health import build_streamlit_app_url, build_streamlit_health_url
 from litlaunch.lifecycle import LaunchPlan
@@ -102,7 +102,9 @@ def build_backend_command(
     return backend_command
 
 
-def copy_streamlit_flags(flags):
+def copy_streamlit_flags(
+    flags: NormalizedStreamlitFlags,
+) -> Mapping[str, FlagValue] | tuple[str, ...]:
     """Return a LaunchPlan-safe copy of Streamlit flags."""
 
     if hasattr(flags, "items"):

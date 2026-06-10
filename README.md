@@ -210,6 +210,16 @@ Install from [PyPI](https://pypi.org/project/litlaunch/):
 python -m pip install litlaunch
 ```
 
+Developer validation uses pytest, Ruff, mypy, and release hygiene checks:
+
+```powershell
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src/litlaunch
+python scripts/check_release.py
+```
+
 The development environment currently uses Python 3.14.5. Package metadata
 allows Python 3.10 and newer, and CI currently tests Python 3.10 through 3.14
 across Windows, Linux, and macOS.

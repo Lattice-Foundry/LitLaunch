@@ -16,9 +16,9 @@ try:  # pragma: no cover - exercised on Python 3.11+
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
     try:
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as tomllib
     except ModuleNotFoundError:  # pragma: no cover - environment-specific
-        tomllib = None  # type: ignore[assignment]
+        tomllib = None
 
 
 PROFILE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -183,7 +183,7 @@ def _read_toml(path: Path) -> Mapping[str, Any]:
     try:
         with path.open("rb") as file:
             data = tomllib.load(file)
-    except tomllib.TOMLDecodeError as exc:  # type: ignore[union-attr]
+    except tomllib.TOMLDecodeError as exc:
         raise ConfigurationError(f"Invalid TOML in {path}: {exc}") from exc
     except OSError as exc:
         raise ConfigurationError(

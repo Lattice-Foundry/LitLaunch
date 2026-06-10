@@ -23,37 +23,44 @@ class BackendCommandContext:
     headless: bool
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class BackendCommand:
     """Shell-free command returned by a backend command provider."""
 
-    command: Sequence[str]
-    description: str = "backend"
-    backend_kind: str | None = None
+    command: tuple[str, ...]
+    description: str
+    backend_kind: str | None
 
-    def __post_init__(self) -> None:
-        if isinstance(self.command, (str, bytes)):
+    def __init__(
+        self,
+        command: Sequence[str],
+        description: str = "backend",
+        backend_kind: str | None = None,
+    ) -> None:
+        if isinstance(command, (str, bytes)):
             raise CommandBuildError("Backend command must be a sequence of strings.")
         try:
-            command = tuple(str(part) for part in self.command)
+            normalized_command = tuple(str(part) for part in command)
         except TypeError as exc:
             raise CommandBuildError(
                 "Backend command must be a sequence of strings."
             ) from exc
-        if not command:
+        if not normalized_command:
             raise CommandBuildError("Backend command cannot be empty.")
-        if any(not part for part in command):
+        if any(not part for part in normalized_command):
             raise CommandBuildError("Backend command arguments cannot be empty.")
-        object.__setattr__(self, "command", command)
+        object.__setattr__(self, "command", normalized_command)
 
-        description = str(self.description).strip()
-        if not description:
+        normalized_description = str(description).strip()
+        if not normalized_description:
             raise CommandBuildError("Backend command description cannot be empty.")
-        object.__setattr__(self, "description", description)
+        object.__setattr__(self, "description", normalized_description)
 
-        if self.backend_kind is not None:
-            kind = str(self.backend_kind).strip()
-            object.__setattr__(self, "backend_kind", kind or None)
+        normalized_kind = None
+        if backend_kind is not None:
+            kind = str(backend_kind).strip()
+            normalized_kind = kind or None
+        object.__setattr__(self, "backend_kind", normalized_kind)
 
 
 class BackendCommandProvider(Protocol):

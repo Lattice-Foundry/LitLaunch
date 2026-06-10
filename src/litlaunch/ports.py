@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import socket
 from collections.abc import Callable
-from typing import TypeAlias
+from typing import TypeAlias, cast
 
 from litlaunch.config import LauncherConfig
 from litlaunch.exceptions import PortError
 
 _SocketAddress: TypeAlias = tuple[str, int] | tuple[str, int, int, int]
+_SocketAddressInfo: TypeAlias = tuple[
+    socket.AddressFamily,
+    socket.SocketKind,
+    int,
+    _SocketAddress,
+]
 
 
 class PortManager:
@@ -58,7 +64,7 @@ class PortManager:
         self,
         host: str,
         port: int,
-    ) -> tuple[tuple[int, int, int, _SocketAddress], ...]:
+    ) -> tuple[_SocketAddressInfo, ...]:
         """Resolve host/port pairs into bindable socket addresses."""
 
         bind_host = _normalize_bind_host(host)
@@ -68,10 +74,10 @@ class PortManager:
             type=socket.SOCK_STREAM,
             proto=socket.IPPROTO_TCP,
         )
-        addresses: list[tuple[int, int, int, _SocketAddress]] = []
-        seen: set[tuple[int, int, int, _SocketAddress]] = set()
+        addresses: list[_SocketAddressInfo] = []
+        seen: set[_SocketAddressInfo] = set()
         for family, socktype, proto, _canonname, sockaddr in infos:
-            key = (family, socktype, proto, sockaddr)
+            key = cast(_SocketAddressInfo, (family, socktype, proto, sockaddr))
             if key in seen:
                 continue
             seen.add(key)

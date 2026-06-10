@@ -15,7 +15,7 @@ from litlaunch.backend import (
     BackendCommandProvider,
     StreamlitBackendCommandProvider,
 )
-from litlaunch.backend_start import start_backend_process
+from litlaunch.backend_start import BackendStartResult, start_backend_process
 from litlaunch.browser_profiles import (
     create_managed_browser_profile,
     has_browser_switch,
@@ -385,7 +385,7 @@ class StreamlitLauncher:
         wait_for_health: bool,
         health_timeout_seconds: float,
         health_interval_seconds: float,
-    ):
+    ) -> BackendStartResult:
         """Start the Streamlit backend and return the managed process."""
 
         return start_backend_process(
@@ -483,12 +483,14 @@ class StreamlitLauncher:
             self.config.extra_browser_args,
             profile_dir=profile_dir,
         )
-        cleanup_callbacks: tuple[Callable[[], object], ...] = (
-            lambda profile_dir=profile_dir: shutil.rmtree(
+
+        def cleanup_profile() -> None:
+            shutil.rmtree(
                 profile_dir,
                 ignore_errors=True,
-            ),
-        )
+            )
+
+        cleanup_callbacks: tuple[Callable[[], object], ...] = (cleanup_profile,)
         return extra_args, cleanup_callbacks
 
     def _enforce_network_exposure_acknowledgement(self) -> None:

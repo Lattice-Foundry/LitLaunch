@@ -7,6 +7,14 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.3 - Stable
+
+- Added mypy as a first-class validation gate for LitLaunch's typed package
+  source, including CI and release hygiene checks.
+- Tightened type annotations around launch configuration normalization,
+  backend command construction, browser profile cleanup, diagnostics rendering,
+  profile TOML handling, Windows window monitoring, and CLI helper boundaries.
+
 ## 1.0.2 - Stable
 
 - Isolated Chromium app-mode/webapp launches with LitLaunch-managed temporary

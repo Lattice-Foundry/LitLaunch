@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import TextIO
+from typing import TextIO, TypeVar
 
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
@@ -55,6 +55,8 @@ from .state import (
     WizardStep as _WizardStep,
 )
 from .writer import ProfileWriteResult, write_litlaunch_profile
+
+_MappingValue = TypeVar("_MappingValue")
 
 
 def run_profile_wizard(
@@ -853,10 +855,10 @@ def _ask_mapping(
     io: _WizardIo,
     label: str,
     *,
-    current: dict[str, object],
-    value_parser: Callable[[str], object],
+    current: Mapping[str, _MappingValue],
+    value_parser: Callable[[str], _MappingValue],
     hint: str,
-) -> dict[str, object]:
+) -> dict[str, _MappingValue]:
     if current:
         _write(io.stream, f"Current entries: {', '.join(sorted(current))}")
     _write(io.stream, hint)

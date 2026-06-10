@@ -50,6 +50,9 @@ jobs:
       - name: Check Ruff formatting
         run: python -m ruff format --check .
 
+      - name: Run mypy
+        run: python -m mypy src/litlaunch
+
   build:
     name: Build and release hygiene
     runs-on: ubuntu-latest

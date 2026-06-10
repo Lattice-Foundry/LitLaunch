@@ -249,7 +249,7 @@ def _with_fallback_success_message(
     result: BrowserLaunchResult,
     attempted: Sequence[BrowserLaunchResult],
 ) -> BrowserLaunchResult:
-    if not attempted:
+    if not attempted or result.browser is None:
         return result
     failed_names = ", ".join(
         attempt.browser.name for attempt in attempted if attempt.browser is not None

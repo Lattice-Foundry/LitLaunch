@@ -11,6 +11,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import Enum
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
 
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.exposure import is_loopback_host
@@ -391,7 +392,7 @@ class LauncherRuntime:
     def register_shutdown_hook(
         self,
         func: Callable[[], object],
-        **metadata: object,
+        **metadata: Any,
     ) -> Callable[[], object]:
         """Register a shutdown hook."""
 
@@ -634,7 +635,9 @@ def _hook_result_to_payload(result: ShutdownHookResult) -> dict[str, object]:
         "message": result.message,
         "error": None,
         "color": result.color,
-        "console_visibility": result.console_visibility.value,
+        "console_visibility": _normalize_hook_console_visibility(
+            result.console_visibility
+        ).value,
         "show_in_quiet": result.show_in_quiet,
         "render": result.render,
     }

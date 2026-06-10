@@ -38,6 +38,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "build>=1.2",
+  "mypy>=1.19",
   "packaging>=24",
   "pytest>=8",
   "ruff>=0.5",
@@ -74,6 +75,25 @@ path = "src/litlaunch/version.py"
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = "src"
+packages = ["litlaunch"]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "_colorize",
+  "tomli",
+  "tomllib",
+]
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 88

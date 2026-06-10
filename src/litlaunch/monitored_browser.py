@@ -83,20 +83,21 @@ def run_monitored_browser_window(
     )
 
     if isinstance(resolved_monitor, NoopWindowMonitor):
-        session = launcher.run()
+        fallback_session = launcher.run()
         result = browser_window_fallback_result(
             "Browser-window monitoring is unavailable on this platform; "
             "Ctrl+C remains the shutdown path.",
             status=WindowMonitorStatus.UNSUPPORTED,
         )
-        render_browser_window_monitor_fallback(session, result)
+        render_browser_window_monitor_fallback(fallback_session, result)
         return MonitoredRunResult(
-            exit_code=0 if session.ok else 1,
-            session=session,
+            exit_code=0 if fallback_session.ok else 1,
+            session=fallback_session,
             monitor_result=result,
             message=result.message,
-            launched=session.ok,
-            stopped_cleanly=session.process is None or not session_is_running(session),
+            launched=fallback_session.ok,
+            stopped_cleanly=fallback_session.process is None
+            or not session_is_running(fallback_session),
         )
 
     baseline_target = WindowTarget("", browser_kind=None, app_mode=False)

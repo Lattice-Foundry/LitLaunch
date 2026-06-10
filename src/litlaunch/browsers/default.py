@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from litlaunch.browsers.base import BrowserAdapter, BrowserCapability, BrowserKind
 from litlaunch.exceptions import BrowserError
@@ -51,7 +51,7 @@ class DefaultBrowserAdapter(BrowserAdapter):
 def detect_default_chromium_browser(
     platform_info: PlatformInfo | None = None,
     *,
-    registry_value_reader=None,
+    registry_value_reader: Callable[[str, str], str | None] | None = None,
 ) -> BrowserKind | None:
     """Return the Chromium browser kind for the Windows default browser if known."""
 

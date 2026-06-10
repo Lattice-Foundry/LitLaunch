@@ -5,11 +5,11 @@ from __future__ import annotations
 import ipaddress
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 
 from litlaunch.exceptions import ConfigurationError
 
@@ -40,62 +40,87 @@ class TrustMode(str, Enum):
     INTERNAL_NETWORK = "internal_network"
 
 
-StreamlitFlags = Mapping[str, str | int | float | bool | None] | Sequence[str]
+FlagValue = str | int | float | bool | None
+StreamlitFlags = Mapping[str, FlagValue] | Sequence[str]
+NormalizedStreamlitFlags = MappingProxyType[str, FlagValue] | tuple[str, ...]
+_EMPTY_ENV: Mapping[str, str] = MappingProxyType({})
+_EMPTY_STREAMLIT_FLAGS: Mapping[str, FlagValue] = MappingProxyType({})
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class LauncherConfig:
     """Configuration for a Streamlit launcher run."""
 
-    app_path: str | Path
-    title: str = "Streamlit App"
-    mode: LaunchMode | str = LaunchMode.BROWSER
-    browser: BrowserChoice | str = BrowserChoice.AUTO
-    host: str = "127.0.0.1"
-    port: int | None = None
-    auto_port: bool = True
-    headless: bool | None = None
-    show_streamlit_chrome: bool = False
-    allow_browser_fallback: bool = True
-    allow_network_exposure: bool = False
-    trust_mode: TrustMode | str = TrustMode.DEVELOPMENT
-    cwd: str | Path | None = None
-    extra_env: Mapping[str, str] = field(default_factory=dict)
-    runtime_event_log: str | Path | None = None
-    streamlit_flags: StreamlitFlags = field(default_factory=dict)
-    streamlit_args: Sequence[str] = field(default_factory=tuple)
-    app_args: Sequence[str] = field(default_factory=tuple)
-    extra_browser_args: Sequence[str] = field(default_factory=tuple)
+    app_path: Path
+    title: str
+    mode: LaunchMode
+    browser: BrowserChoice
+    host: str
+    port: int | None
+    auto_port: bool
+    headless: bool | None
+    show_streamlit_chrome: bool
+    allow_browser_fallback: bool
+    allow_network_exposure: bool
+    trust_mode: TrustMode
+    cwd: Path | None
+    extra_env: MappingProxyType[str, str]
+    runtime_event_log: Path | None
+    streamlit_flags: NormalizedStreamlitFlags
+    streamlit_args: tuple[str, ...]
+    app_args: tuple[str, ...]
+    extra_browser_args: tuple[str, ...]
 
-    def __post_init__(self) -> None:
-        app_path = _normalize_path(self.app_path)
-        title = _normalize_required_string(self.title, "title")
-        mode = _normalize_enum(LaunchMode, self.mode, "mode")
-        browser = _normalize_enum(BrowserChoice, self.browser, "browser")
-        trust_mode = _normalize_enum(TrustMode, self.trust_mode, "trust_mode")
-        host = _normalize_host(self.host)
-        port = _normalize_port(self.port)
-        auto_port = True if port is None else bool(self.auto_port)
-        cwd = _normalize_optional_path(self.cwd, "cwd")
+    def __init__(
+        self,
+        app_path: str | Path,
+        title: str = "Streamlit App",
+        mode: LaunchMode | str = LaunchMode.BROWSER,
+        browser: BrowserChoice | str = BrowserChoice.AUTO,
+        host: str = "127.0.0.1",
+        port: int | None = None,
+        auto_port: bool = True,
+        headless: bool | None = None,
+        show_streamlit_chrome: bool = False,
+        allow_browser_fallback: bool = True,
+        allow_network_exposure: bool = False,
+        trust_mode: TrustMode | str = TrustMode.DEVELOPMENT,
+        cwd: str | Path | None = None,
+        extra_env: Mapping[str, str] = _EMPTY_ENV,
+        runtime_event_log: str | Path | None = None,
+        streamlit_flags: StreamlitFlags = _EMPTY_STREAMLIT_FLAGS,
+        streamlit_args: Sequence[str] = (),
+        app_args: Sequence[str] = (),
+        extra_browser_args: Sequence[str] = (),
+    ) -> None:
+        app_path = _normalize_path(app_path)
+        title = _normalize_required_string(title, "title")
+        mode = _normalize_launch_mode(mode)
+        browser = _normalize_browser_choice(browser)
+        trust_mode = _normalize_trust_mode(trust_mode)
+        host = _normalize_host(host)
+        port = _normalize_port(port)
+        auto_port = True if port is None else bool(auto_port)
+        cwd = _normalize_optional_path(cwd, "cwd")
         runtime_event_log = _normalize_optional_path(
-            self.runtime_event_log,
+            runtime_event_log,
             "runtime_event_log",
         )
-        extra_env = _normalize_env_mapping(self.extra_env)
+        extra_env = _normalize_env_mapping(extra_env)
         streamlit_args = _normalize_string_sequence(
-            self.streamlit_args,
+            streamlit_args,
             "streamlit_args",
         )
-        app_args = _normalize_string_sequence(self.app_args, "app_args")
+        app_args = _normalize_string_sequence(app_args, "app_args")
         extra_browser_args = _normalize_string_sequence(
-            self.extra_browser_args,
+            extra_browser_args,
             "extra_browser_args",
         )
-        streamlit_flags = _normalize_streamlit_flags(self.streamlit_flags)
-        show_streamlit_chrome = bool(self.show_streamlit_chrome)
+        streamlit_flags = _normalize_streamlit_flags(streamlit_flags)
+        show_streamlit_chrome = bool(show_streamlit_chrome)
         _validate_webapp_headless(
             mode,
-            self.headless,
+            headless,
             streamlit_flags,
             streamlit_args,
         )
@@ -107,12 +132,9 @@ class LauncherConfig:
         object.__setattr__(self, "host", host)
         object.__setattr__(self, "port", port)
         object.__setattr__(self, "auto_port", auto_port)
-        object.__setattr__(
-            self, "allow_browser_fallback", bool(self.allow_browser_fallback)
-        )
-        object.__setattr__(
-            self, "allow_network_exposure", bool(self.allow_network_exposure)
-        )
+        object.__setattr__(self, "headless", headless)
+        object.__setattr__(self, "allow_browser_fallback", bool(allow_browser_fallback))
+        object.__setattr__(self, "allow_network_exposure", bool(allow_network_exposure))
         object.__setattr__(self, "trust_mode", trust_mode)
         object.__setattr__(self, "cwd", cwd)
         object.__setattr__(self, "extra_env", extra_env)
@@ -216,6 +238,18 @@ def _normalize_enum(
         raise ConfigurationError(
             f"Invalid {field_name}: {value!r}. Expected one of: {valid}."
         ) from exc
+
+
+def _normalize_launch_mode(value: LaunchMode | str) -> LaunchMode:
+    return cast(LaunchMode, _normalize_enum(LaunchMode, value, "mode"))
+
+
+def _normalize_browser_choice(value: BrowserChoice | str) -> BrowserChoice:
+    return cast(BrowserChoice, _normalize_enum(BrowserChoice, value, "browser"))
+
+
+def _normalize_trust_mode(value: TrustMode | str) -> TrustMode:
+    return cast(TrustMode, _normalize_enum(TrustMode, value, "trust_mode"))
 
 
 def _normalize_port(value: int | None) -> int | None:

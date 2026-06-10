@@ -172,7 +172,7 @@ def run_monitored_webapp(
             monitor_result=None,
             message="Window monitoring interrupted; runtime stopped.",
             launched=session is not None,
-            stopped_cleanly=not session_is_running(session),
+            stopped_cleanly=session is None or not session_is_running(session),
         )
     finally:
         startup_probe.stop()

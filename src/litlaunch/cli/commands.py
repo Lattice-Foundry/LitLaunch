@@ -17,7 +17,11 @@ from litlaunch.browser_profiles import (
     create_managed_browser_profile,
     with_managed_browser_profile_args,
 )
-from litlaunch.browsers import BrowserKind, detect_default_chromium_browser
+from litlaunch.browsers import (
+    BrowserCapability,
+    BrowserKind,
+    detect_default_chromium_browser,
+)
 from litlaunch.cli.common import (
     CliContext,
     mode,
@@ -31,10 +35,11 @@ from litlaunch.cli.config import (
     monitor_options_from_args,
     runtime_config_from_args,
 )
-from litlaunch.config import BrowserChoice, LaunchMode
+from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode
 from litlaunch.console import ConsoleMode, ConsoleRenderer
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.monitored import run_profile
+from litlaunch.platforms import PlatformInfo
 from litlaunch.profiles import LaunchProfile
 from litlaunch.redaction import redact_sensitive_text
 from litlaunch.version import __version__
@@ -294,7 +299,10 @@ def _render_platform_capability(
         cli_renderer.warning(message)
 
 
-def _render_browser_capability(cli_renderer: ConsoleRenderer, capability) -> None:
+def _render_browser_capability(
+    cli_renderer: ConsoleRenderer,
+    capability: BrowserCapability,
+) -> None:
     availability = "available" if capability.available else "unavailable"
     support = (
         "app-mode supported"
@@ -311,12 +319,12 @@ def _render_browser_capability(cli_renderer: ConsoleRenderer, capability) -> Non
 
 
 def _prepare_managed_browser_window_config(
-    config,
+    config: LauncherConfig,
     *,
     dry_run: bool,
     cleanup: ExitStack,
-    platform_info,
-):
+    platform_info: PlatformInfo,
+) -> LauncherConfig:
     """Return browser config that encourages a monitorable top-level window."""
 
     if config.mode != LaunchMode.BROWSER:
@@ -343,7 +351,10 @@ def _prepare_managed_browser_window_config(
     return replace(config, browser=browser, extra_browser_args=extra_args)
 
 
-def _managed_browser_choice(browser: BrowserChoice, platform_info) -> BrowserChoice:
+def _managed_browser_choice(
+    browser: BrowserChoice,
+    platform_info: PlatformInfo,
+) -> BrowserChoice:
     if browser == BrowserChoice.AUTO:
         return BrowserChoice.EDGE
     if browser != BrowserChoice.DEFAULT:

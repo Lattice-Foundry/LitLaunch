@@ -124,7 +124,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Build LitLaunch release artifacts, validate metadata, inspect archive "
             "contents, and run installed-wheel smoke checks."
         ),
-        epilog="Requires dev tooling from .[dev], including build and twine.",
+        epilog="Requires dev tooling from .[dev], including build, mypy, and twine.",
     )
     parser.add_argument(
         "--keep-dist",
@@ -147,6 +147,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ensure_classifier_version_consistency(version)
     ensure_no_suspicious_repo_root_artifacts()
     ensure_no_credentials()
+    run_mypy()
 
     if not args.keep_dist:
         clean_dist()
@@ -268,6 +269,12 @@ def run_twine_check(artifacts: ReleaseArtifacts) -> None:
             str(artifacts.wheel),
         )
     )
+
+
+def run_mypy() -> None:
+    """Run static type validation for the LitLaunch package."""
+
+    run_command((sys.executable, "-m", "mypy", "src/litlaunch"))
 
 
 def inspect_wheel(wheel_path: Path, version: str) -> None:

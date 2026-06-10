@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 import time
 from collections.abc import Callable, Sequence
+from types import TracebackType
 from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
@@ -418,7 +419,12 @@ class RuntimeSession:
 
         return self
 
-    def __exit__(self, exc_type, exc, traceback) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         """Stop the owned backend process on context exit."""
 
         self.stop()

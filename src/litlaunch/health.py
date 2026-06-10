@@ -5,7 +5,16 @@ from __future__ import annotations
 import ipaddress
 import time
 from collections.abc import Callable
+from typing import Protocol
 from urllib import request
+
+
+class _HealthResponse(Protocol):
+    status: int
+
+    def __enter__(self) -> _HealthResponse: ...
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None: ...
 
 
 def build_streamlit_health_url(host: str, port: int) -> str:
@@ -46,7 +55,7 @@ class HealthChecker:
     def __init__(
         self,
         *,
-        opener: Callable[..., object] = request.urlopen,
+        opener: Callable[..., _HealthResponse] = request.urlopen,
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:

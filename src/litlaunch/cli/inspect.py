@@ -17,13 +17,15 @@ from litlaunch.cli.config import (
     profile_value,
 )
 from litlaunch.config import BrowserChoice, LaunchMode, TrustMode
-from litlaunch.console import ConsoleMode
+from litlaunch.console import ConsoleMode, ConsoleRenderer
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.inspect import (
+    DiagnosticsReport,
     HTMLDiagnosticsRenderer,
     JSONDiagnosticsRenderer,
     SanitizedBundleRenderer,
 )
+from litlaunch.profiles import LaunchProfile
 
 
 def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
@@ -229,8 +231,8 @@ def collect_diagnostics_report(
     args: argparse.Namespace,
     context: CliContext,
     *,
-    profile=None,
-):
+    profile: LaunchProfile | None = None,
+) -> DiagnosticsReport:
     """Collect diagnostics using the shared inspect/report collection semantics."""
 
     profile_config = profile.config if profile is not None else None
@@ -317,7 +319,7 @@ def collect_diagnostics_report(
     )
 
 
-def render_inspect_report(args: argparse.Namespace, report) -> str:
+def render_inspect_report(args: argparse.Namespace, report: DiagnosticsReport) -> str:
     """Render a diagnostics report for parsed inspect args."""
 
     include_details = mode(args) == ConsoleMode.VERBOSE
@@ -383,7 +385,7 @@ def write_inspect_output(path: Path, rendered: str, *, force: bool) -> Path:
 def open_report_path(
     path: Path,
     *,
-    console,
+    console: ConsoleRenderer,
     browser_open: Callable[[str], bool] = webbrowser.open,
 ) -> bool:
     """Open a generated HTML diagnostics report with warning-only failures."""

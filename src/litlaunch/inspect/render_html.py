@@ -35,7 +35,8 @@ class HTMLDiagnosticsRenderer:
         data = report.to_dict()
         status_text = "OK" if data["ok"] else "Needs attention"
         status_class = "summary-ok" if data["ok"] else "summary-error"
-        sections = data["sections"]
+        raw_sections = data["sections"]
+        sections = raw_sections if isinstance(raw_sections, list) else []
         profile_name = _find_profile_name(sections)
         lines = [
             "<!doctype html>",
@@ -207,7 +208,9 @@ class HTMLDiagnosticsRenderer:
         return "\n".join(lines)
 
     def _render_section(self, section: object) -> list[str]:
-        section_data = section if isinstance(section, Mapping) else {}
+        section_data: Mapping[str, object] = (
+            section if isinstance(section, Mapping) else {}
+        )
         title = section_data.get("title", "")
         items = section_data.get("items", [])
         lines = [

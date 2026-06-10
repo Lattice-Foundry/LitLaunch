@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from litlaunch.cli.common import split_passthrough_args
 from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
@@ -408,7 +409,12 @@ def load_cli_profile(args: argparse.Namespace) -> LaunchProfile | None:
     return load_profile(profile_name, config_path)
 
 
-def profile_value(value, profile_config, field_name: str, default):
+def profile_value(
+    value: Any,
+    profile_config: LauncherConfig | None,
+    field_name: str,
+    default: Any,
+) -> Any:
     """Return a CLI override, profile value, or default in that order."""
 
     if value is not None:

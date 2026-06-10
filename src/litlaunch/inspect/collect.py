@@ -14,7 +14,7 @@ from litlaunch.config import (
     StreamlitFlags,
     TrustMode,
 )
-from litlaunch.exposure import classify_host_exposure
+from litlaunch.exposure import ExposureAssessment, classify_host_exposure
 from litlaunch.governance import (
     RuntimeGovernanceAssessment,
     evaluate_runtime_governance,
@@ -349,7 +349,7 @@ class DiagnosticCollector:
     def _runtime_exposure_section(
         self,
         *,
-        assessment,
+        assessment: ExposureAssessment,
         extra_env: Mapping[str, str],
     ) -> DiagnosticSection:
         status = _posture_status(assessment.severity)

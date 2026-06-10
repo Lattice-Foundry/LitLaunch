@@ -50,5 +50,10 @@ desktop.ini
 *.temp
 .litlaunch/
 
-# dev personal files
+# Internal documentation scratch
+# Preserved internal docs live under docs/internal/{architecture,audits,research,roadmap,validation}.
+# Keep root-level personal notes and transient internal scratch out of git.
 notes/
+docs/internal/scratch/
+docs/internal/tmp/
+docs/internal/inbox/

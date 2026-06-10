@@ -7,6 +7,14 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.4 - Stable
+
+- Reorganized internal developer documentation into lane-based
+  architecture, audits, research, roadmap, validation, and assets directories,
+  matching the current LitBridge/LitPack internal documentation model.
+- Retired the root `notes/` working area in favor of tracked internal docs
+  lanes and added ignore guardrails for future local scratch material.
+
 ## 1.0.3 - Stable
 
 - Added mypy as a first-class validation gate for LitLaunch's typed package

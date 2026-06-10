@@ -209,7 +209,7 @@ def test_docs_clarify_redaction_limits_and_deferred_visual_placeholders():
         encoding="utf-8"
     )
     validation_notes = (
-        REPO_ROOT / "docs" / "internal" / "release_validation_notes.md"
+        REPO_ROOT / "docs" / "internal" / "validation" / "release_validation_notes.md"
     ).read_text(encoding="utf-8")
 
     assert "pattern-based" in inspect_doc
@@ -244,11 +244,17 @@ def test_docs_clarify_with_port_title_and_streamlit_passthrough_policy():
 def test_internal_docs_exist_but_are_not_linked_from_public_docs():
     internal_docs = [
         "README.md",
-        "rolethread_integration_plan.md",
-        "rolethread_handoff_checklist.md",
-        "rolethread_runtime_mapping.md",
-        "rolethread_test_matrix.md",
-        "release_validation_notes.md",
+        "architecture/rolethread_integration_plan.md",
+        "architecture/rolethread_runtime_mapping.md",
+        "audits/litlaunch_dominate_audit.md",
+        "audits/litlaunch_security_audit_0_91_23b1.md",
+        "audits/rolethread_pre_publish_weakness_hunt.md",
+        "research/cli_surface_recon.md",
+        "research/visible_surface_recon.md",
+        "roadmap/rolethread_handoff_checklist.md",
+        "validation/release_validation_notes.md",
+        "validation/rolethread_litlaunch_manual_test_plan.md",
+        "validation/rolethread_test_matrix.md",
     ]
 
     for doc in internal_docs:

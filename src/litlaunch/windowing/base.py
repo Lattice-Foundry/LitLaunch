@@ -111,6 +111,8 @@ class WindowMonitorResult:
     status: WindowMonitorStatus
     message: str
     target: WindowInfo | None = None
+    expected_title: str | None = None
+    candidates: tuple[WindowInfo, ...] = field(default_factory=tuple)
     events: tuple[WindowMonitorEvent, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
@@ -118,6 +120,14 @@ class WindowMonitorResult:
         if not message:
             raise ValueError("window monitor result message cannot be empty.")
         object.__setattr__(self, "message", message)
+        if self.expected_title is not None:
+            expected_title = str(self.expected_title).strip()
+            object.__setattr__(
+                self,
+                "expected_title",
+                expected_title or None,
+            )
+        object.__setattr__(self, "candidates", tuple(self.candidates))
         object.__setattr__(self, "events", tuple(self.events))
 
 

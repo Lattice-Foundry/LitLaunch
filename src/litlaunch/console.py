@@ -27,7 +27,7 @@ from litlaunch.console_style import (
 )
 from litlaunch.lifecycle import LaunchEvent, LaunchState
 from litlaunch.shutdown import HookConsoleVisibility, ShutdownHookResult
-from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
+from litlaunch.windowing import WindowInfo, WindowMonitorResult, WindowMonitorStatus
 
 
 class ConsoleMode(str, Enum):
@@ -313,14 +313,7 @@ class ConsoleRenderer:
                 ),
             )
         elif result.status == WindowMonitorStatus.TIMEOUT:
-            self.failure_guidance(
-                "Monitor: timed out before app window was observed.",
-                likely_cause=result.message,
-                next_steps=(
-                    "Confirm the app-mode browser window opened and the title matches.",
-                    "Try --title if the window title differs from the app title.",
-                ),
-            )
+            self._render_window_monitor_timeout(result)
         elif result.status == WindowMonitorStatus.ERROR:
             self.failure_guidance(
                 "Monitor: window monitoring failed.",
@@ -521,6 +514,43 @@ class ConsoleRenderer:
         display_label = "cause" if label == "Likely cause" else label.lower()
         self._emit_status(display_label, self.theme.label, message)
 
+    def _render_window_monitor_timeout(self, result: WindowMonitorResult) -> None:
+        self.error("Monitor: timed out before app window was observed.")
+        if self.mode == ConsoleMode.QUIET:
+            return
+        candidate = _first_titled_candidate(result)
+        if result.expected_title and candidate is not None:
+            self._guidance_line(
+                "Likely cause",
+                (f'Expected title "{result.expected_title}"; saw "{candidate.title}".'),
+            )
+        else:
+            self._guidance_line("Likely cause", result.message)
+
+        if result.candidates:
+            self._guidance_line(
+                "Next",
+                "Match the profile title to the app page title, or run with --title.",
+            )
+        else:
+            self._guidance_line(
+                "Next",
+                "Confirm the app-mode browser window opened and the title matches.",
+            )
+        if self.mode == ConsoleMode.NORMAL:
+            return
+
+        if result.expected_title:
+            self.detail(f"Expected window title: {result.expected_title}")
+        if result.candidates:
+            self.detail("Observed window candidates:")
+            for window in result.candidates[:5]:
+                self.detail(_format_window_candidate(window))
+        self._guidance_line(
+            "Next",
+            'For Streamlit, set st.set_page_config(page_title="...").',
+        )
+
 
 def format_elapsed(seconds: float) -> str:
     """Format elapsed seconds for concise console output."""
@@ -553,6 +583,23 @@ def _ensure_terminal_punctuation(message: str) -> str:
 def _ensure_ellipsis(message: str) -> str:
     stripped = _capitalize_sentence_start(_strip_sentence_punctuation(message))
     return f"{stripped}..."
+
+
+def _first_titled_candidate(result: WindowMonitorResult) -> WindowInfo | None:
+    for window in result.candidates:
+        if window.title.strip():
+            return window
+    return result.candidates[0] if result.candidates else None
+
+
+def _format_window_candidate(window: WindowInfo) -> str:
+    title = window.title or "<untitled>"
+    process_name = window.process_name or "unknown process"
+    class_name = window.class_name or "unknown class"
+    return (
+        f'Candidate window: handle={window.handle} title="{title}" '
+        f"process={process_name} class={class_name}"
+    )
 
 
 def _punctuate_phase_message(message: str) -> str:

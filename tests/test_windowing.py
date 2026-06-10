@@ -100,15 +100,20 @@ def test_window_result_and_event_are_frozen_and_tuple_safe():
         "waiting",
         1.0,
     )
+    candidate = WindowInfo("candidate", title="Candidate App")
     result = WindowMonitorResult(
         supported=True,
         observed=False,
         closed=False,
         status=WindowMonitorStatus.TIMEOUT,
         message="timeout",
+        expected_title=" Expected App ",
+        candidates=[candidate],
         events=[event],
     )
 
+    assert result.expected_title == "Expected App"
+    assert result.candidates == (candidate,)
     assert result.events == (event,)
     with pytest.raises(FrozenInstanceError):
         result.message = "changed"
@@ -174,6 +179,29 @@ def test_polling_monitor_times_out_when_no_candidate_appears():
     assert result.status == WindowMonitorStatus.TIMEOUT
 
 
+def test_polling_monitor_timeout_records_rejected_browser_candidates():
+    observed = window("0x200", title="Other App", process_name="msedge")
+    monitor = PollingWindowMonitor(
+        lambda target: (observed,),
+        clock=FakeClock(),
+        sleeper=lambda seconds: None,
+    )
+
+    result = monitor.wait_for_close(
+        WindowTarget(
+            "LitBridge Generic Interaction Demo",
+            browser_kind=BrowserKind.EDGE,
+            baseline_handles=("0x100",),
+        ),
+        backend_is_running=lambda: True,
+        config=WindowMonitorConfig(appear_timeout_seconds=2.0),
+    )
+
+    assert result.status == WindowMonitorStatus.TIMEOUT
+    assert result.expected_title == "LitBridge Generic Interaction Demo"
+    assert result.candidates == (observed,)
+
+
 def test_polling_monitor_selects_title_match_and_records_events():
     target_window = window("0x200", title="My Streamlit App")
     monitor = monitor_for((target_window,), ())
@@ -191,6 +219,73 @@ def test_polling_monitor_selects_title_match_and_records_events():
         WindowMonitorStatus.WINDOW_OBSERVED,
         WindowMonitorStatus.WINDOW_CLOSED,
     ]
+
+
+def test_polling_monitor_near_title_match_handles_missing_middle_token():
+    target_window = window(
+        "0x200",
+        title="LitBridge Generic Demo",
+        process_name="msedge",
+    )
+    monitor = monitor_for((target_window,), ())
+
+    result = monitor.wait_for_close(
+        WindowTarget(
+            "LitBridge Generic Interaction Demo",
+            browser_kind=BrowserKind.EDGE,
+        ),
+        backend_is_running=lambda: True,
+        config=config(stable_poll_count=1),
+    )
+
+    assert result.closed is True
+    assert result.target == target_window
+
+
+def test_polling_monitor_near_title_match_requires_distinctive_overlap():
+    observed = window("0x200", title="Generic Admin", process_name="msedge")
+    monitor = PollingWindowMonitor(
+        lambda target: (observed,),
+        clock=FakeClock(),
+        sleeper=lambda seconds: None,
+    )
+
+    result = monitor.wait_for_close(
+        WindowTarget(
+            "LitBridge Generic Demo",
+            browser_kind=BrowserKind.EDGE,
+        ),
+        backend_is_running=lambda: True,
+        config=WindowMonitorConfig(appear_timeout_seconds=2.0),
+    )
+
+    assert result.status == WindowMonitorStatus.TIMEOUT
+    assert result.target is None
+
+
+def test_polling_monitor_near_title_match_respects_browser_kind():
+    observed = window(
+        "0x200",
+        title="LitBridge Generic Demo",
+        process_name="msedge",
+    )
+    monitor = PollingWindowMonitor(
+        lambda target: (observed,),
+        clock=FakeClock(),
+        sleeper=lambda seconds: None,
+    )
+
+    result = monitor.wait_for_close(
+        WindowTarget(
+            "LitBridge Generic Interaction Demo",
+            browser_kind=BrowserKind.CHROME,
+        ),
+        backend_is_running=lambda: True,
+        config=WindowMonitorConfig(appear_timeout_seconds=2.0),
+    )
+
+    assert result.status == WindowMonitorStatus.TIMEOUT
+    assert result.candidates == ()
 
 
 def test_polling_monitor_default_title_matches_new_app_mode_window():

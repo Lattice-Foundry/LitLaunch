@@ -7,6 +7,17 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.5 - Stable
+
+- Hardened app-window and managed browser-window monitoring with shared,
+  conservative near-title matching for cases where framework page titles drift
+  slightly from LitLaunch profile titles.
+- Improved monitor timeout diagnostics so LitLaunch can report the expected
+  title and observed candidate browser window title when matching fails.
+- Clarified monitored window title guidance for Streamlit apps and profiles.
+- Fixed cross-platform mypy checks for Windows-only registry and Win32 API
+  access on Linux and macOS CI runners.
+
 ## 1.0.4 - Stable
 
 - Reorganized internal developer documentation into lane-based

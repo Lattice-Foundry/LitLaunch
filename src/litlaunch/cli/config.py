@@ -45,7 +45,10 @@ def add_runtime_flags(
     add_profile_flags(parser)
     parser.add_argument(
         "--title",
-        help="Set the runtime title used for browser/app-mode window matching.",
+        help=(
+            "Set the runtime title used for shortcuts and monitored window "
+            "matching; for Streamlit, match st.set_page_config(page_title=...)."
+        ),
     )
     parser.add_argument(
         "--mode",

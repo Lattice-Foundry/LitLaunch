@@ -25,6 +25,8 @@ wintypes: Any = _wintypes
 
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
+_WinDLL = getattr(ctypes, "WinDLL", None)
+
 
 class WindowsWindowProvider:
     """Capture visible top-level Windows desktop windows.
@@ -48,7 +50,7 @@ class WindowsWindowProvider:
         self.user32: Any | None
         self.kernel32: Any | None
         if self.is_windows:
-            self.user32 = user32 or ctypes.WinDLL("user32", use_last_error=True)
+            self.user32 = user32 or _load_windows_dll("user32")
             self.kernel32 = kernel32 or self._load_kernel32()
         else:
             self.user32 = user32
@@ -175,7 +177,7 @@ class WindowsWindowProvider:
     def _load_kernel32(self) -> Any | None:
         if self.process_name_provider is not None:
             return None
-        return ctypes.WinDLL("kernel32", use_last_error=True)
+        return _load_windows_dll("kernel32")
 
 
 class WindowsChromiumWindowMonitor(PollingWindowMonitor):
@@ -293,7 +295,13 @@ def _enum_windows_proc(
 
 
 def _is_windows() -> bool:
-    return hasattr(ctypes, "WinDLL")
+    return _WinDLL is not None
+
+
+def _load_windows_dll(name: str) -> Any | None:
+    if _WinDLL is None:
+        return None
+    return _WinDLL(name, use_last_error=True)
 
 
 def _DWORD(value: int = 0) -> Any:

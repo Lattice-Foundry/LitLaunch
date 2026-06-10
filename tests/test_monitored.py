@@ -511,6 +511,43 @@ def test_run_monitored_browser_window_stops_when_new_browser_hwnd_closes():
     assert [event.name for event in session.runtime_events] == ["monitor_started"]
 
 
+def test_run_monitored_browser_window_uses_near_title_match():
+    old = WindowInfo("old", title="Other - Microsoft Edge", process_name="msedge")
+    new = WindowInfo(
+        "new",
+        title="LitBridge Generic Demo - Microsoft Edge",
+        process_name="msedge",
+    )
+    monitor = SequenceMonitor(
+        (
+            (old,),
+            (old, new),
+            (old, new),
+            (old,),
+        )
+    )
+    session = FakeSession(monitor_result=closed_result())
+    launcher = FakeLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            title="LitBridge Generic Interaction Demo",
+            mode="browser",
+            browser="edge",
+        ),
+        session,
+    )
+
+    result = run_monitored_browser_window(
+        launcher,
+        monitor=monitor,
+        window_monitor_config=browser_monitor_config(),
+    )
+
+    assert result.monitor_result is not None
+    assert result.monitor_result.closed is True
+    assert result.monitor_result.target == new
+
+
 def test_run_monitored_browser_window_no_new_hwnd_falls_back_to_ctrl_c():
     old = WindowInfo("old", title="Other - Microsoft Edge", process_name="msedge")
     monitor = SequenceMonitor(((old,), (old,), (old,)))

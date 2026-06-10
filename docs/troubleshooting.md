@@ -93,6 +93,11 @@ If browser-window monitoring falls back, LitLaunch should say that Ctrl+C
 remains the shutdown path. That fallback is expected when a new top-level
 browser window cannot be identified confidently.
 
+If a webapp/app-window launch opens successfully and then reports
+`Timed out waiting for app-mode window to appear`, check the window title.
+For Streamlit, make the LitLaunch profile `title` or CLI `--title` match
+`st.set_page_config(page_title="...")`.
+
 ## Network Exposure Launch Times Out
 
 When binding Streamlit to a wildcard host such as `0.0.0.0` or `::`,

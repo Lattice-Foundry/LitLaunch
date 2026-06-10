@@ -506,6 +506,11 @@ capable browser is available. Monitoring remains observational: LitLaunch does
 not own, close, or kill browser processes. If browser-window monitoring cannot
 identify a window confidently, Ctrl+C remains the shutdown path.
 
+For monitored Streamlit windows, match the LitLaunch `--title` or profile
+`title` to `st.set_page_config(page_title="...")`. LitLaunch tolerates
+conservative near-title drift, but aligned titles give the most reliable close
+detection.
+
 See [docs/browser_support.md](docs/browser_support.md) and
 [docs/window_monitoring.md](docs/window_monitoring.md).
 

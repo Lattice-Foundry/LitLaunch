@@ -294,8 +294,10 @@ helpers, renderer, and clock while leaving the original launcher unchanged.
 `LauncherConfig.title` is used for display and app-window matching where
 webapp monitoring applies. Browser-window monitoring relies primarily on a
 managed temporary Chromium profile and pre-launch/post-launch window snapshots.
-If the actual app window title differs significantly, `--monitor-window` may
-timeout; use `--title` to override the expected title.
+For Streamlit apps, match the title to
+`st.set_page_config(page_title="...")`. If the actual app window title differs
+significantly, `--monitor-window` may timeout; use `--title` to override the
+expected title.
 
 Prefer either structured `streamlit_flags` or raw `streamlit_args` for a given
 Streamlit option. LitLaunch suppresses its own defaults when user options

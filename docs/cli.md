@@ -134,7 +134,8 @@ litlaunch run app.py --mode webapp --no-monitor-window
 
 `--title` sets the expected runtime/app-window title. For monitored webapp
 flows, choose a stable title that matches the browser app-mode window closely
-enough for detection.
+enough for detection. For Streamlit apps, this should usually match
+`st.set_page_config(page_title="...")`.
 
 `--graceful-timeout` controls the backend-exit wait after a monitored browser
 or app-window close triggers graceful shutdown.

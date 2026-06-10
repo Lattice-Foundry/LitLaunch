@@ -174,7 +174,7 @@ def _wizard_steps(*, platform_is_windows: bool) -> tuple[_WizardStep, ...]:
         _WizardStep(
             "App title",
             _step_title,
-            "Set the friendly title used in app-window and shortcut workflows.",
+            ("Set the title used for shortcuts and monitored app-window matching."),
         ),
         _WizardStep(
             "Launch experience",

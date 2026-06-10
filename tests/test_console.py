@@ -26,7 +26,7 @@ from litlaunch.console import (
 from litlaunch.console_style import ANSI_COLORS, status_prefix, style_text
 from litlaunch.lifecycle import LaunchEvent, LaunchState
 from litlaunch.shutdown import HookConsoleVisibility, ShutdownHookResult
-from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
+from litlaunch.windowing import WindowInfo, WindowMonitorResult, WindowMonitorStatus
 
 
 def test_named_theme_colors_exist_and_are_hex():
@@ -755,6 +755,78 @@ def test_console_renderer_monitor_status_rendering():
     assert "Monitor: Window monitoring is unavailable." in output
     assert "[ cause  ] Unsupported." in output
     assert "Likely cause" not in output
+
+
+def test_console_renderer_monitor_timeout_renders_candidate_title():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+
+    renderer.render_window_monitor_result(
+        WindowMonitorResult(
+            supported=True,
+            observed=False,
+            closed=False,
+            status=WindowMonitorStatus.TIMEOUT,
+            message="Timed out waiting for app-mode window to appear.",
+            expected_title="LitBridge Generic Interaction Demo",
+            candidates=(
+                WindowInfo(
+                    "0x123",
+                    title="LitBridge Generic Demo",
+                    class_name="Chrome_WidgetWin_1",
+                    process_name="msedge",
+                ),
+            ),
+        )
+    )
+
+    output = stream.getvalue()
+    assert "Monitor: Timed out before app window was observed." in output
+    assert (
+        'Expected title "LitBridge Generic Interaction Demo"; '
+        'saw "LitBridge Generic Demo".'
+    ) in output
+    assert "Match the profile title to the app page title" in output
+    assert "Use verbose mode" not in output
+
+
+def test_console_renderer_verbose_monitor_timeout_renders_candidates():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        mode=ConsoleMode.VERBOSE,
+        stream=stream,
+    )
+
+    renderer.render_window_monitor_result(
+        WindowMonitorResult(
+            supported=True,
+            observed=False,
+            closed=False,
+            status=WindowMonitorStatus.TIMEOUT,
+            message="Timed out waiting for app-mode window to appear.",
+            expected_title="LitBridge Generic Interaction Demo",
+            candidates=(
+                WindowInfo(
+                    "0x123",
+                    title="LitBridge Generic Demo",
+                    class_name="Chrome_WidgetWin_1",
+                    process_name="msedge",
+                ),
+            ),
+        )
+    )
+
+    output = stream.getvalue()
+    assert "Expected window title: LitBridge Generic Interaction Demo" in output
+    assert (
+        'Candidate window: handle=0x123 title="LitBridge Generic Demo" '
+        "process=msedge class=Chrome_WidgetWin_1"
+    ) in output
+    assert 'st.set_page_config(page_title="...")' in output
 
 
 def test_console_renderer_redacts_registered_values():

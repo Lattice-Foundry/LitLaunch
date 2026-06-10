@@ -7,6 +7,14 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.2 - Stable
+
+- Isolated Chromium app-mode/webapp launches with LitLaunch-managed temporary
+  browser profiles by default, reducing cross-app profile, cache, extension,
+  and component-state interference when multiple local Streamlit apps are open.
+- Preserved explicit user browser profile arguments: launches that provide
+  `--browser-arg=--user-data-dir=...` keep using the requested browser profile.
+
 ## 1.0.1 - Stable
 
 - Opened the post-launch patch line for public repository polish and follow-up

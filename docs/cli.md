@@ -100,6 +100,11 @@ exact window, and routes close-to-shutdown through the same graceful
 `RuntimeSession.stop()` path. If no confident browser window is observed,
 LitLaunch falls back cleanly to the manual `Ctrl+C` stop path.
 
+Webapp/app-window launches also use a LitLaunch-managed temporary Chromium
+profile by default. This keeps app-mode browser state isolated from other local
+Streamlit or LitLaunch sessions while preserving normal browser behavior when
+you explicitly pass a `--browser-arg=--user-data-dir=...` profile override.
+
 Use `--no-monitor-browser-window` when you intentionally want browser mode to
 keep running until `Ctrl+C` or backend exit. Use `--monitor-browser-window` to
 request browser-window monitoring explicitly in scripts or profile overrides.

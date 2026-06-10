@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import shutil
 from contextlib import ExitStack
 from dataclasses import replace
@@ -11,8 +10,12 @@ from pathlib import Path
 from typing import Any
 
 from litlaunch.artifacts import (
-    create_managed_browser_profile_dir,
     project_root_for_config,
+)
+from litlaunch.browser_profiles import (
+    append_switch_once,
+    create_managed_browser_profile,
+    with_managed_browser_profile_args,
 )
 from litlaunch.browsers import BrowserKind, detect_default_chromium_browser
 from litlaunch.cli.common import (
@@ -357,9 +360,9 @@ def _managed_browser_choice(browser: BrowserChoice, platform_info) -> BrowserCho
 def _with_browser_window_arg(args: tuple[str, ...]) -> tuple[str, ...]:
     """Return browser args with a new-window launch hint."""
 
-    if any(str(arg).strip().lower() == "--new-window" for arg in args):
-        return args
-    return (*args, "--new-window")
+    result = list(args)
+    append_switch_once(result, "--new-window", "--new-window")
+    return tuple(result)
 
 
 def _with_managed_browser_window_args(
@@ -370,107 +373,18 @@ def _with_managed_browser_window_args(
 ) -> tuple[str, ...]:
     """Return browser args for isolated LitLaunch-managed browser windows."""
 
-    result = list(args)
-    _append_switch_once(result, f"--user-data-dir={profile_dir}", "--user-data-dir")
-    _append_switch_once(result, "--no-first-run", "--no-first-run")
-    _append_switch_once(result, "--disable-first-run-ui", "--disable-first-run-ui")
-    _append_switch_once(
-        result,
-        "--no-default-browser-check",
-        "--no-default-browser-check",
+    return with_managed_browser_profile_args(
+        args,
+        profile_dir=profile_dir,
+        title=title,
+        new_window=True,
     )
-    _append_switch_once(
-        result,
-        "--disable-default-browser-promo",
-        "--disable-default-browser-promo",
-    )
-    _append_switch_once(result, "--disable-default-apps", "--disable-default-apps")
-    _append_switch_once(result, "--disable-sync", "--disable-sync")
-    _append_switch_once(
-        result,
-        "--disable-background-networking",
-        "--disable-background-networking",
-    )
-    _append_switch_once(
-        result,
-        "--disable-component-update",
-        "--disable-component-update",
-    )
-    _append_comma_switch_values_once(
-        result,
-        "--disable-features",
-        ("msEdgeEnableNurturingFramework",),
-    )
-    _append_switch_once(
-        result,
-        f"--window-name=LitLaunch - {title}",
-        "--window-name",
-    )
-    return _with_browser_window_arg(tuple(result))
 
 
 def _create_managed_browser_profile_dir(root: Path) -> str:
     """Create a temporary Chromium profile preseeded for app-style launch UX."""
 
-    profile_path = create_managed_browser_profile_dir(root)
-    (profile_path / "First Run").touch()
-    local_state = {
-        "distribution": {
-            "import_bookmarks": False,
-            "import_history": False,
-            "import_home_page": False,
-            "import_search_engine": False,
-            "make_chrome_default": False,
-            "make_chrome_default_for_user": False,
-            "show_welcome_page": False,
-            "skip_first_run_ui": True,
-        },
-        "sync": {
-            "suppress_start": True,
-        },
-    }
-    (profile_path / "Local State").write_text(
-        json.dumps(local_state, sort_keys=True),
-        encoding="utf-8",
-    )
-    return str(profile_path)
-
-
-def _append_switch_once(args: list[str], value: str, switch: str) -> None:
-    normalized = f"{switch.lower()}="
-    if any(
-        str(arg).strip().lower() == switch.lower()
-        or str(arg).strip().lower().startswith(normalized)
-        for arg in args
-    ):
-        return
-    args.append(value)
-
-
-def _append_comma_switch_values_once(
-    args: list[str],
-    switch: str,
-    values: tuple[str, ...],
-) -> None:
-    normalized = f"{switch.lower()}="
-    existing_index = next(
-        (
-            index
-            for index, arg in enumerate(args)
-            if str(arg).strip().lower().startswith(normalized)
-        ),
-        None,
-    )
-    if existing_index is None:
-        args.append(f"{switch}={','.join(values)}")
-        return
-
-    existing = str(args[existing_index]).split("=", 1)[1]
-    merged = [item for item in existing.split(",") if item]
-    for value in values:
-        if value not in merged:
-            merged.append(value)
-    args[existing_index] = f"{switch}={','.join(merged)}"
+    return str(create_managed_browser_profile(root))
 
 
 def _runtime_failure_cause(message: str) -> str:

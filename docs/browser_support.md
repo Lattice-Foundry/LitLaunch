@@ -22,6 +22,14 @@ litlaunch run app.py --mode webapp --browser chrome
 
 Default browser mode does not provide Chromium app-mode semantics.
 
+App-mode launches use a LitLaunch-managed temporary Chromium profile by
+default. The profile is created under `.litlaunch/tmp/browser-profiles/` for
+the app project and removed when the LitLaunch runtime session stops. This
+keeps simultaneous local app-mode sessions from sharing normal browser profile,
+cache, extension, or component state. If a launch explicitly passes
+`--browser-arg=--user-data-dir=...`, LitLaunch respects that user profile
+choice and does not replace it.
+
 ## Managed Browser-Window Mode
 
 Browser mode is not general tab ownership. When LitLaunch can use Edge or

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
@@ -46,6 +46,7 @@ class RuntimeSession:
         console_renderer: ConsoleRenderer | None = None,
         event_emitter: RuntimeEventEmitter | None = None,
         port_release_checker: Callable[[str, int], bool] | None = None,
+        cleanup_callbacks: Sequence[Callable[[], object]] = (),
         clock: ClockProvider = time,
     ) -> None:
         self.result = result
@@ -55,6 +56,8 @@ class RuntimeSession:
         self.console_renderer = console_renderer
         self.event_emitter = event_emitter or RuntimeEventEmitter()
         self._port_release_checker = port_release_checker
+        self._cleanup_callbacks = tuple(cleanup_callbacks)
+        self._cleanup_done = False
         self.clock = clock
         self._events = list(result.events)
         self._state = result.state
@@ -134,6 +137,7 @@ class RuntimeSession:
         """Gracefully stop the app, then terminate the owned backend if needed."""
 
         if self.process is None or self._stopped:
+            self._run_cleanup_callbacks()
             return
 
         stop_start_time = self.clock.monotonic()
@@ -213,6 +217,7 @@ class RuntimeSession:
                         expected_shutdown=True,
                     )
                     self._render_port_release_if_verified()
+                    self._run_cleanup_callbacks()
                     return
             else:
                 self.add_event(
@@ -260,6 +265,7 @@ class RuntimeSession:
                 elapsed_seconds=self.clock.monotonic() - stop_start_time,
             )
             self._render_port_release_if_verified()
+            self._run_cleanup_callbacks()
             return
 
         self.add_event(
@@ -304,6 +310,7 @@ class RuntimeSession:
             elapsed_seconds=self.clock.monotonic() - stop_start_time,
         )
         self._render_port_release_if_verified()
+        self._run_cleanup_callbacks()
 
     def wait(self, timeout_seconds: float | None = None) -> int | None:
         """Wait for the owned backend process to exit.
@@ -330,6 +337,7 @@ class RuntimeSession:
         self._state = LaunchState.TERMINATED
         self._render_backend_exit(returncode, expected_shutdown=False)
         self._render_port_release_if_verified()
+        self._run_cleanup_callbacks()
         return returncode
 
     def monitor_window(
@@ -377,6 +385,7 @@ class RuntimeSession:
             self._state = LaunchState.TERMINATED
             self.add_event(LaunchState.TERMINATED, result.message, render=False)
             render_window_monitor_result(self.console_renderer, result)
+            self._run_cleanup_callbacks()
         else:
             self.add_event(
                 LaunchState.WINDOW_MONITORING,
@@ -505,6 +514,16 @@ class RuntimeSession:
             self.console_renderer is not None
             and self.console_renderer.mode == ConsoleMode.VERBOSE
         )
+
+    def _run_cleanup_callbacks(self) -> None:
+        if self._cleanup_done:
+            return
+        self._cleanup_done = True
+        for callback in self._cleanup_callbacks:
+            try:
+                callback()
+            except Exception:
+                continue
 
 
 def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:

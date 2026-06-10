@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import shutil
 import time
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 from urllib.parse import urlparse
@@ -14,6 +16,11 @@ from litlaunch.backend import (
     StreamlitBackendCommandProvider,
 )
 from litlaunch.backend_start import start_backend_process
+from litlaunch.browser_profiles import (
+    create_managed_browser_profile,
+    has_browser_switch,
+    with_managed_browser_profile_args,
+)
 from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
@@ -253,13 +260,14 @@ class StreamlitLauncher:
             f"opening {browser_name} {browser_mode}",
             verbose_only=True,
         )
+        extra_browser_args, cleanup_callbacks = self._browser_launch_args()
         browser_start_time = self.clock.monotonic()
         browser_result = self.browser_launcher.launch(
             resolution,
             url=backend_result.url,
             mode=self.config.mode,
             title=self.config.title,
-            extra_args=self.config.extra_browser_args,
+            extra_args=extra_browser_args,
             allow_fallback=self.config.allow_browser_fallback,
         )
         browser_elapsed = self.clock.monotonic() - browser_start_time
@@ -286,6 +294,7 @@ class StreamlitLauncher:
             )
             self.process_manager.stop(managed_process)
             self._render_port_release_if_verified(backend_result.url)
+            _run_cleanup_callbacks(cleanup_callbacks)
             self._record(
                 events,
                 LaunchState.FAILED,
@@ -353,6 +362,7 @@ class StreamlitLauncher:
             console_renderer=self.console_renderer,
             event_emitter=self.event_emitter,
             port_release_checker=self.port_manager.is_port_available,
+            cleanup_callbacks=cleanup_callbacks,
             clock=self.clock,
         )
 
@@ -458,6 +468,29 @@ class StreamlitLauncher:
                 details={"host": host, "port": port},
             )
 
+    def _browser_launch_args(
+        self,
+    ) -> tuple[tuple[str, ...], tuple[Callable[[], object], ...]]:
+        if self.config.mode != LaunchMode.WEBAPP:
+            return self.config.extra_browser_args, ()
+        if has_browser_switch(self.config.extra_browser_args, "--user-data-dir"):
+            return self.config.extra_browser_args, ()
+
+        profile_dir = create_managed_browser_profile(
+            project_root_for_config(self.config)
+        )
+        extra_args = with_managed_browser_profile_args(
+            self.config.extra_browser_args,
+            profile_dir=profile_dir,
+        )
+        cleanup_callbacks: tuple[Callable[[], object], ...] = (
+            lambda profile_dir=profile_dir: shutil.rmtree(
+                profile_dir,
+                ignore_errors=True,
+            ),
+        )
+        return extra_args, cleanup_callbacks
+
     def _enforce_network_exposure_acknowledgement(self) -> None:
         exposure = classify_host_exposure(self.config.host)
         if not exposure.exposed:
@@ -535,6 +568,14 @@ def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:
     if parsed.hostname is None or parsed.port is None:
         return None
     return parsed.hostname, parsed.port
+
+
+def _run_cleanup_callbacks(callbacks: tuple[Callable[[], object], ...]) -> None:
+    for callback in callbacks:
+        try:
+            callback()
+        except Exception:
+            continue
 
 
 def _browser_launch_display_mode(

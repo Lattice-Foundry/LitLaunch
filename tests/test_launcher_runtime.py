@@ -76,8 +76,8 @@ class FakeProcessManager:
     def is_running(self, process):
         return process.popen.poll() is None
 
-    def stop(self, process):
-        self.stopped.append(process)
+    def stop(self, process, terminate_timeout_seconds=5.0):
+        self.stopped.append((process, terminate_timeout_seconds))
 
 
 class FakeHealthChecker:
@@ -112,9 +112,10 @@ class FakeBrowserLauncher:
 
     def launch(self, resolution, *, url, mode, title, extra_args, allow_fallback=True):
         self.calls.append((resolution, url, mode, title, extra_args, allow_fallback))
+        command = ("browser", "--app=" + url, *extra_args) if self.ok else ("browser",)
         return BrowserLaunchResult(
             ok=self.ok,
-            command=("browser", "--app=" + url) if self.ok else ("browser",),
+            command=command,
             browser=resolution.selected,
             mode=mode,
             message="browser launched" if self.ok else "browser failed",
@@ -907,12 +908,16 @@ def test_start_backend_can_skip_health_check():
     assert process_manager.stopped == []
 
 
-def test_run_starts_backend_waits_health_resolves_and_launches_browser():
+def test_run_starts_backend_waits_health_resolves_and_launches_browser(
+    tmp_path: Path,
+):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
     process_manager = FakeProcessManager()
     browser_registry = FakeBrowserRegistry(fake_browser())
     browser_launcher = FakeBrowserLauncher(ok=True)
     launcher = StreamlitLauncher(
-        LauncherConfig(app_path="app.py", mode="webapp", extra_browser_args=["--x"]),
+        LauncherConfig(app_path=app, mode="webapp", extra_browser_args=["--x"]),
         port_manager=FakePortManager(8603),
         process_manager=process_manager,
         health_checker=FakeHealthChecker(healthy=True),
@@ -936,16 +941,72 @@ def test_run_starts_backend_waits_health_resolves_and_launches_browser():
     assert session.browser is not None
     assert session.browser.kind == BrowserKind.EDGE
     assert session.browser_launched is True
-    assert session.browser_command == ("browser", "--app=http://127.0.0.1:8603")
+    assert session.browser_command is not None
+    assert session.browser_command[:2] == ("browser", "--app=http://127.0.0.1:8603")
     assert session.process is not None
     assert browser_registry.calls == [(BrowserChoice.AUTO, True, True)]
-    assert browser_launcher.calls[0][2:] == (
-        LaunchMode.WEBAPP,
-        "Streamlit App",
-        ("--x",),
-        True,
+    extra_args = browser_launcher.calls[0][4]
+    profile_arg = next(
+        arg for arg in extra_args if str(arg).startswith("--user-data-dir=")
     )
+    profile_path = Path(profile_arg.split("=", 1)[1])
+    assert browser_launcher.calls[0][2:4] == (LaunchMode.WEBAPP, "Streamlit App")
+    assert "--x" in extra_args
+    assert "--no-first-run" in extra_args
+    assert "--no-default-browser-check" in extra_args
+    assert profile_path.exists()
+    assert ".litlaunch" in profile_path.parts
+    assert "browser-profiles" in profile_path.parts
+    assert browser_launcher.calls[0][-1] is True
     assert process_manager.stopped == []
+    session.stop()
+    assert not profile_path.exists()
+
+
+def test_run_webapp_respects_explicit_browser_profile(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path=app,
+            mode="webapp",
+            extra_browser_args=("--user-data-dir=C:/custom-profile",),
+        ),
+        port_manager=FakePortManager(8603),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=browser_launcher,
+        clock=FakeClock(),
+    )
+
+    session = launcher.run()
+
+    assert session.ok is True
+    assert browser_launcher.calls[0][4] == ("--user-data-dir=C:/custom-profile",)
+    session.stop()
+
+
+def test_run_browser_mode_does_not_create_managed_browser_profile(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path=app, mode="browser"),
+        port_manager=FakePortManager(8603),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=browser_launcher,
+        clock=FakeClock(),
+    )
+
+    session = launcher.run()
+
+    assert session.ok is True
+    assert browser_launcher.calls[0][4] == ()
+    session.stop()
 
 
 def test_start_backend_injects_shutdown_env_with_distinct_port_and_private_token():
@@ -998,19 +1059,28 @@ def test_run_health_failure_stops_only_backend_before_browser_resolution():
     assert browser_launcher.calls == []
 
 
-def test_run_browser_failure_stops_only_backend():
+def test_run_browser_failure_stops_only_backend(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    browser_launcher = FakeBrowserLauncher(ok=False)
     process_manager = FakeProcessManager()
     launcher = StreamlitLauncher(
-        LauncherConfig(app_path="app.py"),
+        LauncherConfig(app_path=app, mode="webapp"),
         port_manager=FakePortManager(8605),
         process_manager=process_manager,
         health_checker=FakeHealthChecker(healthy=True),
         browser_registry=FakeBrowserRegistry(fake_browser(BrowserKind.DEFAULT)),
-        browser_launcher=FakeBrowserLauncher(ok=False),
+        browser_launcher=browser_launcher,
         clock=FakeClock(),
     )
 
     session = launcher.run()
+    profile_arg = next(
+        arg
+        for arg in browser_launcher.calls[0][4]
+        if str(arg).startswith("--user-data-dir=")
+    )
+    profile_path = Path(profile_arg.split("=", 1)[1])
 
     assert session.ok is False
     assert session.state == LaunchState.FAILED
@@ -1018,6 +1088,7 @@ def test_run_browser_failure_stops_only_backend():
     assert session.browser_command == ("browser",)
     assert session.process is None
     assert len(process_manager.stopped) == 1
+    assert not profile_path.exists()
     assert LaunchState.TERMINATING in {event.state for event in session.events}
 
 

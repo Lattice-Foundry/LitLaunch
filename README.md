@@ -36,8 +36,8 @@ session = launcher.start()
 
 That is enough to get local-first defaults, explicit backend ownership, health
 checks, browser capability detection, an app-window experience where supported,
-minimal Streamlit app chrome by default, clean shutdown handling, and
-diagnostics/reporting tools.
+isolated Chromium app-mode browser profiles, minimal Streamlit app chrome by
+default, clean shutdown handling, and diagnostics/reporting tools.
 
 No shell scripts. No browser automation hacks. No custom runtime glue.
 
@@ -162,7 +162,7 @@ their product.
 - Hide Streamlit's default app toolbar/menu chrome by default where Streamlit
   supports it, with `--show-streamlit-chrome` to restore it.
 - Own and stop only the Streamlit backend process LitLaunch starts.
-- Open a managed browser window or Chromium app-mode window.
+- Open a managed browser window or isolated Chromium app-mode window.
 - Resolve Edge, Chrome/Chromium, and default-browser capability.
 - Provide tokened loopback graceful shutdown hooks for app cleanup.
 - Inspect local runtime readiness without launching the app.

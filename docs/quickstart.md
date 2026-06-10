@@ -8,11 +8,12 @@ litlaunch app.py --mode webapp
 
 That local-first path gives you explicit backend ownership, Streamlit health
 checks, browser capability detection, an app-window experience where supported,
-minimal Streamlit app chrome by default, clean shutdown handling, and
-diagnostics/reporting without shell scripts or custom runtime glue. Profiles,
-shortcuts, shutdown hooks, packaged-app runtime workflows, trust modes, and
-report tooling are available when the project needs more repeatable launch
-behavior or operational visibility. LitLaunch can run inside
+isolated Chromium app-mode browser profiles, minimal Streamlit app chrome by
+default, clean shutdown handling, and diagnostics/reporting without shell
+scripts or custom runtime glue. Profiles, shortcuts, shutdown hooks,
+packaged-app runtime workflows, trust modes, and report tooling are available
+when the project needs more repeatable launch behavior or operational
+visibility. LitLaunch can run inside
 packaged/distributed Streamlit apps across Windows, Linux, and macOS, but it
 does not create installers or replace packaging tools. Windows and Linux receive
 first-party manual validation. macOS support is available with lighter

@@ -270,6 +270,63 @@ def test_runtime_session_stop_without_process_is_noop():
     assert manager.stop_calls == []
 
 
+def test_runtime_session_runs_cleanup_callbacks_once_on_stop():
+    calls = []
+    manager = FakeProcessManager()
+    session = RuntimeSession(
+        result=make_result(),
+        process=make_process(),
+        process_manager=manager,
+        cleanup_callbacks=(lambda: calls.append("cleanup"),),
+        clock=FakeClock(),
+    )
+
+    session.stop()
+    session.stop()
+
+    assert calls == ["cleanup"]
+
+
+def test_runtime_session_runs_cleanup_callbacks_on_wait():
+    calls = []
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        cleanup_callbacks=(lambda: calls.append("cleanup"),),
+        clock=FakeClock(),
+    )
+
+    assert session.wait() == 0
+
+    assert calls == ["cleanup"]
+
+
+def test_runtime_session_cleanup_callback_failure_is_ignored():
+    calls = []
+
+    def failing_cleanup():
+        calls.append("before")
+        raise RuntimeError("cleanup failed")
+
+    session = RuntimeSession(
+        result=make_result(),
+        process=None,
+        process_manager=FakeProcessManager(),
+        cleanup_callbacks=(
+            failing_cleanup,
+            lambda: calls.append("after"),
+        ),
+        clock=FakeClock(),
+    )
+
+    session.stop()
+
+    assert calls == ["before", "after"]
+
+
 def test_runtime_session_wait_delegates_to_owned_backend_process():
     process = make_process()
     manager = FakeProcessManager(wait_return=17)

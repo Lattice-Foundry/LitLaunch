@@ -16,6 +16,7 @@ from litlaunch.shortcut_writer import (
     build_shortcut_plan,
     write_shortcut,
 )
+from litlaunch.windows_shortcut import windows_app_user_model_id
 
 
 @pytest.fixture
@@ -247,6 +248,18 @@ def test_windows_shortcut_escapes_cmd_sensitive_characters(tmp_path: Path):
     assert '"X:/Python/python.exe" "-m" "litlaunch.cli"' in plan.content
     assert '"--profile" "web-profile"' in plan.content
     assert "litlaunch ^& config.toml" in plan.content
+
+
+def test_windows_app_user_model_id_is_stable_and_labelled(tmp_path: Path):
+    icon = tmp_path / "studio.ico"
+    icon.write_bytes(b"icon")
+
+    first = windows_app_user_model_id(tmp_path, "LitPack Studio", icon)
+    second = windows_app_user_model_id(tmp_path, "LitPack Studio", icon)
+
+    assert first == second
+    assert first.startswith("LatticeFoundry.LitLaunch.LitPack.Studio.")
+    assert len(first) <= 128
 
 
 def test_shortcut_plan_macos_native_app_bundle(tmp_path: Path):

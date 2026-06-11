@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import ctypes
+import subprocess
+import tempfile
 import time
 from collections.abc import Callable, Sequence
 from contextlib import suppress
@@ -284,6 +286,161 @@ def apply_windows_window_icon(
             continue
         applied = True
     return applied
+
+
+def apply_windows_window_app_identity(
+    handle: str | int,
+    app_user_model_id: str,
+    *,
+    icon_path: str | Path | None = None,
+    is_windows: bool | None = None,
+    runner: Callable[..., object] = subprocess.run,
+) -> bool:
+    """Best-effort Windows shell identity update for one observed window."""
+
+    if not (_is_windows() if is_windows is None else is_windows):
+        return False
+    if not str(app_user_model_id).strip():
+        return False
+    try:
+        int(handle)
+    except (TypeError, ValueError):
+        return False
+
+    icon_value = ""
+    if icon_path is not None:
+        path = Path(icon_path)
+        if path.suffix.lower() == ".ico" and path.is_file():
+            icon_value = str(path)
+
+    script = (
+        "param(\n"
+        "  [string]$WindowHandle,\n"
+        "  [string]$AppUserModelId,\n"
+        "  [string]$IconPath\n"
+        ")\n"
+        "$ErrorActionPreference = 'Stop'\n"
+        'Add-Type -TypeDefinition @"\n'
+        "using System;\n"
+        "using System.Runtime.InteropServices;\n"
+        "\n"
+        "[ComImport]\n"
+        "[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]\n"
+        '[Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")]\n'
+        "public interface IPropertyStore\n"
+        "{\n"
+        "    void GetCount(out uint cProps);\n"
+        "    void GetAt(uint iProp, out PROPERTYKEY pkey);\n"
+        "    void GetValue(ref PROPERTYKEY key, out PROPVARIANT pv);\n"
+        "    void SetValue(ref PROPERTYKEY key, ref PROPVARIANT pv);\n"
+        "    void Commit();\n"
+        "}\n"
+        "\n"
+        "[StructLayout(LayoutKind.Sequential, Pack = 4)]\n"
+        "public struct PROPERTYKEY\n"
+        "{\n"
+        "    public Guid fmtid;\n"
+        "    public uint pid;\n"
+        "}\n"
+        "\n"
+        "[StructLayout(LayoutKind.Sequential)]\n"
+        "public struct PROPVARIANT\n"
+        "{\n"
+        "    public ushort vt;\n"
+        "    public ushort wReserved1;\n"
+        "    public ushort wReserved2;\n"
+        "    public ushort wReserved3;\n"
+        "    public IntPtr p;\n"
+        "}\n"
+        "\n"
+        "public static class LitLaunchWindowProperties\n"
+        "{\n"
+        "    private const ushort VT_LPWSTR = 31;\n"
+        "    private static readonly Guid PropertyStoreGuid = new Guid("
+        '"886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99");\n'
+        "    private static readonly Guid AppUserModelFmtid = new Guid("
+        '"9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3");\n'
+        "\n"
+        '    [DllImport("Shell32.dll")]\n'
+        "    private static extern int SHGetPropertyStoreForWindow(IntPtr hwnd, "
+        "ref Guid riid, out IPropertyStore propertyStore);\n"
+        "\n"
+        '    [DllImport("Ole32.dll")]\n'
+        "    private static extern int PropVariantClear(ref PROPVARIANT pvar);\n"
+        "\n"
+        "    public static void SetWindowIdentity(string windowHandle, "
+        "string appUserModelId, string iconPath)\n"
+        "    {\n"
+        "        var hwnd = new IntPtr(long.Parse(windowHandle));\n"
+        "        var iid = PropertyStoreGuid;\n"
+        "        IPropertyStore store;\n"
+        "        Marshal.ThrowExceptionForHR(SHGetPropertyStoreForWindow(hwnd, "
+        "ref iid, out store));\n"
+        "        try\n"
+        "        {\n"
+        "            SetString(store, 5, appUserModelId);\n"
+        "            if (!String.IsNullOrWhiteSpace(iconPath))\n"
+        "            {\n"
+        "                SetString(store, 3, iconPath);\n"
+        "            }\n"
+        "            store.Commit();\n"
+        "        }\n"
+        "        finally\n"
+        "        {\n"
+        "            if (store != null && Marshal.IsComObject(store))\n"
+        "            {\n"
+        "                Marshal.FinalReleaseComObject(store);\n"
+        "            }\n"
+        "        }\n"
+        "    }\n"
+        "\n"
+        "    private static void SetString(IPropertyStore store, uint pid, "
+        "string text)\n"
+        "    {\n"
+        "        var key = new PROPERTYKEY { fmtid = AppUserModelFmtid, pid = pid };\n"
+        "        var value = FromString(text);\n"
+        "        try\n"
+        "        {\n"
+        "            store.SetValue(ref key, ref value);\n"
+        "        }\n"
+        "        finally\n"
+        "        {\n"
+        "            PropVariantClear(ref value);\n"
+        "        }\n"
+        "    }\n"
+        "\n"
+        "    private static PROPVARIANT FromString(string value)\n"
+        "    {\n"
+        "        return new PROPVARIANT\n"
+        "        {\n"
+        "            vt = VT_LPWSTR,\n"
+        "            p = Marshal.StringToCoTaskMemUni(value),\n"
+        "        };\n"
+        "    }\n"
+        "}\n"
+        '"@\n'
+        "[LitLaunchWindowProperties]::SetWindowIdentity($WindowHandle, "
+        "$AppUserModelId, $IconPath)\n"
+    )
+    with tempfile.TemporaryDirectory(prefix="litlaunch-window-identity-") as temp_dir:
+        script_path = Path(temp_dir) / "set-window-identity.ps1"
+        script_path.write_text(script, encoding="utf-8")
+        command = (
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(script_path),
+            str(handle),
+            app_user_model_id,
+            icon_value,
+        )
+        try:
+            runner(command, check=True, capture_output=True, text=True)
+        except (OSError, subprocess.CalledProcessError):
+            return False
+    return True
 
 
 def _process_name_matches_chromium(

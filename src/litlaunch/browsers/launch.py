@@ -19,7 +19,11 @@ from litlaunch.browsers.base import (
 )
 from litlaunch.browsers.registry import BrowserRegistry, create_default_browser_registry
 from litlaunch.config import LaunchMode
-from litlaunch.windows_shortcut import join_windows_arguments, write_windows_shortcut
+from litlaunch.windows_shortcut import (
+    join_windows_arguments,
+    windows_app_user_model_id,
+    write_windows_shortcut,
+)
 
 
 class BrowserLauncher:
@@ -210,6 +214,11 @@ class BrowserLauncher:
             title=title,
             browser_name=capability.name,
         )
+        app_user_model_id = windows_app_user_model_id(
+            artifact_root or Path.cwd(),
+            title,
+            app_icon,
+        )
         target, *arguments = command
         try:
             self.shortcut_writer(
@@ -218,6 +227,7 @@ class BrowserLauncher:
                 arguments=join_windows_arguments(tuple(arguments)),
                 working_directory=artifact_root or Path.cwd(),
                 icon_path=app_icon,
+                app_user_model_id=app_user_model_id,
             )
             self.shortcut_opener(shortcut_path)
         except Exception as exc:

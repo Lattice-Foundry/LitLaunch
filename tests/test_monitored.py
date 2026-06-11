@@ -237,17 +237,29 @@ def test_run_monitored_webapp_applies_app_icon_when_window_observed(
         ),
         session,
     )
-    calls = []
+    identity_calls = []
+    icon_calls = []
+    monkeypatch.setattr(
+        monitored_module,
+        "apply_windows_window_app_identity",
+        lambda handle, app_id, *, icon_path=None: (
+            identity_calls.append((handle, app_id, icon_path)) or True
+        ),
+    )
     monkeypatch.setattr(
         monitored_module,
         "apply_windows_window_icon",
-        lambda handle, path: calls.append((handle, path)) or True,
+        lambda handle, path: icon_calls.append((handle, path)) or True,
     )
 
     result = run_monitored_webapp(launcher, monitor=FakeMonitor())
 
     assert result.exit_code == 0
-    assert calls == [("new", icon)]
+    assert len(identity_calls) == 1
+    assert identity_calls[0][0] == "new"
+    assert identity_calls[0][1].startswith("LatticeFoundry.LitLaunch.LitPack.Studio.")
+    assert identity_calls[0][2] == icon
+    assert icon_calls == [("new", icon)]
     assert session.runtime_events == []
 
 
@@ -266,6 +278,11 @@ def test_run_monitored_webapp_ignores_icon_override_failure(
         monitored_module,
         "apply_windows_window_icon",
         lambda handle, path: False,
+    )
+    monkeypatch.setattr(
+        monitored_module,
+        "apply_windows_window_app_identity",
+        lambda handle, app_id, *, icon_path=None: False,
     )
 
     run_monitored_webapp(launcher, monitor=FakeMonitor())

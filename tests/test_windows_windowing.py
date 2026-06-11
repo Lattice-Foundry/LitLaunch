@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+from pathlib import Path
 
 from litlaunch.browsers import BrowserKind
 from litlaunch.platforms import PlatformDetector
@@ -12,6 +13,7 @@ from litlaunch.windowing import (
     WindowsChromiumWindowMonitor,
     WindowsWindowProvider,
     WindowTarget,
+    apply_windows_window_app_identity,
     apply_windows_window_icon,
     create_window_monitor,
     is_chromium_window,
@@ -300,5 +302,47 @@ def test_apply_windows_window_icon_rejects_non_ico(tmp_path):
         "100",
         icon,
         user32=FakeIconUser32(),
+        is_windows=True,
+    )
+
+
+def test_apply_windows_window_app_identity_invokes_shell_property_script(tmp_path):
+    icon = tmp_path / "app.ico"
+    icon.write_bytes(b"icon")
+    calls = []
+
+    def runner(command, **kwargs):
+        script = Path(command[5]).read_text(encoding="utf-8")
+        calls.append((command, kwargs, script))
+
+    assert apply_windows_window_app_identity(
+        "100",
+        "LatticeFoundry.LitLaunch.App.123",
+        icon_path=icon,
+        is_windows=True,
+        runner=runner,
+    )
+
+    command, kwargs, script = calls[0]
+    assert command[:5] == (
+        "powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+    )
+    assert command[-3:] == (
+        "100",
+        "LatticeFoundry.LitLaunch.App.123",
+        str(icon),
+    )
+    assert kwargs == {"check": True, "capture_output": True, "text": True}
+    assert "SHGetPropertyStoreForWindow" in script
+
+
+def test_apply_windows_window_app_identity_rejects_invalid_handle():
+    assert not apply_windows_window_app_identity(
+        "not-a-handle",
+        "LatticeFoundry.LitLaunch.App.123",
         is_windows=True,
     )

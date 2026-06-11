@@ -321,6 +321,9 @@ def test_windows_app_mode_with_ico_launches_through_icon_shortcut(tmp_path: Path
     assert writes[0]["arguments"] == ('"--app=http://127.0.0.1:8501" "--new-window"')
     assert writes[0]["working_directory"] == tmp_path
     assert writes[0]["icon_path"] == icon
+    assert writes[0]["app_user_model_id"].startswith(
+        "LatticeFoundry.LitLaunch.LitPack.Studio."
+    )
     assert opened == [writes[0]["shortcut_path"]]
     assert result.cleanup_callbacks
     assert writes[0]["shortcut_path"].is_file()

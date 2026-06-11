@@ -9,7 +9,13 @@ from pathlib import Path
 from typing import Any
 
 from litlaunch.cli.common import split_passthrough_args
-from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
+from litlaunch.config import (
+    BrowserChoice,
+    LauncherConfig,
+    LaunchMode,
+    StreamlitFlags,
+    TrustMode,
+)
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.profiles import LaunchProfile, load_profile
 from litlaunch.windowing import WindowMonitorConfig
@@ -427,7 +433,10 @@ def profile_value(
     return default
 
 
-def merge_streamlit_flags(profile_flags, cli_values):
+def merge_streamlit_flags(
+    profile_flags: StreamlitFlags,
+    cli_values: Sequence[tuple[str, str | None]],
+) -> StreamlitFlags:
     """Merge profile and CLI Streamlit flag representations."""
 
     cli_flags = streamlit_flags_mapping(cli_values)

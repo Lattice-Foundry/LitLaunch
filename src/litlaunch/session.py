@@ -6,11 +6,12 @@ import subprocess
 import time
 from collections.abc import Callable, Sequence
 from types import TracebackType
-from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
+from litlaunch.browsers import BrowserCapability
 from litlaunch.console import ConsoleMode, ConsolePhase, ConsoleRenderer
 from litlaunch.events import RuntimeEventEmitter
+from litlaunch.health import parse_url_host_port
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.runtime_console import (
@@ -99,7 +100,7 @@ class RuntimeSession:
         return self.result.command
 
     @property
-    def browser(self):
+    def browser(self) -> BrowserCapability | None:
         """Return the browser capability used during launch, if any."""
 
         return self.result.browser
@@ -488,7 +489,7 @@ class RuntimeSession:
     def _render_port_release_if_verified(self) -> None:
         if self._port_release_checker is None:
             return
-        host_port = _parse_url_host_port(self.result.url)
+        host_port = parse_url_host_port(self.result.url)
         if host_port is None:
             return
         host, port = host_port
@@ -556,12 +557,3 @@ class RuntimeSession:
                 callback()
             except Exception:
                 continue
-
-
-def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:
-    if not url:
-        return None
-    parsed = urlparse(url)
-    if parsed.hostname is None or parsed.port is None:
-        return None
-    return parsed.hostname, parsed.port

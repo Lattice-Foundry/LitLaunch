@@ -302,6 +302,10 @@ class _StartupWindowProbe:
         poll_interval_seconds: float = 0.05,
     ) -> None:
         self.monitor = monitor
+        # The title is a placeholder: capture() filters by window class and
+        # process, not title, and WindowTarget requires a non-empty app-mode
+        # title. "Streamlit App" also acts as the match-any default title in
+        # matches_window_title for monitors that do consult it.
         self.target = WindowTarget(
             "Streamlit App",
             app_mode=True,

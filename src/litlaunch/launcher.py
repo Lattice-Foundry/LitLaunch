@@ -7,7 +7,6 @@ import time
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
-from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
 from litlaunch.artifacts import project_root_for_config
@@ -38,6 +37,7 @@ from litlaunch.health import (
     HealthChecker,
     build_streamlit_app_url,
     build_streamlit_health_url,
+    parse_url_host_port,
 )
 from litlaunch.lifecycle import LaunchEvent, LaunchPlan, LaunchResult, LaunchState
 from litlaunch.planning import build_launch_plan
@@ -450,7 +450,7 @@ class StreamlitLauncher:
             self.console_renderer.render_launch_event(event)
 
     def _render_port_release_if_verified(self, url: str | None) -> None:
-        host_port = _parse_url_host_port(url)
+        host_port = parse_url_host_port(url)
         if host_port is None:
             return
         host, port = host_port
@@ -533,7 +533,7 @@ class StreamlitLauncher:
         )
 
     def _emit_backend_start_result(self, result: LaunchResult) -> None:
-        host_port = _parse_url_host_port(result.url)
+        host_port = parse_url_host_port(result.url)
         details: dict[str, object] = {}
         if result.pid is not None:
             details["pid"] = result.pid
@@ -561,15 +561,6 @@ class StreamlitLauncher:
                 message="Backend startup failed.",
                 details=details,
             )
-
-
-def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:
-    if not url:
-        return None
-    parsed = urlparse(url)
-    if parsed.hostname is None or parsed.port is None:
-        return None
-    return parsed.hostname, parsed.port
 
 
 def _run_cleanup_callbacks(callbacks: tuple[Callable[[], object], ...]) -> None:

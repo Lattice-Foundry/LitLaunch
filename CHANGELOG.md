@@ -7,6 +7,13 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.7 - Stable
+
+- Tightened the mypy gate to `disallow_untyped_defs` for the package source and
+  annotated the remaining untyped helpers.
+- Consolidated duplicated launch-URL host/port parsing into a single shared
+  helper used by the launcher and runtime session.
+
 ## 1.0.6 - Stable
 
 - Treated missing app-side cleanup endpoints as the expected default for plain

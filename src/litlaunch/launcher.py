@@ -261,6 +261,7 @@ class StreamlitLauncher:
             verbose_only=True,
         )
         extra_browser_args, cleanup_callbacks = self._browser_launch_args()
+        artifact_root = project_root_for_config(self.config)
         browser_start_time = self.clock.monotonic()
         browser_result = self.browser_launcher.launch(
             resolution,
@@ -269,7 +270,10 @@ class StreamlitLauncher:
             title=self.config.title,
             extra_args=extra_browser_args,
             allow_fallback=self.config.allow_browser_fallback,
+            app_icon=self.config.app_icon,
+            artifact_root=artifact_root,
         )
+        cleanup_callbacks = (*cleanup_callbacks, *browser_result.cleanup_callbacks)
         browser_elapsed = self.clock.monotonic() - browser_start_time
 
         if not browser_result.ok:

@@ -45,6 +45,7 @@ StreamlitFlags = Mapping[str, FlagValue] | Sequence[str]
 NormalizedStreamlitFlags = MappingProxyType[str, FlagValue] | tuple[str, ...]
 _EMPTY_ENV: Mapping[str, str] = MappingProxyType({})
 _EMPTY_STREAMLIT_FLAGS: Mapping[str, FlagValue] = MappingProxyType({})
+SUPPORTED_APP_ICON_EXTENSIONS = frozenset({".ico", ".icns", ".png", ".svg"})
 
 
 @dataclass(frozen=True, init=False)
@@ -53,6 +54,7 @@ class LauncherConfig:
 
     app_path: Path
     title: str
+    app_icon: Path | None
     mode: LaunchMode
     browser: BrowserChoice
     host: str
@@ -75,6 +77,7 @@ class LauncherConfig:
         self,
         app_path: str | Path,
         title: str = "Streamlit App",
+        app_icon: str | Path | None = None,
         mode: LaunchMode | str = LaunchMode.BROWSER,
         browser: BrowserChoice | str = BrowserChoice.AUTO,
         host: str = "127.0.0.1",
@@ -95,6 +98,7 @@ class LauncherConfig:
     ) -> None:
         app_path = _normalize_path(app_path)
         title = _normalize_required_string(title, "title")
+        app_icon = _normalize_app_icon(app_icon)
         mode = _normalize_launch_mode(mode)
         browser = _normalize_browser_choice(browser)
         trust_mode = _normalize_trust_mode(trust_mode)
@@ -127,6 +131,7 @@ class LauncherConfig:
 
         object.__setattr__(self, "app_path", app_path)
         object.__setattr__(self, "title", title)
+        object.__setattr__(self, "app_icon", app_icon)
         object.__setattr__(self, "mode", mode)
         object.__setattr__(self, "browser", browser)
         object.__setattr__(self, "host", host)
@@ -168,6 +173,23 @@ def _normalize_optional_path(value: str | Path | None, field_name: str) -> Path 
     if not raw_value:
         raise ConfigurationError(f"{field_name} cannot be empty.")
     return Path(raw_value)
+
+
+def _normalize_app_icon(value: str | Path | None) -> Path | None:
+    path = _normalize_optional_path(value, "app_icon")
+    if path is None:
+        return None
+    if not path.is_file():
+        if path.exists():
+            raise ConfigurationError(f"app_icon must be a file: {path}")
+        raise ConfigurationError(f"app_icon does not exist: {path}")
+    suffix = path.suffix.lower()
+    if suffix not in SUPPORTED_APP_ICON_EXTENSIONS:
+        allowed = ", ".join(sorted(SUPPORTED_APP_ICON_EXTENSIONS))
+        raise ConfigurationError(
+            f"app_icon must use one of these extensions: {allowed}."
+        )
+    return path
 
 
 def _normalize_env_mapping(value: Mapping[str, str]) -> MappingProxyType[str, str]:

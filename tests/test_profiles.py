@@ -28,12 +28,16 @@ def write(path: Path, text: str) -> Path:
 
 def test_loads_litlaunch_toml_profile(tmp_path):
     app = write(tmp_path / "app.py", "print('hello')\n")
+    icon = tmp_path / "assets" / "app.ico"
+    icon.parent.mkdir()
+    icon.write_bytes(b"icon")
     config_path = write(
         tmp_path / "litlaunch.toml",
         """
 [profiles.my-webapp]
 app_path = "app.py"
 title = "My App"
+app_icon = "assets/app.ico"
 mode = "webapp"
 browser = "edge"
 trust_mode = "internal_network"
@@ -76,6 +80,7 @@ stable_polls = 2
     assert profile.name == "my-webapp"
     assert profile.config.app_path == app
     assert profile.config.title == "My App"
+    assert profile.config.app_icon == icon
     assert profile.config.mode == LaunchMode.WEBAPP
     assert profile.config.browser == BrowserChoice.EDGE
     assert profile.config.trust_mode == TrustMode.INTERNAL_NETWORK

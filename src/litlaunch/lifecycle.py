@@ -82,3 +82,5 @@ class LaunchPlan:
     streamlit_args: tuple[str, ...]
     extra_env_preview: str
     streamlit_chrome_policy: str = "hidden"
+    app_icon: Path | None = None
+    app_icon_support: str = "not configured"

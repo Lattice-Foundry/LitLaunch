@@ -57,6 +57,13 @@ def add_runtime_flags(
         ),
     )
     parser.add_argument(
+        "--app-icon",
+        help=(
+            "Set an app identity icon path for webapp windows, native "
+            "shortcuts, and diagnostics."
+        ),
+    )
+    parser.add_argument(
         "--mode",
         choices=[item.value for item in LaunchMode],
         help="Choose browser-tab mode or app-window webapp mode.",
@@ -246,6 +253,12 @@ def runtime_config_from_args(
     config = LauncherConfig(
         app_path=app_path,
         title=profile_value(args.title, profile_config, "title", "Streamlit App"),
+        app_icon=profile_value(
+            getattr(args, "app_icon", None),
+            profile_config,
+            "app_icon",
+            None,
+        ),
         mode=profile_value(args.mode, profile_config, "mode", LaunchMode.BROWSER),
         browser=profile_value(
             args.browser,

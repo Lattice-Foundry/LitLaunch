@@ -53,6 +53,7 @@ class WindowTarget:
     browser_kind: BrowserKind | None = None
     app_mode: bool = True
     baseline_handles: tuple[str, ...] = field(default_factory=tuple)
+    observed_callback: Callable[[WindowInfo], object] | None = None
 
     def __post_init__(self) -> None:
         title = str(self.title).strip()

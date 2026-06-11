@@ -12,6 +12,7 @@ from litlaunch.windowing import (
     WindowsChromiumWindowMonitor,
     WindowsWindowProvider,
     WindowTarget,
+    apply_windows_window_icon,
     create_window_monitor,
     is_chromium_window,
 )
@@ -63,6 +64,20 @@ class FakeKernel32:
 
     def CloseHandle(self, handle):
         self.closed_handles.append(handle)
+        return 1
+
+
+class FakeIconUser32:
+    def __init__(self):
+        self.loaded = []
+        self.messages = []
+
+    def LoadImageW(self, instance, path, image_type, width, height, flags):
+        self.loaded.append((path, image_type, width, height, flags))
+        return width + height
+
+    def SendMessageW(self, hwnd, message, icon_type, icon):
+        self.messages.append((hwnd, message, icon_type, icon))
         return 1
 
 
@@ -264,3 +279,26 @@ def test_windows_provider_fake_path_does_not_require_real_winfuntype(monkeypatch
     )
 
     assert provider.capture(WindowTarget("LitLaunch"))[0].process_name == "msedge"
+
+
+def test_apply_windows_window_icon_uses_win32_messages(tmp_path):
+    icon = tmp_path / "app.ico"
+    icon.write_bytes(b"icon")
+    user32 = FakeIconUser32()
+
+    assert apply_windows_window_icon("100", icon, user32=user32, is_windows=True)
+
+    assert len(user32.loaded) == 2
+    assert [message[2] for message in user32.messages] == [0, 1]
+
+
+def test_apply_windows_window_icon_rejects_non_ico(tmp_path):
+    icon = tmp_path / "app.svg"
+    icon.write_text("<svg />", encoding="utf-8")
+
+    assert not apply_windows_window_icon(
+        "100",
+        icon,
+        user32=FakeIconUser32(),
+        is_windows=True,
+    )

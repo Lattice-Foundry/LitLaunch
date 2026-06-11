@@ -62,6 +62,7 @@ class DiagnosticCollector:
         port: int | None = None,
         auto_port: bool = True,
         show_streamlit_chrome: bool = False,
+        app_icon: str | Path | None = None,
         allow_browser_fallback: bool = True,
         allow_network_exposure: bool = False,
         trust_mode: TrustMode | str = TrustMode.DEVELOPMENT,
@@ -128,6 +129,7 @@ class DiagnosticCollector:
                     port=port,
                     auto_port=auto_port,
                     show_streamlit_chrome=show_streamlit_chrome,
+                    app_icon=app_icon,
                     allow_browser_fallback=allow_browser_fallback,
                     allow_network_exposure=allow_network_exposure,
                     trust_mode=trust_mode,
@@ -492,6 +494,7 @@ class DiagnosticCollector:
         port: int | None,
         auto_port: bool,
         show_streamlit_chrome: bool,
+        app_icon: str | Path | None,
         allow_browser_fallback: bool,
         allow_network_exposure: bool,
         trust_mode: TrustMode | str,
@@ -541,6 +544,7 @@ class DiagnosticCollector:
                 port=port,
                 auto_port=auto_port,
                 show_streamlit_chrome=show_streamlit_chrome,
+                app_icon=app_icon,
                 allow_browser_fallback=allow_browser_fallback,
                 allow_network_exposure=allow_network_exposure,
                 trust_mode=trust_mode,
@@ -580,6 +584,18 @@ class DiagnosticCollector:
                     "Streamlit chrome policy",
                     DiagnosticStatus.INFO,
                     plan.streamlit_chrome_policy,
+                ),
+                *(
+                    (
+                        DiagnosticItem(
+                            "App icon",
+                            DiagnosticStatus.OK,
+                            str(plan.app_icon),
+                            detail=plan.app_icon_support,
+                        ),
+                    )
+                    if plan.app_icon is not None
+                    else ()
                 ),
                 DiagnosticItem(
                     "App URL preview",

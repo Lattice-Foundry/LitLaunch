@@ -188,6 +188,24 @@ def test_profile_writer_round_trips_visible_streamlit_chrome_policy(tmp_path: Pa
     assert loaded.config.show_streamlit_chrome is True
 
 
+def test_profile_writer_round_trips_app_icon(tmp_path: Path):
+    app = tmp_path / "app.py"
+    icon = tmp_path / "assets" / "app.ico"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    icon.parent.mkdir()
+    icon.write_bytes(b"icon")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(app_path=app, app_icon=icon),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert 'app_icon = "assets' in result.toml
+    assert loaded.config.app_icon == icon
+
+
 def test_display_path_handles_different_spellings_of_same_directory(
     tmp_path: Path,
     monkeypatch,

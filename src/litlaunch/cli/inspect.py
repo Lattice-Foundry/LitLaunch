@@ -80,6 +80,10 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         help="Evaluate diagnostics with Streamlit's default app chrome visible.",
     )
     parser.add_argument(
+        "--app-icon",
+        help="Evaluate diagnostics with an app identity icon path.",
+    )
+    parser.add_argument(
         "--no-auto-port",
         action="store_false",
         dest="auto_port",
@@ -143,6 +147,10 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=None,
         help="Evaluate diagnostics with Streamlit's default app chrome visible.",
+    )
+    parser.add_argument(
+        "--app-icon",
+        help="Evaluate diagnostics with an app identity icon path.",
     )
     parser.add_argument(
         "--allow-network-exposure",
@@ -285,6 +293,12 @@ def collect_diagnostics_report(
             profile_config,
             "show_streamlit_chrome",
             False,
+        ),
+        app_icon=profile_value(
+            getattr(args, "app_icon", None),
+            profile_config,
+            "app_icon",
+            None,
         ),
         allow_network_exposure=profile_value(
             getattr(args, "allow_network_exposure", None),

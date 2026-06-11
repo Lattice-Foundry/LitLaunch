@@ -68,6 +68,24 @@ def test_shortcut_plan_windows_lnk_uses_app_parent_and_python(tmp_path: Path):
     assert plan.executable is False
 
 
+def test_shortcut_plan_windows_lnk_includes_app_icon(tmp_path: Path):
+    app = tmp_path / "app.py"
+    icon = tmp_path / "app.ico"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    icon.write_bytes(b"icon")
+    profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app, app_icon=icon))
+
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.WINDOWS),
+        )
+    )
+
+    assert plan.app_icon == icon
+    assert f"Icon: {icon}" in plan.content
+
+
 def test_shortcut_plan_windows_script_bat_uses_app_parent(tmp_path: Path):
     app = tmp_path / "app.py"
     app.write_text("print('hi')\n", encoding="utf-8")
@@ -113,6 +131,25 @@ def test_shortcut_plan_linux_desktop_quotes_paths_and_config(tmp_path: Path):
         in (plan.content)
     )
     assert plan.executable is True
+
+
+def test_shortcut_plan_linux_desktop_includes_app_icon(tmp_path: Path):
+    app = tmp_path / "app.py"
+    icon = tmp_path / "assets" / "app.svg"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    icon.parent.mkdir()
+    icon.write_text("<svg />", encoding="utf-8")
+    profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app, app_icon=icon))
+
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.LINUX),
+        )
+    )
+
+    assert "Icon=" in plan.content
+    assert "app.svg" in plan.content
 
 
 def test_shortcut_plan_linux_script_quotes_paths_and_config(tmp_path: Path):

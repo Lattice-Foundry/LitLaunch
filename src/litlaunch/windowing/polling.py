@@ -150,6 +150,7 @@ class PollingWindowMonitor:
                 stable_count = 1
 
             if candidate is not None and stable_count >= config.stable_poll_count:
+                _notify_target_observed(target, candidate)
                 return candidate
 
             self.sleeper(config.poll_interval_seconds)
@@ -283,3 +284,13 @@ def _matches_target(window: WindowInfo, target: WindowTarget) -> bool:
     if not matches_window_title(window.title, target.title, target.url):
         return False
     return window_matches_browser_kind(window, target.browser_kind)
+
+
+def _notify_target_observed(target: WindowTarget, window: WindowInfo) -> None:
+    callback = target.observed_callback
+    if callback is None:
+        return
+    try:
+        callback(window)
+    except Exception:
+        return

@@ -221,6 +221,21 @@ def test_polling_monitor_selects_title_match_and_records_events():
     ]
 
 
+def test_polling_monitor_calls_observed_callback_on_stable_window():
+    target_window = window("0x200", title="My Streamlit App")
+    observed = []
+    monitor = monitor_for((target_window,), ())
+
+    result = monitor.wait_for_close(
+        WindowTarget("streamlit", observed_callback=observed.append),
+        backend_is_running=lambda: True,
+        config=config(stable_poll_count=1),
+    )
+
+    assert result.closed is True
+    assert observed == [target_window]
+
+
 def test_polling_monitor_near_title_match_handles_missing_middle_token():
     target_window = window(
         "0x200",

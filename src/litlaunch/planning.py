@@ -10,7 +10,12 @@ from litlaunch.backend import (
     BackendCommandProvider,
 )
 from litlaunch.browsers import BrowserResolution
-from litlaunch.config import FlagValue, LauncherConfig, NormalizedStreamlitFlags
+from litlaunch.config import (
+    FlagValue,
+    LauncherConfig,
+    LaunchMode,
+    NormalizedStreamlitFlags,
+)
 from litlaunch.exceptions import CommandBuildError
 from litlaunch.health import build_streamlit_app_url, build_streamlit_health_url
 from litlaunch.lifecycle import LaunchPlan
@@ -61,6 +66,8 @@ def build_launch_plan(
             format_env_preview(config.extra_env) if config.extra_env else "none"
         ),
         streamlit_chrome_policy=streamlit_chrome_policy(config),
+        app_icon=config.app_icon,
+        app_icon_support=app_icon_support(config),
     )
 
 
@@ -116,3 +123,17 @@ def streamlit_chrome_policy(config: LauncherConfig) -> str:
     """Return the user-facing Streamlit app chrome policy name."""
 
     return "visible" if config.show_streamlit_chrome else "hidden"
+
+
+def app_icon_support(config: LauncherConfig) -> str:
+    """Return the honest launch-surface support summary for an app icon."""
+
+    if config.app_icon is None:
+        return "not configured"
+    if config.mode == LaunchMode.WEBAPP:
+        return (
+            "native shortcuts can use this icon; Windows .ico webapp launches "
+            "try shortcut icon metadata and live window-icon overrides where "
+            "supported"
+        )
+    return "native shortcuts can use this icon; browser-tab launches ignore it"

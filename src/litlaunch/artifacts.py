@@ -12,6 +12,7 @@ REPORTS_DIR_NAME = "reports"
 SHORTCUTS_DIR_NAME = "shortcuts"
 TMP_DIR_NAME = "tmp"
 BROWSER_PROFILES_DIR_NAME = "browser-profiles"
+BROWSER_SHORTCUTS_DIR_NAME = "browser-shortcuts"
 
 
 def project_root_for_config(config: LauncherConfig) -> Path:
@@ -53,6 +54,15 @@ def browser_profiles_dir(root: Path | None = None, *, create: bool = False) -> P
     """Return the managed browser-profile temp directory."""
 
     path = artifact_dir(root) / TMP_DIR_NAME / BROWSER_PROFILES_DIR_NAME
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def browser_shortcuts_dir(root: Path | None = None, *, create: bool = False) -> Path:
+    """Return the managed browser shortcut temp directory."""
+
+    path = artifact_dir(root) / TMP_DIR_NAME / BROWSER_SHORTCUTS_DIR_NAME
     if create:
         path.mkdir(parents=True, exist_ok=True)
     return path

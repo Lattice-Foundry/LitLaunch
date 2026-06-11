@@ -28,6 +28,7 @@ PYPROJECT_TOML = "pyproject.toml"
 CONFIG_FIELDS = {
     "app_path",
     "title",
+    "app_icon",
     "mode",
     "browser",
     "host",
@@ -218,6 +219,11 @@ def _profile_from_mapping(
     config_values["app_path"] = _profile_path(config_values["app_path"], base_dir)
     if "cwd" in config_values and config_values["cwd"] is not None:
         config_values["cwd"] = _profile_path(config_values["cwd"], base_dir)
+    if "app_icon" in config_values and config_values["app_icon"] is not None:
+        config_values["app_icon"] = _profile_path(
+            config_values["app_icon"],
+            base_dir,
+        )
     if (
         "runtime_event_log" in config_values
         and config_values["runtime_event_log"] is not None

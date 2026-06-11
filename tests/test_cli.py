@@ -969,6 +969,7 @@ def test_cli_create_profile_advanced_mode_writes_full_profile(monkeypatch):
                 "",
                 "Advanced App",
                 "",
+                "",
                 "chrome",
                 "0.0.0.0",
                 "y",
@@ -1045,6 +1046,7 @@ def test_cli_create_profile_advanced_mode_dry_run_does_not_write(monkeypatch):
             [
                 "2",
                 "advanced-dry-run",
+                "",
                 "",
                 "",
                 "",
@@ -2032,6 +2034,33 @@ def test_cli_root_app_path_shorthand_uses_run_pipeline():
     assert launcher.config.show_streamlit_chrome is True
     assert launcher.run_calls == 1
     assert session.wait_calls == 1
+
+
+def test_cli_runtime_accepts_app_icon():
+    with temporary_output_dir() as output_dir:
+        app = output_dir / "app.py"
+        icon = output_dir / "app.ico"
+        app.write_text("print('hello')\n", encoding="utf-8")
+        icon.write_bytes(b"icon")
+        stream = StringIO()
+        session = FakeSession(ok=True, wait_return=0)
+
+        code = main(
+            [
+                str(app),
+                "--mode",
+                "webapp",
+                "--app-icon",
+                str(icon),
+                "--no-monitor-window",
+            ],
+            stream=stream,
+            launcher_factory=reset_fake_launcher(session),
+        )
+
+    launcher = FakeLauncher.instances[0]
+    assert code == 0
+    assert launcher.config.app_icon == icon
 
 
 def test_cli_root_profile_shorthand_uses_profile_runtime_path():

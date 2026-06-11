@@ -155,6 +155,30 @@ to Streamlit:
 litlaunch run app.py --browser edge --browser-arg=--kiosk
 ```
 
+## Custom App Icons
+
+Use `--app-icon` to provide app identity metadata for webapp windows, generated
+shortcuts, and diagnostics:
+
+```powershell
+litlaunch app.py --mode webapp --title "My App" --app-icon assets/my-app.ico
+```
+
+For profiles:
+
+```toml
+[profiles.my-webapp]
+app_path = "app.py"
+title = "My App"
+mode = "webapp"
+app_icon = "assets/my-app.ico"
+```
+
+Use `.ico` for the strongest Windows app-window behavior and match the
+LitLaunch title to `st.set_page_config(page_title="My App")` so window
+monitoring can find the app window reliably. Other supported icon formats are
+useful for shortcut/reporting metadata where the platform accepts them.
+
 ## Runtime Event Logs
 
 Use `--event-log PATH` when a CLI launch should append structured LitLaunch
@@ -281,6 +305,7 @@ LitLaunch keeps generated project files under `.litlaunch/` by default:
   reports/              HTML reports, JSON output, and support bundles
   shortcuts/            generated launch shortcuts
   tmp/browser-profiles/ managed temporary Chromium profiles
+  tmp/browser-shortcuts/ managed temporary browser launch shortcuts
 ```
 
 `litlaunch.toml` remains the normal project-level profile file. Add
@@ -426,13 +451,15 @@ Create a new `litlaunch.toml` profile interactively:
 ```powershell
 litlaunch create profile
 litlaunch create profile --name my-webapp --app app.py
+litlaunch create profile --name my-webapp --app app.py --app-icon assets/my-app.ico
 litlaunch create profile --dry-run
 ```
 
 Simple mode defaults to the recommended app-window experience, while still
 allowing browser-tab profiles. Advanced mode exposes the fuller runtime profile
-surface, including network settings, browser fallback, monitor tuning,
-Streamlit flags, app args, working directory, and extra environment variables.
+surface, including app icons, network settings, browser fallback, monitor
+tuning, Streamlit flags, app args, working directory, and extra environment
+variables.
 Non-loopback hosts are called out during the wizard, and `extra_env` values are
 stored as plaintext in `litlaunch.toml`.
 When run from an app root, the wizard uses detected values such as `app.py`, the
@@ -461,6 +488,10 @@ Shortcut creation writes an OS-native project-local shortcut under
 Use `--kind script` for the simpler `.bat`, `.sh`, or `.command` fallback form.
 Shortcut creation does not launch the app, modify the Desktop, register Start
 Menu entries, or install launchers into OS-specific locations.
+If the profile has `app_icon`, LitLaunch includes it in native shortcut
+metadata where the OS shortcut format supports it. `.ico` is recommended for
+Windows; Linux desktop files can use common image formats such as `.png` or
+`.svg`. Script shortcuts do not carry OS icon metadata.
 
 ## Example
 

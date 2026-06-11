@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from litlaunch.browsers import (
     BrowserCapability,
     BrowserKind,
@@ -276,6 +278,86 @@ def test_browser_mode_launch_places_extra_args_before_url():
         "http://127.0.0.1:8501",
     )
     assert calls == [(result.command, {"shell": False})]
+
+
+def test_windows_app_mode_with_ico_launches_through_icon_shortcut(tmp_path: Path):
+    icon = tmp_path / "studio.ico"
+    icon.write_bytes(b"icon")
+    writes = []
+    opened = []
+
+    def shortcut_writer(**kwargs):
+        writes.append(kwargs)
+        kwargs["shortcut_path"].write_text("shortcut", encoding="utf-8")
+
+    launcher = BrowserLauncher(
+        registry=BrowserRegistry((EdgeAdapter(),)),
+        popen_factory=lambda command, **kwargs: (_ for _ in ()).throw(
+            AssertionError("direct browser launch should not be used")
+        ),
+        shortcut_writer=shortcut_writer,
+        shortcut_opener=opened.append,
+        is_windows=True,
+    )
+
+    result = launcher.launch(
+        resolution(capability(BrowserKind.EDGE, "C:/Edge/msedge.exe")),
+        url="http://127.0.0.1:8501",
+        mode=LaunchMode.WEBAPP,
+        title="LitPack Studio",
+        extra_args=("--new-window",),
+        app_icon=icon,
+        artifact_root=tmp_path,
+    )
+
+    assert result.ok is True
+    assert result.command == (
+        "C:/Edge/msedge.exe",
+        "--app=http://127.0.0.1:8501",
+        "--new-window",
+    )
+    assert result.message == "Launched Edge in app mode through Windows shortcut."
+    assert writes[0]["target_path"] == "C:/Edge/msedge.exe"
+    assert writes[0]["arguments"] == ('"--app=http://127.0.0.1:8501" "--new-window"')
+    assert writes[0]["working_directory"] == tmp_path
+    assert writes[0]["icon_path"] == icon
+    assert opened == [writes[0]["shortcut_path"]]
+    assert result.cleanup_callbacks
+    assert writes[0]["shortcut_path"].is_file()
+
+    result.cleanup_callbacks[0]()
+
+    assert not writes[0]["shortcut_path"].exists()
+
+
+def test_windows_icon_shortcut_failure_falls_back_to_direct_launch(tmp_path: Path):
+    icon = tmp_path / "studio.ico"
+    icon.write_bytes(b"icon")
+    calls = []
+
+    def shortcut_writer(**kwargs):
+        raise RuntimeError("shortcut blocked")
+
+    launcher = BrowserLauncher(
+        registry=BrowserRegistry((EdgeAdapter(),)),
+        popen_factory=lambda command, **kwargs: calls.append((command, kwargs)),
+        shortcut_writer=shortcut_writer,
+        is_windows=True,
+    )
+
+    result = launcher.launch(
+        resolution(capability(BrowserKind.EDGE, "C:/Edge/msedge.exe")),
+        url="http://127.0.0.1:8501",
+        mode=LaunchMode.WEBAPP,
+        app_icon=icon,
+        artifact_root=tmp_path,
+    )
+
+    assert result.ok is True
+    assert result.message == "Launched Edge in app mode."
+    assert calls == [
+        (("C:/Edge/msedge.exe", "--app=http://127.0.0.1:8501"), {"shell": False})
+    ]
 
 
 def test_browser_launcher_has_no_termination_surface():

@@ -105,6 +105,10 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
     lines = [f"[{profile_header}]"]
     lines.append(f"app_path = {_toml_string(_display_path(config.app_path, base_dir))}")
     lines.append(f"title = {_toml_string(config.title)}")
+    if config.app_icon is not None:
+        lines.append(
+            f"app_icon = {_toml_string(_display_path(config.app_icon, base_dir))}"
+        )
     lines.append(f'mode = "{config.mode.value}"')
     lines.append(f'browser = "{config.browser.value}"')
     if config.host != "127.0.0.1":
@@ -183,6 +187,24 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
 
 
 def _validate_rendered_profile(name: str, toml: str, path: Path) -> None:
+    if path.parent.exists():
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.preview.",
+            suffix=".toml",
+            delete=False,
+        ) as file:
+            preview_path = Path(file.name)
+            file.write(toml)
+        try:
+            load_profile(name, preview_path)
+        finally:
+            with suppress(OSError):
+                preview_path.unlink(missing_ok=True)
+        return
+
     from tempfile import TemporaryDirectory
 
     with TemporaryDirectory(prefix="litlaunch-profile-preview-") as directory:

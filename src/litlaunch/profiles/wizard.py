@@ -105,6 +105,7 @@ def _run_profile_wizard(
         existing_names=_existing_profile_names(config_path, detection),
         profile_name=options.name,
         app_path=Path(options.app_path) if options.app_path else detection.app_path,
+        app_icon=Path(options.app_icon) if options.app_icon else None,
         title=detection.suggested_title,
         launch_experience="webapp",
         browser="auto",
@@ -175,6 +176,12 @@ def _wizard_steps(*, platform_is_windows: bool) -> tuple[_WizardStep, ...]:
             "App title",
             _step_title,
             ("Set the title used for shortcuts and monitored app-window matching."),
+        ),
+        _WizardStep(
+            "App icon",
+            _step_app_icon,
+            ("Optionally set an icon used by LitLaunch-generated native shortcuts."),
+            skip=_simple_mode,
         ),
         _WizardStep(
             "Launch experience",
@@ -355,6 +362,27 @@ def _step_title(state: _WizardState, io: _WizardIo) -> None:
         default=state.title or state.detection.suggested_title,
         validator=_nonempty,
     )
+
+
+def _step_app_icon(state: _WizardState, io: _WizardIo) -> None:
+    while True:
+        default = "" if state.app_icon is None else str(state.app_icon)
+        value = _ask_optional(
+            io,
+            "App icon path (blank for none)",
+            default=default,
+        )
+        if not value:
+            state.app_icon = None
+            return
+        path = Path(value)
+        try:
+            LauncherConfig(app_path="app.py", app_icon=path)
+        except ConfigurationError as exc:
+            _write(io.stream, f"Invalid app icon: {exc}")
+            continue
+        state.app_icon = path
+        return
 
 
 def _step_launch_experience(state: _WizardState, io: _WizardIo) -> None:
@@ -657,6 +685,7 @@ def _build_profile(state: _WizardState) -> LaunchProfile:
     config = LauncherConfig(
         app_path=state.app_path,
         title=title,
+        app_icon=state.app_icon,
         mode=LaunchMode.WEBAPP if launch_experience == "webapp" else LaunchMode.BROWSER,
         browser=BrowserChoice(browser),
         host=state.host,

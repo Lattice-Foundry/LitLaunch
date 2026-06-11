@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import shutil
 import stat
-import subprocess
 import sys
-import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -15,6 +13,7 @@ from litlaunch.artifacts import default_shortcut_path
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.platforms import OperatingSystem, PlatformInfo
 from litlaunch.profiles import LaunchProfile
+from litlaunch.windows_shortcut import join_windows_arguments, write_windows_shortcut
 
 
 class ShortcutKind(str, Enum):
@@ -55,6 +54,7 @@ class ShortcutPlan:
     app_root: Path
     output_path: Path
     command: tuple[str, ...]
+    app_icon: Path | None
     content: str
     executable: bool
     files: tuple[ShortcutFile, ...] = ()
@@ -85,6 +85,7 @@ def build_shortcut_plan(request: ShortcutRequest) -> ShortcutPlan:
         app_root=app_root,
         output_path=output_path,
         command=command,
+        app_icon=profile.config.app_icon,
     )
 
 
@@ -138,6 +139,10 @@ def _resolve_app_root(profile: LaunchProfile) -> Path:
     return Path.cwd()
 
 
+def _shortcut_icon_path(path: Path, app_root: Path) -> Path:
+    return path if path.is_absolute() else app_root / path
+
+
 def _shortcut_extension(os_name: OperatingSystem, kind: ShortcutKind) -> str:
     if kind == ShortcutKind.SCRIPT:
         if os_name == OperatingSystem.WINDOWS:
@@ -178,9 +183,14 @@ def _render_shortcut_plan(
     app_root: Path,
     output_path: Path,
     command: tuple[str, ...],
+    app_icon: Path | None,
 ) -> ShortcutPlan:
     if kind == ShortcutKind.NATIVE and platform == OperatingSystem.WINDOWS:
-        content = _render_windows_lnk_preview(app_root=app_root, command=command)
+        content = _render_windows_lnk_preview(
+            app_root=app_root,
+            command=command,
+            app_icon=app_icon,
+        )
         return ShortcutPlan(
             profile_name=profile_name,
             platform=platform,
@@ -188,13 +198,17 @@ def _render_shortcut_plan(
             app_root=app_root,
             output_path=output_path,
             command=command,
+            app_icon=app_icon,
             content=content,
             executable=False,
         )
 
     if kind == ShortcutKind.NATIVE and platform == OperatingSystem.LINUX:
         content = _render_linux_desktop(
-            profile_name, app_root=app_root, command=command
+            profile_name,
+            app_root=app_root,
+            command=command,
+            app_icon=app_icon,
         )
         return ShortcutPlan(
             profile_name=profile_name,
@@ -203,6 +217,7 @@ def _render_shortcut_plan(
             app_root=app_root,
             output_path=output_path,
             command=command,
+            app_icon=app_icon,
             content=content,
             executable=True,
         )
@@ -221,6 +236,7 @@ def _render_shortcut_plan(
             app_root=app_root,
             output_path=output_path,
             command=command,
+            app_icon=app_icon,
             content=content,
             executable=True,
             files=files,
@@ -238,62 +254,44 @@ def _render_shortcut_plan(
         app_root=app_root,
         output_path=output_path,
         command=command,
+        app_icon=app_icon,
         content=content,
         executable=executable,
     )
 
 
-def _render_windows_lnk_preview(*, app_root: Path, command: tuple[str, ...]) -> str:
+def _render_windows_lnk_preview(
+    *,
+    app_root: Path,
+    command: tuple[str, ...],
+    app_icon: Path | None,
+) -> str:
     target, *arguments = command
-    return "\n".join(
-        (
-            "Windows shortcut (.lnk)",
-            f"Target: {target}",
-            f"Arguments: {_join_windows_arguments(tuple(arguments))}",
-            f"Start in: {app_root}",
-            "",
-        )
-    )
+    lines = [
+        "Windows shortcut (.lnk)",
+        f"Target: {target}",
+        f"Arguments: {_join_windows_arguments(tuple(arguments))}",
+        f"Start in: {app_root}",
+    ]
+    if app_icon is not None:
+        lines.append(f"Icon: {_shortcut_icon_path(app_icon, app_root)}")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _write_windows_lnk(plan: ShortcutPlan) -> None:
     target, *arguments = plan.command
-    script = (
-        "param(\n"
-        "  [string]$ShortcutPath,\n"
-        "  [string]$TargetPath,\n"
-        "  [string]$ShortcutArguments,\n"
-        "  [string]$WorkingDirectory\n"
-        ")\n"
-        "$shell = New-Object -ComObject WScript.Shell\n"
-        "$shortcut = $shell.CreateShortcut($ShortcutPath)\n"
-        "$shortcut.TargetPath = $TargetPath\n"
-        "$shortcut.Arguments = $ShortcutArguments\n"
-        "$shortcut.WorkingDirectory = $WorkingDirectory\n"
-        "$shortcut.Save()\n"
+    write_windows_shortcut(
+        shortcut_path=plan.output_path,
+        target_path=target,
+        arguments=_join_windows_arguments(tuple(arguments)),
+        working_directory=plan.app_root,
+        icon_path=(
+            _shortcut_icon_path(plan.app_icon, plan.app_root)
+            if plan.app_icon is not None
+            else None
+        ),
     )
-    with tempfile.TemporaryDirectory(prefix="litlaunch-shortcut-") as temp_dir:
-        script_path = Path(temp_dir) / "create-shortcut.ps1"
-        script_path.write_text(script, encoding="utf-8")
-        command = (
-            "powershell.exe",
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            str(script_path),
-            str(plan.output_path),
-            target,
-            _join_windows_arguments(tuple(arguments)),
-            str(plan.app_root),
-        )
-        try:
-            subprocess.run(command, check=True, capture_output=True, text=True)
-        except (OSError, subprocess.CalledProcessError) as exc:
-            detail = getattr(exc, "stderr", "") or str(exc)
-            raise ConfigurationError(
-                f"Could not create Windows shortcut: {detail}"
-            ) from exc
 
 
 def _render_linux_desktop(
@@ -301,20 +299,23 @@ def _render_linux_desktop(
     *,
     app_root: Path,
     command: tuple[str, ...],
+    app_icon: Path | None,
 ) -> str:
     name = _display_name(profile_name)
-    return "\n".join(
-        (
-            "[Desktop Entry]",
-            "Type=Application",
-            f"Name={_escape_desktop_value(name)}",
-            f"Exec={_join_desktop_exec(command)}",
-            f"Path={_escape_desktop_value(str(app_root))}",
-            "Terminal=true",
-            "Categories=Development;",
-            "",
-        )
-    )
+    lines = [
+        "[Desktop Entry]",
+        "Type=Application",
+        f"Name={_escape_desktop_value(name)}",
+        f"Exec={_join_desktop_exec(command)}",
+        f"Path={_escape_desktop_value(str(app_root))}",
+        "Terminal=true",
+        "Categories=Development;",
+    ]
+    if app_icon is not None:
+        icon_value = _escape_desktop_value(str(_shortcut_icon_path(app_icon, app_root)))
+        lines.append(f"Icon={icon_value}")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _render_macos_app_files(
@@ -404,7 +405,7 @@ def _join_windows(parts: tuple[str, ...]) -> str:
 
 
 def _join_windows_arguments(parts: tuple[str, ...]) -> str:
-    return " ".join(_quote_windows_argument(part) for part in parts)
+    return join_windows_arguments(parts)
 
 
 def _join_posix(parts: tuple[str, ...]) -> str:
@@ -427,11 +428,6 @@ def _quote_windows(value: str) -> str:
         ("|", "^|"),
     ):
         escaped = escaped.replace(raw, replacement)
-    return f'"{escaped}"'
-
-
-def _quote_windows_argument(value: str) -> str:
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
 
 

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
+from pathlib import Path
 
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
@@ -27,6 +29,7 @@ from litlaunch.windowing import (
     WindowMonitorResult,
     WindowMonitorStatus,
     WindowTarget,
+    apply_windows_window_icon,
     create_window_monitor,
 )
 
@@ -155,6 +158,9 @@ def run_monitored_webapp(
             browser_kind=getattr(session.browser, "kind", None),
             app_mode=True,
             baseline_handles=tuple(window.handle for window in baseline),
+            observed_callback=_app_icon_observed_callback(
+                launcher.config.app_icon,
+            ),
         )
         result = session.monitor_window(
             resolved_monitor,
@@ -218,6 +224,21 @@ def run_monitored_webapp(
         launched=True,
         stopped_cleanly=not session_is_running(session),
     )
+
+
+def _app_icon_observed_callback(
+    icon_path: Path | None,
+) -> Callable[[WindowInfo], object] | None:
+    if icon_path is None:
+        return None
+    if icon_path.suffix.lower() != ".ico":
+        return None
+
+    def apply_icon(window: WindowInfo) -> None:
+        with suppress(Exception):
+            apply_windows_window_icon(window.handle, icon_path)
+
+    return apply_icon
 
 
 def run_profile(

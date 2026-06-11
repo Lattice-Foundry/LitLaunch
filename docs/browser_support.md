@@ -30,6 +30,66 @@ cache, extension, or component state. If a launch explicitly passes
 `--browser-arg=--user-data-dir=...`, LitLaunch respects that user profile
 choice and does not replace it.
 
+## Custom App Icons
+
+Profiles and CLI launches can configure an app identity icon. For the strongest
+Windows app-window behavior, use a real `.ico` file and run in webapp mode:
+
+```powershell
+litlaunch app.py --mode webapp --title "My App" --app-icon assets/my-app.ico
+```
+
+```toml
+[profiles.my-webapp]
+app_path = "app.py"
+title = "My App"
+mode = "webapp"
+app_icon = "assets/my-app.ico"
+```
+
+In the Streamlit app, match the page title to the LitLaunch title so monitored
+app-window detection can reliably find the window:
+
+```python
+import streamlit as st
+
+st.set_page_config(page_title="My App")
+```
+
+For reusable local launches:
+
+```powershell
+litlaunch create profile --name my-webapp --app app.py --app-icon assets/my-app.ico
+litlaunch create shortcut --profile my-webapp
+litlaunch --profile my-webapp
+```
+
+`app_icon` accepts `.ico`, `.png`, `.svg`, and `.icns` paths for profile,
+diagnostic, and shortcut metadata. Use `.ico` for Windows app-window icon
+behavior. The icon path may be absolute or relative to the profile file.
+
+Chromium and Edge app-mode command lines do not expose a stable custom icon
+flag for one-off temporary app windows. LitLaunch therefore treats app icons as
+best-effort app identity metadata and uses the strongest supported surface it
+can find:
+
+- native shortcuts use the configured icon where the shortcut format supports
+  it;
+- Windows `.ico` webapp launches first try a LitLaunch-generated temporary
+  `.lnk` with icon metadata before Edge/Chrome starts;
+- Windows monitored app-window launches also attempt a best-effort live `.ico`
+  window icon override through Win32 window messaging after the monitored
+  app window is observed;
+- browser-tab launches ignore app icons;
+- unsupported platforms, browsers, and image formats fall back without breaking
+  the launch.
+
+Chrome/Chromium may honor the shortcut identity immediately. Edge may briefly
+show the browser icon before LitLaunch observes the app window and applies the
+live override. Browsers may still show their own icon on some taskbar, Alt-Tab,
+dock, or title-bar surfaces. Icon handling is intentionally quiet in runtime
+diagnostics because it is presentation polish, not a launch-health condition.
+
 ## Managed Browser-Window Mode
 
 Browser mode is not general tab ownership. When LitLaunch can use Edge or
@@ -81,6 +141,9 @@ capability and reports the launch failure without retrying alternatives.
 - Browser processes are not owned or killed.
 - Browser profile and process reuse are browser behavior, not LitLaunch state.
 - App-mode depends on Chromium-compatible command-line behavior.
+- Custom app icons are best-effort; one-off Chromium app-mode launches do not
+  provide a stable cross-platform icon flag, so LitLaunch uses shortcut/window
+  icon metadata where supported.
 - Managed browser-window lifecycle is best-effort and currently strongest on
   Windows with Edge or Chrome/Chromium.
 

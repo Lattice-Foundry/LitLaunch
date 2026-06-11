@@ -34,7 +34,7 @@ def test_launch_result_carries_backend_result_details():
     assert result.browser_launched is False
 
 
-def test_launch_result_can_include_browser_details():
+def test_launch_result_can_include_browser_launch_fields():
     browser = BrowserCapability(
         kind=BrowserKind.CHROME,
         name="Chrome",

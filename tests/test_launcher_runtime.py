@@ -110,7 +110,18 @@ class FakeBrowserLauncher:
         self.ok = ok
         self.calls = []
 
-    def launch(self, resolution, *, url, mode, title, extra_args, allow_fallback=True):
+    def launch(
+        self,
+        resolution,
+        *,
+        url,
+        mode,
+        title,
+        extra_args,
+        allow_fallback=True,
+        app_icon=None,
+        artifact_root=None,
+    ):
         self.calls.append((resolution, url, mode, title, extra_args, allow_fallback))
         command = ("browser", "--app=" + url, *extra_args) if self.ok else ("browser",)
         return BrowserLaunchResult(

@@ -68,6 +68,17 @@ Streamlit's supported `client.toolbarMode = "minimal"` setting. Add
 litlaunch app.py --mode webapp --show-streamlit-chrome
 ```
 
+With an app identity icon:
+
+```powershell
+litlaunch app.py --mode webapp --app-icon assets/my-app.ico
+```
+
+`app_icon` is best-effort. LitLaunch uses it for native shortcut artifacts and,
+on Windows `.ico` app-window launches, applies the strongest browser/window
+icon strategy the platform permits. Browsers may still show their own icon
+briefly or on some surfaces.
+
 With Streamlit flags:
 
 ```powershell
@@ -101,6 +112,7 @@ can optionally create a project-local launch shortcut.
 [profiles.my-webapp]
 app_path = "app.py"
 title = "My App"
+app_icon = "assets/my-app.ico"
 mode = "webapp"
 browser = "edge"
 trust_mode = "development"
@@ -144,9 +156,9 @@ Use `litlaunch report --profile my-webapp` for the default human-readable HTML
 diagnostics report. It writes `.litlaunch/reports/litlaunch-report.html` unless
 `--output` is provided. Use `litlaunch inspect --json` or
 `litlaunch inspect --bundle` for machine-readable diagnostics and support
-bundles. Generated reports, shortcuts, and managed browser scratch profiles live
-under `.litlaunch/` by default so projects can ignore them with one
-`.gitignore` entry.
+bundles. Generated reports, shortcuts, managed browser scratch profiles, and
+temporary browser launch shortcuts live under `.litlaunch/` by default so
+projects can ignore them with one `.gitignore` entry.
 
 Reports include runtime governance, runtime exposure, and transport security
 posture. Local profiles can remain simple with `trust_mode = "development"` or

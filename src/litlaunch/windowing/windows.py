@@ -6,6 +6,7 @@ import ctypes
 import time
 from collections.abc import Callable, Sequence
 from contextlib import suppress
+from pathlib import Path
 from typing import Any
 
 from litlaunch._protocols import ClockProvider
@@ -24,6 +25,11 @@ except ImportError:  # pragma: no cover - exercised on non-Windows hosts.
 wintypes: Any = _wintypes
 
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+WM_SETICON = 0x0080
+ICON_SMALL = 0
+ICON_BIG = 1
+IMAGE_ICON = 1
+LR_LOADFROMFILE = 0x0010
 
 _WinDLL = getattr(ctypes, "WinDLL", None)
 
@@ -236,6 +242,48 @@ def is_chromium_window(
     class_matches = class_name.startswith("Chrome_WidgetWin")
     process_matches = _process_name_matches_chromium(process_name, browser_kind)
     return class_matches or process_matches
+
+
+def apply_windows_window_icon(
+    handle: str | int,
+    icon_path: str | Path,
+    *,
+    user32: object | None = None,
+    is_windows: bool | None = None,
+) -> bool:
+    """Best-effort Win32 icon override for one already-created window."""
+
+    if not (_is_windows() if is_windows is None else is_windows):
+        return False
+    path = Path(icon_path)
+    if path.suffix.lower() != ".ico" or not path.is_file():
+        return False
+    resolved_user32: Any = user32 or _load_windows_dll("user32")
+    if resolved_user32 is None:
+        return False
+    try:
+        hwnd = int(handle)
+    except (TypeError, ValueError):
+        return False
+
+    applied = False
+    for icon_type, size in ((ICON_SMALL, 16), (ICON_BIG, 32)):
+        try:
+            icon = resolved_user32.LoadImageW(
+                None,
+                str(path),
+                IMAGE_ICON,
+                size,
+                size,
+                LR_LOADFROMFILE,
+            )
+            if not icon:
+                continue
+            resolved_user32.SendMessageW(hwnd, WM_SETICON, icon_type, icon)
+        except (AttributeError, OSError, TypeError, ValueError):
+            continue
+        applied = True
+    return applied
 
 
 def _process_name_matches_chromium(

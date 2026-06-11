@@ -49,6 +49,7 @@ AI apps, and developer utilities:
 ```toml
 [profiles.my-dashboard]
 app_path = "app.py"
+app_icon = "assets/my-dashboard.ico"
 trust_mode = "strict_local"
 mode = "webapp"
 browser = "edge"
@@ -62,6 +63,9 @@ litlaunch --profile my-dashboard
 
 Simple workflows stay simple. Advanced launch, browser, monitoring, network,
 and diagnostics settings are there when a project needs them.
+Profiles may include `app_icon` for app identity. LitLaunch uses it for native
+shortcut artifacts and, on Windows `.ico` app-window launches, applies the
+strongest browser/window icon strategy the platform permits.
 
 ### Built for real packaged applications
 
@@ -325,11 +329,12 @@ default:
   reports/              HTML reports, JSON output, and support bundles
   shortcuts/            generated launch shortcuts
   tmp/browser-profiles/ managed temporary Chromium profiles
+  tmp/browser-shortcuts/ managed temporary browser launch shortcuts
 ```
 
 Keep `litlaunch.toml` in the project root when you want profiles to travel with
-the app. Add `.litlaunch/` to `.gitignore` when generated reports, shortcuts, and
-runtime scratch files should stay out of source control. Explicit `--output`
+the app. Add `.litlaunch/` to `.gitignore` when generated reports, shortcuts,
+and runtime scratch files should stay out of source control. Explicit `--output`
 paths still write exactly where you ask.
 
 Shortcut generation uses native project-local artifacts by default: `.lnk` on

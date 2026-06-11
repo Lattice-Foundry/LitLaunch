@@ -237,7 +237,10 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  Simple mode covers common app-window profiles.",
             "  Advanced mode exposes network, browser, monitor, args, cwd, and env.",
             "  After writing, the wizard can optionally create a launch shortcut.",
-            "  Generated reports, shortcuts, and temp browser profiles use .litlaunch.",
+            (
+                "  Generated reports, shortcuts, temp browser profiles, "
+                "and temp browser shortcuts use .litlaunch."
+            ),
             "",
             style.label("Shortcuts:"),
             *style.commands(

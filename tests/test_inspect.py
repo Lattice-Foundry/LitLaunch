@@ -191,6 +191,8 @@ class FakeLauncher:
             streamlit_chrome_policy=(
                 "visible" if self.config.show_streamlit_chrome else "hidden"
             ),
+            app_icon=self.config.app_icon,
+            app_icon_support="native shortcuts can use this icon",
         )
 
     def run(self):
@@ -400,6 +402,16 @@ def test_collector_reports_visible_streamlit_chrome_policy():
     messages = report_item_messages(report)
 
     assert messages[("Target", "Streamlit chrome policy")] == "visible"
+
+
+def test_collector_reports_app_icon_metadata(tmp_path):
+    icon = tmp_path / "app.ico"
+    icon.write_bytes(b"icon")
+
+    report = make_collector().collect(app_path=EXAMPLE_APP, app_icon=icon)
+    messages = report_item_messages(report)
+
+    assert messages[("Target", "App icon")] == str(icon)
 
 
 def test_collector_reports_configured_trust_mode():

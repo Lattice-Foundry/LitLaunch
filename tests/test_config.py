@@ -140,6 +140,30 @@ def test_empty_runtime_event_log_raises_configuration_error():
         LauncherConfig(app_path="app.py", runtime_event_log=" ")
 
 
+def test_app_icon_validates_existing_supported_file(tmp_path):
+    icon = tmp_path / "app.ico"
+    icon.write_bytes(b"icon")
+
+    config = LauncherConfig(app_path="app.py", app_icon=icon)
+
+    assert config.app_icon == icon
+
+
+def test_app_icon_rejects_missing_directory_and_extension(tmp_path):
+    with pytest.raises(ConfigurationError, match="app_icon does not exist"):
+        LauncherConfig(app_path="app.py", app_icon=tmp_path / "missing.ico")
+
+    directory = tmp_path / "icons"
+    directory.mkdir()
+    with pytest.raises(ConfigurationError, match="app_icon must be a file"):
+        LauncherConfig(app_path="app.py", app_icon=directory)
+
+    text_icon = tmp_path / "icon.txt"
+    text_icon.write_text("not an icon", encoding="utf-8")
+    with pytest.raises(ConfigurationError, match="app_icon must use one"):
+        LauncherConfig(app_path="app.py", app_icon=text_icon)
+
+
 def test_extra_env_is_copy_safe_and_string_normalized():
     env = {"APP_MODE": "demo", "COUNT": 3}
     config = LauncherConfig(app_path="app.py", extra_env=env)

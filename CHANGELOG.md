@@ -7,6 +7,16 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.8 - Stable
+
+- Added `app_icon` configuration for launch profiles, CLI/Python config,
+  diagnostics, and native shortcut metadata.
+- Added a Windows `.ico` webapp launch strategy that opens Edge/Chrome through
+  a LitLaunch-generated temporary shortcut with icon metadata before the
+  browser app window starts.
+- Added a best-effort live Windows app-window `.ico` override for monitored
+  webapp launches while documenting browser/platform fallback limits.
+
 ## 1.0.7 - Stable
 
 - Tightened the mypy gate to `disallow_untyped_defs` for the package source and

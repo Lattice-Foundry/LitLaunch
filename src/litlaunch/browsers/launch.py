@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
+import uuid
 import webbrowser
 from collections.abc import Callable, Sequence
+from pathlib import Path
+from typing import cast
 
+from litlaunch.artifacts import browser_shortcuts_dir
 from litlaunch.browsers.base import (
     BrowserCapability,
     BrowserKind,
@@ -14,6 +19,7 @@ from litlaunch.browsers.base import (
 )
 from litlaunch.browsers.registry import BrowserRegistry, create_default_browser_registry
 from litlaunch.config import LaunchMode
+from litlaunch.windows_shortcut import join_windows_arguments, write_windows_shortcut
 
 
 class BrowserLauncher:
@@ -25,10 +31,16 @@ class BrowserLauncher:
         registry: BrowserRegistry | None = None,
         popen_factory: Callable[..., object] = subprocess.Popen,
         browser_open: Callable[[str], bool] = webbrowser.open,
+        shortcut_writer: Callable[..., object] = write_windows_shortcut,
+        shortcut_opener: Callable[[Path], object] | None = None,
+        is_windows: bool | None = None,
     ) -> None:
         self.registry = registry or create_default_browser_registry()
         self.popen_factory = popen_factory
         self.browser_open = browser_open
+        self.shortcut_writer = shortcut_writer
+        self.shortcut_opener = shortcut_opener or open_windows_shortcut
+        self.is_windows = os.name == "nt" if is_windows is None else is_windows
 
     def launch(
         self,
@@ -39,6 +51,8 @@ class BrowserLauncher:
         title: str = "",
         extra_args: Sequence[str] = (),
         allow_fallback: bool = True,
+        app_icon: Path | None = None,
+        artifact_root: Path | None = None,
     ) -> BrowserLaunchResult:
         """Launch the selected browser capability."""
 
@@ -64,6 +78,8 @@ class BrowserLauncher:
                 mode=mode,
                 title=title,
                 extra_args=extra_args,
+                app_icon=app_icon,
+                artifact_root=artifact_root,
             )
             if result.ok:
                 return _with_fallback_success_message(result, attempted)
@@ -88,6 +104,8 @@ class BrowserLauncher:
         mode: LaunchMode,
         title: str,
         extra_args: Sequence[str],
+        app_icon: Path | None,
+        artifact_root: Path | None,
     ) -> BrowserLaunchResult:
         if mode == LaunchMode.WEBAPP:
             return self._launch_app_mode(
@@ -96,6 +114,8 @@ class BrowserLauncher:
                 mode=mode,
                 title=title,
                 extra_args=extra_args,
+                app_icon=app_icon,
+                artifact_root=artifact_root,
             )
 
         return self._launch_full_browser(
@@ -113,6 +133,8 @@ class BrowserLauncher:
         mode: LaunchMode,
         title: str,
         extra_args: Sequence[str],
+        app_icon: Path | None,
+        artifact_root: Path | None,
     ) -> BrowserLaunchResult:
         if not capability.supports_app_mode:
             return BrowserLaunchResult(
@@ -139,6 +161,22 @@ class BrowserLauncher:
             title=title,
             extra_args=extra_args,
         )
+        if _should_launch_with_icon_shortcut(
+            command=command,
+            app_icon=app_icon,
+            is_windows=self.is_windows,
+        ):
+            shortcut_result = self._launch_app_mode_with_windows_icon_shortcut(
+                capability,
+                command=command,
+                mode=mode,
+                title=title,
+                app_icon=cast(Path, app_icon),
+                artifact_root=artifact_root,
+            )
+            if shortcut_result.ok:
+                return shortcut_result
+
         try:
             self.popen_factory(command, shell=False)
         except Exception as exc:
@@ -155,6 +193,50 @@ class BrowserLauncher:
             browser=capability,
             mode=mode,
             message=f"Launched {capability.name} in app mode.",
+        )
+
+    def _launch_app_mode_with_windows_icon_shortcut(
+        self,
+        capability: BrowserCapability,
+        *,
+        command: tuple[str, ...],
+        mode: LaunchMode,
+        title: str,
+        app_icon: Path,
+        artifact_root: Path | None,
+    ) -> BrowserLaunchResult:
+        shortcut_path = _browser_icon_shortcut_path(
+            artifact_root or Path.cwd(),
+            title=title,
+            browser_name=capability.name,
+        )
+        target, *arguments = command
+        try:
+            self.shortcut_writer(
+                shortcut_path=shortcut_path,
+                target_path=target,
+                arguments=join_windows_arguments(tuple(arguments)),
+                working_directory=artifact_root or Path.cwd(),
+                icon_path=app_icon,
+            )
+            self.shortcut_opener(shortcut_path)
+        except Exception as exc:
+            _remove_path_quietly(shortcut_path)
+            return BrowserLaunchResult(
+                ok=False,
+                command=command,
+                browser=capability,
+                mode=mode,
+                message=f"Windows icon shortcut launch failed: {exc}",
+            )
+
+        return BrowserLaunchResult(
+            ok=True,
+            command=command,
+            browser=capability,
+            mode=mode,
+            message=f"Launched {capability.name} in app mode through Windows shortcut.",
+            cleanup_callbacks=(_cleanup_shortcut_callback(shortcut_path),),
         )
 
     def _launch_full_browser(
@@ -264,6 +346,7 @@ def _with_fallback_success_message(
         browser=result.browser,
         mode=result.mode,
         message=message,
+        cleanup_callbacks=result.cleanup_callbacks,
     )
 
 
@@ -289,4 +372,63 @@ def _with_failure_summary(
         browser=last.browser,
         mode=last.mode,
         message=f"{fallback_note} Attempts: {attempts}",
+        cleanup_callbacks=last.cleanup_callbacks,
     )
+
+
+def _should_launch_with_icon_shortcut(
+    *,
+    command: tuple[str, ...],
+    app_icon: Path | None,
+    is_windows: bool,
+) -> bool:
+    return (
+        is_windows
+        and app_icon is not None
+        and app_icon.suffix.casefold() == ".ico"
+        and bool(command)
+    )
+
+
+def _browser_icon_shortcut_path(
+    root: Path,
+    *,
+    title: str,
+    browser_name: str,
+) -> Path:
+    label = _safe_shortcut_label(title or browser_name or "litlaunch-app")
+    return browser_shortcuts_dir(root, create=True) / f"{label}-{uuid.uuid4().hex}.lnk"
+
+
+def _safe_shortcut_label(value: str) -> str:
+    cleaned = "".join(
+        char if char.isalnum() or char in ("-", "_") else "-" for char in value.strip()
+    ).strip("-_")
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    return cleaned[:48] or "litlaunch-app"
+
+
+def _cleanup_shortcut_callback(path: Path) -> Callable[[], object]:
+    def cleanup_shortcut() -> None:
+        _remove_path_quietly(path)
+
+    return cleanup_shortcut
+
+
+def _remove_path_quietly(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return
+    except OSError:
+        return
+
+
+def open_windows_shortcut(path: Path) -> None:
+    """Open a Windows shortcut through the OS shell association."""
+
+    opener = getattr(os, "startfile", None)
+    if not callable(opener):
+        raise RuntimeError("os.startfile is not available on this platform.")
+    cast(Callable[[str], object], opener)(str(path))

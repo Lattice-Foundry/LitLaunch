@@ -22,6 +22,7 @@ def test_default_config_normalizes_correctly():
     assert config.port is None
     assert config.auto_port is True
     assert config.show_streamlit_chrome is False
+    assert config.show_streamlit_output is False
     assert config.allow_browser_fallback is True
     assert config.trust_mode == TrustMode.DEVELOPMENT
 
@@ -53,6 +54,12 @@ def test_show_streamlit_chrome_normalizes_to_bool():
     config = LauncherConfig(app_path="app.py", show_streamlit_chrome=1)
 
     assert config.show_streamlit_chrome is True
+
+
+def test_show_streamlit_output_normalizes_to_bool():
+    config = LauncherConfig(app_path="app.py", show_streamlit_output=1)
+
+    assert config.show_streamlit_output is True
 
 
 def test_invalid_trust_mode_raises_configuration_error():
@@ -113,6 +120,28 @@ def test_port_none_forces_auto_port_true():
     config = LauncherConfig(app_path="app.py", port=None, auto_port=False)
 
     assert config.auto_port is True
+
+
+def test_port_range_normalizes_from_sequence():
+    config = LauncherConfig(app_path="app.py", port_range=[8501, 8599])
+
+    assert config.port_range == (8501, 8599)
+
+
+def test_port_range_normalizes_from_string():
+    config = LauncherConfig(app_path="app.py", port_range="8501:8599")
+
+    assert config.port_range == (8501, 8599)
+
+
+def test_port_range_requires_valid_order():
+    with pytest.raises(ConfigurationError, match="start must be less"):
+        LauncherConfig(app_path="app.py", port_range=[8599, 8501])
+
+
+def test_port_must_be_inside_port_range():
+    with pytest.raises(ConfigurationError, match="inside port_range"):
+        LauncherConfig(app_path="app.py", port=8600, port_range=[8501, 8599])
 
 
 def test_cwd_normalizes_to_optional_path():

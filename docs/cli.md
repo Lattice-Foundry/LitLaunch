@@ -80,6 +80,7 @@ litlaunch run app.py
 litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
 litlaunch run app.py --port 8501 --host 127.0.0.1
+litlaunch run app.py --port 8501 --port-range 8501:8599
 litlaunch run app.py --port 8501 --no-auto-port
 litlaunch run app.py --host 0.0.0.0 --allow-network-exposure
 litlaunch run app.py --no-browser-fallback
@@ -92,6 +93,14 @@ litlaunch run --config litlaunch.toml --profile my-webapp
 Both forms use the same internal launch pipeline. Bare profile names such as
 `litlaunch my-webapp` are intentionally unsupported; use `--profile` to keep
 profile launches distinct from paths and future commands.
+
+Auto-port is enabled by default for normal CLI launches, including profile
+launches. LitLaunch checks port availability before it starts the backend; if
+the requested/default port is already occupied, it selects the next available
+port and opens the browser to that selected URL. Use `--port-range START:END`
+or profile `port_range = [START, END]` to keep auto-port selection inside an
+app-owned local range. Use `--no-auto-port` only when a fixed busy port should
+fail before browser launch.
 
 Browser-window monitoring is enabled by default for browser-mode CLI launches
 where LitLaunch can use a Chromium browser. LitLaunch creates a managed
@@ -114,6 +123,13 @@ Streamlit's supported `client.toolbarMode = "minimal"` setting. Use
 `--show-streamlit-chrome` when you intentionally want Streamlit's default
 toolbar/menu chrome visible for a launch. Profiles can set
 `show_streamlit_chrome = true` for the same opt-in behavior.
+
+LitLaunch keeps raw backend console output quiet by default, including
+Streamlit startup banners, usage-statistics notices, and app-side server
+messages printed by the backend process. LitLaunch still prints the resolved
+local URL and port through its own console output. Use
+`--show-streamlit-output` or profile `show_streamlit_output = true` when you
+intentionally want the raw Streamlit/backend output stream visible.
 
 CLI webapp launches enable app-window close monitoring by default where window
 monitoring is supported; use `--no-monitor-window` only when you intentionally
@@ -382,7 +398,6 @@ mode = "webapp"
 browser = "edge"
 host = "127.0.0.1"
 port = 8501
-auto_port = false
 headless = true
 allow_browser_fallback = false
 allow_network_exposure = false

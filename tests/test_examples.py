@@ -10,6 +10,14 @@ GITATTRIBUTES = REPO_ROOT / ".gitattributes"
 GITIGNORE = REPO_ROOT / ".gitignore"
 
 
+class FixedPortManager:
+    def __init__(self, port: int):
+        self.port = port
+
+    def resolve_port(self, config):
+        return self.port
+
+
 def test_minimal_example_app_exists():
     assert EXAMPLE_APP.is_file()
 
@@ -24,7 +32,10 @@ def test_minimal_example_app_compiles():
 
 def test_launcher_builds_command_for_minimal_example_app():
     config = LauncherConfig(app_path=EXAMPLE_APP, port=8501)
-    command = StreamlitLauncher(config).build_command()
+    command = StreamlitLauncher(
+        config,
+        port_manager=FixedPortManager(8501),
+    ).build_command()
 
     assert command[:4][-3:] == ("-m", "streamlit", "run")
     assert str(EXAMPLE_APP) in command

@@ -489,11 +489,14 @@ def test_build_launch_plan_resolves_fixed_port_without_starting_or_launching():
     assert plan.health_url == "http://127.0.0.1:8600/_stcore/health"
     assert plan.host == "127.0.0.1"
     assert plan.port == 8600
+    assert plan.port_range is None
     assert plan.resolved_port == 8600
     assert plan.auto_port is False
+    assert plan.port_selection == "requested/default port available"
     assert plan.mode == LaunchMode.BROWSER
     assert plan.headless is True
     assert plan.streamlit_chrome_policy == "hidden"
+    assert plan.streamlit_output_policy == "hidden"
     assert plan.runtime_state_root is not None
     assert "litlaunch" in plan.runtime_state_root.parts
     assert plan.browser_profile_root == plan.runtime_state_root / "browser-profiles"
@@ -521,6 +524,34 @@ def test_build_launch_plan_reports_visible_streamlit_chrome_policy():
 
     assert plan.streamlit_chrome_policy == "visible"
     assert "--client.toolbarMode" not in plan.command
+
+
+def test_build_launch_plan_reports_visible_streamlit_output_policy():
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", show_streamlit_output=True),
+        port_manager=FakePortManager(8600),
+    )
+
+    plan = launcher.build_launch_plan()
+
+    assert plan.streamlit_output_policy == "visible"
+    assert "--browser.gatherUsageStats" not in plan.command
+
+
+def test_build_launch_plan_reports_auto_port_selection():
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8501, auto_port=True),
+        port_manager=FakePortManager(8502),
+    )
+
+    plan = launcher.build_launch_plan()
+
+    assert plan.port == 8501
+    assert plan.resolved_port == 8502
+    assert plan.port_selection == (
+        "auto-port selected 8502 because 8501 was unavailable"
+    )
+    assert plan.app_url == "http://127.0.0.1:8502"
 
 
 def test_build_launch_plan_reports_ephemeral_profile_policy_for_webapp(tmp_path: Path):
@@ -982,6 +1013,7 @@ def test_run_starts_backend_waits_health_resolves_and_launches_browser(
     assert session.browser_command is not None
     assert session.browser_command[:2] == ("browser", "--app=http://127.0.0.1:8603")
     assert session.process is not None
+    assert process_manager.started[0][1]["suppress_output"] is True
     assert browser_registry.calls == [(BrowserChoice.AUTO, True, True)]
     extra_args = browser_launcher.calls[0][4]
     profile_arg = next(
@@ -1001,6 +1033,63 @@ def test_run_starts_backend_waits_health_resolves_and_launches_browser(
     assert process_manager.stopped == []
     session.stop()
     assert not profile_path.exists()
+
+
+def test_run_can_show_raw_streamlit_backend_output(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process_manager = FakeProcessManager()
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path=app, show_streamlit_output=True),
+        port_manager=FakePortManager(8603),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session = launcher.run()
+
+    assert session.ok is True
+    assert process_manager.started[0][1]["suppress_output"] is False
+    assert "[   ok   ] Health: Waiting for Streamlit...\n\n" in stream.getvalue()
+    session.stop()
+
+
+def test_run_auto_port_uses_selected_port_for_browser_url(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path=app, port=8501, auto_port=True, mode="webapp"),
+        port_manager=FakePortManager(8502),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=browser_launcher,
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session = launcher.run()
+
+    assert session.ok is True
+    assert session.url == "http://127.0.0.1:8502"
+    assert browser_launcher.calls[0][1] == "http://127.0.0.1:8502"
+    assert "Backend: Port 8501 is in use; selected 8502." in stream.getvalue()
+    session.stop()
 
 
 def test_run_webapp_does_not_create_runtime_state_under_package_source(
@@ -1330,7 +1419,8 @@ def test_launcher_emits_high_level_console_messages_without_tokens():
     assert "[   ok   ] Backend: Starting Streamlit..." not in output
     assert "Backend: Started Streamlit in" in output
     assert "Backend PID: 999" not in output
-    assert "[   ok   ] Health: Waiting for Streamlit...\n\n" in output
+    assert "[   ok   ] Health: Waiting for Streamlit..." in output
+    assert "[   ok   ] Health: Waiting for Streamlit...\n\n" not in output
     assert "Health: Ready in" in output
     assert "Browser: opening Edge app window" not in output
     assert "Browser: Browser launched in" in output

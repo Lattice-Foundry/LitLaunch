@@ -115,6 +115,9 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
         lines.append(f"host = {_toml_string(config.host)}")
     if config.port is not None:
         lines.append(f"port = {config.port}")
+    if config.port_range is not None:
+        start, end = config.port_range
+        lines.append(f"port_range = [{start}, {end}]")
     if config.auto_port is not True:
         lines.append(f"auto_port = {_toml_bool(config.auto_port)}")
     if config.headless is not None:
@@ -122,6 +125,10 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
     if config.show_streamlit_chrome is not False:
         lines.append(
             f"show_streamlit_chrome = {_toml_bool(config.show_streamlit_chrome)}"
+        )
+    if config.show_streamlit_output is not False:
+        lines.append(
+            f"show_streamlit_output = {_toml_bool(config.show_streamlit_output)}"
         )
     if config.allow_browser_fallback is not True:
         lines.append(

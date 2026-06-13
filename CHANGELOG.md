@@ -7,6 +7,34 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## 1.0.10 - Stable
+
+- Hardened port ownership checks so LitLaunch no longer treats an already
+  occupied Streamlit port as a successful launch target for a new backend.
+- Fixed Windows port probing by avoiding reuse-address checks and using
+  exclusive bind probing where the platform supports it.
+- Added configurable `port_range = [start, end]` and `--port-range START:END`
+  support for safe multi-app local launch ranges.
+- Added selected-port diagnostics and concise auto-port console warnings when
+  LitLaunch moves away from the requested/default port.
+- Kept CLI profile launches adaptive by default; `--no-auto-port` is now the
+  explicit fixed-port hard-fail mode for command-line launches.
+
+## 1.0.9 - Stable
+
+- Moved LitLaunch-owned ephemeral runtime and browser-profile state out of
+  project source trees by default and into a system temp runtime root.
+- Added explicit `runtime_state_root` / `--runtime-state-root` support for apps
+  that want to choose an intentional runtime-state location.
+- Added inspect/report visibility for runtime state root, browser profile root,
+  profile policy, and cleanup policy.
+- Hardened browser-profile cleanup with LitLaunch ownership markers so cleanup
+  only removes directories LitLaunch created.
+- Hid raw backend console output by default so Streamlit banners, usage-stat
+  notices, and app-side server chatter do not leak into the LitLaunch console.
+- Added `--show-streamlit-output` and `show_streamlit_output = true` for launches
+  that intentionally want raw Streamlit/backend output visible.
+
 ## 1.0.8 - Stable
 
 - Added `app_icon` configuration for launch profiles, CLI/Python config,

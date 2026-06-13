@@ -70,6 +70,7 @@ class LaunchPlan:
     health_url: str
     host: str
     port: int | None
+    port_range: tuple[int, int] | None
     resolved_port: int
     auto_port: bool
     mode: LaunchMode
@@ -81,7 +82,9 @@ class LaunchPlan:
     streamlit_flags: Mapping[str, str | int | float | bool | None] | tuple[str, ...]
     streamlit_args: tuple[str, ...]
     extra_env_preview: str
+    port_selection: str = "requested/default port available"
     streamlit_chrome_policy: str = "hidden"
+    streamlit_output_policy: str = "hidden"
     app_icon: Path | None = None
     app_icon_support: str = "not configured"
     runtime_state_root: Path | None = None

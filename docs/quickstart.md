@@ -117,7 +117,6 @@ mode = "webapp"
 browser = "edge"
 trust_mode = "development"
 port = 8501
-auto_port = false
 headless = true
 runtime_event_log = ".litlaunch/runtime-events.log"
 graceful_timeout = 15

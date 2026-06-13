@@ -23,6 +23,7 @@ from litlaunch.runtime_console import (
     render_health_failure_guidance,
     render_phase_start,
     render_phase_success,
+    render_phase_warning,
 )
 from litlaunch.shutdown import DEFAULT_SHUTDOWN_HOST, ShutdownClient, ShutdownConfig
 from litlaunch.streamlit import StreamlitCommandBuilder
@@ -86,6 +87,7 @@ def start_backend_process(
             render=False,
         )
         render_detail(console_renderer, f"Backend port: {port}")
+        _render_port_selection_notice(config, port, console_renderer)
         context = build_backend_command_context(
             config=config,
             command_builder=command_builder,
@@ -132,6 +134,7 @@ def start_backend_process(
             command,
             cwd=config.cwd,
             env=env,
+            suppress_output=not config.show_streamlit_output,
         )
         backend_elapsed = clock.monotonic() - backend_start_time
         pid = getattr(managed_process.popen, "pid", None)
@@ -168,6 +171,7 @@ def start_backend_process(
                 shutdown_client=shutdown_client,
                 health_timeout_seconds=health_timeout_seconds,
                 health_interval_seconds=health_interval_seconds,
+                show_backend_output=config.show_streamlit_output,
             )
 
         _record(
@@ -232,6 +236,7 @@ def _wait_for_backend_health(
     shutdown_client: ShutdownClient,
     health_timeout_seconds: float,
     health_interval_seconds: float,
+    show_backend_output: bool,
 ) -> BackendStartResult:
     _record(
         events,
@@ -242,7 +247,7 @@ def _wait_for_backend_health(
         render=False,
     )
     render_phase_start(console_renderer, ConsolePhase.HEALTH, "waiting for Streamlit")
-    if console_renderer is not None:
+    if show_backend_output and console_renderer is not None:
         console_renderer.blank()
     health_start_time = clock.monotonic()
     healthy = health_checker.wait_until_healthy(
@@ -361,6 +366,29 @@ def _build_shutdown_config(
     if console_renderer is not None:
         console_renderer.add_redaction(shutdown_config.token)
     return shutdown_config
+
+
+def _render_port_selection_notice(
+    config: LauncherConfig,
+    port: int,
+    console_renderer: ConsoleRenderer | None,
+) -> None:
+    requested = _requested_port_start(config)
+    if requested == port:
+        return
+    render_phase_warning(
+        console_renderer,
+        ConsolePhase.BACKEND,
+        f"port {requested} is in use; selected {port}",
+    )
+
+
+def _requested_port_start(config: LauncherConfig) -> int:
+    if config.port is not None:
+        return config.port
+    if config.port_range is not None:
+        return config.port_range[0]
+    return 8501
 
 
 def _build_backend_env(

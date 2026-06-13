@@ -263,6 +263,12 @@ Streamlit's supported `client.toolbarMode = "minimal"` setting. Use
 `--show-streamlit-chrome` when you intentionally want Streamlit's default
 toolbar/menu chrome visible for a launch.
 
+LitLaunch also keeps raw backend console output quiet by default, including
+Streamlit startup banners, usage-statistics notices, and app-side server
+messages printed by the backend process. LitLaunch still reports the resolved
+local URL in its own console output. Use `--show-streamlit-output` when you
+intentionally want the raw Streamlit/backend output stream visible.
+
 Inspect local readiness without launching:
 
 ```powershell
@@ -291,7 +297,6 @@ mode = "webapp"
 browser = "edge"
 trust_mode = "development"
 port = 8501
-auto_port = false
 headless = true
 runtime_event_log = ".litlaunch/runtime-events.log"
 graceful_timeout = 15
@@ -482,6 +487,7 @@ litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
 litlaunch run app.py --mode webapp --show-streamlit-chrome
 litlaunch run app.py --port 8501 --no-auto-port
+litlaunch run app.py --port 8501 --port-range 8501:8599
 litlaunch run app.py --host 0.0.0.0 --allow-network-exposure
 litlaunch run app.py --trust-mode strict_local
 litlaunch run app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure

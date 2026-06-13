@@ -43,9 +43,11 @@ browser = "edge"
 trust_mode = "internal_network"
 host = "127.0.0.1"
 port = 8501
+port_range = [8501, 8599]
 auto_port = false
 headless = true
 show_streamlit_chrome = true
+show_streamlit_output = true
 allow_browser_fallback = false
 cwd = "."
 runtime_state_root = ".runtime/litlaunch"
@@ -86,9 +88,11 @@ stable_polls = 2
     assert profile.config.browser == BrowserChoice.EDGE
     assert profile.config.trust_mode == TrustMode.INTERNAL_NETWORK
     assert profile.config.port == 8501
+    assert profile.config.port_range == (8501, 8599)
     assert profile.config.auto_port is False
     assert profile.config.headless is True
     assert profile.config.show_streamlit_chrome is True
+    assert profile.config.show_streamlit_output is True
     assert profile.config.allow_browser_fallback is False
     assert profile.config.cwd == tmp_path
     assert profile.config.runtime_state_root == tmp_path / ".runtime" / "litlaunch"

@@ -10,6 +10,7 @@ from litlaunch.exceptions import CommandBuildError
 
 STREAMLIT_CHROME_POLICY_FLAG = "client.toolbarMode"
 STREAMLIT_CHROME_HIDDEN_VALUE = "minimal"
+STREAMLIT_USAGE_STATS_FLAG = "browser.gatherUsageStats"
 
 
 class StreamlitCommandBuilder:
@@ -59,6 +60,11 @@ class StreamlitCommandBuilder:
                     STREAMLIT_CHROME_HIDDEN_VALUE,
                 )
             )
+        if (
+            not self.config.show_streamlit_output
+            and _normalize_flag_name(STREAMLIT_USAGE_STATS_FLAG) not in user_flag_names
+        ):
+            command.extend((f"--{STREAMLIT_USAGE_STATS_FLAG}", "false"))
 
         command.extend(_format_streamlit_flags(self.config.streamlit_flags))
         command.extend(self.config.streamlit_args)

@@ -25,6 +25,7 @@ class FakeSocket:
         self.proto = proto
         self.log = log
         self.busy_addresses = busy_addresses
+        self.options = []
 
     def __enter__(self):
         return self
@@ -33,6 +34,7 @@ class FakeSocket:
         return False
 
     def setsockopt(self, *_args):
+        self.options.append(_args)
         return None
 
     def bind(self, sockaddr):
@@ -44,10 +46,13 @@ class FakeSocket:
 class FakeSocketFactory:
     def __init__(self, *, busy_addresses=()):
         self.log = []
+        self.sockets = []
         self.busy_addresses = set(busy_addresses)
 
     def __call__(self, family, socktype, proto=0):
-        return FakeSocket(family, socktype, proto, self.log, self.busy_addresses)
+        fake = FakeSocket(family, socktype, proto, self.log, self.busy_addresses)
+        self.sockets.append(fake)
+        return fake
 
 
 def test_fixed_available_port_returns_as_expected():
@@ -76,6 +81,42 @@ def test_unavailable_fixed_port_with_auto_finds_next_available():
         ("127.0.0.1", 8502),
         ("127.0.0.1", 8503),
     ]
+
+
+def test_unavailable_default_port_with_auto_finds_next_available():
+    manager = FakePortManager({8502})
+    config = LauncherConfig(app_path="app.py", port_range=[8501, 8599])
+
+    assert manager.resolve_port(config) == 8502
+    assert manager.checked_ports == [
+        ("127.0.0.1", 8501),
+        ("127.0.0.1", 8502),
+    ]
+
+
+def test_auto_port_obeys_configured_port_range():
+    manager = FakePortManager({8511})
+    config = LauncherConfig(
+        app_path="app.py",
+        port=8509,
+        auto_port=True,
+        port_range=[8509, 8511],
+    )
+
+    assert manager.resolve_port(config) == 8511
+    assert manager.checked_ports == [
+        ("127.0.0.1", 8509),
+        ("127.0.0.1", 8510),
+        ("127.0.0.1", 8511),
+    ]
+
+
+def test_exhausted_port_range_errors_cleanly():
+    manager = FakePortManager(set())
+    config = LauncherConfig(app_path="app.py", port_range=[8501, 8502])
+
+    with pytest.raises(PortError, match="No available port found"):
+        manager.resolve_port(config)
 
 
 def test_port_none_finds_available_from_default_start():
@@ -146,6 +187,8 @@ def test_port_manager_uses_getaddrinfo_for_ipv4_and_ipv6(monkeypatch):
             ("127.0.0.1", 8501),
         ),
     ]
+    for fake_socket in fake_socket_factory.sockets:
+        assert all(option[1] != socket.SO_REUSEADDR for option in fake_socket.options)
 
 
 def test_port_manager_normalizes_bracketed_ipv6_hosts(monkeypatch):

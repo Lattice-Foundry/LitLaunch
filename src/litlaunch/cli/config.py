@@ -84,6 +84,12 @@ def add_runtime_flags(
         help="Request a Streamlit backend port. Auto-port may move if busy.",
     )
     parser.add_argument(
+        "--port-range",
+        type=parse_port_range,
+        metavar="START:END",
+        help="Constrain auto-port selection to an inclusive port range.",
+    )
+    parser.add_argument(
         "--host",
         help="Set the Streamlit bind host. Loopback is the local-first default.",
     )
@@ -92,6 +98,19 @@ def add_runtime_flags(
         action="store_true",
         default=None,
         help="Show Streamlit's default app toolbar/menu chrome for this launch.",
+    )
+    parser.add_argument(
+        "--show-streamlit-output",
+        action="store_true",
+        default=None,
+        help="Show Streamlit's raw backend console output for this launch.",
+    )
+    parser.add_argument(
+        "--auto-port",
+        action="store_true",
+        dest="auto_port",
+        default=None,
+        help="Try another port if the requested/default port is busy.",
     )
     parser.add_argument(
         "--no-auto-port",
@@ -234,6 +253,24 @@ def parse_streamlit_flag(value: str) -> tuple[str, str | None]:
     return key, flag_value if separator else None
 
 
+def parse_port_range(value: str) -> tuple[int, int]:
+    """Parse ``--port-range`` values."""
+
+    start_text, separator, end_text = value.partition(":")
+    if not separator:
+        raise argparse.ArgumentTypeError("port range must use START:END.")
+    try:
+        start = int(start_text)
+        end = int(end_text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("port range values must be integers.") from exc
+    if start < 1 or start > 65535 or end < 1 or end > 65535:
+        raise argparse.ArgumentTypeError("port range values must be 1-65535.")
+    if start > end:
+        raise argparse.ArgumentTypeError("port range start must be <= end.")
+    return (start, end)
+
+
 def runtime_config_from_args(
     args: argparse.Namespace,
     *,
@@ -275,12 +312,24 @@ def runtime_config_from_args(
         ),
         host=profile_value(args.host, profile_config, "host", "127.0.0.1"),
         port=profile_value(args.port, profile_config, "port", None),
-        auto_port=profile_value(args.auto_port, profile_config, "auto_port", True),
+        port_range=profile_value(
+            getattr(args, "port_range", None),
+            profile_config,
+            "port_range",
+            None,
+        ),
+        auto_port=runtime_auto_port_value(args),
         headless=profile_value(None, profile_config, "headless", None),
         show_streamlit_chrome=profile_value(
             getattr(args, "show_streamlit_chrome", None),
             profile_config,
             "show_streamlit_chrome",
+            False,
+        ),
+        show_streamlit_output=profile_value(
+            getattr(args, "show_streamlit_output", None),
+            profile_config,
+            "show_streamlit_output",
             False,
         ),
         allow_browser_fallback=profile_value(
@@ -334,6 +383,17 @@ def runtime_config_from_args(
         ),
     )
     return config
+
+
+def runtime_auto_port_value(args: argparse.Namespace) -> bool:
+    """Resolve CLI runtime auto-port behavior.
+
+    CLI launches are adaptive by default, including profile launches. A fixed
+    busy port is only requested when the user explicitly passes --no-auto-port
+    for this command invocation.
+    """
+
+    return getattr(args, "auto_port", None) is not False
 
 
 def monitor_options_from_args(

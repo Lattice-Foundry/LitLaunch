@@ -277,8 +277,10 @@ class FakeLauncher:
             health_url=f"http://{self.config.host}:{port}/_stcore/health",
             host=self.config.host,
             port=self.config.port,
+            port_range=self.config.port_range,
             resolved_port=port,
             auto_port=self.config.auto_port,
+            port_selection="requested/default port available",
             mode=self.config.mode,
             headless=self.config.mode.value == "webapp",
             browser_requested=self.config.browser,
@@ -1779,7 +1781,7 @@ auto_port = false
     assert call["mode"] == LaunchMode.WEBAPP
     assert call["browser"] == BrowserChoice.EDGE
     assert call["port"] == 8501
-    assert call["auto_port"] is False
+    assert call["auto_port"] is True
 
 
 def test_cli_report_passes_streamlit_flags_for_tls_diagnostics():
@@ -1965,12 +1967,15 @@ def test_cli_run_builds_config_and_waits_for_backend():
             "Example Runtime",
             "--port",
             "8600",
+            "--port-range",
+            "8600:8699",
             "--host",
             "127.0.0.1",
             "--trust-mode",
             "strict_local",
             "--no-browser-fallback",
             "--no-monitor-window",
+            "--show-streamlit-output",
             "--streamlit-flag",
             "server.maxUploadSize=20",
             "--app-arg",
@@ -1991,10 +1996,12 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.config.browser.value == "edge"
     assert launcher.config.title == "Example Runtime"
     assert launcher.config.port == 8600
+    assert launcher.config.port_range == (8600, 8699)
     assert launcher.config.auto_port is True
     assert launcher.config.allow_browser_fallback is False
     assert launcher.config.trust_mode == TrustMode.STRICT_LOCAL
     assert launcher.config.show_streamlit_chrome is False
+    assert launcher.config.show_streamlit_output is True
     assert launcher.config.streamlit_flags["server.maxUploadSize"] == "20"
     assert launcher.config.app_args == ("dataset.json",)
     assert launcher.config.streamlit_args == ()
@@ -2171,6 +2178,40 @@ def test_cli_command_no_auto_port_maps_to_config_false():
     assert launcher.config.auto_port is False
 
 
+def test_cli_profile_no_auto_port_maps_to_config_false():
+    with temporary_output_dir() as output_dir:
+        app = output_dir / "app.py"
+        app.write_text("print('hello')\n", encoding="utf-8")
+        config_path = output_dir / "litlaunch.toml"
+        config_path.write_text(
+            """
+[profiles.web]
+app_path = "app.py"
+port = 8501
+""",
+            encoding="utf-8",
+        )
+        stream = StringIO()
+
+        code = main(
+            [
+                "command",
+                "--config",
+                str(config_path),
+                "--profile",
+                "web",
+                "--no-auto-port",
+            ],
+            stream=stream,
+            launcher_factory=reset_fake_launcher(FakeSession(ok=True)),
+        )
+
+    launcher = FakeLauncher.instances[0]
+    assert code == 0
+    assert launcher.config.port == 8501
+    assert launcher.config.auto_port is False
+
+
 def test_cli_command_no_auto_port_busy_port_fails_clearly():
     stream = StringIO()
 
@@ -2234,7 +2275,7 @@ app_args = ["--workspace", "demo"]
     assert launcher.config.browser == BrowserChoice.EDGE
     assert launcher.config.trust_mode == TrustMode.INTERNAL_NETWORK
     assert launcher.config.port == 8502
-    assert launcher.config.auto_port is False
+    assert launcher.config.auto_port is True
     assert launcher.config.show_streamlit_chrome is True
     assert launcher.config.streamlit_args == ("--server.runOnSave", "true")
     assert launcher.config.app_args == ("--workspace", "demo")
@@ -2356,7 +2397,7 @@ streamlit_args = ["--theme.base=dark"]
     assert call["mode"] == LaunchMode.WEBAPP
     assert call["browser"] == BrowserChoice.CHROME
     assert call["port"] == 8501
-    assert call["auto_port"] is False
+    assert call["auto_port"] is True
     assert call["allow_browser_fallback"] is False
     assert call["show_streamlit_chrome"] is True
     assert call["streamlit_args"] == ("--theme.base=dark",)

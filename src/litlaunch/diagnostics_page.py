@@ -340,7 +340,15 @@ def _collect_diagnostics() -> tuple[Any | None, str | None, str | None]:
             browser=profile_config.browser if profile_config else "auto",
             host=profile_config.host if profile_config else "127.0.0.1",
             port=profile_config.port if profile_config else None,
+            port_range=profile_config.port_range if profile_config else None,
             auto_port=profile_config.auto_port if profile_config else True,
+            show_streamlit_chrome=(
+                profile_config.show_streamlit_chrome if profile_config else False
+            ),
+            show_streamlit_output=(
+                profile_config.show_streamlit_output if profile_config else False
+            ),
+            app_icon=profile_config.app_icon if profile_config else None,
             allow_browser_fallback=(
                 profile_config.allow_browser_fallback if profile_config else True
             ),
@@ -349,6 +357,9 @@ def _collect_diagnostics() -> tuple[Any | None, str | None, str | None]:
             ),
             trust_mode=profile_config.trust_mode if profile_config else "development",
             cwd=profile_config.cwd if profile_config else _project_root(),
+            runtime_state_root=(
+                profile_config.runtime_state_root if profile_config else None
+            ),
             extra_env=profile_config.extra_env if profile_config else None,
             streamlit_flags=profile_config.streamlit_flags if profile_config else {},
             streamlit_args=profile_config.streamlit_args if profile_config else (),

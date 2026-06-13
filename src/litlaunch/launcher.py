@@ -525,6 +525,9 @@ class StreamlitLauncher:
                 "streamlit_chrome": (
                     "visible" if self.config.show_streamlit_chrome else "hidden"
                 ),
+                "streamlit_output": (
+                    "visible" if self.config.show_streamlit_output else "hidden"
+                ),
                 "runtime_state_root": runtime_state_root_for_config(self.config),
             },
         )

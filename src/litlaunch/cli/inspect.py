@@ -13,8 +13,10 @@ from litlaunch.cli.config import (
     add_profile_flags,
     load_cli_profile,
     merge_streamlit_flags,
+    parse_port_range,
     parse_streamlit_flag,
     profile_value,
+    runtime_auto_port_value,
 )
 from litlaunch.config import BrowserChoice, LaunchMode, TrustMode
 from litlaunch.console import ConsoleMode, ConsoleRenderer
@@ -70,6 +72,12 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         help="Evaluate a requested Streamlit backend port.",
     )
     parser.add_argument(
+        "--port-range",
+        type=parse_port_range,
+        metavar="START:END",
+        help="Evaluate auto-port selection with an inclusive port range.",
+    )
+    parser.add_argument(
         "--host",
         help="Evaluate the Streamlit bind host for runtime posture.",
     )
@@ -78,6 +86,19 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=None,
         help="Evaluate diagnostics with Streamlit's default app chrome visible.",
+    )
+    parser.add_argument(
+        "--show-streamlit-output",
+        action="store_true",
+        default=None,
+        help="Evaluate diagnostics with raw Streamlit backend output visible.",
+    )
+    parser.add_argument(
+        "--auto-port",
+        action="store_true",
+        dest="auto_port",
+        default=None,
+        help="Evaluate diagnostics with adaptive port selection enabled.",
     )
     parser.add_argument(
         "--app-icon",
@@ -147,10 +168,23 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
         help="Evaluate the Streamlit bind host for runtime posture.",
     )
     parser.add_argument(
+        "--auto-port",
+        action="store_true",
+        dest="auto_port",
+        default=None,
+        help="Evaluate diagnostics with adaptive port selection enabled.",
+    )
+    parser.add_argument(
         "--show-streamlit-chrome",
         action="store_true",
         default=None,
         help="Evaluate diagnostics with Streamlit's default app chrome visible.",
+    )
+    parser.add_argument(
+        "--show-streamlit-output",
+        action="store_true",
+        default=None,
+        help="Evaluate diagnostics with raw Streamlit backend output visible.",
     )
     parser.add_argument(
         "--app-icon",
@@ -284,12 +318,13 @@ def collect_diagnostics_report(
             "127.0.0.1",
         ),
         port=profile_value(getattr(args, "port", None), profile_config, "port", None),
-        auto_port=profile_value(
-            getattr(args, "auto_port", None),
+        port_range=profile_value(
+            getattr(args, "port_range", None),
             profile_config,
-            "auto_port",
-            True,
+            "port_range",
+            None,
         ),
+        auto_port=runtime_auto_port_value(args),
         allow_browser_fallback=profile_value(
             getattr(args, "allow_browser_fallback", None),
             profile_config,
@@ -300,6 +335,12 @@ def collect_diagnostics_report(
             getattr(args, "show_streamlit_chrome", None),
             profile_config,
             "show_streamlit_chrome",
+            False,
+        ),
+        show_streamlit_output=profile_value(
+            getattr(args, "show_streamlit_output", None),
+            profile_config,
+            "show_streamlit_output",
             False,
         ),
         app_icon=profile_value(

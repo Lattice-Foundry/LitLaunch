@@ -60,8 +60,10 @@ class DiagnosticCollector:
         browser: BrowserChoice | str = BrowserChoice.AUTO,
         host: str = "127.0.0.1",
         port: int | None = None,
+        port_range: tuple[int, int] | None = None,
         auto_port: bool = True,
         show_streamlit_chrome: bool = False,
+        show_streamlit_output: bool = False,
         app_icon: str | Path | None = None,
         allow_browser_fallback: bool = True,
         allow_network_exposure: bool = False,
@@ -128,8 +130,10 @@ class DiagnosticCollector:
                     browser=browser,
                     host=host,
                     port=port,
+                    port_range=port_range,
                     auto_port=auto_port,
                     show_streamlit_chrome=show_streamlit_chrome,
+                    show_streamlit_output=show_streamlit_output,
                     app_icon=app_icon,
                     allow_browser_fallback=allow_browser_fallback,
                     allow_network_exposure=allow_network_exposure,
@@ -494,8 +498,10 @@ class DiagnosticCollector:
         browser: BrowserChoice | str,
         host: str,
         port: int | None,
+        port_range: tuple[int, int] | None,
         auto_port: bool,
         show_streamlit_chrome: bool,
+        show_streamlit_output: bool,
         app_icon: str | Path | None,
         allow_browser_fallback: bool,
         allow_network_exposure: bool,
@@ -545,8 +551,10 @@ class DiagnosticCollector:
                 browser=browser,
                 host=host,
                 port=port,
+                port_range=port_range,
                 auto_port=auto_port,
                 show_streamlit_chrome=show_streamlit_chrome,
+                show_streamlit_output=show_streamlit_output,
                 app_icon=app_icon,
                 allow_browser_fallback=allow_browser_fallback,
                 allow_network_exposure=allow_network_exposure,
@@ -585,9 +593,35 @@ class DiagnosticCollector:
                     detail=plan.command_display,
                 ),
                 DiagnosticItem(
+                    "Requested port",
+                    DiagnosticStatus.INFO,
+                    str(plan.port) if plan.port is not None else "auto/default",
+                ),
+                DiagnosticItem(
+                    "Selected port",
+                    DiagnosticStatus.INFO,
+                    str(plan.resolved_port),
+                ),
+                DiagnosticItem(
+                    "Auto-port",
+                    DiagnosticStatus.INFO,
+                    "enabled" if plan.auto_port else "disabled",
+                    detail=plan.port_selection,
+                ),
+                DiagnosticItem(
+                    "Port range",
+                    DiagnosticStatus.INFO,
+                    _format_port_range(plan.port_range),
+                ),
+                DiagnosticItem(
                     "Streamlit chrome policy",
                     DiagnosticStatus.INFO,
                     plan.streamlit_chrome_policy,
+                ),
+                DiagnosticItem(
+                    "Streamlit console output policy",
+                    DiagnosticStatus.INFO,
+                    plan.streamlit_output_policy,
                 ),
                 *(
                     (
@@ -723,6 +757,13 @@ def _host_binding_item(host: str, allow_network_exposure: bool) -> DiagnosticIte
             f"{exposure.warning} {detail}"
         ),
     )
+
+
+def _format_port_range(port_range: tuple[int, int] | None) -> str:
+    if port_range is None:
+        return "default"
+    start, end = port_range
+    return f"{start}-{end}"
 
 
 def _normalize_launch_mode(value: LaunchMode | str) -> LaunchMode:

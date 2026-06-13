@@ -55,12 +55,26 @@ def test_streamlit_chrome_is_hidden_by_default():
     assert command[command.index("--client.toolbarMode") + 1] == "minimal"
 
 
+def test_streamlit_usage_stats_are_disabled_by_default():
+    command = StreamlitCommandBuilder(LauncherConfig(app_path="app.py")).build()
+
+    assert command[command.index("--browser.gatherUsageStats") + 1] == "false"
+
+
 def test_show_streamlit_chrome_omits_litlaunch_toolbar_mode_default():
     command = StreamlitCommandBuilder(
         LauncherConfig(app_path="app.py", show_streamlit_chrome=True),
     ).build()
 
     assert "--client.toolbarMode" not in command
+
+
+def test_show_streamlit_output_omits_litlaunch_usage_stats_default():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(app_path="app.py", show_streamlit_output=True),
+    ).build()
+
+    assert "--browser.gatherUsageStats" not in command
 
 
 def test_user_streamlit_chrome_flag_prevents_duplicate_default_injection():
@@ -85,6 +99,30 @@ def test_raw_streamlit_chrome_arg_prevents_duplicate_default_injection():
 
     assert command.count("--client.toolbarMode") == 0
     assert command.count("--client.toolbarMode=viewer") == 1
+
+
+def test_user_usage_stats_flag_prevents_duplicate_default_injection():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            streamlit_flags={"browser.gatherUsageStats": True},
+        ),
+    ).build()
+
+    assert command.count("--browser.gatherUsageStats") == 1
+    assert command[command.index("--browser.gatherUsageStats") + 1] == "true"
+
+
+def test_raw_usage_stats_arg_prevents_duplicate_default_injection():
+    command = StreamlitCommandBuilder(
+        LauncherConfig(
+            app_path="app.py",
+            streamlit_args=("--browser.gatherUsageStats=true",),
+        ),
+    ).build()
+
+    assert command.count("--browser.gatherUsageStats") == 0
+    assert command.count("--browser.gatherUsageStats=true") == 1
 
 
 def test_host_and_port_flags_are_included_correctly():

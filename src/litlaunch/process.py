@@ -34,16 +34,20 @@ class ProcessManager:
         command: Sequence[str],
         cwd: str | Path | None = None,
         env: Mapping[str, str] | None = None,
+        suppress_output: bool = False,
     ) -> ManagedProcess:
         """Start a command sequence without shell execution."""
 
         normalized = self._normalize_command(command)
-        popen = self.popen_factory(
-            normalized,
-            cwd=str(cwd) if cwd is not None else None,
-            env=dict(env) if env is not None else None,
-            shell=False,
-        )
+        kwargs: dict[str, object] = {
+            "cwd": str(cwd) if cwd is not None else None,
+            "env": dict(env) if env is not None else None,
+            "shell": False,
+        }
+        if suppress_output:
+            kwargs["stdout"] = subprocess.DEVNULL
+            kwargs["stderr"] = subprocess.DEVNULL
+        popen = self.popen_factory(normalized, **kwargs)
         return ManagedProcess(popen=popen, command=normalized)
 
     def is_running(self, process: ManagedProcess) -> bool:

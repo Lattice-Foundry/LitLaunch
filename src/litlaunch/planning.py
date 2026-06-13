@@ -55,8 +55,10 @@ def build_launch_plan(
         health_url=context.health_url,
         host=config.host,
         port=config.port,
+        port_range=config.port_range,
         resolved_port=resolved_port,
         auto_port=config.auto_port,
+        port_selection=port_selection(config, resolved_port),
         mode=config.mode,
         headless=context.headless,
         browser_requested=config.browser,
@@ -69,6 +71,7 @@ def build_launch_plan(
             format_env_preview(config.extra_env) if config.extra_env else "none"
         ),
         streamlit_chrome_policy=streamlit_chrome_policy(config),
+        streamlit_output_policy=streamlit_output_policy(config),
         app_icon=config.app_icon,
         app_icon_support=app_icon_support(config),
         runtime_state_root=runtime_state_root,
@@ -130,6 +133,25 @@ def streamlit_chrome_policy(config: LauncherConfig) -> str:
     """Return the user-facing Streamlit app chrome policy name."""
 
     return "visible" if config.show_streamlit_chrome else "hidden"
+
+
+def port_selection(config: LauncherConfig, resolved_port: int) -> str:
+    """Return a short explanation of how the launch port was selected."""
+
+    requested = config.port
+    if requested is None and config.port_range is not None:
+        requested = config.port_range[0]
+    if requested is None:
+        requested = 8501
+    if resolved_port == requested:
+        return "requested/default port available"
+    return f"auto-port selected {resolved_port} because {requested} was unavailable"
+
+
+def streamlit_output_policy(config: LauncherConfig) -> str:
+    """Return the user-facing Streamlit console output policy name."""
+
+    return "visible" if config.show_streamlit_output else "hidden"
 
 
 def app_icon_support(config: LauncherConfig) -> str:

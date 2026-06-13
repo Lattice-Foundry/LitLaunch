@@ -561,6 +561,7 @@ See [docs/inspect.md](docs/inspect.md) and
 - [Architecture](docs/architecture.md)
 - [RoleThread Lite Integration](docs/integration/rolethread.md)
 - [Packaging Notes](docs/integration/packaging_notes.md)
+- [Release Notes](RELEASE_NOTES.md)
 
 ## Non-Goals
 

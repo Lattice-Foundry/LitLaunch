@@ -315,7 +315,7 @@ def test_runtime_event_sink_exception_does_not_break_launch():
     session = launcher.start()
 
     assert session.ok is True
-    assert stream.getvalue().count("Runtime: Event sink failed") == 1
+    assert stream.getvalue().count("Runtime:  Event sink failed") == 1
 
 
 def test_launcher_builds_app_and_health_urls_with_resolved_port():
@@ -877,7 +877,7 @@ def test_health_timeout_console_guidance_is_actionable():
 
     output = stream.getvalue()
     assert session.ok is False
-    assert "Health: Backend did not become healthy before timeout." in output
+    assert "Health:   Backend did not become healthy before timeout." in output
     assert "[ cause  ] The app started but did not report ready in time." in output
     assert output.count("[  next  ]") == 1
     assert "Run Streamlit directly to see any app traceback." not in output
@@ -923,7 +923,7 @@ def test_backend_early_exit_console_guidance_is_actionable():
 
     output = stream.getvalue()
     assert session.ok is False
-    assert "Backend: Exited before becoming healthy." in output
+    assert "Backend:  Exited before becoming healthy." in output
     assert (
         "Streamlit may be missing or the app may have crashed during startup." in output
     )
@@ -1059,7 +1059,7 @@ def test_run_can_show_raw_streamlit_backend_output(tmp_path: Path):
 
     assert session.ok is True
     assert process_manager.started[0][1]["suppress_output"] is False
-    assert "[   ok   ] Health: Waiting for Streamlit...\n\n" in stream.getvalue()
+    assert "[   ok   ] Health:   Waiting for Streamlit...\n\n" in stream.getvalue()
     session.stop()
 
 
@@ -1088,7 +1088,7 @@ def test_run_auto_port_uses_selected_port_for_browser_url(tmp_path: Path):
     assert session.ok is True
     assert session.url == "http://127.0.0.1:8502"
     assert browser_launcher.calls[0][1] == "http://127.0.0.1:8502"
-    assert "Backend: Port 8501 is in use; selected 8502." in stream.getvalue()
+    assert "Backend:  Port 8501 is in use; selected 8502." in stream.getvalue()
     session.stop()
 
 
@@ -1326,11 +1326,11 @@ def test_browser_failure_console_guidance_is_actionable():
 
     output = stream.getvalue()
     assert session.ok is False
-    assert "Browser: Launch failed; stopping backend." in output
+    assert "Browser:  Launch failed; stopping backend." in output
     assert "Check that the requested browser is installed and launchable." not in output
     assert "--browser default" not in output
     assert output.count("[ error  ]") == 1
-    assert "[   ok   ] Backend: Port 8605 released." in output
+    assert "[   ok   ] Backend:  Port 8605 released." in output
 
 
 def test_run_browser_mode_can_use_default_browser_path():
@@ -1417,14 +1417,14 @@ def test_launcher_emits_high_level_console_messages_without_tokens():
     assert "[   ok   ] LitLaunch Starting runtime..." in output
     assert "[LitLaunch]" not in output
     assert "[   ok   ] Backend: Starting Streamlit..." not in output
-    assert "Backend: Started Streamlit in" in output
+    assert "Backend:  Started Streamlit in" in output
     assert "Backend PID: 999" not in output
-    assert "[   ok   ] Health: Waiting for Streamlit..." in output
-    assert "[   ok   ] Health: Waiting for Streamlit...\n\n" not in output
-    assert "Health: Ready in" in output
+    assert "[   ok   ] Health:   Waiting for Streamlit..." in output
+    assert "[   ok   ] Health:   Waiting for Streamlit...\n\n" not in output
+    assert "Health:   Ready in" in output
     assert "Browser: opening Edge app window" not in output
-    assert "Browser: Browser launched in" in output
-    assert "Runtime: Ready locally at http://127.0.0.1:8609" in output
+    assert "Browser:  Browser launched in" in output
+    assert "Runtime:  Ready locally at http://127.0.0.1:8609" in output
     assert token not in output
 
 
@@ -1449,5 +1449,5 @@ def test_launcher_verbose_console_emits_command_detail():
     output = stream.getvalue()
     assert session.ok is True
     assert "Command:" in output
-    assert "[   ok   ] Backend: Starting Streamlit..." in output
+    assert "[   ok   ] Backend:  Starting Streamlit..." in output
     assert "--server.port 8612" in output

@@ -8,6 +8,14 @@
 - Better webapp isolation: Chromium app-mode launches use temporary browser
   profiles by default, keeping local app sessions from stepping on each other.
 
+- Safer multi-app launching: when a requested port is already busy, LitLaunch
+  can automatically choose the next available port instead of opening the wrong
+  local app.
+
+- Cleaner console output: Streamlit startup banners, usage-stat notices, and
+  backend server chatter stay hidden by default while LitLaunch reports the
+  selected local URL.
+
 - More reliable close-to-shutdown behavior: app-window and browser-window
   monitoring now handles small title differences more gracefully.
 
@@ -20,8 +28,9 @@
 - Stronger Windows icon handling: LitLaunch uses shortcut and live window icon
   strategies to improve Edge and Chrome app-window presentation.
 
-- Cleaner generated artifacts: project-local reports, shortcuts, temporary
-  profiles, and temporary browser shortcuts stay organized under `.litlaunch/`.
+- Cleaner generated artifacts: project-local reports and shortcuts stay under
+  `.litlaunch/`, while temporary runtime and browser state now stays out of
+  source trees by default.
 
 - Better profile and shortcut workflows: repeatable local launches are easier
   to configure, inspect, and turn into project-local shortcuts.

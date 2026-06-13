@@ -60,6 +60,12 @@ CONSOLE_CATEGORY_LABELS = frozenset(
         "Shutdown",
     }
 )
+CONSOLE_CATEGORY_WIDTH = max(len(label) for label in CONSOLE_CATEGORY_LABELS)
+
+
+def _format_category_label(category: str) -> str:
+    padding = " " * max(1, CONSOLE_CATEGORY_WIDTH - len(category) + 1)
+    return f"{category}:{padding}"
 
 
 @dataclass(frozen=True)
@@ -152,7 +158,7 @@ class ConsoleRenderer:
         label_color = (
             hook_orange if label == ConsolePhase.HOOK.value else self.theme.label
         )
-        label_text = self._style(f"{label}:", label_color)
+        label_text = self._style(_format_category_label(label), label_color)
         message_text = (
             (
                 f"{_capitalize_sentence_start(_strip_sentence_punctuation(message))} "
@@ -161,7 +167,7 @@ class ConsoleRenderer:
             if elapsed_seconds is not None
             else _punctuate_phase_message(message)
         )
-        line = f"{label_text} {message_text}"
+        line = f"{label_text}{message_text}"
         if level == "warning":
             self.warning(line)
         elif level == "error":
@@ -486,9 +492,9 @@ class ConsoleRenderer:
         if not separator or label not in CONSOLE_CATEGORY_LABELS:
             return message
         color = hook_orange if label == "Hook" else self.theme.label
-        return (
-            f"{self._style(label + separator, color)}{_capitalize_sentence_start(rest)}"
-        )
+        label_text = _format_category_label(label)
+        message_text = _capitalize_sentence_start(rest.strip())
+        return f"{self._style(label_text, color)}{message_text}"
 
     def _format_category_message(
         self,
@@ -498,11 +504,14 @@ class ConsoleRenderer:
         category_color: str | None = None,
         message_color: str | None = None,
     ) -> str:
-        category_text = self._style(f"{category}:", category_color or self.theme.label)
+        category_text = self._style(
+            _format_category_label(category),
+            category_color or self.theme.label,
+        )
         message_text = _ensure_terminal_punctuation(message)
         if message_color is not None:
             message_text = self._style(message_text, message_color)
-        return f"{category_text} {message_text}"
+        return f"{category_text}{message_text}"
 
     def _redact(self, text: str) -> str:
         redacted = text

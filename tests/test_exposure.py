@@ -316,7 +316,7 @@ def test_launcher_blocks_unacknowledged_network_exposure(tmp_path: Path):
         launcher.start_backend()
 
     output = stream.getvalue()
-    assert "Runtime: Network exposure requested." in output
+    assert "Runtime:  Network exposure requested." in output
     assert "plaintext HTTP" in output
     assert "0.0.0.0" in output
 

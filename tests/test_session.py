@@ -393,7 +393,7 @@ def test_runtime_session_wait_renders_clean_backend_exit_without_exit_code_zero(
     assert session.wait() == 0
 
     output = stream.getvalue()
-    assert "[   ok   ] Backend: Exited cleanly." in output
+    assert "[   ok   ] Backend:  Exited cleanly." in output
     assert "exited with code 0" not in output
     assert "Exited with code" not in output
 
@@ -416,7 +416,7 @@ def test_runtime_session_wait_renders_nonzero_backend_exit_code():
     assert session.wait() == 2
 
     output = stream.getvalue()
-    assert "[ error  ] Backend: Exited with code 2." in output
+    assert "[ error  ] Backend:  Exited with code 2." in output
     assert "[ cause  ] The backend stopped with an error status." in output
     assert output.count("[  next  ]") == 1
 
@@ -601,7 +601,7 @@ def test_runtime_session_renders_shutdown_hook_results_from_graceful_response():
     session.stop(graceful_timeout_seconds=0.5)
 
     output = stream.getvalue()
-    assert "[   ok   ] Hook: Cloud sync completed." in output
+    assert "[   ok   ] Hook:     Cloud sync completed." in output
     assert "Verbose cleanup completed" not in output
 
 
@@ -636,7 +636,7 @@ def test_runtime_session_renders_verbose_shutdown_hook_results():
 
     session.stop(graceful_timeout_seconds=0.5)
 
-    assert "[   ok   ] Hook: Verbose cleanup completed." in stream.getvalue()
+    assert "[   ok   ] Hook:     Verbose cleanup completed." in stream.getvalue()
 
 
 def test_runtime_session_reports_port_release_only_when_verified():
@@ -662,7 +662,7 @@ def test_runtime_session_reports_port_release_only_when_verified():
     session.stop(graceful_timeout_seconds=0.5)
 
     assert calls == [("127.0.0.1", 8501)]
-    assert "[   ok   ] Backend: Port 8501 released." in stream.getvalue()
+    assert "[   ok   ] Backend:  Port 8501 released." in stream.getvalue()
 
 
 def test_runtime_session_does_not_claim_port_release_when_not_verified():

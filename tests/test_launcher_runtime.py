@@ -4,6 +4,7 @@ from io import StringIO
 from pathlib import Path
 
 from litlaunch import LauncherConfig, LaunchMode, RuntimeEvent
+from litlaunch.artifacts import OWNED_MARKER, cleanup_litlaunch_owned_dir
 from litlaunch.backend import BackendCommand, BackendCommandContext
 from litlaunch.browsers import (
     BrowserCapability,
@@ -109,6 +110,7 @@ class FakeBrowserLauncher:
     def __init__(self, ok=True):
         self.ok = ok
         self.calls = []
+        self.artifact_roots = []
 
     def launch(
         self,
@@ -123,6 +125,7 @@ class FakeBrowserLauncher:
         artifact_root=None,
     ):
         self.calls.append((resolution, url, mode, title, extra_args, allow_fallback))
+        self.artifact_roots.append(artifact_root)
         command = ("browser", "--app=" + url, *extra_args) if self.ok else ("browser",)
         return BrowserLaunchResult(
             ok=self.ok,
@@ -491,6 +494,11 @@ def test_build_launch_plan_resolves_fixed_port_without_starting_or_launching():
     assert plan.mode == LaunchMode.BROWSER
     assert plan.headless is True
     assert plan.streamlit_chrome_policy == "hidden"
+    assert plan.runtime_state_root is not None
+    assert "litlaunch" in plan.runtime_state_root.parts
+    assert plan.browser_profile_root == plan.runtime_state_root / "browser-profiles"
+    assert plan.browser_profile_policy == "external/default browser profile"
+    assert plan.browser_profile_cleanup == "not owned by LitLaunch"
     assert plan.browser_requested == BrowserChoice.AUTO
     assert plan.browser_resolution is not None
     assert plan.browser_resolution.selected == fake_browser()
@@ -513,6 +521,25 @@ def test_build_launch_plan_reports_visible_streamlit_chrome_policy():
 
     assert plan.streamlit_chrome_policy == "visible"
     assert "--client.toolbarMode" not in plan.command
+
+
+def test_build_launch_plan_reports_ephemeral_profile_policy_for_webapp(tmp_path: Path):
+    state_root = tmp_path / "runtime-state"
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            mode="webapp",
+            runtime_state_root=state_root,
+        ),
+        port_manager=FakePortManager(8600),
+    )
+
+    plan = launcher.build_launch_plan()
+
+    assert plan.runtime_state_root == state_root
+    assert plan.browser_profile_root == state_root / "browser-profiles"
+    assert plan.browser_profile_policy == "ephemeral isolated browser profile"
+    assert plan.browser_profile_cleanup == "best-effort cleanup after runtime stops"
 
 
 def test_default_backend_provider_preserves_current_command_output():
@@ -966,12 +993,98 @@ def test_run_starts_backend_waits_health_resolves_and_launches_browser(
     assert "--no-first-run" in extra_args
     assert "--no-default-browser-check" in extra_args
     assert profile_path.exists()
-    assert ".litlaunch" in profile_path.parts
+    assert tmp_path not in profile_path.parents
     assert "browser-profiles" in profile_path.parts
+    assert (profile_path / OWNED_MARKER).is_file()
     assert browser_launcher.calls[0][-1] is True
+    assert browser_launcher.artifact_roots[0] == profile_path.parents[1]
     assert process_manager.stopped == []
     session.stop()
     assert not profile_path.exists()
+
+
+def test_run_webapp_does_not_create_runtime_state_under_package_source(
+    tmp_path: Path,
+):
+    package_dir = tmp_path / "src" / "litpack"
+    package_dir.mkdir(parents=True)
+    app = package_dir / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path=app, mode="webapp", cwd=package_dir),
+        port_manager=FakePortManager(8603),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=browser_launcher,
+        clock=FakeClock(),
+    )
+
+    session = launcher.run()
+    profile_arg = next(
+        arg
+        for arg in browser_launcher.calls[0][4]
+        if str(arg).startswith("--user-data-dir=")
+    )
+    profile_path = Path(profile_arg.split("=", 1)[1])
+
+    assert session.ok is True
+    assert not (package_dir / ".litlaunch").exists()
+    assert package_dir not in profile_path.parents
+    session.stop()
+    assert not profile_path.exists()
+
+
+def test_run_webapp_honors_explicit_runtime_state_root(tmp_path: Path):
+    app = tmp_path / "app.py"
+    state_root = tmp_path / "runtime-state"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path=app,
+            mode="webapp",
+            runtime_state_root=state_root,
+        ),
+        port_manager=FakePortManager(8603),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=browser_launcher,
+        clock=FakeClock(),
+    )
+
+    session = launcher.run()
+    profile_arg = next(
+        arg
+        for arg in browser_launcher.calls[0][4]
+        if str(arg).startswith("--user-data-dir=")
+    )
+    profile_path = Path(profile_arg.split("=", 1)[1])
+
+    assert profile_path.is_relative_to(state_root)
+    assert browser_launcher.artifact_roots == [state_root]
+    session.stop()
+    assert not profile_path.exists()
+
+
+def test_cleanup_litlaunch_owned_dir_requires_marker(tmp_path: Path):
+    arbitrary = tmp_path / "arbitrary"
+    arbitrary.mkdir()
+    (arbitrary / "data.txt").write_text("keep", encoding="utf-8")
+
+    cleanup_litlaunch_owned_dir(arbitrary)
+
+    assert arbitrary.exists()
+    owned = tmp_path / "owned"
+    owned.mkdir()
+    (owned / OWNED_MARKER).write_text("owned", encoding="utf-8")
+
+    cleanup_litlaunch_owned_dir(owned)
+    cleanup_litlaunch_owned_dir(owned)
+
+    assert not owned.exists()
 
 
 def test_run_webapp_respects_explicit_browser_profile(tmp_path: Path):

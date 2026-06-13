@@ -321,21 +321,21 @@ for power-user and machine-readable diagnostics.
 
 ### Generated project artifacts
 
-LitLaunch keeps generated files under a project-local `.litlaunch/` directory by
-default:
+LitLaunch keeps persistent project artifacts under a project-local
+`.litlaunch/` directory by default:
 
 ```text
 .litlaunch/
   reports/              HTML reports, JSON output, and support bundles
   shortcuts/            generated launch shortcuts
-  tmp/browser-profiles/ managed temporary Chromium profiles
-  tmp/browser-shortcuts/ managed temporary browser launch shortcuts
 ```
 
 Keep `litlaunch.toml` in the project root when you want profiles to travel with
 the app. Add `.litlaunch/` to `.gitignore` when generated reports, shortcuts,
-and runtime scratch files should stay out of source control. Explicit `--output`
-paths still write exactly where you ask.
+and other project artifacts should stay out of source control. Explicit
+`--output` paths still write exactly where you ask. Ephemeral browser/runtime
+state uses system temp by default, and `--runtime-state-root` or profile
+`runtime_state_root` can point it at an intentional app-owned location.
 
 Shortcut generation uses native project-local artifacts by default: `.lnk` on
 Windows, `.desktop` on Linux, and a small `.app` bundle on macOS. Use

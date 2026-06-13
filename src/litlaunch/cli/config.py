@@ -177,6 +177,13 @@ def add_runtime_flags(
         ),
     )
     parser.add_argument(
+        "--runtime-state-root",
+        help=(
+            "Store LitLaunch-owned ephemeral runtime/browser state under this "
+            "directory instead of the system temp default."
+        ),
+    )
+    parser.add_argument(
         "--streamlit-flag",
         action="append",
         default=[],
@@ -295,6 +302,12 @@ def runtime_config_from_args(
             TrustMode.DEVELOPMENT,
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
+        runtime_state_root=profile_value(
+            getattr(args, "runtime_state_root", None),
+            profile_config,
+            "runtime_state_root",
+            None,
+        ),
         extra_env=profile_config.extra_env if profile_config is not None else {},
         runtime_event_log=profile_value(
             args.event_log,

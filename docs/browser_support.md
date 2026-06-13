@@ -23,12 +23,14 @@ litlaunch run app.py --mode webapp --browser chrome
 Default browser mode does not provide Chromium app-mode semantics.
 
 App-mode launches use a LitLaunch-managed temporary Chromium profile by
-default. The profile is created under `.litlaunch/tmp/browser-profiles/` for
-the app project and removed when the LitLaunch runtime session stops. This
-keeps simultaneous local app-mode sessions from sharing normal browser profile,
-cache, extension, or component state. If a launch explicitly passes
-`--browser-arg=--user-data-dir=...`, LitLaunch respects that user profile
-choice and does not replace it.
+default. The profile is created under LitLaunch's runtime state root, which
+defaults to system temp, and is removed when the LitLaunch runtime session
+stops. This keeps simultaneous local app-mode sessions from sharing normal
+browser profile, cache, extension, or component state without silently writing
+browser cache into a source tree. Use `--runtime-state-root` or profile
+`runtime_state_root` when an app or package needs an explicit state location.
+If a launch explicitly passes `--browser-arg=--user-data-dir=...`, LitLaunch
+respects that user profile choice and does not replace or clean it.
 
 ## Custom App Icons
 

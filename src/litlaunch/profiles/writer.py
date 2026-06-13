@@ -135,6 +135,11 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
         lines.append(f'trust_mode = "{config.trust_mode.value}"')
     if config.cwd is not None:
         lines.append(f"cwd = {_toml_string(_display_path(config.cwd, base_dir))}")
+    if config.runtime_state_root is not None:
+        lines.append(
+            "runtime_state_root = "
+            f"{_toml_string(_display_path(config.runtime_state_root, base_dir))}"
+        )
     if config.runtime_event_log is not None:
         lines.append(
             "runtime_event_log = "

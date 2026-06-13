@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 
+from litlaunch.artifacts import browser_profiles_dir, runtime_state_root_for_config
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.config import BrowserChoice
 from litlaunch.inspect import (
@@ -161,6 +162,7 @@ class FakeLauncher:
     def build_launch_plan(self):
         resolved_port = self.resolve_port()
         command = self.command_builder.build(port=resolved_port)
+        runtime_state_root = runtime_state_root_for_config(self.config)
         return LaunchPlan(
             command=command,
             command_display=format_command_preview(command),
@@ -193,6 +195,10 @@ class FakeLauncher:
             ),
             app_icon=self.config.app_icon,
             app_icon_support="native shortcuts can use this icon",
+            runtime_state_root=runtime_state_root,
+            browser_profile_root=browser_profiles_dir(runtime_state_root),
+            browser_profile_policy="ephemeral isolated browser profile",
+            browser_profile_cleanup="best-effort cleanup after runtime stops",
         )
 
     def run(self):
@@ -412,6 +418,25 @@ def test_collector_reports_app_icon_metadata(tmp_path):
     messages = report_item_messages(report)
 
     assert messages[("Target", "App icon")] == str(icon)
+
+
+def test_collector_reports_runtime_state_paths(tmp_path):
+    state_root = tmp_path / "runtime-state"
+
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        runtime_state_root=state_root,
+    )
+    messages = report_item_messages(report)
+
+    assert messages[("Target", "Runtime state root")] == str(state_root)
+    assert messages[("Target", "Browser profile root")] == str(
+        state_root / "browser-profiles"
+    )
+    assert (
+        messages[("Target", "Browser profile policy")]
+        == "ephemeral isolated browser profile"
+    )
 
 
 def test_collector_reports_configured_trust_mode():

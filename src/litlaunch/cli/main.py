@@ -76,6 +76,7 @@ _LAUNCH_OPTION_NAMES = frozenset(
         "--no-monitor-browser-window",
         "--no-browser-fallback",
         "--allow-network-exposure",
+        "--runtime-state-root",
         "--streamlit-flag",
         "--app-arg",
         "--browser-arg",

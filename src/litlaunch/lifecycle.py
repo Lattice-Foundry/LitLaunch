@@ -84,3 +84,7 @@ class LaunchPlan:
     streamlit_chrome_policy: str = "hidden"
     app_icon: Path | None = None
     app_icon_support: str = "not configured"
+    runtime_state_root: Path | None = None
+    browser_profile_root: Path | None = None
+    browser_profile_policy: str = "external/default browser profile"
+    browser_profile_cleanup: str = "not owned by LitLaunch"

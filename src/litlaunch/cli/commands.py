@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import argparse
-import shutil
 from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from litlaunch.artifacts import (
-    project_root_for_config,
+    cleanup_litlaunch_owned_dir,
+    runtime_state_root_for_config,
 )
 from litlaunch.browser_profiles import (
     append_switch_once,
@@ -337,9 +337,9 @@ def _prepare_managed_browser_window_config(
     extra_args = config.extra_browser_args
     if not dry_run:
         profile_dir = _create_managed_browser_profile_dir(
-            project_root_for_config(config)
+            runtime_state_root_for_config(config)
         )
-        cleanup.callback(shutil.rmtree, profile_dir, ignore_errors=True)
+        cleanup.callback(cleanup_litlaunch_owned_dir, Path(profile_dir))
         extra_args = _with_managed_browser_window_args(
             extra_args,
             profile_dir=profile_dir,

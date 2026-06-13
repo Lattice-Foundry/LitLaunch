@@ -48,6 +48,7 @@ headless = true
 show_streamlit_chrome = true
 allow_browser_fallback = false
 cwd = "."
+runtime_state_root = ".runtime/litlaunch"
 streamlit_args = ["--server.runOnSave", "true"]
 app_args = ["--workspace", "demo"]
 extra_browser_args = ["--new-window"]
@@ -90,6 +91,7 @@ stable_polls = 2
     assert profile.config.show_streamlit_chrome is True
     assert profile.config.allow_browser_fallback is False
     assert profile.config.cwd == tmp_path
+    assert profile.config.runtime_state_root == tmp_path / ".runtime" / "litlaunch"
     assert profile.config.extra_env["APP_ENV"] == "local"
     assert profile.config.streamlit_flags["server.maxUploadSize"] == 200
     assert profile.config.streamlit_args == ("--server.runOnSave", "true")

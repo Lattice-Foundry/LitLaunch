@@ -238,8 +238,8 @@ def render_workflow_help(topic: str, *, use_color: bool = False) -> str:
             "  Advanced mode exposes network, browser, monitor, args, cwd, and env.",
             "  After writing, the wizard can optionally create a launch shortcut.",
             (
-                "  Generated reports, shortcuts, temp browser profiles, "
-                "and temp browser shortcuts use .litlaunch."
+                "  Reports and shortcuts use .litlaunch; temporary browser "
+                "runtime state uses system temp unless configured."
             ),
             "",
             style.label("Shortcuts:"),

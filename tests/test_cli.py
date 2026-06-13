@@ -1977,6 +1977,8 @@ def test_cli_run_builds_config_and_waits_for_backend():
             "dataset.json",
             "--event-log",
             ".litlaunch/runtime-events.log",
+            "--runtime-state-root",
+            "runtime-state",
         ],
         stream=stream,
         launcher_factory=reset_fake_launcher(session),
@@ -1997,6 +1999,7 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.config.app_args == ("dataset.json",)
     assert launcher.config.streamlit_args == ()
     assert launcher.config.runtime_event_log == Path(".litlaunch/runtime-events.log")
+    assert launcher.config.runtime_state_root == Path("runtime-state")
     assert launcher.console_renderer is not None
     assert session.wait_calls == 1
     output = stream.getvalue()
@@ -2665,8 +2668,8 @@ def test_cli_run_browser_mode_attempts_browser_window_monitor_by_default():
         arg for arg in browser_args if arg.startswith("--user-data-dir=")
     )
     user_data_path = Path(user_data_arg.split("=", 1)[1])
-    assert ".litlaunch" in user_data_path.parts
     assert "browser-profiles" in user_data_path.parts
+    assert (Path.cwd() / EXAMPLE_APP.parent) not in user_data_path.parents
     assert not user_data_path.exists()
 
 

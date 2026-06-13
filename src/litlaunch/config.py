@@ -66,6 +66,7 @@ class LauncherConfig:
     allow_network_exposure: bool
     trust_mode: TrustMode
     cwd: Path | None
+    runtime_state_root: Path | None
     extra_env: MappingProxyType[str, str]
     runtime_event_log: Path | None
     streamlit_flags: NormalizedStreamlitFlags
@@ -89,6 +90,7 @@ class LauncherConfig:
         allow_network_exposure: bool = False,
         trust_mode: TrustMode | str = TrustMode.DEVELOPMENT,
         cwd: str | Path | None = None,
+        runtime_state_root: str | Path | None = None,
         extra_env: Mapping[str, str] = _EMPTY_ENV,
         runtime_event_log: str | Path | None = None,
         streamlit_flags: StreamlitFlags = _EMPTY_STREAMLIT_FLAGS,
@@ -106,6 +108,10 @@ class LauncherConfig:
         port = _normalize_port(port)
         auto_port = True if port is None else bool(auto_port)
         cwd = _normalize_optional_path(cwd, "cwd")
+        runtime_state_root = _normalize_optional_path(
+            runtime_state_root,
+            "runtime_state_root",
+        )
         runtime_event_log = _normalize_optional_path(
             runtime_event_log,
             "runtime_event_log",
@@ -142,6 +148,7 @@ class LauncherConfig:
         object.__setattr__(self, "allow_network_exposure", bool(allow_network_exposure))
         object.__setattr__(self, "trust_mode", trust_mode)
         object.__setattr__(self, "cwd", cwd)
+        object.__setattr__(self, "runtime_state_root", runtime_state_root)
         object.__setattr__(self, "extra_env", extra_env)
         object.__setattr__(self, "runtime_event_log", runtime_event_log)
         object.__setattr__(self, "streamlit_args", streamlit_args)

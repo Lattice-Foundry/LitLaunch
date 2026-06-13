@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
+from litlaunch.artifacts import browser_profiles_dir, runtime_state_root_for_config
 from litlaunch.backend import (
     BackendCommand,
     BackendCommandContext,
     BackendCommandProvider,
 )
+from litlaunch.browser_profiles import has_browser_switch
 from litlaunch.browsers import BrowserResolution
 from litlaunch.config import (
     FlagValue,
@@ -42,6 +44,7 @@ def build_launch_plan(
         port=resolved_port,
     )
     backend_command = build_backend_command(backend_command_provider, context)
+    runtime_state_root = runtime_state_root_for_config(config)
     return LaunchPlan(
         command=backend_command.command,
         command_display=format_command_preview(backend_command.command),
@@ -68,6 +71,10 @@ def build_launch_plan(
         streamlit_chrome_policy=streamlit_chrome_policy(config),
         app_icon=config.app_icon,
         app_icon_support=app_icon_support(config),
+        runtime_state_root=runtime_state_root,
+        browser_profile_root=browser_profiles_dir(runtime_state_root),
+        browser_profile_policy=browser_profile_policy(config),
+        browser_profile_cleanup=browser_profile_cleanup(config),
     )
 
 
@@ -137,3 +144,23 @@ def app_icon_support(config: LauncherConfig) -> str:
             "supported"
         )
     return "native shortcuts can use this icon; browser-tab launches ignore it"
+
+
+def browser_profile_policy(config: LauncherConfig) -> str:
+    """Return the browser profile ownership policy for this launch plan."""
+
+    if has_browser_switch(config.extra_browser_args, "--user-data-dir"):
+        return "external/caller-provided browser profile"
+    if config.mode == LaunchMode.WEBAPP:
+        return "ephemeral isolated browser profile"
+    return "external/default browser profile"
+
+
+def browser_profile_cleanup(config: LauncherConfig) -> str:
+    """Return the browser profile cleanup policy for this launch plan."""
+
+    if has_browser_switch(config.extra_browser_args, "--user-data-dir"):
+        return "not owned by LitLaunch"
+    if config.mode == LaunchMode.WEBAPP:
+        return "best-effort cleanup after runtime stops"
+    return "not owned by LitLaunch"

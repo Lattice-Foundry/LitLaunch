@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-import shutil
 import time
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
 from litlaunch._protocols import ClockProvider
-from litlaunch.artifacts import project_root_for_config
+from litlaunch.artifacts import (
+    cleanup_litlaunch_owned_dir,
+    project_root_for_config,
+    runtime_state_root_for_config,
+)
 from litlaunch.backend import (
     BackendCommandProvider,
     StreamlitBackendCommandProvider,
@@ -261,7 +264,7 @@ class StreamlitLauncher:
             verbose_only=True,
         )
         extra_browser_args, cleanup_callbacks = self._browser_launch_args()
-        artifact_root = project_root_for_config(self.config)
+        runtime_state_root = runtime_state_root_for_config(self.config)
         browser_start_time = self.clock.monotonic()
         browser_result = self.browser_launcher.launch(
             resolution,
@@ -271,7 +274,7 @@ class StreamlitLauncher:
             extra_args=extra_browser_args,
             allow_fallback=self.config.allow_browser_fallback,
             app_icon=self.config.app_icon,
-            artifact_root=artifact_root,
+            artifact_root=runtime_state_root,
         )
         cleanup_callbacks = (*cleanup_callbacks, *browser_result.cleanup_callbacks)
         browser_elapsed = self.clock.monotonic() - browser_start_time
@@ -481,7 +484,7 @@ class StreamlitLauncher:
             return self.config.extra_browser_args, ()
 
         profile_dir = create_managed_browser_profile(
-            project_root_for_config(self.config)
+            runtime_state_root_for_config(self.config)
         )
         extra_args = with_managed_browser_profile_args(
             self.config.extra_browser_args,
@@ -489,10 +492,7 @@ class StreamlitLauncher:
         )
 
         def cleanup_profile() -> None:
-            shutil.rmtree(
-                profile_dir,
-                ignore_errors=True,
-            )
+            cleanup_litlaunch_owned_dir(profile_dir)
 
         cleanup_callbacks: tuple[Callable[[], object], ...] = (cleanup_profile,)
         return extra_args, cleanup_callbacks
@@ -525,6 +525,7 @@ class StreamlitLauncher:
                 "streamlit_chrome": (
                     "visible" if self.config.show_streamlit_chrome else "hidden"
                 ),
+                "runtime_state_root": runtime_state_root_for_config(self.config),
             },
         )
 

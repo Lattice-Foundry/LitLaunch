@@ -107,6 +107,10 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--runtime-state-root",
+        help="Evaluate diagnostics with an explicit runtime/browser state root.",
+    )
+    parser.add_argument(
         "--streamlit-flag",
         action="append",
         default=[],
@@ -160,6 +164,10 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
             "Acknowledge that a non-loopback host may expose the app beyond "
             "this machine for posture diagnostics."
         ),
+    )
+    parser.add_argument(
+        "--runtime-state-root",
+        help="Evaluate diagnostics with an explicit runtime/browser state root.",
     )
     parser.add_argument(
         "--streamlit-flag",
@@ -313,6 +321,12 @@ def collect_diagnostics_report(
             TrustMode.DEVELOPMENT,
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
+        runtime_state_root=profile_value(
+            getattr(args, "runtime_state_root", None),
+            profile_config,
+            "runtime_state_root",
+            None,
+        ),
         extra_env=profile_config.extra_env if profile_config is not None else None,
         streamlit_flags=merge_streamlit_flags(
             profile_config.streamlit_flags if profile_config is not None else {},

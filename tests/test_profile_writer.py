@@ -173,6 +173,24 @@ def test_profile_writer_round_trips_runtime_event_log(tmp_path: Path):
     )
 
 
+def test_profile_writer_round_trips_runtime_state_root(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(
+            app_path=app,
+            runtime_state_root=tmp_path / ".runtime" / "litlaunch",
+        ),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert 'runtime_state_root = ".runtime' in result.toml
+    assert loaded.config.runtime_state_root == tmp_path / ".runtime" / "litlaunch"
+
+
 def test_profile_writer_round_trips_visible_streamlit_chrome_policy(tmp_path: Path):
     app = tmp_path / "app.py"
     app.write_text("print('hello')\n", encoding="utf-8")

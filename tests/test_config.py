@@ -126,6 +126,17 @@ def test_empty_cwd_raises_configuration_error():
         LauncherConfig(app_path="app.py", cwd=" ")
 
 
+def test_runtime_state_root_normalizes_to_optional_path():
+    config = LauncherConfig(app_path="app.py", runtime_state_root="runtime")
+
+    assert config.runtime_state_root == Path("runtime")
+
+
+def test_empty_runtime_state_root_raises_configuration_error():
+    with pytest.raises(ConfigurationError, match="runtime_state_root cannot be empty"):
+        LauncherConfig(app_path="app.py", runtime_state_root=" ")
+
+
 def test_runtime_event_log_normalizes_to_optional_path():
     config = LauncherConfig(
         app_path="app.py",

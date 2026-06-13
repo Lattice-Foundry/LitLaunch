@@ -298,20 +298,25 @@ still succeeds and LitLaunch emits a warning.
 
 ## Generated Artifacts
 
-LitLaunch keeps generated project files under `.litlaunch/` by default:
+LitLaunch keeps persistent project artifacts under `.litlaunch/` by default:
 
 ```text
 .litlaunch/
   reports/              HTML reports, JSON output, and support bundles
   shortcuts/            generated launch shortcuts
-  tmp/browser-profiles/ managed temporary Chromium profiles
-  tmp/browser-shortcuts/ managed temporary browser launch shortcuts
 ```
 
 `litlaunch.toml` remains the normal project-level profile file. Add
-`.litlaunch/` to `.gitignore` when generated diagnostics, shortcuts, and runtime
-scratch files should stay out of source control. Explicit `--output` paths still
-write to the path you provide.
+`.litlaunch/` to `.gitignore` when generated diagnostics and shortcuts should
+stay out of source control. Explicit `--output` paths still write to the path
+you provide.
+
+Ephemeral runtime/browser state uses the system temp directory by default,
+including managed Chromium profiles and temporary browser launch shortcuts.
+Use `--runtime-state-root PATH` or profile `runtime_state_root = "PATH"` when a
+packaged app or integration needs an intentional state location. Inspect/report
+output includes the resolved runtime state root, browser profile root, profile
+policy, and cleanup policy.
 
 HTML, JSON, and support-bundle diagnostics include `Runtime Governance`,
 `Runtime Exposure`, and `Transport Security` sections. These sections summarize

@@ -67,6 +67,7 @@ class DiagnosticCollector:
         allow_network_exposure: bool = False,
         trust_mode: TrustMode | str = TrustMode.DEVELOPMENT,
         cwd: str | Path | None = None,
+        runtime_state_root: str | Path | None = None,
         extra_env: Mapping[str, str] | None = None,
         streamlit_flags: StreamlitFlags | None = None,
         streamlit_args: Sequence[str] = (),
@@ -134,6 +135,7 @@ class DiagnosticCollector:
                     allow_network_exposure=allow_network_exposure,
                     trust_mode=trust_mode,
                     cwd=cwd,
+                    runtime_state_root=runtime_state_root,
                     extra_env=extra_env or {},
                     streamlit_flags=streamlit_flags or {},
                     streamlit_args=streamlit_args,
@@ -499,6 +501,7 @@ class DiagnosticCollector:
         allow_network_exposure: bool,
         trust_mode: TrustMode | str,
         cwd: str | Path | None,
+        runtime_state_root: str | Path | None,
         extra_env: Mapping[str, str],
         streamlit_flags: StreamlitFlags,
         streamlit_args: Sequence[str],
@@ -549,6 +552,7 @@ class DiagnosticCollector:
                 allow_network_exposure=allow_network_exposure,
                 trust_mode=trust_mode,
                 cwd=cwd,
+                runtime_state_root=runtime_state_root,
                 extra_env=extra_env,
                 streamlit_flags=streamlit_flags,
                 streamlit_args=streamlit_args,
@@ -611,6 +615,30 @@ class DiagnosticCollector:
                     "Working directory",
                     DiagnosticStatus.INFO,
                     str(plan.cwd) if plan.cwd is not None else "not set",
+                ),
+                DiagnosticItem(
+                    "Runtime state root",
+                    DiagnosticStatus.INFO,
+                    (
+                        str(plan.runtime_state_root)
+                        if plan.runtime_state_root is not None
+                        else "not set"
+                    ),
+                ),
+                DiagnosticItem(
+                    "Browser profile root",
+                    DiagnosticStatus.INFO,
+                    (
+                        str(plan.browser_profile_root)
+                        if plan.browser_profile_root is not None
+                        else "not set"
+                    ),
+                ),
+                DiagnosticItem(
+                    "Browser profile policy",
+                    DiagnosticStatus.INFO,
+                    plan.browser_profile_policy,
+                    detail=plan.browser_profile_cleanup,
                 ),
                 DiagnosticItem(
                     "Environment overrides",

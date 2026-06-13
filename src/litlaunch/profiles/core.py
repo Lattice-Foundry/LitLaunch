@@ -40,6 +40,7 @@ CONFIG_FIELDS = {
     "allow_network_exposure",
     "trust_mode",
     "cwd",
+    "runtime_state_root",
     "extra_env",
     "runtime_event_log",
     "streamlit_flags",
@@ -219,6 +220,14 @@ def _profile_from_mapping(
     config_values["app_path"] = _profile_path(config_values["app_path"], base_dir)
     if "cwd" in config_values and config_values["cwd"] is not None:
         config_values["cwd"] = _profile_path(config_values["cwd"], base_dir)
+    if (
+        "runtime_state_root" in config_values
+        and config_values["runtime_state_root"] is not None
+    ):
+        config_values["runtime_state_root"] = _profile_path(
+            config_values["runtime_state_root"],
+            base_dir,
+        )
     if "app_icon" in config_values and config_values["app_icon"] is not None:
         config_values["app_icon"] = _profile_path(
             config_values["app_icon"],

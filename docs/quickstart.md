@@ -156,9 +156,10 @@ Use `litlaunch report --profile my-webapp` for the default human-readable HTML
 diagnostics report. It writes `.litlaunch/reports/litlaunch-report.html` unless
 `--output` is provided. Use `litlaunch inspect --json` or
 `litlaunch inspect --bundle` for machine-readable diagnostics and support
-bundles. Generated reports, shortcuts, managed browser scratch profiles, and
-temporary browser launch shortcuts live under `.litlaunch/` by default so
-projects can ignore them with one `.gitignore` entry.
+bundles. Generated reports and shortcuts live under `.litlaunch/` by default so
+projects can ignore persistent LitLaunch artifacts with one `.gitignore` entry.
+Ephemeral browser/runtime state uses system temp by default, and inspect/report
+output shows the resolved state paths.
 
 Reports include runtime governance, runtime exposure, and transport security
 posture. Local profiles can remain simple with `trust_mode = "development"` or

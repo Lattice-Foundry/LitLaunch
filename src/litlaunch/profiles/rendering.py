@@ -82,6 +82,8 @@ def current_data_values(state: WizardState) -> tuple[tuple[str, str], ...]:
         values.append(("Name", state.profile_name))
     if state.app_path:
         values.append(("App", str(state.app_path)))
+    if state.app_icon:
+        values.append(("Icon", str(state.app_icon)))
     if state.title:
         values.append(("Title", state.title))
     if state.launch_experience:
@@ -147,6 +149,8 @@ def preview_profile(
     write(stream, f"Profile: {profile.name}")
     write(stream, f"Config: {config_path}")
     write(stream, f"App: {profile.config.app_path}")
+    if profile.config.app_icon is not None:
+        write(stream, f"App icon: {profile.config.app_icon}")
     write(stream, f"Title: {profile.config.title}")
     label = "App window" if launch_experience == "webapp" else "Browser tab"
     write(stream, f"Launch experience: {label}")

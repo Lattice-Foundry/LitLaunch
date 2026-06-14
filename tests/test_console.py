@@ -26,7 +26,7 @@ from litlaunch.console import (
 from litlaunch.console_style import ANSI_COLORS, status_prefix, style_text
 from litlaunch.lifecycle import LaunchEvent, LaunchState
 from litlaunch.shutdown import HookConsoleVisibility, ShutdownHookResult
-from litlaunch.windowing import WindowMonitorResult, WindowMonitorStatus
+from litlaunch.windowing import WindowInfo, WindowMonitorResult, WindowMonitorStatus
 
 
 def test_named_theme_colors_exist_and_are_hex():
@@ -144,9 +144,9 @@ def test_console_renderer_phase_and_elapsed_shape():
     output = stream.getvalue()
     assert "[   ok   ] LitLaunch Starting runtime..." in output
     assert "[LitLaunch]" not in output
-    assert "[   ok   ] Backend: Starting Streamlit..." in output
-    assert "[   ok   ] Health: Ready in 1.2s." in output
-    assert "[   ok   ] Runtime: Ready locally at http://127.0.0.1:8501." in output
+    assert "[   ok   ] Backend:  Starting Streamlit..." in output
+    assert "[   ok   ] Health:   Ready in 1.2s." in output
+    assert "[   ok   ] Runtime:  Ready locally at http://127.0.0.1:8501." in output
     assert format_elapsed(0.04) == "0.0s"
 
 
@@ -173,10 +173,25 @@ def test_console_renderer_color_roles_for_runtime_header_status_and_phase():
     assert f"{THEME_COLORS[streamlit_blue].ansi}ready" not in output
     assert strip_ansi(output).splitlines() == [
         "[   ok   ] LitLaunch Starting runtime...",
-        "[   ok   ] Backend: Starting Streamlit...",
-        "[   ok   ] Health: Ready.",
+        "[   ok   ] Backend:  Starting Streamlit...",
+        "[   ok   ] Health:   Ready.",
         "[ error  ] Failed.",
     ]
+
+
+def test_console_renderer_aligns_category_message_text():
+    stream = StringIO()
+    renderer = ConsoleRenderer(theme=ConsoleTheme(use_color=False), stream=stream)
+
+    renderer.success("Backend: started")
+    renderer.success("Shutdown: complete")
+
+    lines = stream.getvalue().splitlines()
+    assert lines == [
+        "[   ok   ] Backend:  Started.",
+        "[   ok   ] Shutdown: Complete.",
+    ]
+    assert lines[0].index("Started") == lines[1].index("Complete")
 
 
 def test_console_renderer_quiet_suppresses_normal_output_but_not_errors():
@@ -407,7 +422,7 @@ def test_console_renderer_shutdown_hook_result_uses_hook_category():
     )
 
     output = stream.getvalue()
-    assert "[   ok   ] Hook: Closed database connections." in output
+    assert "[   ok   ] Hook:     Closed database connections." in output
     assert "Shutdown: Closed database connections" not in output
 
 
@@ -463,7 +478,7 @@ def test_console_renderer_can_show_success_hooks_in_quiet_mode():
         )
     )
 
-    assert "[   ok   ] Hook: Cleanup complete." in stream.getvalue()
+    assert "[   ok   ] Hook:     Cleanup complete." in stream.getvalue()
 
 
 def test_console_renderer_can_show_verbose_hooks_in_quiet_mode():
@@ -484,7 +499,7 @@ def test_console_renderer_can_show_verbose_hooks_in_quiet_mode():
         )
     )
 
-    assert "[   ok   ] Hook: Cleanup complete." in stream.getvalue()
+    assert "[   ok   ] Hook:     Cleanup complete." in stream.getvalue()
 
 
 def test_console_renderer_shows_verbose_only_success_hooks_in_verbose_mode():
@@ -504,7 +519,7 @@ def test_console_renderer_shows_verbose_only_success_hooks_in_verbose_mode():
         )
     )
 
-    assert "[   ok   ] Hook: Cloud sync completed." in stream.getvalue()
+    assert "[   ok   ] Hook:     Cloud sync completed." in stream.getvalue()
 
 
 def test_console_renderer_always_shows_verbose_only_hook_failures_in_normal_mode():
@@ -522,7 +537,7 @@ def test_console_renderer_always_shows_verbose_only_hook_failures_in_normal_mode
     )
 
     output = stream.getvalue()
-    assert "[ error  ] Hook: Cloud sync failed." in output
+    assert "[ error  ] Hook:     Cloud sync failed." in output
     assert "[ cause  ] The shutdown hook raised an exception." in output
     assert "[  next  ] Use verbose mode for more runtime details." in output
     assert output.count("[ error  ]") == 1
@@ -560,7 +575,7 @@ def test_console_renderer_still_shows_failures_marked_not_rendered():
         )
     )
 
-    assert "[ error  ] Hook: Cleanup failed." in stream.getvalue()
+    assert "[ error  ] Hook:     Cleanup failed." in stream.getvalue()
 
 
 def test_console_renderer_shutdown_hook_failure_is_redacted():
@@ -581,7 +596,7 @@ def test_console_renderer_shutdown_hook_failure_is_redacted():
     )
 
     output = stream.getvalue()
-    assert "[ error  ] Hook: Saving [redacted] app state failed." in output
+    assert "[ error  ] Hook:     Saving [redacted] app state failed." in output
     assert "[ cause  ] The shutdown hook raised an exception." in output
     assert "[  next  ] Use verbose mode for more runtime details." in output
     assert "secret-token" not in output
@@ -607,7 +622,7 @@ def test_console_renderer_shutdown_hook_color_metadata_does_not_style_message():
     output = stream.getvalue()
     assert THEME_COLORS[hook_orange].ansi in output
     assert THEME_COLORS[streamlit_blue].ansi not in output
-    assert strip_ansi(output) == "[   ok   ] Hook: Cleanup complete.\n"
+    assert strip_ansi(output) == "[   ok   ] Hook:     Cleanup complete.\n"
 
 
 def test_console_renderer_shutdown_hook_uses_default_orange_message_color():
@@ -628,7 +643,7 @@ def test_console_renderer_shutdown_hook_uses_default_orange_message_color():
 
     output = stream.getvalue()
     assert THEME_COLORS[hook_orange].ansi in output
-    assert strip_ansi(output) == "[   ok   ] Hook: Cleanup complete.\n"
+    assert strip_ansi(output) == "[   ok   ] Hook:     Cleanup complete.\n"
 
 
 def test_console_renderer_unknown_hook_color_falls_back_safely():
@@ -650,7 +665,7 @@ def test_console_renderer_unknown_hook_color_falls_back_safely():
 
     output = stream.getvalue()
     assert "project_custom_color" not in output
-    assert strip_ansi(output) == "[   ok   ] Hook: Cleanup complete.\n"
+    assert strip_ansi(output) == "[   ok   ] Hook:     Cleanup complete.\n"
 
 
 def test_console_renderer_browser_fallback_summary():
@@ -687,7 +702,7 @@ def test_console_renderer_browser_fallback_summary():
     )
 
     output = stream.getvalue()
-    assert "[  warn  ] Browser: Microsoft Edge unavailable." in output
+    assert "[  warn  ] Browser:  Microsoft Edge unavailable." in output
     assert "[  next  ] Using Chrome app-mode instead." in output
     assert "[  next  ] Use --browser to select a different browser." in output
     assert "app-mode" in output
@@ -751,10 +766,82 @@ def test_console_renderer_monitor_status_rendering():
     )
 
     output = stream.getvalue()
-    assert "[   ok   ] Monitor: Window closed; requesting shutdown." in output
-    assert "Monitor: Window monitoring is unavailable." in output
+    assert "[   ok   ] Monitor:  Window closed; requesting shutdown." in output
+    assert "Monitor:  Window monitoring is unavailable." in output
     assert "[ cause  ] Unsupported." in output
     assert "Likely cause" not in output
+
+
+def test_console_renderer_monitor_timeout_renders_candidate_title():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+
+    renderer.render_window_monitor_result(
+        WindowMonitorResult(
+            supported=True,
+            observed=False,
+            closed=False,
+            status=WindowMonitorStatus.TIMEOUT,
+            message="Timed out waiting for app-mode window to appear.",
+            expected_title="LitBridge Generic Interaction Demo",
+            candidates=(
+                WindowInfo(
+                    "0x123",
+                    title="LitBridge Generic Demo",
+                    class_name="Chrome_WidgetWin_1",
+                    process_name="msedge",
+                ),
+            ),
+        )
+    )
+
+    output = stream.getvalue()
+    assert "Monitor:  Timed out before app window was observed." in output
+    assert (
+        'Expected title "LitBridge Generic Interaction Demo"; '
+        'saw "LitBridge Generic Demo".'
+    ) in output
+    assert "Match the profile title to the app page title" in output
+    assert "Use verbose mode" not in output
+
+
+def test_console_renderer_verbose_monitor_timeout_renders_candidates():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        mode=ConsoleMode.VERBOSE,
+        stream=stream,
+    )
+
+    renderer.render_window_monitor_result(
+        WindowMonitorResult(
+            supported=True,
+            observed=False,
+            closed=False,
+            status=WindowMonitorStatus.TIMEOUT,
+            message="Timed out waiting for app-mode window to appear.",
+            expected_title="LitBridge Generic Interaction Demo",
+            candidates=(
+                WindowInfo(
+                    "0x123",
+                    title="LitBridge Generic Demo",
+                    class_name="Chrome_WidgetWin_1",
+                    process_name="msedge",
+                ),
+            ),
+        )
+    )
+
+    output = stream.getvalue()
+    assert "Expected window title: LitBridge Generic Interaction Demo" in output
+    assert (
+        'Candidate window: handle=0x123 title="LitBridge Generic Demo" '
+        "process=msedge class=Chrome_WidgetWin_1"
+    ) in output
+    assert 'st.set_page_config(page_title="...")' in output
 
 
 def test_console_renderer_redacts_registered_values():

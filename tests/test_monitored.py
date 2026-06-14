@@ -1,7 +1,9 @@
 import threading
+from pathlib import Path
 
 import pytest
 
+import litlaunch.monitored as monitored_module
 from litlaunch import LauncherConfig, LaunchMode, LaunchProfile
 from litlaunch.browsers import BrowserCapability, BrowserKind
 from litlaunch.events import RuntimeEventEmitter
@@ -80,7 +82,13 @@ class StartupCloseMonitor:
 
 
 class FakeSession:
-    def __init__(self, *, monitor_result, ok=True, raises_keyboard=False):
+    def __init__(
+        self,
+        *,
+        monitor_result,
+        ok=True,
+        raises_keyboard=False,
+    ):
         self.ok = ok
         self.url = "http://127.0.0.1:8501"
         self.process = object() if ok else None
@@ -107,6 +115,11 @@ class FakeSession:
         self.monitor_calls.append((monitor, target, kwargs))
         if self.raises_keyboard:
             raise KeyboardInterrupt
+        if (
+            target.observed_callback is not None
+            and self.monitor_result.target is not None
+        ):
+            target.observed_callback(self.monitor_result.target)
         if self.monitor_result.closed:
             self.running = False
         return self.monitor_result
@@ -161,6 +174,17 @@ def closed_result():
     )
 
 
+def observed_result(window: WindowInfo | None = None):
+    return WindowMonitorResult(
+        supported=True,
+        observed=True,
+        closed=True,
+        status=WindowMonitorStatus.WINDOW_CLOSED,
+        message="window closed",
+        target=window or WindowInfo("new", title="LitPack Studio"),
+    )
+
+
 def test_run_monitored_webapp_starts_launcher_and_monitors_target():
     session = FakeSession(monitor_result=closed_result())
     launcher = FakeLauncher(
@@ -194,6 +218,76 @@ def test_run_monitored_webapp_starts_launcher_and_monitors_target():
     assert session.monitor_calls[0][1].browser_kind == BrowserKind.EDGE
     assert session.monitor_calls[0][2]["config"] == config
     assert session.monitor_calls[0][2]["graceful_timeout_seconds"] == 9.0
+
+
+def test_run_monitored_webapp_applies_app_icon_when_window_observed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    icon = tmp_path / "app.ico"
+    icon.write_bytes(b"icon")
+    window = WindowInfo("new", title="LitPack Studio")
+    session = FakeSession(monitor_result=observed_result(window))
+    launcher = FakeLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            mode=LaunchMode.WEBAPP,
+            title="LitPack Studio",
+            app_icon=icon,
+        ),
+        session,
+    )
+    identity_calls = []
+    icon_calls = []
+    monkeypatch.setattr(
+        monitored_module,
+        "apply_windows_window_app_identity",
+        lambda handle, app_id, *, icon_path=None: (
+            identity_calls.append((handle, app_id, icon_path)) or True
+        ),
+    )
+    monkeypatch.setattr(
+        monitored_module,
+        "apply_windows_window_icon",
+        lambda handle, path: icon_calls.append((handle, path)) or True,
+    )
+
+    result = run_monitored_webapp(launcher, monitor=FakeMonitor())
+
+    assert result.exit_code == 0
+    assert len(identity_calls) == 1
+    assert identity_calls[0][0] == "new"
+    assert identity_calls[0][1].startswith("LatticeFoundry.LitLaunch.LitPack.Studio.")
+    assert identity_calls[0][2] == icon
+    assert icon_calls == [("new", icon)]
+    assert session.runtime_events == []
+
+
+def test_run_monitored_webapp_ignores_icon_override_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    icon = tmp_path / "app.ico"
+    icon.write_bytes(b"icon")
+    session = FakeSession(monitor_result=observed_result())
+    launcher = FakeLauncher(
+        LauncherConfig(app_path="app.py", mode="webapp", app_icon=icon),
+        session,
+    )
+    monkeypatch.setattr(
+        monitored_module,
+        "apply_windows_window_icon",
+        lambda handle, path: False,
+    )
+    monkeypatch.setattr(
+        monitored_module,
+        "apply_windows_window_app_identity",
+        lambda handle, app_id, *, icon_path=None: False,
+    )
+
+    run_monitored_webapp(launcher, monitor=FakeMonitor())
+
+    assert session.runtime_events == []
 
 
 def test_run_monitored_webapp_can_create_launcher_from_config():
@@ -509,6 +603,43 @@ def test_run_monitored_browser_window_stops_when_new_browser_hwnd_closes():
     assert monitor.capture_calls[0].app_mode is False
     assert monitor.capture_calls[0].browser_kind is None
     assert [event.name for event in session.runtime_events] == ["monitor_started"]
+
+
+def test_run_monitored_browser_window_uses_near_title_match():
+    old = WindowInfo("old", title="Other - Microsoft Edge", process_name="msedge")
+    new = WindowInfo(
+        "new",
+        title="LitBridge Generic Demo - Microsoft Edge",
+        process_name="msedge",
+    )
+    monitor = SequenceMonitor(
+        (
+            (old,),
+            (old, new),
+            (old, new),
+            (old,),
+        )
+    )
+    session = FakeSession(monitor_result=closed_result())
+    launcher = FakeLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            title="LitBridge Generic Interaction Demo",
+            mode="browser",
+            browser="edge",
+        ),
+        session,
+    )
+
+    result = run_monitored_browser_window(
+        launcher,
+        monitor=monitor,
+        window_monitor_config=browser_monitor_config(),
+    )
+
+    assert result.monitor_result is not None
+    assert result.monitor_result.closed is True
+    assert result.monitor_result.target == new
 
 
 def test_run_monitored_browser_window_no_new_hwnd_falls_back_to_ctrl_c():

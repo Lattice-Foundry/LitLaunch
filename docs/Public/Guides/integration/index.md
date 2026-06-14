@@ -17,7 +17,7 @@ user-facing support decisions.
 
 ## Notes
 
-- [RoleThread Lite](integration/rolethread.md) describes a concrete product-app
+- [RoleThread Lite](rolethread.md) describes a concrete product-app
   integration shape.
-- [Packaging Notes](integration/packaging_notes.md) describes the runtime seams
+- [Packaging Notes](packaging-notes.md) describes the runtime seams
   packaged apps can use without treating LitLaunch as a packaging framework.

@@ -35,6 +35,10 @@ from litlaunch.windowing import (
     WindowTarget,
     create_window_monitor,
 )
+from litlaunch.windowing.title_match import (
+    matches_window_title,
+    window_matches_browser_kind,
+)
 
 
 def run_monitored_browser_window(
@@ -83,20 +87,21 @@ def run_monitored_browser_window(
     )
 
     if isinstance(resolved_monitor, NoopWindowMonitor):
-        session = launcher.run()
+        fallback_session = launcher.run()
         result = browser_window_fallback_result(
             "Browser-window monitoring is unavailable on this platform; "
             "Ctrl+C remains the shutdown path.",
             status=WindowMonitorStatus.UNSUPPORTED,
         )
-        render_browser_window_monitor_fallback(session, result)
+        render_browser_window_monitor_fallback(fallback_session, result)
         return MonitoredRunResult(
-            exit_code=0 if session.ok else 1,
-            session=session,
+            exit_code=0 if fallback_session.ok else 1,
+            session=fallback_session,
             monitor_result=result,
             message=result.message,
-            launched=session.ok,
-            stopped_cleanly=session.process is None or not session_is_running(session),
+            launched=fallback_session.ok,
+            stopped_cleanly=fallback_session.process is None
+            or not session_is_running(fallback_session),
         )
 
     baseline_target = WindowTarget("", browser_kind=None, app_mode=False)
@@ -231,6 +236,7 @@ def select_new_browser_window(
 
     deadline = time.monotonic() + config.appear_timeout_seconds
     candidate: WindowInfo | None = None
+    diagnostic_windows: tuple[WindowInfo, ...] = ()
     stable_count = 0
 
     while time.monotonic() <= deadline:
@@ -240,7 +246,15 @@ def select_new_browser_window(
                 status=WindowMonitorStatus.BACKEND_EXITED,
             )
         try:
-            candidates = browser_window_candidates(monitor, target)
+            diagnostic_windows = browser_window_diagnostic_candidates(
+                monitor,
+                target,
+            )
+            candidates = browser_window_candidates(
+                monitor,
+                target,
+                diagnostic_windows,
+            )
         except Exception as exc:
             return browser_window_fallback_result(
                 f"Browser-window capture failed: {exc}",
@@ -252,6 +266,8 @@ def select_new_browser_window(
                 "shutdown path.",
                 status=WindowMonitorStatus.UNSUPPORTED,
                 observed=True,
+                expected_title=target.title,
+                candidates=candidates,
             )
 
         selected = candidates[0] if candidates else None
@@ -271,6 +287,8 @@ def select_new_browser_window(
     return browser_window_fallback_result(
         "No new browser window was observed; Ctrl+C remains the shutdown path.",
         status=WindowMonitorStatus.TIMEOUT,
+        expected_title=target.title,
+        candidates=diagnostic_windows,
     )
 
 
@@ -322,14 +340,32 @@ def wait_for_browser_window_close(
 def browser_window_candidates(
     monitor: WindowMonitor,
     target: WindowTarget,
+    windows: tuple[WindowInfo, ...] | None = None,
 ) -> tuple[WindowInfo, ...]:
     """Return candidate browser windows not present in the baseline."""
+
+    observed = (
+        browser_window_diagnostic_candidates(monitor, target)
+        if windows is None
+        else windows
+    )
+    return tuple(
+        window for window in observed if is_browser_window_candidate(window, target)
+    )
+
+
+def browser_window_diagnostic_candidates(
+    monitor: WindowMonitor,
+    target: WindowTarget,
+) -> tuple[WindowInfo, ...]:
+    """Return new browser windows before title matching filters them out."""
 
     baseline = set(target.baseline_handles)
     return tuple(
         window
         for window in monitor.capture(target)
-        if window.handle not in baseline and is_browser_window_candidate(window, target)
+        if window.handle not in baseline
+        and window_matches_browser_kind(window, target.browser_kind)
     )
 
 
@@ -341,40 +377,7 @@ def is_browser_window_candidate(window: WindowInfo, target: WindowTarget) -> boo
     title = window.title.strip().lower()
     if not title:
         return False
-    target_title = target.title.strip().lower()
-    if target_title and target_title in title:
-        return True
-    if target.url:
-        from urllib.parse import urlparse
-
-        host = (urlparse(target.url).hostname or "").strip().lower()
-        if host and (host in title or title.startswith(f"{host}_/")):
-            return True
-    return False
-
-
-def window_matches_browser_kind(
-    window: WindowInfo,
-    browser_kind: BrowserKind | None,
-) -> bool:
-    """Return whether a window process matches the expected browser kind."""
-
-    if browser_kind is None:
-        return True
-    process_name = (window.process_name or "").strip().lower()
-    if process_name.endswith(".exe"):
-        process_name = process_name[:-4]
-    if browser_kind == BrowserKind.EDGE:
-        return process_name in {"msedge", "microsoft-edge", "microsoft-edge-stable"}
-    if browser_kind == BrowserKind.CHROME:
-        return process_name in {
-            "chrome",
-            "chromium",
-            "chromium-browser",
-            "google-chrome",
-            "google-chrome-stable",
-        }
-    return False
+    return matches_window_title(window.title, target.title, target.url)
 
 
 def explicit_browser_kind(config: LauncherConfig) -> BrowserKind | None:
@@ -407,6 +410,8 @@ def browser_window_fallback_result(
     *,
     status: WindowMonitorStatus,
     observed: bool = False,
+    expected_title: str | None = None,
+    candidates: tuple[WindowInfo, ...] = (),
 ) -> WindowMonitorResult:
     """Build a browser-window monitor fallback result."""
 
@@ -420,6 +425,8 @@ def browser_window_fallback_result(
         closed=False,
         status=status,
         message=message,
+        expected_title=expected_title,
+        candidates=candidates,
     )
 
 

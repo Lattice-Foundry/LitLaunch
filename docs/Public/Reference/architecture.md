@@ -66,7 +66,7 @@ It can:
 - report whether the backend is running
 - wait for backend exit
 - stop the backend
-- request graceful shutdown first when available
+- request optional app-side cleanup when available
 - fall back to terminating only the owned backend process
 
 It does not own browser processes.
@@ -134,11 +134,13 @@ app-provided environment values child-process only and ensures LitLaunch-owned
 shutdown variables win on collision. The shutdown token is redacted from
 console output.
 
-`RuntimeSession.stop()` first sends a graceful shutdown request when an app-side
-shutdown endpoint is available. The shutdown request client has a short default
-request timeout, and `stop(graceful_timeout_seconds=...)` controls how long the
-session waits for the backend to exit before using owned-process termination
-fallback.
+`RuntimeSession.stop()` can send an app-side cleanup request when a Streamlit
+app enables the `LauncherRuntime` shutdown endpoint. Plain Streamlit apps do not
+need that endpoint for the default close flow; if no endpoint is available,
+LitLaunch treats that as expected and stops only the owned backend process it
+started. The shutdown request client has a short default request timeout, and
+`stop(graceful_timeout_seconds=...)` controls how long the session waits for
+the backend to exit before using owned-process termination fallback.
 
 App code can register cleanup hooks with `LauncherRuntime`. Apps that need a
 post-response completion phase can also register a shutdown completion callback.

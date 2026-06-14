@@ -35,6 +35,7 @@ class ProfileWizardOptions:
 
     name: str | None = None
     app_path: str | Path | None = None
+    app_icon: str | Path | None = None
     config_path: str | Path | None = None
     dry_run: bool = False
     force: bool = False
@@ -51,6 +52,7 @@ class WizardState:
     setup_mode: str | None = None
     profile_name: str | None = None
     app_path: Path | None = None
+    app_icon: Path | None = None
     title: str | None = None
     launch_experience: str | None = None
     browser: str | None = None

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import os
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.windowing import WindowMonitorConfig
@@ -19,9 +19,9 @@ try:  # pragma: no cover - exercised on Python 3.11+
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
     try:
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as tomllib
     except ModuleNotFoundError:  # pragma: no cover - environment-specific
-        tomllib = None  # type: ignore[assignment]
+        tomllib = None
 
 
 @dataclass(frozen=True)
@@ -87,7 +87,7 @@ def _read_existing_profiles(path: Path) -> dict[str, LaunchProfile]:
     try:
         with path.open("rb") as file:
             data = tomllib.load(file)
-    except tomllib.TOMLDecodeError as exc:  # type: ignore[union-attr]
+    except tomllib.TOMLDecodeError as exc:
         raise ConfigurationError(f"Invalid TOML in {path}: {exc}") from exc
     if set(data) - {"profiles"}:
         raise ConfigurationError(
@@ -105,16 +105,31 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
     lines = [f"[{profile_header}]"]
     lines.append(f"app_path = {_toml_string(_display_path(config.app_path, base_dir))}")
     lines.append(f"title = {_toml_string(config.title)}")
+    if config.app_icon is not None:
+        lines.append(
+            f"app_icon = {_toml_string(_display_path(config.app_icon, base_dir))}"
+        )
     lines.append(f'mode = "{config.mode.value}"')
     lines.append(f'browser = "{config.browser.value}"')
     if config.host != "127.0.0.1":
         lines.append(f"host = {_toml_string(config.host)}")
     if config.port is not None:
         lines.append(f"port = {config.port}")
+    if config.port_range is not None:
+        start, end = config.port_range
+        lines.append(f"port_range = [{start}, {end}]")
     if config.auto_port is not True:
         lines.append(f"auto_port = {_toml_bool(config.auto_port)}")
     if config.headless is not None:
         lines.append(f"headless = {_toml_bool(config.headless)}")
+    if config.show_streamlit_chrome is not False:
+        lines.append(
+            f"show_streamlit_chrome = {_toml_bool(config.show_streamlit_chrome)}"
+        )
+    if config.show_streamlit_output is not False:
+        lines.append(
+            f"show_streamlit_output = {_toml_bool(config.show_streamlit_output)}"
+        )
     if config.allow_browser_fallback is not True:
         lines.append(
             f"allow_browser_fallback = {_toml_bool(config.allow_browser_fallback)}"
@@ -127,6 +142,11 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
         lines.append(f'trust_mode = "{config.trust_mode.value}"')
     if config.cwd is not None:
         lines.append(f"cwd = {_toml_string(_display_path(config.cwd, base_dir))}")
+    if config.runtime_state_root is not None:
+        lines.append(
+            "runtime_state_root = "
+            f"{_toml_string(_display_path(config.runtime_state_root, base_dir))}"
+        )
     if config.runtime_event_log is not None:
         lines.append(
             "runtime_event_log = "
@@ -153,7 +173,10 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
             for key, value in sorted(config.streamlit_flags.items())
         )
     elif config.streamlit_flags:
-        lines.append(f"streamlit_flags = {_toml_array(config.streamlit_flags)}")
+        lines.append(
+            f"streamlit_flags = "
+            f"{_toml_array(cast(tuple[str, ...], config.streamlit_flags))}"
+        )
     if profile.monitor_window or profile.window_monitor_config != WindowMonitorConfig():
         monitor = profile.window_monitor_config
         lines.extend(("", f"[{profile_header}.window_monitor]"))
@@ -176,6 +199,24 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
 
 
 def _validate_rendered_profile(name: str, toml: str, path: Path) -> None:
+    if path.parent.exists():
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.preview.",
+            suffix=".toml",
+            delete=False,
+        ) as file:
+            preview_path = Path(file.name)
+            file.write(toml)
+        try:
+            load_profile(name, preview_path)
+        finally:
+            with suppress(OSError):
+                preview_path.unlink(missing_ok=True)
+        return
+
     from tempfile import TemporaryDirectory
 
     with TemporaryDirectory(prefix="litlaunch-profile-preview-") as directory:
@@ -238,7 +279,7 @@ def _toml_value(value: Any) -> str:
     return _toml_string(str(value))
 
 
-def _toml_array(values) -> str:
+def _toml_array(values: Sequence[str]) -> str:
     return "[" + ", ".join(_toml_string(str(value)) for value in values) + "]"
 
 

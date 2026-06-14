@@ -45,6 +45,12 @@ If the browser window title differs from the default title:
 litlaunch run app.py --mode webapp --title "My Streamlit App"
 ```
 
+For Streamlit apps, use the same title in the app page config:
+
+```python
+st.set_page_config(page_title="My Streamlit App")
+```
+
 Use `--no-monitor-window` when you intentionally want a webapp/app-window
 launch that keeps running until Ctrl+C or the backend exits on its own. Use
 `--no-monitor-browser-window` when you intentionally want browser mode to keep
@@ -84,8 +90,10 @@ Window monitoring does not:
 - inspect browser URLs
 - use browser automation, CDP, remote debugging, or address-bar scraping
 
-When a close is observed, `RuntimeSession.stop()` performs graceful shutdown and
-owned-backend fallback termination if needed.
+When a close is observed, `RuntimeSession.stop()` requests optional app-side
+cleanup when the app has enabled it, then stops only the owned backend process
+if needed. Plain Streamlit apps do not need app-side setup for the default close
+flow.
 
 Managed browser-window mode does not claim general browser-tab ownership. It is
 best-effort window observation. If Chromium reuses an existing window, policy
@@ -146,6 +154,9 @@ stable_polls = 2
 
 If no stable app window is observed before timeout, the monitor reports timeout.
 The CLI treats explicit monitor failure as nonzero and stops the owned backend.
+When LitLaunch sees plausible browser windows that do not match, the timeout
+message includes the expected title and the observed candidate title so the
+profile or CLI `--title` value can be corrected.
 
 ## Matching Boundary
 
@@ -166,8 +177,14 @@ and those approaches are intentionally outside the current observational
 monitoring contract.
 
 Choose a stable `LauncherConfig.title` / `--title` for monitored webapp flows.
-If the visible app-mode window title differs significantly from the expected
-title, monitoring may time out.
+When monitoring is enabled, LitLaunch uses the configured app title as the
+expected browser window title. For Streamlit apps, this should usually match
+`st.set_page_config(page_title="...")`. If the visible app-mode window title
+differs significantly from the expected title, monitoring may time out.
+
+LitLaunch also accepts conservative near-title matches such as
+`Analytics Demo` for `Analytics Interaction Demo`, but matching the profile
+title to the framework page title remains the most reliable setup.
 
 ## Future Work
 

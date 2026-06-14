@@ -59,18 +59,35 @@ class FakeProcessManager:
         return self.wait_return
 
 
+_DEFAULT_STATUS_CODE = object()
+
+
 class FakeShutdownClient:
-    def __init__(self, *, ok=True, hook_results=()):
+    def __init__(
+        self,
+        *,
+        ok=True,
+        hook_results=(),
+        status_code=_DEFAULT_STATUS_CODE,
+        message=None,
+    ):
         self.ok = ok
         self.hook_results = hook_results
+        self.status_code = status_code
+        self.message = message
         self.calls = 0
 
     def request_shutdown(self):
         self.calls += 1
+        status_code = (
+            (200 if self.ok else 500)
+            if self.status_code is _DEFAULT_STATUS_CODE
+            else self.status_code
+        )
         return ShutdownRequestResult(
             ok=self.ok,
-            status_code=200 if self.ok else 500,
-            message="accepted" if self.ok else "failed",
+            status_code=status_code,
+            message=self.message or ("accepted" if self.ok else "failed"),
             hook_results=self.hook_results,
         )
 
@@ -270,6 +287,63 @@ def test_runtime_session_stop_without_process_is_noop():
     assert manager.stop_calls == []
 
 
+def test_runtime_session_runs_cleanup_callbacks_once_on_stop():
+    calls = []
+    manager = FakeProcessManager()
+    session = RuntimeSession(
+        result=make_result(),
+        process=make_process(),
+        process_manager=manager,
+        cleanup_callbacks=(lambda: calls.append("cleanup"),),
+        clock=FakeClock(),
+    )
+
+    session.stop()
+    session.stop()
+
+    assert calls == ["cleanup"]
+
+
+def test_runtime_session_runs_cleanup_callbacks_on_wait():
+    calls = []
+    process = make_process()
+    manager = FakeProcessManager(wait_return=0)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        cleanup_callbacks=(lambda: calls.append("cleanup"),),
+        clock=FakeClock(),
+    )
+
+    assert session.wait() == 0
+
+    assert calls == ["cleanup"]
+
+
+def test_runtime_session_cleanup_callback_failure_is_ignored():
+    calls = []
+
+    def failing_cleanup():
+        calls.append("before")
+        raise RuntimeError("cleanup failed")
+
+    session = RuntimeSession(
+        result=make_result(),
+        process=None,
+        process_manager=FakeProcessManager(),
+        cleanup_callbacks=(
+            failing_cleanup,
+            lambda: calls.append("after"),
+        ),
+        clock=FakeClock(),
+    )
+
+    session.stop()
+
+    assert calls == ["before", "after"]
+
+
 def test_runtime_session_wait_delegates_to_owned_backend_process():
     process = make_process()
     manager = FakeProcessManager(wait_return=17)
@@ -319,7 +393,7 @@ def test_runtime_session_wait_renders_clean_backend_exit_without_exit_code_zero(
     assert session.wait() == 0
 
     output = stream.getvalue()
-    assert "[   ok   ] Backend: Exited cleanly." in output
+    assert "[   ok   ] Backend:  Exited cleanly." in output
     assert "exited with code 0" not in output
     assert "Exited with code" not in output
 
@@ -342,7 +416,7 @@ def test_runtime_session_wait_renders_nonzero_backend_exit_code():
     assert session.wait() == 2
 
     output = stream.getvalue()
-    assert "[ error  ] Backend: Exited with code 2." in output
+    assert "[ error  ] Backend:  Exited with code 2." in output
     assert "[ cause  ] The backend stopped with an error status." in output
     assert output.count("[  next  ]") == 1
 
@@ -527,7 +601,7 @@ def test_runtime_session_renders_shutdown_hook_results_from_graceful_response():
     session.stop(graceful_timeout_seconds=0.5)
 
     output = stream.getvalue()
-    assert "[   ok   ] Hook: Cloud sync completed." in output
+    assert "[   ok   ] Hook:     Cloud sync completed." in output
     assert "Verbose cleanup completed" not in output
 
 
@@ -562,7 +636,7 @@ def test_runtime_session_renders_verbose_shutdown_hook_results():
 
     session.stop(graceful_timeout_seconds=0.5)
 
-    assert "[   ok   ] Hook: Verbose cleanup completed." in stream.getvalue()
+    assert "[   ok   ] Hook:     Verbose cleanup completed." in stream.getvalue()
 
 
 def test_runtime_session_reports_port_release_only_when_verified():
@@ -588,7 +662,7 @@ def test_runtime_session_reports_port_release_only_when_verified():
     session.stop(graceful_timeout_seconds=0.5)
 
     assert calls == [("127.0.0.1", 8501)]
-    assert "[   ok   ] Backend: Port 8501 released." in stream.getvalue()
+    assert "[   ok   ] Backend:  Port 8501 released." in stream.getvalue()
 
 
 def test_runtime_session_does_not_claim_port_release_when_not_verified():
@@ -660,6 +734,40 @@ def test_runtime_session_stop_fallback_console_guidance():
     assert "Shutdown: Using backend termination fallback." in output
     assert "LitLaunch will stop only the backend process it started." not in output
     assert "Use verbose mode for more runtime details." in output
+
+
+def test_runtime_session_stop_missing_cleanup_endpoint_is_expected_fallback():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process = make_process()
+    manager = FakeProcessManager()
+    shutdown_client = FakeShutdownClient(
+        ok=False,
+        status_code=None,
+        message="Shutdown request failed: connection refused",
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session.stop(timeout_seconds=2.0)
+
+    output = stream.getvalue()
+    assert "Shutdown: Graceful request failed." not in output
+    assert (
+        "Shutdown: App cleanup endpoint unavailable; stopping owned backend." in output
+    )
+    assert "did not opt into LitLaunch app-side cleanup hooks" in output
+    assert "No app setup is required unless the app needs custom cleanup." in output
+    assert manager.stop_calls == [(process, 2.0)]
 
 
 def test_runtime_session_stop_uses_fallback_when_graceful_wait_times_out():

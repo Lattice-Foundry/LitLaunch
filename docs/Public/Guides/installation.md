@@ -2,7 +2,7 @@
 
 ## Package Install
 
-Install from [PyPI](https://pypi.org/project/litlaunch/1.0.0/):
+Install from [PyPI](https://pypi.org/project/litlaunch/):
 
 ```powershell
 python -m pip install litlaunch
@@ -39,6 +39,7 @@ Run checks:
 python -m pytest
 python -m ruff check .
 python -m ruff format --check .
+python -m mypy src/litlaunch
 python scripts/check_release.py
 ```
 

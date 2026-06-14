@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import socket
 from collections.abc import Callable
-from typing import TypeAlias
+from typing import TypeAlias, cast
 
 from litlaunch.config import LauncherConfig
 from litlaunch.exceptions import PortError
 
 _SocketAddress: TypeAlias = tuple[str, int] | tuple[str, int, int, int]
+_SocketAddressInfo: TypeAlias = tuple[
+    socket.AddressFamily,
+    socket.SocketKind,
+    int,
+    _SocketAddress,
+]
 
 
 class PortManager:
@@ -48,7 +54,7 @@ class PortManager:
         try:
             for family, socktype, proto, sockaddr in addresses:
                 with self.socket_factory(family, socktype, proto) as sock:
-                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    _set_exclusive_bind_options(sock)
                     sock.bind(sockaddr)
         except OSError:
             return False
@@ -58,7 +64,7 @@ class PortManager:
         self,
         host: str,
         port: int,
-    ) -> tuple[tuple[int, int, int, _SocketAddress], ...]:
+    ) -> tuple[_SocketAddressInfo, ...]:
         """Resolve host/port pairs into bindable socket addresses."""
 
         bind_host = _normalize_bind_host(host)
@@ -68,10 +74,10 @@ class PortManager:
             type=socket.SOCK_STREAM,
             proto=socket.IPPROTO_TCP,
         )
-        addresses: list[tuple[int, int, int, _SocketAddress]] = []
-        seen: set[tuple[int, int, int, _SocketAddress]] = set()
+        addresses: list[_SocketAddressInfo] = []
+        seen: set[_SocketAddressInfo] = set()
         for family, socktype, proto, _canonname, sockaddr in infos:
-            key = (family, socktype, proto, sockaddr)
+            key = cast(_SocketAddressInfo, (family, socktype, proto, sockaddr))
             if key in seen:
                 continue
             seen.add(key)
@@ -83,10 +89,15 @@ class PortManager:
         host: str,
         start_port: int = 8501,
         max_attempts: int = 100,
+        end_port: int | None = None,
     ) -> int:
         """Find the first available port at or after start_port."""
 
         self.validate_port(start_port)
+        if end_port is not None:
+            self.validate_port(end_port)
+            if end_port < start_port:
+                raise PortError("end_port must be greater than or equal to start_port.")
         if max_attempts < 1:
             raise PortError("max_attempts must be at least 1.")
 
@@ -94,32 +105,66 @@ class PortManager:
             candidate = start_port + offset
             if candidate > 65535:
                 break
+            if end_port is not None and candidate > end_port:
+                break
             if self.is_port_available(host, candidate):
                 return candidate
 
+        range_text = f" through {end_port}" if end_port is not None else ""
         raise PortError(
-            f"No available port found on {host} starting at {start_port} "
-            f"after {max_attempts} attempts."
+            f"No available port found on {host} starting at {start_port}"
+            f"{range_text} after {max_attempts} attempts."
         )
 
     def resolve_port(self, config: LauncherConfig) -> int:
         """Resolve the concrete Streamlit port for a launcher config."""
 
         host = config.host or self.host
+        range_start, range_end = _port_range_bounds(config)
         if config.port is None:
-            return self.find_available_port(host, 8501)
+            return self.find_available_port(
+                host,
+                range_start,
+                max_attempts=_range_attempts(range_start, range_end),
+                end_port=range_end,
+            )
 
         port = self.validate_port(config.port)
         if self.is_port_available(host, port):
             return port
 
         if not config.auto_port:
-            raise PortError(f"Port {port} is already in use on {host}.")
+            raise PortError(
+                f"Port {port} is already in use on {host}. "
+                "Close the existing app, choose another port, or enable auto-port."
+            )
 
         next_port = port + 1
-        if next_port > 65535:
+        if next_port > range_end:
             raise PortError(f"Port {port} is unavailable and no higher port exists.")
-        return self.find_available_port(host, next_port)
+        return self.find_available_port(
+            host,
+            next_port,
+            max_attempts=_range_attempts(next_port, range_end),
+            end_port=range_end,
+        )
+
+
+def _port_range_bounds(config: LauncherConfig) -> tuple[int, int]:
+    if config.port_range is not None:
+        return config.port_range
+    start = config.port if config.port is not None else 8501
+    return (start, min(65535, start + 99))
+
+
+def _range_attempts(start_port: int, end_port: int) -> int:
+    return max(1, end_port - start_port + 1)
+
+
+def _set_exclusive_bind_options(sock: socket.socket) -> None:
+    exclusive_addr_use = getattr(socket, "SO_EXCLUSIVEADDRUSE", None)
+    if exclusive_addr_use is not None:
+        sock.setsockopt(socket.SOL_SOCKET, exclusive_addr_use, 1)
 
 
 def _normalize_bind_host(host: str) -> str:

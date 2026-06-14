@@ -50,5 +50,15 @@ desktop.ini
 *.temp
 .litlaunch/
 
-# dev personal files
+# Documentation policy for this public repository:
+# Public docs remain tracked. Private/internal/scratch notes stay local.
+# The former docs/internal tree is intentionally ignored so sensitive
+# development records cannot be re-added to the public GitHub source tree.
 notes/
+scratch/
+docs/internal/
+docs/**/scratch/
+docs/**/tmp/
+docs/**/inbox/
+docs/private/
+docs/local/

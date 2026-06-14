@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import subprocess
 import time
-from collections.abc import Callable
-from urllib.parse import urlparse
+from collections.abc import Callable, Sequence
+from types import TracebackType
 
 from litlaunch._protocols import ClockProvider
+from litlaunch.browsers import BrowserCapability
 from litlaunch.console import ConsoleMode, ConsolePhase, ConsoleRenderer
 from litlaunch.events import RuntimeEventEmitter
+from litlaunch.health import parse_url_host_port
 from litlaunch.lifecycle import LaunchEvent, LaunchResult, LaunchState
 from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.runtime_console import (
@@ -46,6 +48,7 @@ class RuntimeSession:
         console_renderer: ConsoleRenderer | None = None,
         event_emitter: RuntimeEventEmitter | None = None,
         port_release_checker: Callable[[str, int], bool] | None = None,
+        cleanup_callbacks: Sequence[Callable[[], object]] = (),
         clock: ClockProvider = time,
     ) -> None:
         self.result = result
@@ -55,6 +58,8 @@ class RuntimeSession:
         self.console_renderer = console_renderer
         self.event_emitter = event_emitter or RuntimeEventEmitter()
         self._port_release_checker = port_release_checker
+        self._cleanup_callbacks = tuple(cleanup_callbacks)
+        self._cleanup_done = False
         self.clock = clock
         self._events = list(result.events)
         self._state = result.state
@@ -95,7 +100,7 @@ class RuntimeSession:
         return self.result.command
 
     @property
-    def browser(self):
+    def browser(self) -> BrowserCapability | None:
         """Return the browser capability used during launch, if any."""
 
         return self.result.browser
@@ -134,6 +139,7 @@ class RuntimeSession:
         """Gracefully stop the app, then terminate the owned backend if needed."""
 
         if self.process is None or self._stopped:
+            self._run_cleanup_callbacks()
             return
 
         stop_start_time = self.clock.monotonic()
@@ -213,6 +219,7 @@ class RuntimeSession:
                         expected_shutdown=True,
                     )
                     self._render_port_release_if_verified()
+                    self._run_cleanup_callbacks()
                     return
             else:
                 self.add_event(
@@ -221,24 +228,30 @@ class RuntimeSession:
                     render=False,
                 )
                 self._render_shutdown_hook_results(request_result.hook_results)
-                if self._is_verbose_console():
-                    render_phase_warning(
+                if (
+                    request_result.status_code is None
+                    and not request_result.hook_results
+                ):
+                    self._render_cleanup_endpoint_unavailable(request_result.message)
+                else:
+                    if self._is_verbose_console():
+                        render_phase_warning(
+                            self.console_renderer,
+                            ConsolePhase.BACKEND,
+                            "graceful shutdown failed; using termination fallback",
+                        )
+                    render_failure_guidance(
                         self.console_renderer,
-                        ConsolePhase.BACKEND,
-                        "graceful shutdown failed; using termination fallback",
-                    )
-                render_failure_guidance(
-                    self.console_renderer,
-                    "Shutdown: graceful request failed.",
-                    likely_cause="The app did not accept the cleanup request.",
-                    next_steps=(
-                        (
-                            "Confirm the app calls "
-                            "LauncherRuntime.enable_shutdown_endpoint()."
+                        "Shutdown: graceful request failed.",
+                        likely_cause="The app did not accept the cleanup request.",
+                        next_steps=(
+                            (
+                                "Confirm the app calls "
+                                "LauncherRuntime.enable_shutdown_endpoint()."
+                            ),
+                            "Use verbose mode for more runtime details.",
                         ),
-                        "Use verbose mode for more runtime details.",
-                    ),
-                )
+                    )
 
         if not self.is_running():
             self._stopped = True
@@ -260,6 +273,7 @@ class RuntimeSession:
                 elapsed_seconds=self.clock.monotonic() - stop_start_time,
             )
             self._render_port_release_if_verified()
+            self._run_cleanup_callbacks()
             return
 
         self.add_event(
@@ -304,6 +318,7 @@ class RuntimeSession:
             elapsed_seconds=self.clock.monotonic() - stop_start_time,
         )
         self._render_port_release_if_verified()
+        self._run_cleanup_callbacks()
 
     def wait(self, timeout_seconds: float | None = None) -> int | None:
         """Wait for the owned backend process to exit.
@@ -330,6 +345,7 @@ class RuntimeSession:
         self._state = LaunchState.TERMINATED
         self._render_backend_exit(returncode, expected_shutdown=False)
         self._render_port_release_if_verified()
+        self._run_cleanup_callbacks()
         return returncode
 
     def monitor_window(
@@ -377,6 +393,7 @@ class RuntimeSession:
             self._state = LaunchState.TERMINATED
             self.add_event(LaunchState.TERMINATED, result.message, render=False)
             render_window_monitor_result(self.console_renderer, result)
+            self._run_cleanup_callbacks()
         else:
             self.add_event(
                 LaunchState.WINDOW_MONITORING,
@@ -409,7 +426,12 @@ class RuntimeSession:
 
         return self
 
-    def __exit__(self, exc_type, exc, traceback) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         """Stop the owned backend process on context exit."""
 
         self.stop()
@@ -467,7 +489,7 @@ class RuntimeSession:
     def _render_port_release_if_verified(self) -> None:
         if self._port_release_checker is None:
             return
-        host_port = _parse_url_host_port(self.result.url)
+        host_port = parse_url_host_port(self.result.url)
         if host_port is None:
             return
         host, port = host_port
@@ -500,17 +522,38 @@ class RuntimeSession:
             if self.console_renderer is not None:
                 self.console_renderer.render_shutdown_hook_result(hook_result)
 
+    def _render_cleanup_endpoint_unavailable(self, detail: str) -> None:
+        renderer = self.console_renderer
+        render_phase_warning(
+            renderer,
+            ConsolePhase.SHUTDOWN,
+            "app cleanup endpoint unavailable; stopping owned backend",
+        )
+        if renderer is None or renderer.mode == ConsoleMode.QUIET:
+            return
+        renderer.guidance_line(
+            "Likely cause",
+            "The app did not opt into LitLaunch app-side cleanup hooks.",
+        )
+        renderer.guidance_line(
+            "Next",
+            "No app setup is required unless the app needs custom cleanup.",
+        )
+        if renderer.mode == ConsoleMode.VERBOSE and detail:
+            renderer.detail(f"Shutdown request detail: {detail}")
+
     def _is_verbose_console(self) -> bool:
         return (
             self.console_renderer is not None
             and self.console_renderer.mode == ConsoleMode.VERBOSE
         )
 
-
-def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:
-    if not url:
-        return None
-    parsed = urlparse(url)
-    if parsed.hostname is None or parsed.port is None:
-        return None
-    return parsed.hostname, parsed.port
+    def _run_cleanup_callbacks(self) -> None:
+        if self._cleanup_done:
+            return
+        self._cleanup_done = True
+        for callback in self._cleanup_callbacks:
+            try:
+                callback()
+            except Exception:
+                continue

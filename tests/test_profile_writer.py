@@ -173,6 +173,87 @@ def test_profile_writer_round_trips_runtime_event_log(tmp_path: Path):
     )
 
 
+def test_profile_writer_round_trips_runtime_state_root(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(
+            app_path=app,
+            runtime_state_root=tmp_path / ".runtime" / "litlaunch",
+        ),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert 'runtime_state_root = ".runtime' in result.toml
+    assert loaded.config.runtime_state_root == tmp_path / ".runtime" / "litlaunch"
+
+
+def test_profile_writer_round_trips_port_range(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(app_path=app, port=8501, port_range=[8501, 8599]),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert "port_range = [8501, 8599]" in result.toml
+    assert loaded.config.port_range == (8501, 8599)
+
+
+def test_profile_writer_round_trips_visible_streamlit_chrome_policy(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(app_path=app, show_streamlit_chrome=True),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert "show_streamlit_chrome = true" in result.toml
+    assert loaded.config.show_streamlit_chrome is True
+
+
+def test_profile_writer_round_trips_visible_streamlit_output_policy(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(app_path=app, show_streamlit_output=True),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert "show_streamlit_output = true" in result.toml
+    assert loaded.config.show_streamlit_output is True
+
+
+def test_profile_writer_round_trips_app_icon(tmp_path: Path):
+    app = tmp_path / "app.py"
+    icon = tmp_path / "assets" / "app.ico"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    icon.parent.mkdir()
+    icon.write_bytes(b"icon")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(app_path=app, app_icon=icon),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert 'app_icon = "assets' in result.toml
+    assert loaded.config.app_icon == icon
+
+
 def test_display_path_handles_different_spellings_of_same_directory(
     tmp_path: Path,
     monkeypatch,
@@ -238,6 +319,8 @@ def test_profile_writer_omits_default_trust_mode(tmp_path: Path):
     result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml", dry_run=True)
 
     assert "trust_mode" not in result.toml
+    assert "show_streamlit_chrome" not in result.toml
+    assert "show_streamlit_output" not in result.toml
 
 
 def test_profile_writer_keeps_existing_file_when_atomic_write_fails(

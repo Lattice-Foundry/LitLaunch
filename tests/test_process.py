@@ -75,6 +75,24 @@ def test_start_passes_args_without_shell_true():
     assert kwargs["cwd"] == "X:/app"
     assert kwargs["env"] == {"A": "1"}
     assert kwargs["shell"] is False
+    assert "stdout" not in kwargs
+    assert "stderr" not in kwargs
+
+
+def test_start_can_suppress_backend_output():
+    calls = []
+    fake = FakePopen()
+
+    def popen_factory(command, **kwargs):
+        calls.append((command, kwargs))
+        return fake
+
+    manager = ProcessManager(popen_factory=popen_factory)
+    manager.start(("python", "-m", "streamlit"), suppress_output=True)
+
+    kwargs = calls[0][1]
+    assert kwargs["stdout"] == subprocess.DEVNULL
+    assert kwargs["stderr"] == subprocess.DEVNULL
 
 
 def test_start_keeps_backend_in_parent_console_group_for_interrupt_shutdown():

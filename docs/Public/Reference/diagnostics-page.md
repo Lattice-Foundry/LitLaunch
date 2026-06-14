@@ -15,7 +15,7 @@ collects LitLaunch runtime diagnostics, gives users a central place to create
 support artifacts, and stays editable so app teams can add product-specific
 support actions later.
 
-![Generated diagnostics page overview](assets/screenshots/diagnostics-page-overview.png)
+![Generated diagnostics page overview](../../assets/screenshots/diagnostics-page-overview.png)
 
 ## Generate A Page
 
@@ -79,7 +79,7 @@ diagnostics with LitLaunch's existing diagnostics APIs and renders:
 - optional write buttons for `.litlaunch/reports/` artifacts
 - optional recent runtime event log lines when `event_log_path` is configured
 
-![Posture cards and operational snapshot](assets/screenshots/diagnostics-page-posture-snapshot.png)
+![Posture cards and operational snapshot](../../assets/screenshots/diagnostics-page-posture-snapshot.png)
 
 Artifacts are not written automatically on page render. The generated page only
 writes files when a user clicks a write button.
@@ -160,7 +160,7 @@ uses the fallback `event_log_path`. If neither is configured, the event trail
 shows a concise “not configured” message. LitLaunch does not create a logging
 framework, rotate files, or send telemetry.
 
-![Support artifacts and runtime event trail](assets/screenshots/diagnostics-page-artifacts-events.png)
+![Support artifacts and runtime event trail](../../assets/screenshots/diagnostics-page-artifacts-events.png)
 
 ## File Safety
 

@@ -7,6 +7,130 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## Current Release Highlights
+
+- Cleaner app-window launches: LitLaunch now hides Streamlit's default toolbar
+  chrome by default, with `--show-streamlit-chrome` when you want it back.
+- Better webapp isolation: Chromium app-mode launches use temporary browser
+  profiles by default, keeping local app sessions from stepping on each other.
+- Safer multi-app launching: when a requested port is already busy, LitLaunch
+  can automatically choose the next available port instead of opening the wrong
+  local app.
+- Cleaner console output: Streamlit startup banners, usage-stat notices, and
+  backend server chatter stay hidden by default while LitLaunch reports the
+  selected local URL.
+- More reliable close-to-shutdown behavior: app-window and browser-window
+  monitoring now handles small title differences more gracefully.
+- Product-style app icons: profiles, shortcuts, diagnostics, and Windows
+  webapp launches can use `app_icon` for a more polished local app identity.
+- Cleaner generated artifacts: project-local reports and shortcuts stay under
+  `.litlaunch/`, while temporary runtime and browser state stays out of source
+  trees by default.
+- Stronger diagnostics and support surfaces: inspect/report workflows remain
+  local, shareable after review, and focused on practical runtime posture.
+- Tighter release quality: stricter type checking and release hygiene checks
+  guard the package before publication.
+- Cleaner public repository hygiene: internal working notes are excluded from
+  public package artifacts and the public source tree.
+
+## 1.0.10 - Stable
+
+- Hardened port ownership checks so LitLaunch no longer treats an already
+  occupied Streamlit port as a successful launch target for a new backend.
+- Fixed Windows port probing by avoiding reuse-address checks and using
+  exclusive bind probing where the platform supports it.
+- Added configurable `port_range = [start, end]` and `--port-range START:END`
+  support for safe multi-app local launch ranges.
+- Added selected-port diagnostics and concise auto-port console warnings when
+  LitLaunch moves away from the requested/default port.
+- Kept CLI profile launches adaptive by default; `--no-auto-port` is now the
+  explicit fixed-port hard-fail mode for command-line launches.
+
+## 1.0.9 - Stable
+
+- Moved LitLaunch-owned ephemeral runtime and browser-profile state out of
+  project source trees by default and into a system temp runtime root.
+- Added explicit `runtime_state_root` / `--runtime-state-root` support for apps
+  that want to choose an intentional runtime-state location.
+- Added inspect/report visibility for runtime state root, browser profile root,
+  profile policy, and cleanup policy.
+- Hardened browser-profile cleanup with LitLaunch ownership markers so cleanup
+  only removes directories LitLaunch created.
+- Hid raw backend console output by default so Streamlit banners, usage-stat
+  notices, and app-side server chatter do not leak into the LitLaunch console.
+- Added `--show-streamlit-output` and `show_streamlit_output = true` for launches
+  that intentionally want raw Streamlit/backend output visible.
+
+## 1.0.8 - Stable
+
+- Added `app_icon` configuration for launch profiles, CLI/Python config,
+  diagnostics, and native shortcut metadata.
+- Added a Windows `.ico` webapp launch strategy that opens Edge/Chrome through
+  a LitLaunch-generated temporary shortcut with icon metadata before the
+  browser app window starts.
+- Added a best-effort live Windows app-window `.ico` override for monitored
+  webapp launches while documenting browser/platform fallback limits.
+
+## 1.0.7 - Stable
+
+- Tightened the mypy gate to `disallow_untyped_defs` for the package source and
+  annotated the remaining untyped helpers.
+- Consolidated duplicated launch-URL host/port parsing into a single shared
+  helper used by the launcher and runtime session.
+
+## 1.0.6 - Stable
+
+- Treated missing app-side cleanup endpoints as the expected default for plain
+  Streamlit apps, rendering a warning instead of a graceful-shutdown error
+  before stopping the owned backend process.
+- Clarified that `LauncherRuntime` cleanup hooks are optional power-user
+  behavior for apps with real cleanup work, not required for the default
+  window-close experience.
+
+## 1.0.5 - Stable
+
+- Hardened app-window and managed browser-window monitoring with shared,
+  conservative near-title matching for cases where framework page titles drift
+  slightly from LitLaunch profile titles.
+- Improved monitor timeout diagnostics so LitLaunch can report the expected
+  title and observed candidate browser window title when matching fails.
+- Clarified monitored window title guidance for Streamlit apps and profiles.
+- Fixed cross-platform mypy checks for Windows-only registry and Win32 API
+  access on Linux and macOS CI runners.
+
+## 1.0.4 - Stable
+
+- Reorganized internal developer documentation into lane-based
+  architecture, audits, research, roadmap, validation, and assets directories,
+  matching the current workspace internal documentation model.
+- Retired the root `notes/` working area in favor of tracked internal docs
+  lanes and added ignore guardrails for future local scratch material.
+
+## 1.0.3 - Stable
+
+- Added mypy as a first-class validation gate for LitLaunch's typed package
+  source, including CI and release hygiene checks.
+- Tightened type annotations around launch configuration normalization,
+  backend command construction, browser profile cleanup, diagnostics rendering,
+  profile TOML handling, Windows window monitoring, and CLI helper boundaries.
+
+## 1.0.2 - Stable
+
+- Isolated Chromium app-mode/webapp launches with LitLaunch-managed temporary
+  browser profiles by default, reducing cross-app profile, cache, extension,
+  and component-state interference when multiple local Streamlit apps are open.
+- Preserved explicit user browser profile arguments: launches that provide
+  `--browser-arg=--user-data-dir=...` keep using the requested browser profile.
+
+## 1.0.1 - Stable
+
+- Opened the post-launch patch line for public repository polish and follow-up
+  fixes after the `1.0.0` PyPI release.
+- Hid Streamlit's default app toolbar/menu chrome by default through
+  Streamlit's supported `client.toolbarMode = "minimal"` setting, with
+  `--show-streamlit-chrome` and `show_streamlit_chrome = true` restoring the
+  default Streamlit chrome when requested.
+
 ## 1.0.0 - Stable
 
 - Promoted LitLaunch from the release-candidate line to the first stable

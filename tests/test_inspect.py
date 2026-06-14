@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 
+from litlaunch.artifacts import browser_profiles_dir, runtime_state_root_for_config
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.config import BrowserChoice
 from litlaunch.inspect import (
@@ -161,6 +162,7 @@ class FakeLauncher:
     def build_launch_plan(self):
         resolved_port = self.resolve_port()
         command = self.command_builder.build(port=resolved_port)
+        runtime_state_root = runtime_state_root_for_config(self.config)
         return LaunchPlan(
             command=command,
             command_display=format_command_preview(command),
@@ -171,8 +173,10 @@ class FakeLauncher:
             health_url=f"http://{self.config.host}:{resolved_port}/_stcore/health",
             host=self.config.host,
             port=self.config.port,
+            port_range=self.config.port_range,
             resolved_port=resolved_port,
             auto_port=self.config.auto_port,
+            port_selection="requested/default port available",
             mode=self.config.mode,
             headless=False,
             browser_requested=self.config.browser,
@@ -188,6 +192,18 @@ class FakeLauncher:
                 if self.config.extra_env
                 else "none"
             ),
+            streamlit_chrome_policy=(
+                "visible" if self.config.show_streamlit_chrome else "hidden"
+            ),
+            streamlit_output_policy=(
+                "visible" if self.config.show_streamlit_output else "hidden"
+            ),
+            app_icon=self.config.app_icon,
+            app_icon_support="native shortcuts can use this icon",
+            runtime_state_root=runtime_state_root,
+            browser_profile_root=browser_profiles_dir(runtime_state_root),
+            browser_profile_policy="ephemeral isolated browser profile",
+            browser_profile_cleanup="best-effort cleanup after runtime stops",
         )
 
     def run(self):
@@ -378,6 +394,12 @@ def test_collector_with_valid_app_path_builds_previews():
     assert report.ok is True
     assert "Target" in [section.title for section in report.sections]
     assert ("Target", "Command preview") in messages
+    assert messages[("Target", "Requested port")] == "8600"
+    assert messages[("Target", "Selected port")] == "8600"
+    assert messages[("Target", "Auto-port")] == "enabled"
+    assert messages[("Target", "Port range")] == "default"
+    assert messages[("Target", "Streamlit chrome policy")] == "hidden"
+    assert messages[("Target", "Streamlit console output policy")] == "hidden"
     assert messages[("Target", "Trust mode")] == "development"
     assert messages[("Target", "App URL preview")] == "http://127.0.0.1:8600"
     assert (
@@ -386,6 +408,68 @@ def test_collector_with_valid_app_path_builds_previews():
     )
     assert FakeLauncher.instances
     assert FakeLauncher.instances[0].run_calls == 0
+
+
+def test_collector_reports_visible_streamlit_chrome_policy():
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        show_streamlit_chrome=True,
+    )
+    messages = report_item_messages(report)
+
+    assert messages[("Target", "Streamlit chrome policy")] == "visible"
+
+
+def test_collector_reports_visible_streamlit_output_policy():
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        show_streamlit_output=True,
+    )
+    messages = report_item_messages(report)
+
+    assert messages[("Target", "Streamlit console output policy")] == "visible"
+
+
+def test_collector_reports_app_icon_metadata(tmp_path):
+    icon = tmp_path / "app.ico"
+    icon.write_bytes(b"icon")
+
+    report = make_collector().collect(app_path=EXAMPLE_APP, app_icon=icon)
+    messages = report_item_messages(report)
+
+    assert messages[("Target", "App icon")] == str(icon)
+
+
+def test_collector_reports_runtime_state_paths(tmp_path):
+    state_root = tmp_path / "runtime-state"
+
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        runtime_state_root=state_root,
+    )
+    messages = report_item_messages(report)
+
+    assert messages[("Target", "Runtime state root")] == str(state_root)
+    assert messages[("Target", "Browser profile root")] == str(
+        state_root / "browser-profiles"
+    )
+    assert (
+        messages[("Target", "Browser profile policy")]
+        == "ephemeral isolated browser profile"
+    )
+
+
+def test_collector_reports_port_range():
+    report = make_collector().collect(
+        app_path=EXAMPLE_APP,
+        port=8501,
+        port_range=(8501, 8599),
+    )
+    messages = report_item_messages(report)
+
+    assert messages[("Target", "Requested port")] == "8501"
+    assert messages[("Target", "Selected port")] == "8501"
+    assert messages[("Target", "Port range")] == "8501-8599"
 
 
 def test_collector_reports_configured_trust_mode():

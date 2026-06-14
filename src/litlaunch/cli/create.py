@@ -47,6 +47,11 @@ def add_create_flags(parser: argparse.ArgumentParser) -> None:
     profile_parser.add_argument("--name", help="Prefill the profile name.")
     profile_parser.add_argument("--app", dest="app_path", help="Prefill the app path.")
     profile_parser.add_argument(
+        "--app-icon",
+        dest="app_icon",
+        help="Prefill the optional app icon path for native shortcuts.",
+    )
+    profile_parser.add_argument(
         "--config",
         dest="config_path",
         help="Write to an explicit litlaunch.toml file.",
@@ -128,6 +133,7 @@ def cmd_create_profile(args: argparse.Namespace, context: CliContext) -> int:
             ProfileWizardOptions(
                 name=args.name,
                 app_path=args.app_path,
+                app_icon=args.app_icon,
                 config_path=args.config_path,
                 dry_run=bool(args.dry_run),
                 force=bool(args.force),

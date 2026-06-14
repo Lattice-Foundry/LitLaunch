@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
+from litlaunch.artifacts import browser_profiles_dir, runtime_state_root_for_config
 from litlaunch.backend import (
     BackendCommand,
     BackendCommandContext,
     BackendCommandProvider,
 )
+from litlaunch.browser_profiles import has_browser_switch
 from litlaunch.browsers import BrowserResolution
-from litlaunch.config import LauncherConfig
+from litlaunch.config import (
+    FlagValue,
+    LauncherConfig,
+    LaunchMode,
+    NormalizedStreamlitFlags,
+)
 from litlaunch.exceptions import CommandBuildError
 from litlaunch.health import build_streamlit_app_url, build_streamlit_health_url
 from litlaunch.lifecycle import LaunchPlan
@@ -37,6 +44,7 @@ def build_launch_plan(
         port=resolved_port,
     )
     backend_command = build_backend_command(backend_command_provider, context)
+    runtime_state_root = runtime_state_root_for_config(config)
     return LaunchPlan(
         command=backend_command.command,
         command_display=format_command_preview(backend_command.command),
@@ -47,8 +55,10 @@ def build_launch_plan(
         health_url=context.health_url,
         host=config.host,
         port=config.port,
+        port_range=config.port_range,
         resolved_port=resolved_port,
         auto_port=config.auto_port,
+        port_selection=port_selection(config, resolved_port),
         mode=config.mode,
         headless=context.headless,
         browser_requested=config.browser,
@@ -60,6 +70,14 @@ def build_launch_plan(
         extra_env_preview=(
             format_env_preview(config.extra_env) if config.extra_env else "none"
         ),
+        streamlit_chrome_policy=streamlit_chrome_policy(config),
+        streamlit_output_policy=streamlit_output_policy(config),
+        app_icon=config.app_icon,
+        app_icon_support=app_icon_support(config),
+        runtime_state_root=runtime_state_root,
+        browser_profile_root=browser_profiles_dir(runtime_state_root),
+        browser_profile_policy=browser_profile_policy(config),
+        browser_profile_cleanup=browser_profile_cleanup(config),
     )
 
 
@@ -101,9 +119,70 @@ def build_backend_command(
     return backend_command
 
 
-def copy_streamlit_flags(flags):
+def copy_streamlit_flags(
+    flags: NormalizedStreamlitFlags,
+) -> Mapping[str, FlagValue] | tuple[str, ...]:
     """Return a LaunchPlan-safe copy of Streamlit flags."""
 
     if hasattr(flags, "items"):
         return dict(flags.items())
     return tuple(flags)
+
+
+def streamlit_chrome_policy(config: LauncherConfig) -> str:
+    """Return the user-facing Streamlit app chrome policy name."""
+
+    return "visible" if config.show_streamlit_chrome else "hidden"
+
+
+def port_selection(config: LauncherConfig, resolved_port: int) -> str:
+    """Return a short explanation of how the launch port was selected."""
+
+    requested = config.port
+    if requested is None and config.port_range is not None:
+        requested = config.port_range[0]
+    if requested is None:
+        requested = 8501
+    if resolved_port == requested:
+        return "requested/default port available"
+    return f"auto-port selected {resolved_port} because {requested} was unavailable"
+
+
+def streamlit_output_policy(config: LauncherConfig) -> str:
+    """Return the user-facing Streamlit console output policy name."""
+
+    return "visible" if config.show_streamlit_output else "hidden"
+
+
+def app_icon_support(config: LauncherConfig) -> str:
+    """Return the honest launch-surface support summary for an app icon."""
+
+    if config.app_icon is None:
+        return "not configured"
+    if config.mode == LaunchMode.WEBAPP:
+        return (
+            "native shortcuts can use this icon; Windows .ico webapp launches "
+            "try shortcut icon metadata and live window-icon overrides where "
+            "supported"
+        )
+    return "native shortcuts can use this icon; browser-tab launches ignore it"
+
+
+def browser_profile_policy(config: LauncherConfig) -> str:
+    """Return the browser profile ownership policy for this launch plan."""
+
+    if has_browser_switch(config.extra_browser_args, "--user-data-dir"):
+        return "external/caller-provided browser profile"
+    if config.mode == LaunchMode.WEBAPP:
+        return "ephemeral isolated browser profile"
+    return "external/default browser profile"
+
+
+def browser_profile_cleanup(config: LauncherConfig) -> str:
+    """Return the browser profile cleanup policy for this launch plan."""
+
+    if has_browser_switch(config.extra_browser_args, "--user-data-dir"):
+        return "not owned by LitLaunch"
+    if config.mode == LaunchMode.WEBAPP:
+        return "best-effort cleanup after runtime stops"
+    return "not owned by LitLaunch"

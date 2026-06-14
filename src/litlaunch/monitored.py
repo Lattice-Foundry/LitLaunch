@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
+from pathlib import Path
 
+from litlaunch.artifacts import project_root_for_config
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.launcher import StreamlitLauncher
@@ -27,8 +30,11 @@ from litlaunch.windowing import (
     WindowMonitorResult,
     WindowMonitorStatus,
     WindowTarget,
+    apply_windows_window_app_identity,
+    apply_windows_window_icon,
     create_window_monitor,
 )
+from litlaunch.windows_shortcut import windows_app_user_model_id
 
 
 @dataclass(frozen=True)
@@ -155,6 +161,10 @@ def run_monitored_webapp(
             browser_kind=getattr(session.browser, "kind", None),
             app_mode=True,
             baseline_handles=tuple(window.handle for window in baseline),
+            observed_callback=_app_icon_observed_callback(
+                launcher.config.app_icon,
+                app_user_model_id=_app_icon_app_user_model_id(launcher.config),
+            ),
         )
         result = session.monitor_window(
             resolved_monitor,
@@ -172,7 +182,7 @@ def run_monitored_webapp(
             monitor_result=None,
             message="Window monitoring interrupted; runtime stopped.",
             launched=session is not None,
-            stopped_cleanly=not session_is_running(session),
+            stopped_cleanly=session is None or not session_is_running(session),
         )
     finally:
         startup_probe.stop()
@@ -217,6 +227,42 @@ def run_monitored_webapp(
         message=result.message,
         launched=True,
         stopped_cleanly=not session_is_running(session),
+    )
+
+
+def _app_icon_observed_callback(
+    icon_path: Path | None,
+    *,
+    app_user_model_id: str | None = None,
+) -> Callable[[WindowInfo], object] | None:
+    if icon_path is None:
+        return None
+    if icon_path.suffix.lower() != ".ico":
+        return None
+
+    def apply_icon(window: WindowInfo) -> None:
+        if app_user_model_id is not None:
+            with suppress(Exception):
+                apply_windows_window_app_identity(
+                    window.handle,
+                    app_user_model_id,
+                    icon_path=icon_path,
+                )
+        with suppress(Exception):
+            apply_windows_window_icon(window.handle, icon_path)
+
+    return apply_icon
+
+
+def _app_icon_app_user_model_id(config: LauncherConfig) -> str | None:
+    if config.app_icon is None:
+        return None
+    if config.app_icon.suffix.lower() != ".ico":
+        return None
+    return windows_app_user_model_id(
+        project_root_for_config(config),
+        config.title,
+        config.app_icon,
     )
 
 
@@ -302,6 +348,10 @@ class _StartupWindowProbe:
         poll_interval_seconds: float = 0.05,
     ) -> None:
         self.monitor = monitor
+        # The title is a placeholder: capture() filters by window class and
+        # process, not title, and WindowTarget requires a non-empty app-mode
+        # title. "Streamlit App" also acts as the match-any default title in
+        # matches_window_title for monitors that do consult it.
         self.target = WindowTarget(
             "Streamlit App",
             app_mode=True,

@@ -36,7 +36,8 @@ session = launcher.start()
 
 That is enough to get local-first defaults, explicit backend ownership, health
 checks, browser capability detection, an app-window experience where supported,
-clean shutdown handling, and diagnostics/reporting tools.
+isolated Chromium app-mode browser profiles, minimal Streamlit app chrome by
+default, clean shutdown handling, and diagnostics/reporting tools.
 
 No shell scripts. No browser automation hacks. No custom runtime glue.
 
@@ -48,6 +49,7 @@ AI apps, and developer utilities:
 ```toml
 [profiles.my-dashboard]
 app_path = "app.py"
+app_icon = "assets/my-dashboard.ico"
 trust_mode = "strict_local"
 mode = "webapp"
 browser = "edge"
@@ -61,6 +63,9 @@ litlaunch --profile my-dashboard
 
 Simple workflows stay simple. Advanced launch, browser, monitoring, network,
 and diagnostics settings are there when a project needs them.
+Profiles may include `app_icon` for app identity. LitLaunch uses it for native
+shortcut artifacts and, on Windows `.ico` app-window launches, applies the
+strongest browser/window icon strategy the platform permits.
 
 ### Built for real packaged applications
 
@@ -158,8 +163,10 @@ their product.
 ## What It Solves
 
 - Start Streamlit through explicit, shell-free command construction.
+- Hide Streamlit's default app toolbar/menu chrome by default where Streamlit
+  supports it, with `--show-streamlit-chrome` to restore it.
 - Own and stop only the Streamlit backend process LitLaunch starts.
-- Open a managed browser window or Chromium app-mode window.
+- Open a managed browser window or isolated Chromium app-mode window.
 - Resolve Edge, Chrome/Chromium, and default-browser capability.
 - Provide tokened loopback graceful shutdown hooks for app cleanup.
 - Inspect local runtime readiness without launching the app.
@@ -184,13 +191,13 @@ LitLaunch is infrastructure, not magic orchestration.
 - Diagnostics report runtime governance, runtime exposure, and transport
   security posture, including Streamlit-native TLS awareness.
 
-See [docs/philosophy.md](docs/philosophy.md) and
-[docs/architecture.md](docs/architecture.md) for the full ownership model, and
-[docs/security.md](docs/security.md) for trust boundaries.
+See [docs/Public/Guides/philosophy.md](docs/Public/Guides/philosophy.md) and
+[docs/Public/Reference/architecture.md](docs/Public/Reference/architecture.md) for the full ownership model, and
+[docs/Public/Reference/security.md](docs/Public/Reference/security.md) for trust boundaries.
 
 ## Install
 
-Install from [PyPI](https://pypi.org/project/litlaunch/1.0.0/):
+Install from [PyPI](https://pypi.org/project/litlaunch/):
 
 ```powershell
 python -m pip install litlaunch
@@ -212,6 +219,16 @@ Verify the CLI:
 ```powershell
 litlaunch --help
 python -m litlaunch --help
+```
+
+Developer validation uses pytest, Ruff, mypy, and release hygiene checks:
+
+```powershell
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src/litlaunch
+python scripts/check_release.py
 ```
 
 The development environment currently uses Python 3.14.5. Package metadata
@@ -247,6 +264,23 @@ litlaunch help diagnostics
 Use `litlaunch --help` or `litlaunch run --help` for argparse command and flag
 reference.
 
+Run in Chromium app-mode:
+
+```powershell
+litlaunch examples/minimal_app/app.py --mode webapp --browser auto
+```
+
+LitLaunch hides Streamlit's default app toolbar/menu chrome by default through
+Streamlit's supported `client.toolbarMode = "minimal"` setting. Use
+`--show-streamlit-chrome` when you intentionally want Streamlit's default
+toolbar/menu chrome visible for a launch.
+
+LitLaunch also keeps raw backend console output quiet by default, including
+Streamlit startup banners, usage-statistics notices, and app-side server
+messages printed by the backend process. LitLaunch still reports the resolved
+local URL in its own console output. Use `--show-streamlit-output` when you
+intentionally want the raw Streamlit/backend output stream visible.
+
 Inspect local readiness without launching:
 
 ```powershell
@@ -275,7 +309,6 @@ mode = "webapp"
 browser = "edge"
 trust_mode = "development"
 port = 8501
-auto_port = false
 headless = true
 runtime_event_log = ".litlaunch/runtime-events.log"
 graceful_timeout = 15
@@ -305,20 +338,21 @@ for power-user and machine-readable diagnostics.
 
 ### Generated project artifacts
 
-LitLaunch keeps generated files under a project-local `.litlaunch/` directory by
-default:
+LitLaunch keeps persistent project artifacts under a project-local
+`.litlaunch/` directory by default:
 
 ```text
 .litlaunch/
   reports/              HTML reports, JSON output, and support bundles
   shortcuts/            generated launch shortcuts
-  tmp/browser-profiles/ managed temporary Chromium profiles
 ```
 
 Keep `litlaunch.toml` in the project root when you want profiles to travel with
-the app. Add `.litlaunch/` to `.gitignore` when generated reports, shortcuts, and
-runtime scratch files should stay out of source control. Explicit `--output`
-paths still write exactly where you ask.
+the app. Add `.litlaunch/` to `.gitignore` when generated reports, shortcuts,
+and other project artifacts should stay out of source control. Explicit
+`--output` paths still write exactly where you ask. Ephemeral browser/runtime
+state uses system temp by default, and `--runtime-state-root` or profile
+`runtime_state_root` can point it at an intentional app-owned location.
 
 Shortcut generation uses native project-local artifacts by default: `.lnk` on
 Windows, `.desktop` on Linux, and a small `.app` bundle on macOS. Use
@@ -390,6 +424,7 @@ Show launch behavior without starting Streamlit or opening a browser:
 plan = StreamlitLauncher(config).build_launch_plan()
 print(plan.command_display)
 print(plan.app_url)
+print(plan.streamlit_chrome_policy)
 ```
 
 `build_launch_plan()` is useful for diagnostics, integration tests, and
@@ -432,7 +467,7 @@ Streamlit health endpoint used by LitLaunch.
 
 The supported public surfaces are the configuration, launcher, launch-plan,
 profile, monitored-runner, backend-command-provider, app shutdown, and inspect
-diagnostics APIs documented in [docs/architecture.md](docs/architecture.md).
+diagnostics APIs documented in [docs/Public/Reference/architecture.md](docs/Public/Reference/architecture.md).
 Window provider internals, low-level browser/window matching details, and
 console presentation internals are implementation details and may evolve faster
 than the public API.
@@ -462,7 +497,9 @@ litlaunch browsers
 litlaunch command app.py --server.runOnSave true -- --workspace demo
 litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
+litlaunch run app.py --mode webapp --show-streamlit-chrome
 litlaunch run app.py --port 8501 --no-auto-port
+litlaunch run app.py --port 8501 --port-range 8501:8599
 litlaunch run app.py --host 0.0.0.0 --allow-network-exposure
 litlaunch run app.py --trust-mode strict_local
 litlaunch run app.py --host 0.0.0.0 --trust-mode internal_network --allow-network-exposure
@@ -492,8 +529,17 @@ capable browser is available. Monitoring remains observational: LitLaunch does
 not own, close, or kill browser processes. If browser-window monitoring cannot
 identify a window confidently, Ctrl+C remains the shutdown path.
 
-See [docs/browser_support.md](docs/browser_support.md) and
-[docs/window_monitoring.md](docs/window_monitoring.md).
+For monitored Streamlit windows, match the LitLaunch `--title` or profile
+`title` to `st.set_page_config(page_title="...")`. LitLaunch tolerates
+conservative near-title drift, but aligned titles give the most reliable close
+detection.
+
+Plain Streamlit apps do not need app-side shutdown setup for the default
+window-close flow. Use `LauncherRuntime` hooks only when the app has custom
+cleanup work.
+
+See [docs/Public/Reference/browser-support.md](docs/Public/Reference/browser-support.md) and
+[docs/Public/Reference/window-monitoring.md](docs/Public/Reference/window-monitoring.md).
 
 ## Inspect And Troubleshooting
 
@@ -513,26 +559,28 @@ Streamlit-native TLS posture, and plaintext network-exposure risk. This is
 operational visibility, not a security guarantee: LitLaunch does not
 authenticate users, terminate TLS, or secure Streamlit applications.
 
-See [docs/inspect.md](docs/inspect.md) and
-[docs/troubleshooting.md](docs/troubleshooting.md).
+See [docs/Public/Reference/inspect.md](docs/Public/Reference/inspect.md) and
+[docs/Public/Troubleshooting/troubleshooting.md](docs/Public/Troubleshooting/troubleshooting.md).
 
 ## Documentation
 
-- [Overview](docs/overview.md)
-- [Philosophy](docs/philosophy.md)
-- [Installation](docs/installation.md)
-- [Quickstart](docs/quickstart.md)
-- [CLI](docs/cli.md)
-- [Security And Trust Boundaries](docs/security.md)
-- [Runtime Events](docs/runtime_events.md)
-- [Diagnostics Page Generator](docs/diagnostics_page.md)
-- [Browser Support](docs/browser_support.md)
-- [Window Monitoring](docs/window_monitoring.md)
-- [Inspect](docs/inspect.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Architecture](docs/architecture.md)
-- [RoleThread Lite Integration](docs/integration/rolethread.md)
-- [Packaging Notes](docs/integration/packaging_notes.md)
+- [Overview](docs/Public/Guides/overview.md)
+- [Philosophy](docs/Public/Guides/philosophy.md)
+- [Installation](docs/Public/Guides/installation.md)
+- [Quickstart](docs/Public/Guides/quickstart.md)
+- [CLI](docs/Public/Reference/cli.md)
+- [Security And Trust Boundaries](docs/Public/Reference/security.md)
+- [Runtime Events](docs/Public/Reference/runtime-events.md)
+- [Diagnostics Page Generator](docs/Public/Reference/diagnostics-page.md)
+- [Browser Support](docs/Public/Reference/browser-support.md)
+- [Window Monitoring](docs/Public/Reference/window-monitoring.md)
+- [Inspect](docs/Public/Reference/inspect.md)
+- [Troubleshooting](docs/Public/Troubleshooting/troubleshooting.md)
+- [Architecture](docs/Public/Reference/architecture.md)
+- [Integration](docs/Public/Guides/integration/index.md)
+- [RoleThread Lite Integration](docs/Public/Guides/integration/rolethread.md)
+- [Packaging Notes](docs/Public/Guides/integration/packaging-notes.md)
+- [Changelog](CHANGELOG.md)
 
 ## Non-Goals
 

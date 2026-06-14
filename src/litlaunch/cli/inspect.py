@@ -13,17 +13,21 @@ from litlaunch.cli.config import (
     add_profile_flags,
     load_cli_profile,
     merge_streamlit_flags,
+    parse_port_range,
     parse_streamlit_flag,
     profile_value,
+    runtime_auto_port_value,
 )
 from litlaunch.config import BrowserChoice, LaunchMode, TrustMode
-from litlaunch.console import ConsoleMode
+from litlaunch.console import ConsoleMode, ConsoleRenderer
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.inspect import (
+    DiagnosticsReport,
     HTMLDiagnosticsRenderer,
     JSONDiagnosticsRenderer,
     SanitizedBundleRenderer,
 )
+from litlaunch.profiles import LaunchProfile
 
 
 def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
@@ -68,8 +72,37 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         help="Evaluate a requested Streamlit backend port.",
     )
     parser.add_argument(
+        "--port-range",
+        type=parse_port_range,
+        metavar="START:END",
+        help="Evaluate auto-port selection with an inclusive port range.",
+    )
+    parser.add_argument(
         "--host",
         help="Evaluate the Streamlit bind host for runtime posture.",
+    )
+    parser.add_argument(
+        "--show-streamlit-chrome",
+        action="store_true",
+        default=None,
+        help="Evaluate diagnostics with Streamlit's default app chrome visible.",
+    )
+    parser.add_argument(
+        "--show-streamlit-output",
+        action="store_true",
+        default=None,
+        help="Evaluate diagnostics with raw Streamlit backend output visible.",
+    )
+    parser.add_argument(
+        "--auto-port",
+        action="store_true",
+        dest="auto_port",
+        default=None,
+        help="Evaluate diagnostics with adaptive port selection enabled.",
+    )
+    parser.add_argument(
+        "--app-icon",
+        help="Evaluate diagnostics with an app identity icon path.",
     )
     parser.add_argument(
         "--no-auto-port",
@@ -93,6 +126,10 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
             "Acknowledge that a non-loopback host may expose the app beyond "
             "this machine for posture diagnostics."
         ),
+    )
+    parser.add_argument(
+        "--runtime-state-root",
+        help="Evaluate diagnostics with an explicit runtime/browser state root.",
     )
     parser.add_argument(
         "--streamlit-flag",
@@ -131,6 +168,29 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
         help="Evaluate the Streamlit bind host for runtime posture.",
     )
     parser.add_argument(
+        "--auto-port",
+        action="store_true",
+        dest="auto_port",
+        default=None,
+        help="Evaluate diagnostics with adaptive port selection enabled.",
+    )
+    parser.add_argument(
+        "--show-streamlit-chrome",
+        action="store_true",
+        default=None,
+        help="Evaluate diagnostics with Streamlit's default app chrome visible.",
+    )
+    parser.add_argument(
+        "--show-streamlit-output",
+        action="store_true",
+        default=None,
+        help="Evaluate diagnostics with raw Streamlit backend output visible.",
+    )
+    parser.add_argument(
+        "--app-icon",
+        help="Evaluate diagnostics with an app identity icon path.",
+    )
+    parser.add_argument(
         "--allow-network-exposure",
         action="store_true",
         default=None,
@@ -138,6 +198,10 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
             "Acknowledge that a non-loopback host may expose the app beyond "
             "this machine for posture diagnostics."
         ),
+    )
+    parser.add_argument(
+        "--runtime-state-root",
+        help="Evaluate diagnostics with an explicit runtime/browser state root.",
     )
     parser.add_argument(
         "--streamlit-flag",
@@ -217,8 +281,8 @@ def collect_diagnostics_report(
     args: argparse.Namespace,
     context: CliContext,
     *,
-    profile=None,
-):
+    profile: LaunchProfile | None = None,
+) -> DiagnosticsReport:
     """Collect diagnostics using the shared inspect/report collection semantics."""
 
     profile_config = profile.config if profile is not None else None
@@ -254,17 +318,36 @@ def collect_diagnostics_report(
             "127.0.0.1",
         ),
         port=profile_value(getattr(args, "port", None), profile_config, "port", None),
-        auto_port=profile_value(
-            getattr(args, "auto_port", None),
+        port_range=profile_value(
+            getattr(args, "port_range", None),
             profile_config,
-            "auto_port",
-            True,
+            "port_range",
+            None,
         ),
+        auto_port=runtime_auto_port_value(args),
         allow_browser_fallback=profile_value(
             getattr(args, "allow_browser_fallback", None),
             profile_config,
             "allow_browser_fallback",
             True,
+        ),
+        show_streamlit_chrome=profile_value(
+            getattr(args, "show_streamlit_chrome", None),
+            profile_config,
+            "show_streamlit_chrome",
+            False,
+        ),
+        show_streamlit_output=profile_value(
+            getattr(args, "show_streamlit_output", None),
+            profile_config,
+            "show_streamlit_output",
+            False,
+        ),
+        app_icon=profile_value(
+            getattr(args, "app_icon", None),
+            profile_config,
+            "app_icon",
+            None,
         ),
         allow_network_exposure=profile_value(
             getattr(args, "allow_network_exposure", None),
@@ -279,6 +362,12 @@ def collect_diagnostics_report(
             TrustMode.DEVELOPMENT,
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
+        runtime_state_root=profile_value(
+            getattr(args, "runtime_state_root", None),
+            profile_config,
+            "runtime_state_root",
+            None,
+        ),
         extra_env=profile_config.extra_env if profile_config is not None else None,
         streamlit_flags=merge_streamlit_flags(
             profile_config.streamlit_flags if profile_config is not None else {},
@@ -299,7 +388,7 @@ def collect_diagnostics_report(
     )
 
 
-def render_inspect_report(args: argparse.Namespace, report) -> str:
+def render_inspect_report(args: argparse.Namespace, report: DiagnosticsReport) -> str:
     """Render a diagnostics report for parsed inspect args."""
 
     include_details = mode(args) == ConsoleMode.VERBOSE
@@ -365,7 +454,7 @@ def write_inspect_output(path: Path, rendered: str, *, force: bool) -> Path:
 def open_report_path(
     path: Path,
     *,
-    console,
+    console: ConsoleRenderer,
     browser_open: Callable[[str], bool] = webbrowser.open,
 ) -> bool:
     """Open a generated HTML diagnostics report with warning-only failures."""

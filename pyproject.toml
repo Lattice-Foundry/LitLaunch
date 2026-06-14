@@ -38,6 +38,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "build>=1.2",
+  "mypy>=1.19",
   "packaging>=24",
   "pytest>=8",
   "ruff>=0.5",
@@ -49,7 +50,7 @@ dev = [
 Homepage = "https://github.com/Lattice-Foundry/LitLaunch"
 Repository = "https://github.com/Lattice-Foundry/LitLaunch"
 Issues = "https://github.com/Lattice-Foundry/LitLaunch/issues"
-PyPI = "https://pypi.org/project/litlaunch/1.0.0/"
+PyPI = "https://pypi.org/project/litlaunch/"
 
 [project.scripts]
 litlaunch = "litlaunch.cli:main"
@@ -73,6 +74,26 @@ path = "src/litlaunch/version.py"
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = "src"
+packages = ["litlaunch"]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "_colorize",
+  "tomli",
+  "tomllib",
+]
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 88

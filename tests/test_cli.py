@@ -277,8 +277,10 @@ class FakeLauncher:
             health_url=f"http://{self.config.host}:{port}/_stcore/health",
             host=self.config.host,
             port=self.config.port,
+            port_range=self.config.port_range,
             resolved_port=port,
             auto_port=self.config.auto_port,
+            port_selection="requested/default port available",
             mode=self.config.mode,
             headless=self.config.mode.value == "webapp",
             browser_requested=self.config.browser,
@@ -290,6 +292,9 @@ class FakeLauncher:
             streamlit_flags=self.config.streamlit_flags,
             streamlit_args=self.config.streamlit_args,
             extra_env_preview="none",
+            streamlit_chrome_policy=(
+                "visible" if self.config.show_streamlit_chrome else "hidden"
+            ),
         )
 
     def run(self):
@@ -414,6 +419,7 @@ def test_cli_run_help_shows_monitor_and_browser_arg_flags(capsys):
     assert "--monitor-browser-window" in output
     assert "--no-monitor-browser-window" in output
     assert "--browser-arg" in output
+    assert "--show-streamlit-chrome" in output
     assert "Choose browser-tab mode or app-window webapp mode" in output
     assert "Choose browser launch strategy" in output
     assert "Request a Streamlit backend port" in output
@@ -965,6 +971,7 @@ def test_cli_create_profile_advanced_mode_writes_full_profile(monkeypatch):
                 "",
                 "Advanced App",
                 "",
+                "",
                 "chrome",
                 "0.0.0.0",
                 "y",
@@ -1041,6 +1048,7 @@ def test_cli_create_profile_advanced_mode_dry_run_does_not_write(monkeypatch):
             [
                 "2",
                 "advanced-dry-run",
+                "",
                 "",
                 "",
                 "",
@@ -1262,34 +1270,36 @@ def test_cli_console_preview_outputs_representative_normal_messages():
     assert "[   ok   ] LitLaunch Starting runtime..." in output
     assert "== Backend ==" in output
     assert "[   ok   ] Backend: Starting Streamlit..." not in output
-    assert "[   ok   ] Backend: Started Streamlit in 0.3s." in output
-    assert "[ error  ] Backend: Startup failed." in output
+    assert "[   ok   ] Backend:  Started Streamlit in 0.3s." in output
+    assert "[ error  ] Backend:  Startup failed." in output
     assert "Backend PID: 12345" not in output
-    assert "[   ok   ] Health: Waiting for Streamlit..." in output
-    assert "[ error  ] Health: Backend did not become healthy before timeout." in output
-    assert "Health: Backend did not become healthy before timeout." in output
+    assert "[   ok   ] Health:   Waiting for Streamlit..." in output
+    assert (
+        "[ error  ] Health:   Backend did not become healthy before timeout." in output
+    )
+    assert "Health:   Backend did not become healthy before timeout." in output
     assert "[   ok   ] Browser: Opening Microsoft Edge app window..." not in output
-    assert "[ error  ] Browser: Launch failed; stopping backend." in output
-    assert "[  warn  ] Browser: Microsoft Edge unavailable." in output
+    assert "[ error  ] Browser:  Launch failed; stopping backend." in output
+    assert "[  warn  ] Browser:  Microsoft Edge unavailable." in output
     assert "[  next  ] Using Chrome app-mode instead." in output
     assert "[  next  ] Use --browser to select a different browser." in output
-    assert "Runtime: Ready locally at http://127.0.0.1:8501" in output
-    assert "[   ok   ] Monitor: Watching app window..." in output
-    assert "[ error  ] Monitor: Window monitoring is unavailable." in output
-    assert "Monitor: Timed out before app window was observed." in output
+    assert "Runtime:  Ready locally at http://127.0.0.1:8501" in output
+    assert "[   ok   ] Monitor:  Watching app window..." in output
+    assert "[ error  ] Monitor:  Window monitoring is unavailable." in output
+    assert "Monitor:  Timed out before app window was observed." in output
     assert "[   ok   ] Shutdown: Requesting app cleanup..." not in output
     assert "[   ok   ] Shutdown: app cleanup request accepted." not in output
     assert "Stopping backend: terminating owned backend process" not in output
     assert "Stopping backend:" not in output
     assert "Runtime launch failed." not in output
-    assert "Monitor: Window monitoring failed." in output
-    assert "[   ok   ] Hook: Closing database connections..." in output
-    assert "[   ok   ] Hook: Closed database connections." in output
-    assert "[   ok   ] Hook: Saving app state..." in output
-    assert "[ error  ] Hook: Saving app state failed." in output
+    assert "Monitor:  Window monitoring failed." in output
+    assert "[   ok   ] Hook:     Closing database connections..." in output
+    assert "[   ok   ] Hook:     Closed database connections." in output
+    assert "[   ok   ] Hook:     Saving app state..." in output
+    assert "[ error  ] Hook:     Saving app state failed." in output
     assert "Shutdown: Using backend termination fallback." in output
-    assert "[   ok   ] Backend: Port 8501 released." in output
-    assert "Backend: Exited with code 1." in output
+    assert "[   ok   ] Backend:  Port 8501 released." in output
+    assert "Backend:  Exited with code 1." in output
     assert "exited with code 0" not in output
     assert "Likely cause" not in output
     assert "[ cause  ] " in output
@@ -1309,8 +1319,8 @@ def test_cli_console_preview_verbose_keeps_detailed_guidance():
     output = strip_ansi(stream.getvalue())
     assert code == 0
     assert "== Verbose mode ==" in output
-    assert "[   ok   ] Backend: Starting Streamlit..." in output
-    assert "[   ok   ] Browser: Opening Microsoft Edge app window..." in output
+    assert "[   ok   ] Backend:  Starting Streamlit..." in output
+    assert "[   ok   ] Browser:  Opening Microsoft Edge app window..." in output
     assert "[   ok   ] Shutdown: Requested." in output
     assert "[   ok   ] Shutdown: Requesting app cleanup..." in output
     assert "[   ok   ] Shutdown: App cleanup request accepted." in output
@@ -1318,7 +1328,7 @@ def test_cli_console_preview_verbose_keeps_detailed_guidance():
     assert "Run the app directly with streamlit run to see the traceback." in output
     assert 'Run "litlaunch inspect" for local diagnostics.' in output
     assert "Stopping backend:" not in output
-    assert "[  warn  ] Backend: Terminating owned process." in output
+    assert "[  warn  ] Backend:  Terminating owned process." in output
     assert "- Failure detail: disk write failed" in output
 
 
@@ -1462,9 +1472,9 @@ def test_cli_browsers_outputs_capabilities_without_launching():
     output = stream.getvalue()
     assert code == 0
     assert "Browser capabilities" in output
-    assert "[   ok   ] Browser: Edge available; app-mode supported." in output
-    assert "[  warn  ] Browser: Chrome unavailable; app-mode supported." in output
-    assert "[   ok   ] Browser: Selected Edge for app-mode." in output
+    assert "[   ok   ] Browser:  Edge available; app-mode supported." in output
+    assert "[  warn  ] Browser:  Chrome unavailable; app-mode supported." in output
+    assert "[   ok   ] Browser:  Selected Edge for app-mode." in output
     assert ">" not in output
     assert "Auto app-mode strategy" not in output
     assert registry.detect_calls
@@ -1773,7 +1783,7 @@ auto_port = false
     assert call["mode"] == LaunchMode.WEBAPP
     assert call["browser"] == BrowserChoice.EDGE
     assert call["port"] == 8501
-    assert call["auto_port"] is False
+    assert call["auto_port"] is True
 
 
 def test_cli_report_passes_streamlit_flags_for_tls_diagnostics():
@@ -1959,18 +1969,23 @@ def test_cli_run_builds_config_and_waits_for_backend():
             "Example Runtime",
             "--port",
             "8600",
+            "--port-range",
+            "8600:8699",
             "--host",
             "127.0.0.1",
             "--trust-mode",
             "strict_local",
             "--no-browser-fallback",
             "--no-monitor-window",
+            "--show-streamlit-output",
             "--streamlit-flag",
             "server.maxUploadSize=20",
             "--app-arg",
             "dataset.json",
             "--event-log",
             ".litlaunch/runtime-events.log",
+            "--runtime-state-root",
+            "runtime-state",
         ],
         stream=stream,
         launcher_factory=reset_fake_launcher(session),
@@ -1983,13 +1998,17 @@ def test_cli_run_builds_config_and_waits_for_backend():
     assert launcher.config.browser.value == "edge"
     assert launcher.config.title == "Example Runtime"
     assert launcher.config.port == 8600
+    assert launcher.config.port_range == (8600, 8699)
     assert launcher.config.auto_port is True
     assert launcher.config.allow_browser_fallback is False
     assert launcher.config.trust_mode == TrustMode.STRICT_LOCAL
+    assert launcher.config.show_streamlit_chrome is False
+    assert launcher.config.show_streamlit_output is True
     assert launcher.config.streamlit_flags["server.maxUploadSize"] == "20"
     assert launcher.config.app_args == ("dataset.json",)
     assert launcher.config.streamlit_args == ()
     assert launcher.config.runtime_event_log == Path(".litlaunch/runtime-events.log")
+    assert launcher.config.runtime_state_root == Path("runtime-state")
     assert launcher.console_renderer is not None
     assert session.wait_calls == 1
     output = stream.getvalue()
@@ -2011,6 +2030,7 @@ def test_cli_root_app_path_shorthand_uses_run_pipeline():
             "edge",
             "--port",
             "8600",
+            "--show-streamlit-chrome",
             "--no-monitor-window",
         ],
         stream=stream,
@@ -2023,8 +2043,36 @@ def test_cli_root_app_path_shorthand_uses_run_pipeline():
     assert launcher.config.mode == LaunchMode.WEBAPP
     assert launcher.config.browser == BrowserChoice.EDGE
     assert launcher.config.port == 8600
+    assert launcher.config.show_streamlit_chrome is True
     assert launcher.run_calls == 1
     assert session.wait_calls == 1
+
+
+def test_cli_runtime_accepts_app_icon():
+    with temporary_output_dir() as output_dir:
+        app = output_dir / "app.py"
+        icon = output_dir / "app.ico"
+        app.write_text("print('hello')\n", encoding="utf-8")
+        icon.write_bytes(b"icon")
+        stream = StringIO()
+        session = FakeSession(ok=True, wait_return=0)
+
+        code = main(
+            [
+                str(app),
+                "--mode",
+                "webapp",
+                "--app-icon",
+                str(icon),
+                "--no-monitor-window",
+            ],
+            stream=stream,
+            launcher_factory=reset_fake_launcher(session),
+        )
+
+    launcher = FakeLauncher.instances[0]
+    assert code == 0
+    assert launcher.config.app_icon == icon
 
 
 def test_cli_root_profile_shorthand_uses_profile_runtime_path():
@@ -2132,6 +2180,40 @@ def test_cli_command_no_auto_port_maps_to_config_false():
     assert launcher.config.auto_port is False
 
 
+def test_cli_profile_no_auto_port_maps_to_config_false():
+    with temporary_output_dir() as output_dir:
+        app = output_dir / "app.py"
+        app.write_text("print('hello')\n", encoding="utf-8")
+        config_path = output_dir / "litlaunch.toml"
+        config_path.write_text(
+            """
+[profiles.web]
+app_path = "app.py"
+port = 8501
+""",
+            encoding="utf-8",
+        )
+        stream = StringIO()
+
+        code = main(
+            [
+                "command",
+                "--config",
+                str(config_path),
+                "--profile",
+                "web",
+                "--no-auto-port",
+            ],
+            stream=stream,
+            launcher_factory=reset_fake_launcher(FakeSession(ok=True)),
+        )
+
+    launcher = FakeLauncher.instances[0]
+    assert code == 0
+    assert launcher.config.port == 8501
+    assert launcher.config.auto_port is False
+
+
 def test_cli_command_no_auto_port_busy_port_fails_clearly():
     stream = StringIO()
 
@@ -2165,6 +2247,7 @@ trust_mode = "internal_network"
 port = 8501
 auto_port = false
 headless = true
+show_streamlit_chrome = true
 streamlit_args = ["--server.runOnSave", "true"]
 app_args = ["--workspace", "demo"]
 """,
@@ -2194,7 +2277,8 @@ app_args = ["--workspace", "demo"]
     assert launcher.config.browser == BrowserChoice.EDGE
     assert launcher.config.trust_mode == TrustMode.INTERNAL_NETWORK
     assert launcher.config.port == 8502
-    assert launcher.config.auto_port is False
+    assert launcher.config.auto_port is True
+    assert launcher.config.show_streamlit_chrome is True
     assert launcher.config.streamlit_args == ("--server.runOnSave", "true")
     assert launcher.config.app_args == ("--workspace", "demo")
     assert "--server.port 8502" in stream.getvalue()
@@ -2292,6 +2376,7 @@ port = 8501
 auto_port = false
 allow_browser_fallback = false
 headless = true
+show_streamlit_chrome = true
 streamlit_args = ["--theme.base=dark"]
 """,
             encoding="utf-8",
@@ -2314,8 +2399,9 @@ streamlit_args = ["--theme.base=dark"]
     assert call["mode"] == LaunchMode.WEBAPP
     assert call["browser"] == BrowserChoice.CHROME
     assert call["port"] == 8501
-    assert call["auto_port"] is False
+    assert call["auto_port"] is True
     assert call["allow_browser_fallback"] is False
+    assert call["show_streamlit_chrome"] is True
     assert call["streamlit_args"] == ("--theme.base=dark",)
     assert call["profile_name"] == "default"
     assert call["monitor_window"] is False
@@ -2407,10 +2493,10 @@ def test_cli_run_dry_run_prints_command_without_starting_backend():
     assert launcher.run_calls == 0
     assert launcher.config.streamlit_args == ("--server.runOnSave", "true")
     assert launcher.config.app_args == ("--workspace", "demo")
-    assert "Runtime: Dry run; backend and browser were not started." in plain_output
-    assert "Runtime: App URL: http://127.0.0.1:8600" in plain_output
-    assert "Runtime: Mode: browser" in plain_output
-    assert "Browser: Selected default browser." in plain_output
+    assert "Runtime:  Dry run; backend and browser were not started." in plain_output
+    assert "Runtime:  App URL: http://127.0.0.1:8600" in plain_output
+    assert "Runtime:  Mode: browser" in plain_output
+    assert "Browser:  Selected default browser." in plain_output
     assert "--server.runOnSave true -- --workspace demo" in output
 
 
@@ -2501,7 +2587,7 @@ def test_cli_run_keyboard_interrupt_stops_session():
 
     assert code == 0
     assert session.stop_calls == 1
-    assert "Runtime: Interrupt received; stopping runtime." in strip_ansi(
+    assert "Runtime:  Interrupt received; stopping runtime." in strip_ansi(
         stream.getvalue()
     )
 
@@ -2625,8 +2711,8 @@ def test_cli_run_browser_mode_attempts_browser_window_monitor_by_default():
         arg for arg in browser_args if arg.startswith("--user-data-dir=")
     )
     user_data_path = Path(user_data_arg.split("=", 1)[1])
-    assert ".litlaunch" in user_data_path.parts
     assert "browser-profiles" in user_data_path.parts
+    assert (Path.cwd() / EXAMPLE_APP.parent) not in user_data_path.parents
     assert not user_data_path.exists()
 
 
@@ -2718,9 +2804,9 @@ def test_cli_run_browser_window_monitor_stops_on_window_close():
     assert session.stop_calls == 1
     assert session.wait_calls == 0
     assert "--new-window" in FakeLauncher.instances[0].config.extra_browser_args
-    assert "Monitor: Scanning for browser instance" in output
-    assert "Monitor: Success! Tracking browser window" in output
-    assert "Monitor: Browser window closed; requesting shutdown." in output
+    assert "Monitor:  Scanning for browser instance" in output
+    assert "Monitor:  Success! Tracking browser window" in output
+    assert "Monitor:  Browser window closed; requesting shutdown." in output
 
 
 def test_cli_run_browser_window_monitor_falls_back_without_hwnd():
@@ -2973,7 +3059,7 @@ def test_cli_run_monitor_window_noop_monitor_fails_before_launch():
 
     assert code == 1
     assert FakeLauncher.instances[0].run_calls == 0
-    assert "Monitor: Window monitoring is unavailable" in strip_ansi(stream.getvalue())
+    assert "Monitor:  Window monitoring is unavailable" in strip_ansi(stream.getvalue())
     assert "Use verbose mode for more runtime details." in stream.getvalue()
     assert "Omit --monitor-window" not in stream.getvalue()
 

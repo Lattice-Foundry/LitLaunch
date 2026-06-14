@@ -5,7 +5,28 @@ from __future__ import annotations
 import ipaddress
 import time
 from collections.abc import Callable
+from typing import Protocol
 from urllib import request
+from urllib.parse import urlparse
+
+
+class _HealthResponse(Protocol):
+    status: int
+
+    def __enter__(self) -> _HealthResponse: ...
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None: ...
+
+
+def parse_url_host_port(url: str | None) -> tuple[str, int] | None:
+    """Parse the host and port out of a launch URL, when both are present."""
+
+    if not url:
+        return None
+    parsed = urlparse(url)
+    if parsed.hostname is None or parsed.port is None:
+        return None
+    return parsed.hostname, parsed.port
 
 
 def build_streamlit_health_url(host: str, port: int) -> str:
@@ -46,7 +67,7 @@ class HealthChecker:
     def __init__(
         self,
         *,
-        opener: Callable[..., object] = request.urlopen,
+        opener: Callable[..., _HealthResponse] = request.urlopen,
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:

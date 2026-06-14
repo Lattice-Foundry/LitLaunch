@@ -3,17 +3,26 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
-from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
-from litlaunch.artifacts import project_root_for_config
+from litlaunch.artifacts import (
+    cleanup_litlaunch_owned_dir,
+    project_root_for_config,
+    runtime_state_root_for_config,
+)
 from litlaunch.backend import (
     BackendCommandProvider,
     StreamlitBackendCommandProvider,
 )
-from litlaunch.backend_start import start_backend_process
+from litlaunch.backend_start import BackendStartResult, start_backend_process
+from litlaunch.browser_profiles import (
+    create_managed_browser_profile,
+    has_browser_switch,
+    with_managed_browser_profile_args,
+)
 from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
 from litlaunch.config import LauncherConfig, LaunchMode
@@ -31,6 +40,7 @@ from litlaunch.health import (
     HealthChecker,
     build_streamlit_app_url,
     build_streamlit_health_url,
+    parse_url_host_port,
 )
 from litlaunch.lifecycle import LaunchEvent, LaunchPlan, LaunchResult, LaunchState
 from litlaunch.planning import build_launch_plan
@@ -253,15 +263,20 @@ class StreamlitLauncher:
             f"opening {browser_name} {browser_mode}",
             verbose_only=True,
         )
+        extra_browser_args, cleanup_callbacks = self._browser_launch_args()
+        runtime_state_root = runtime_state_root_for_config(self.config)
         browser_start_time = self.clock.monotonic()
         browser_result = self.browser_launcher.launch(
             resolution,
             url=backend_result.url,
             mode=self.config.mode,
             title=self.config.title,
-            extra_args=self.config.extra_browser_args,
+            extra_args=extra_browser_args,
             allow_fallback=self.config.allow_browser_fallback,
+            app_icon=self.config.app_icon,
+            artifact_root=runtime_state_root,
         )
+        cleanup_callbacks = (*cleanup_callbacks, *browser_result.cleanup_callbacks)
         browser_elapsed = self.clock.monotonic() - browser_start_time
 
         if not browser_result.ok:
@@ -286,6 +301,7 @@ class StreamlitLauncher:
             )
             self.process_manager.stop(managed_process)
             self._render_port_release_if_verified(backend_result.url)
+            _run_cleanup_callbacks(cleanup_callbacks)
             self._record(
                 events,
                 LaunchState.FAILED,
@@ -353,6 +369,7 @@ class StreamlitLauncher:
             console_renderer=self.console_renderer,
             event_emitter=self.event_emitter,
             port_release_checker=self.port_manager.is_port_available,
+            cleanup_callbacks=cleanup_callbacks,
             clock=self.clock,
         )
 
@@ -375,7 +392,7 @@ class StreamlitLauncher:
         wait_for_health: bool,
         health_timeout_seconds: float,
         health_interval_seconds: float,
-    ):
+    ) -> BackendStartResult:
         """Start the Streamlit backend and return the managed process."""
 
         return start_backend_process(
@@ -440,7 +457,7 @@ class StreamlitLauncher:
             self.console_renderer.render_launch_event(event)
 
     def _render_port_release_if_verified(self, url: str | None) -> None:
-        host_port = _parse_url_host_port(url)
+        host_port = parse_url_host_port(url)
         if host_port is None:
             return
         host, port = host_port
@@ -457,6 +474,28 @@ class StreamlitLauncher:
                 message=f"Backend port {port} released.",
                 details={"host": host, "port": port},
             )
+
+    def _browser_launch_args(
+        self,
+    ) -> tuple[tuple[str, ...], tuple[Callable[[], object], ...]]:
+        if self.config.mode != LaunchMode.WEBAPP:
+            return self.config.extra_browser_args, ()
+        if has_browser_switch(self.config.extra_browser_args, "--user-data-dir"):
+            return self.config.extra_browser_args, ()
+
+        profile_dir = create_managed_browser_profile(
+            runtime_state_root_for_config(self.config)
+        )
+        extra_args = with_managed_browser_profile_args(
+            self.config.extra_browser_args,
+            profile_dir=profile_dir,
+        )
+
+        def cleanup_profile() -> None:
+            cleanup_litlaunch_owned_dir(profile_dir)
+
+        cleanup_callbacks: tuple[Callable[[], object], ...] = (cleanup_profile,)
+        return extra_args, cleanup_callbacks
 
     def _enforce_network_exposure_acknowledgement(self) -> None:
         exposure = classify_host_exposure(self.config.host)
@@ -483,6 +522,13 @@ class StreamlitLauncher:
                 "browser": _display_browser_choice(self.config.browser.value),
                 "host": self.config.host,
                 "port": self.config.port or "auto",
+                "streamlit_chrome": (
+                    "visible" if self.config.show_streamlit_chrome else "hidden"
+                ),
+                "streamlit_output": (
+                    "visible" if self.config.show_streamlit_output else "hidden"
+                ),
+                "runtime_state_root": runtime_state_root_for_config(self.config),
             },
         )
 
@@ -495,7 +541,7 @@ class StreamlitLauncher:
         )
 
     def _emit_backend_start_result(self, result: LaunchResult) -> None:
-        host_port = _parse_url_host_port(result.url)
+        host_port = parse_url_host_port(result.url)
         details: dict[str, object] = {}
         if result.pid is not None:
             details["pid"] = result.pid
@@ -525,13 +571,12 @@ class StreamlitLauncher:
             )
 
 
-def _parse_url_host_port(url: str | None) -> tuple[str, int] | None:
-    if not url:
-        return None
-    parsed = urlparse(url)
-    if parsed.hostname is None or parsed.port is None:
-        return None
-    return parsed.hostname, parsed.port
+def _run_cleanup_callbacks(callbacks: tuple[Callable[[], object], ...]) -> None:
+    for callback in callbacks:
+        try:
+            callback()
+        except Exception:
+            continue
 
 
 def _browser_launch_display_mode(

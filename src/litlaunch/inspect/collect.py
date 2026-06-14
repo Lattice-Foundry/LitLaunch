@@ -14,7 +14,7 @@ from litlaunch.config import (
     StreamlitFlags,
     TrustMode,
 )
-from litlaunch.exposure import classify_host_exposure
+from litlaunch.exposure import ExposureAssessment, classify_host_exposure
 from litlaunch.governance import (
     RuntimeGovernanceAssessment,
     evaluate_runtime_governance,
@@ -60,11 +60,16 @@ class DiagnosticCollector:
         browser: BrowserChoice | str = BrowserChoice.AUTO,
         host: str = "127.0.0.1",
         port: int | None = None,
+        port_range: tuple[int, int] | None = None,
         auto_port: bool = True,
+        show_streamlit_chrome: bool = False,
+        show_streamlit_output: bool = False,
+        app_icon: str | Path | None = None,
         allow_browser_fallback: bool = True,
         allow_network_exposure: bool = False,
         trust_mode: TrustMode | str = TrustMode.DEVELOPMENT,
         cwd: str | Path | None = None,
+        runtime_state_root: str | Path | None = None,
         extra_env: Mapping[str, str] | None = None,
         streamlit_flags: StreamlitFlags | None = None,
         streamlit_args: Sequence[str] = (),
@@ -125,11 +130,16 @@ class DiagnosticCollector:
                     browser=browser,
                     host=host,
                     port=port,
+                    port_range=port_range,
                     auto_port=auto_port,
+                    show_streamlit_chrome=show_streamlit_chrome,
+                    show_streamlit_output=show_streamlit_output,
+                    app_icon=app_icon,
                     allow_browser_fallback=allow_browser_fallback,
                     allow_network_exposure=allow_network_exposure,
                     trust_mode=trust_mode,
                     cwd=cwd,
+                    runtime_state_root=runtime_state_root,
                     extra_env=extra_env or {},
                     streamlit_flags=streamlit_flags or {},
                     streamlit_args=streamlit_args,
@@ -347,7 +357,7 @@ class DiagnosticCollector:
     def _runtime_exposure_section(
         self,
         *,
-        assessment,
+        assessment: ExposureAssessment,
         extra_env: Mapping[str, str],
     ) -> DiagnosticSection:
         status = _posture_status(assessment.severity)
@@ -488,11 +498,16 @@ class DiagnosticCollector:
         browser: BrowserChoice | str,
         host: str,
         port: int | None,
+        port_range: tuple[int, int] | None,
         auto_port: bool,
+        show_streamlit_chrome: bool,
+        show_streamlit_output: bool,
+        app_icon: str | Path | None,
         allow_browser_fallback: bool,
         allow_network_exposure: bool,
         trust_mode: TrustMode | str,
         cwd: str | Path | None,
+        runtime_state_root: str | Path | None,
         extra_env: Mapping[str, str],
         streamlit_flags: StreamlitFlags,
         streamlit_args: Sequence[str],
@@ -536,11 +551,16 @@ class DiagnosticCollector:
                 browser=browser,
                 host=host,
                 port=port,
+                port_range=port_range,
                 auto_port=auto_port,
+                show_streamlit_chrome=show_streamlit_chrome,
+                show_streamlit_output=show_streamlit_output,
+                app_icon=app_icon,
                 allow_browser_fallback=allow_browser_fallback,
                 allow_network_exposure=allow_network_exposure,
                 trust_mode=trust_mode,
                 cwd=cwd,
+                runtime_state_root=runtime_state_root,
                 extra_env=extra_env,
                 streamlit_flags=streamlit_flags,
                 streamlit_args=streamlit_args,
@@ -573,6 +593,49 @@ class DiagnosticCollector:
                     detail=plan.command_display,
                 ),
                 DiagnosticItem(
+                    "Requested port",
+                    DiagnosticStatus.INFO,
+                    str(plan.port) if plan.port is not None else "auto/default",
+                ),
+                DiagnosticItem(
+                    "Selected port",
+                    DiagnosticStatus.INFO,
+                    str(plan.resolved_port),
+                ),
+                DiagnosticItem(
+                    "Auto-port",
+                    DiagnosticStatus.INFO,
+                    "enabled" if plan.auto_port else "disabled",
+                    detail=plan.port_selection,
+                ),
+                DiagnosticItem(
+                    "Port range",
+                    DiagnosticStatus.INFO,
+                    _format_port_range(plan.port_range),
+                ),
+                DiagnosticItem(
+                    "Streamlit chrome policy",
+                    DiagnosticStatus.INFO,
+                    plan.streamlit_chrome_policy,
+                ),
+                DiagnosticItem(
+                    "Streamlit console output policy",
+                    DiagnosticStatus.INFO,
+                    plan.streamlit_output_policy,
+                ),
+                *(
+                    (
+                        DiagnosticItem(
+                            "App icon",
+                            DiagnosticStatus.OK,
+                            str(plan.app_icon),
+                            detail=plan.app_icon_support,
+                        ),
+                    )
+                    if plan.app_icon is not None
+                    else ()
+                ),
+                DiagnosticItem(
                     "App URL preview",
                     DiagnosticStatus.INFO,
                     plan.app_url,
@@ -586,6 +649,30 @@ class DiagnosticCollector:
                     "Working directory",
                     DiagnosticStatus.INFO,
                     str(plan.cwd) if plan.cwd is not None else "not set",
+                ),
+                DiagnosticItem(
+                    "Runtime state root",
+                    DiagnosticStatus.INFO,
+                    (
+                        str(plan.runtime_state_root)
+                        if plan.runtime_state_root is not None
+                        else "not set"
+                    ),
+                ),
+                DiagnosticItem(
+                    "Browser profile root",
+                    DiagnosticStatus.INFO,
+                    (
+                        str(plan.browser_profile_root)
+                        if plan.browser_profile_root is not None
+                        else "not set"
+                    ),
+                ),
+                DiagnosticItem(
+                    "Browser profile policy",
+                    DiagnosticStatus.INFO,
+                    plan.browser_profile_policy,
+                    detail=plan.browser_profile_cleanup,
                 ),
                 DiagnosticItem(
                     "Environment overrides",
@@ -670,6 +757,13 @@ def _host_binding_item(host: str, allow_network_exposure: bool) -> DiagnosticIte
             f"{exposure.warning} {detail}"
         ),
     )
+
+
+def _format_port_range(port_range: tuple[int, int] | None) -> str:
+    if port_range is None:
+        return "default"
+    start, end = port_range
+    return f"{start}-{end}"
 
 
 def _normalize_launch_mode(value: LaunchMode | str) -> LaunchMode:

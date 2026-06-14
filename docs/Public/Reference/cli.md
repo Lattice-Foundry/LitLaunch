@@ -80,9 +80,11 @@ litlaunch run app.py
 litlaunch run app.py --mode browser
 litlaunch run app.py --mode webapp --browser edge
 litlaunch run app.py --port 8501 --host 127.0.0.1
+litlaunch run app.py --port 8501 --port-range 8501:8599
 litlaunch run app.py --port 8501 --no-auto-port
 litlaunch run app.py --host 0.0.0.0 --allow-network-exposure
 litlaunch run app.py --no-browser-fallback
+litlaunch run app.py --show-streamlit-chrome
 litlaunch run app.py --dry-run
 litlaunch run --profile my-webapp
 litlaunch run --config litlaunch.toml --profile my-webapp
@@ -92,6 +94,14 @@ Both forms use the same internal launch pipeline. Bare profile names such as
 `litlaunch my-webapp` are intentionally unsupported; use `--profile` to keep
 profile launches distinct from paths and future commands.
 
+Auto-port is enabled by default for normal CLI launches, including profile
+launches. LitLaunch checks port availability before it starts the backend; if
+the requested/default port is already occupied, it selects the next available
+port and opens the browser to that selected URL. Use `--port-range START:END`
+or profile `port_range = [START, END]` to keep auto-port selection inside an
+app-owned local range. Use `--no-auto-port` only when a fixed busy port should
+fail before browser launch.
+
 Browser-window monitoring is enabled by default for browser-mode CLI launches
 where LitLaunch can use a Chromium browser. LitLaunch creates a managed
 temporary Chromium profile, opens a new top-level browser window, observes that
@@ -99,9 +109,27 @@ exact window, and routes close-to-shutdown through the same graceful
 `RuntimeSession.stop()` path. If no confident browser window is observed,
 LitLaunch falls back cleanly to the manual `Ctrl+C` stop path.
 
+Webapp/app-window launches also use a LitLaunch-managed temporary Chromium
+profile by default. This keeps app-mode browser state isolated from other local
+Streamlit or LitLaunch sessions while preserving normal browser behavior when
+you explicitly pass a `--browser-arg=--user-data-dir=...` profile override.
+
 Use `--no-monitor-browser-window` when you intentionally want browser mode to
 keep running until `Ctrl+C` or backend exit. Use `--monitor-browser-window` to
 request browser-window monitoring explicitly in scripts or profile overrides.
+
+LitLaunch hides Streamlit's default app toolbar/menu chrome by default through
+Streamlit's supported `client.toolbarMode = "minimal"` setting. Use
+`--show-streamlit-chrome` when you intentionally want Streamlit's default
+toolbar/menu chrome visible for a launch. Profiles can set
+`show_streamlit_chrome = true` for the same opt-in behavior.
+
+LitLaunch keeps raw backend console output quiet by default, including
+Streamlit startup banners, usage-statistics notices, and app-side server
+messages printed by the backend process. LitLaunch still prints the resolved
+local URL and port through its own console output. Use
+`--show-streamlit-output` or profile `show_streamlit_output = true` when you
+intentionally want the raw Streamlit/backend output stream visible.
 
 CLI webapp launches enable app-window close monitoring by default where window
 monitoring is supported; use `--no-monitor-window` only when you intentionally
@@ -122,7 +150,8 @@ litlaunch run app.py --mode webapp --no-monitor-window
 
 `--title` sets the expected runtime/app-window title. For monitored webapp
 flows, choose a stable title that matches the browser app-mode window closely
-enough for detection.
+enough for detection. For Streamlit apps, this should usually match
+`st.set_page_config(page_title="...")`.
 
 `--graceful-timeout` controls the backend-exit wait after a monitored browser
 or app-window close triggers graceful shutdown.
@@ -141,6 +170,30 @@ to Streamlit:
 ```powershell
 litlaunch run app.py --browser edge --browser-arg=--kiosk
 ```
+
+## Custom App Icons
+
+Use `--app-icon` to provide app identity metadata for webapp windows, generated
+shortcuts, and diagnostics:
+
+```powershell
+litlaunch app.py --mode webapp --title "My App" --app-icon assets/my-app.ico
+```
+
+For profiles:
+
+```toml
+[profiles.my-webapp]
+app_path = "app.py"
+title = "My App"
+mode = "webapp"
+app_icon = "assets/my-app.ico"
+```
+
+Use `.ico` for the strongest Windows app-window behavior and match the
+LitLaunch title to `st.set_page_config(page_title="My App")` so window
+monitoring can find the app window reliably. Other supported icon formats are
+useful for shortcut/reporting metadata where the platform accepts them.
 
 ## Runtime Event Logs
 
@@ -261,19 +314,25 @@ still succeeds and LitLaunch emits a warning.
 
 ## Generated Artifacts
 
-LitLaunch keeps generated project files under `.litlaunch/` by default:
+LitLaunch keeps persistent project artifacts under `.litlaunch/` by default:
 
 ```text
 .litlaunch/
   reports/              HTML reports, JSON output, and support bundles
   shortcuts/            generated launch shortcuts
-  tmp/browser-profiles/ managed temporary Chromium profiles
 ```
 
 `litlaunch.toml` remains the normal project-level profile file. Add
-`.litlaunch/` to `.gitignore` when generated diagnostics, shortcuts, and runtime
-scratch files should stay out of source control. Explicit `--output` paths still
-write to the path you provide.
+`.litlaunch/` to `.gitignore` when generated diagnostics and shortcuts should
+stay out of source control. Explicit `--output` paths still write to the path
+you provide.
+
+Ephemeral runtime/browser state uses the system temp directory by default,
+including managed Chromium profiles and temporary browser launch shortcuts.
+Use `--runtime-state-root PATH` or profile `runtime_state_root = "PATH"` when a
+packaged app or integration needs an intentional state location. Inspect/report
+output includes the resolved runtime state root, browser profile root, profile
+policy, and cleanup policy.
 
 HTML, JSON, and support-bundle diagnostics include `Runtime Governance`,
 `Runtime Exposure`, and `Transport Security` sections. These sections summarize
@@ -339,7 +398,6 @@ mode = "webapp"
 browser = "edge"
 host = "127.0.0.1"
 port = 8501
-auto_port = false
 headless = true
 allow_browser_fallback = false
 allow_network_exposure = false
@@ -413,13 +471,15 @@ Create a new `litlaunch.toml` profile interactively:
 ```powershell
 litlaunch create profile
 litlaunch create profile --name my-webapp --app app.py
+litlaunch create profile --name my-webapp --app app.py --app-icon assets/my-app.ico
 litlaunch create profile --dry-run
 ```
 
 Simple mode defaults to the recommended app-window experience, while still
 allowing browser-tab profiles. Advanced mode exposes the fuller runtime profile
-surface, including network settings, browser fallback, monitor tuning,
-Streamlit flags, app args, working directory, and extra environment variables.
+surface, including app icons, network settings, browser fallback, monitor
+tuning, Streamlit flags, app args, working directory, and extra environment
+variables.
 Non-loopback hosts are called out during the wizard, and `extra_env` values are
 stored as plaintext in `litlaunch.toml`.
 When run from an app root, the wizard uses detected values such as `app.py`, the
@@ -448,6 +508,10 @@ Shortcut creation writes an OS-native project-local shortcut under
 Use `--kind script` for the simpler `.bat`, `.sh`, or `.command` fallback form.
 Shortcut creation does not launch the app, modify the Desktop, register Start
 Menu entries, or install launchers into OS-specific locations.
+If the profile has `app_icon`, LitLaunch includes it in native shortcut
+metadata where the OS shortcut format supports it. `.ico` is recommended for
+Windows; Linux desktop files can use common image formats such as `.png` or
+`.svg`. Script shortcuts do not carry OS icon metadata.
 
 ## Example
 

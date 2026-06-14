@@ -6,9 +6,16 @@ import argparse
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from litlaunch.cli.common import split_passthrough_args
-from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
+from litlaunch.config import (
+    BrowserChoice,
+    LauncherConfig,
+    LaunchMode,
+    StreamlitFlags,
+    TrustMode,
+)
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.profiles import LaunchProfile, load_profile
 from litlaunch.windowing import WindowMonitorConfig
@@ -44,7 +51,17 @@ def add_runtime_flags(
     add_profile_flags(parser)
     parser.add_argument(
         "--title",
-        help="Set the runtime title used for browser/app-mode window matching.",
+        help=(
+            "Set the runtime title used for shortcuts and monitored window "
+            "matching; for Streamlit, match st.set_page_config(page_title=...)."
+        ),
+    )
+    parser.add_argument(
+        "--app-icon",
+        help=(
+            "Set an app identity icon path for webapp windows, native "
+            "shortcuts, and diagnostics."
+        ),
     )
     parser.add_argument(
         "--mode",
@@ -67,8 +84,33 @@ def add_runtime_flags(
         help="Request a Streamlit backend port. Auto-port may move if busy.",
     )
     parser.add_argument(
+        "--port-range",
+        type=parse_port_range,
+        metavar="START:END",
+        help="Constrain auto-port selection to an inclusive port range.",
+    )
+    parser.add_argument(
         "--host",
         help="Set the Streamlit bind host. Loopback is the local-first default.",
+    )
+    parser.add_argument(
+        "--show-streamlit-chrome",
+        action="store_true",
+        default=None,
+        help="Show Streamlit's default app toolbar/menu chrome for this launch.",
+    )
+    parser.add_argument(
+        "--show-streamlit-output",
+        action="store_true",
+        default=None,
+        help="Show Streamlit's raw backend console output for this launch.",
+    )
+    parser.add_argument(
+        "--auto-port",
+        action="store_true",
+        dest="auto_port",
+        default=None,
+        help="Try another port if the requested/default port is busy.",
     )
     parser.add_argument(
         "--no-auto-port",
@@ -154,6 +196,13 @@ def add_runtime_flags(
         ),
     )
     parser.add_argument(
+        "--runtime-state-root",
+        help=(
+            "Store LitLaunch-owned ephemeral runtime/browser state under this "
+            "directory instead of the system temp default."
+        ),
+    )
+    parser.add_argument(
         "--streamlit-flag",
         action="append",
         default=[],
@@ -204,6 +253,24 @@ def parse_streamlit_flag(value: str) -> tuple[str, str | None]:
     return key, flag_value if separator else None
 
 
+def parse_port_range(value: str) -> tuple[int, int]:
+    """Parse ``--port-range`` values."""
+
+    start_text, separator, end_text = value.partition(":")
+    if not separator:
+        raise argparse.ArgumentTypeError("port range must use START:END.")
+    try:
+        start = int(start_text)
+        end = int(end_text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("port range values must be integers.") from exc
+    if start < 1 or start > 65535 or end < 1 or end > 65535:
+        raise argparse.ArgumentTypeError("port range values must be 1-65535.")
+    if start > end:
+        raise argparse.ArgumentTypeError("port range start must be <= end.")
+    return (start, end)
+
+
 def runtime_config_from_args(
     args: argparse.Namespace,
     *,
@@ -230,6 +297,12 @@ def runtime_config_from_args(
     config = LauncherConfig(
         app_path=app_path,
         title=profile_value(args.title, profile_config, "title", "Streamlit App"),
+        app_icon=profile_value(
+            getattr(args, "app_icon", None),
+            profile_config,
+            "app_icon",
+            None,
+        ),
         mode=profile_value(args.mode, profile_config, "mode", LaunchMode.BROWSER),
         browser=profile_value(
             args.browser,
@@ -239,8 +312,26 @@ def runtime_config_from_args(
         ),
         host=profile_value(args.host, profile_config, "host", "127.0.0.1"),
         port=profile_value(args.port, profile_config, "port", None),
-        auto_port=profile_value(args.auto_port, profile_config, "auto_port", True),
+        port_range=profile_value(
+            getattr(args, "port_range", None),
+            profile_config,
+            "port_range",
+            None,
+        ),
+        auto_port=runtime_auto_port_value(args),
         headless=profile_value(None, profile_config, "headless", None),
+        show_streamlit_chrome=profile_value(
+            getattr(args, "show_streamlit_chrome", None),
+            profile_config,
+            "show_streamlit_chrome",
+            False,
+        ),
+        show_streamlit_output=profile_value(
+            getattr(args, "show_streamlit_output", None),
+            profile_config,
+            "show_streamlit_output",
+            False,
+        ),
         allow_browser_fallback=profile_value(
             args.allow_browser_fallback,
             profile_config,
@@ -260,6 +351,12 @@ def runtime_config_from_args(
             TrustMode.DEVELOPMENT,
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
+        runtime_state_root=profile_value(
+            getattr(args, "runtime_state_root", None),
+            profile_config,
+            "runtime_state_root",
+            None,
+        ),
         extra_env=profile_config.extra_env if profile_config is not None else {},
         runtime_event_log=profile_value(
             args.event_log,
@@ -286,6 +383,17 @@ def runtime_config_from_args(
         ),
     )
     return config
+
+
+def runtime_auto_port_value(args: argparse.Namespace) -> bool:
+    """Resolve CLI runtime auto-port behavior.
+
+    CLI launches are adaptive by default, including profile launches. A fixed
+    busy port is only requested when the user explicitly passes --no-auto-port
+    for this command invocation.
+    """
+
+    return getattr(args, "auto_port", None) is not False
 
 
 def monitor_options_from_args(
@@ -396,7 +504,12 @@ def load_cli_profile(args: argparse.Namespace) -> LaunchProfile | None:
     return load_profile(profile_name, config_path)
 
 
-def profile_value(value, profile_config, field_name: str, default):
+def profile_value(
+    value: Any,
+    profile_config: LauncherConfig | None,
+    field_name: str,
+    default: Any,
+) -> Any:
     """Return a CLI override, profile value, or default in that order."""
 
     if value is not None:
@@ -406,7 +519,10 @@ def profile_value(value, profile_config, field_name: str, default):
     return default
 
 
-def merge_streamlit_flags(profile_flags, cli_values):
+def merge_streamlit_flags(
+    profile_flags: StreamlitFlags,
+    cli_values: Sequence[tuple[str, str | None]],
+) -> StreamlitFlags:
     """Merge profile and CLI Streamlit flag representations."""
 
     cli_flags = streamlit_flags_mapping(cli_values)

@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Sequence
-from urllib.parse import urlparse
 
 from litlaunch._protocols import ClockProvider
-from litlaunch.browsers import BrowserKind
 from litlaunch.windowing.base import (
     WindowInfo,
     WindowMonitorConfig,
@@ -15,6 +13,10 @@ from litlaunch.windowing.base import (
     WindowMonitorResult,
     WindowMonitorStatus,
     WindowTarget,
+)
+from litlaunch.windowing.title_match import (
+    matches_window_title,
+    window_matches_browser_kind,
 )
 
 
@@ -94,6 +96,7 @@ class PollingWindowMonitor:
     ) -> WindowInfo | WindowMonitorResult:
         deadline = self.clock.monotonic() + config.appear_timeout_seconds
         candidate: WindowInfo | None = None
+        diagnostic_windows: tuple[WindowInfo, ...] = ()
         stable_count = 0
 
         while self.clock.monotonic() <= deadline:
@@ -108,7 +111,8 @@ class PollingWindowMonitor:
                 )
 
             try:
-                candidates = self._candidate_windows(target)
+                diagnostic_windows = self._diagnostic_windows(target)
+                candidates = self._candidate_windows(target, diagnostic_windows)
             except Exception as exc:
                 return self._result(
                     WindowMonitorStatus.ERROR,
@@ -146,6 +150,7 @@ class PollingWindowMonitor:
                 stable_count = 1
 
             if candidate is not None and stable_count >= config.stable_poll_count:
+                _notify_target_observed(target, candidate)
                 return candidate
 
             self.sleeper(config.poll_interval_seconds)
@@ -157,6 +162,8 @@ class PollingWindowMonitor:
             supported=True,
             observed=False,
             closed=False,
+            expected_title=target.title,
+            candidates=diagnostic_windows,
         )
 
     def _wait_for_target_close(
@@ -212,13 +219,22 @@ class PollingWindowMonitor:
 
             self.sleeper(config.poll_interval_seconds)
 
-    def _candidate_windows(self, target: WindowTarget) -> tuple[WindowInfo, ...]:
+    def _diagnostic_windows(self, target: WindowTarget) -> tuple[WindowInfo, ...]:
         baseline = set(target.baseline_handles)
         return tuple(
             window
             for window in self.capture(target)
-            if window.handle not in baseline and _matches_target(window, target)
+            if window.handle not in baseline
+            and window_matches_browser_kind(window, target.browser_kind)
         )
+
+    def _candidate_windows(
+        self,
+        target: WindowTarget,
+        windows: tuple[WindowInfo, ...] | None = None,
+    ) -> tuple[WindowInfo, ...]:
+        observed = self._diagnostic_windows(target) if windows is None else windows
+        return tuple(window for window in observed if _matches_target(window, target))
 
     def _add_event(
         self,
@@ -246,6 +262,8 @@ class PollingWindowMonitor:
         observed: bool,
         closed: bool,
         target: WindowInfo | None = None,
+        expected_title: str | None = None,
+        candidates: tuple[WindowInfo, ...] = (),
     ) -> WindowMonitorResult:
         return WindowMonitorResult(
             supported=supported,
@@ -254,6 +272,8 @@ class PollingWindowMonitor:
             status=status,
             message=message,
             target=target,
+            expected_title=expected_title,
+            candidates=candidates,
             events=tuple(events),
         )
 
@@ -261,43 +281,16 @@ class PollingWindowMonitor:
 def _matches_target(window: WindowInfo, target: WindowTarget) -> bool:
     if not target.app_mode:
         return False
-    if not _matches_target_title(window.title, target):
+    if not matches_window_title(window.title, target.title, target.url):
         return False
-    if target.browser_kind is not None and window.process_name:
-        return _browser_kind_matches_process(target.browser_kind, window.process_name)
-    return True
+    return window_matches_browser_kind(window, target.browser_kind)
 
 
-def _matches_target_title(window_title: str, target: WindowTarget) -> bool:
-    normalized_title = window_title.strip().lower()
-    normalized_target = target.title.strip().lower()
-    if normalized_target and normalized_target in normalized_title:
-        return True
-    if target.title == "Streamlit App":
-        return True
-    return _matches_transient_url_title(normalized_title, target.url)
-
-
-def _matches_transient_url_title(window_title: str, target_url: str | None) -> bool:
-    if not target_url:
-        return False
-    parsed = urlparse(target_url)
-    hostname = (parsed.hostname or "").strip().lower()
-    if not hostname:
-        return False
-    return window_title == hostname or window_title.startswith(f"{hostname}_/")
-
-
-def _browser_kind_matches_process(kind: BrowserKind, process_name: str) -> bool:
-    normalized = process_name.strip().lower()
-    if kind == BrowserKind.EDGE:
-        return normalized in {"msedge", "microsoft-edge", "microsoft-edge-stable"}
-    if kind == BrowserKind.CHROME:
-        return normalized in {
-            "chrome",
-            "google-chrome",
-            "google-chrome-stable",
-            "chromium",
-            "chromium-browser",
-        }
-    return True
+def _notify_target_observed(target: WindowTarget, window: WindowInfo) -> None:
+    callback = target.observed_callback
+    if callback is None:
+        return
+    try:
+        callback(window)
+    except Exception:
+        return

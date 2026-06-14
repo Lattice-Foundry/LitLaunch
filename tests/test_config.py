@@ -21,6 +21,8 @@ def test_default_config_normalizes_correctly():
     assert config.host == "127.0.0.1"
     assert config.port is None
     assert config.auto_port is True
+    assert config.show_streamlit_chrome is False
+    assert config.show_streamlit_output is False
     assert config.allow_browser_fallback is True
     assert config.trust_mode == TrustMode.DEVELOPMENT
 
@@ -46,6 +48,18 @@ def test_trust_mode_string_normalizes_to_enum():
     config = LauncherConfig(app_path="app.py", trust_mode="strict_local")
 
     assert config.trust_mode == TrustMode.STRICT_LOCAL
+
+
+def test_show_streamlit_chrome_normalizes_to_bool():
+    config = LauncherConfig(app_path="app.py", show_streamlit_chrome=1)
+
+    assert config.show_streamlit_chrome is True
+
+
+def test_show_streamlit_output_normalizes_to_bool():
+    config = LauncherConfig(app_path="app.py", show_streamlit_output=1)
+
+    assert config.show_streamlit_output is True
 
 
 def test_invalid_trust_mode_raises_configuration_error():
@@ -108,6 +122,28 @@ def test_port_none_forces_auto_port_true():
     assert config.auto_port is True
 
 
+def test_port_range_normalizes_from_sequence():
+    config = LauncherConfig(app_path="app.py", port_range=[8501, 8599])
+
+    assert config.port_range == (8501, 8599)
+
+
+def test_port_range_normalizes_from_string():
+    config = LauncherConfig(app_path="app.py", port_range="8501:8599")
+
+    assert config.port_range == (8501, 8599)
+
+
+def test_port_range_requires_valid_order():
+    with pytest.raises(ConfigurationError, match="start must be less"):
+        LauncherConfig(app_path="app.py", port_range=[8599, 8501])
+
+
+def test_port_must_be_inside_port_range():
+    with pytest.raises(ConfigurationError, match="inside port_range"):
+        LauncherConfig(app_path="app.py", port=8600, port_range=[8501, 8599])
+
+
 def test_cwd_normalizes_to_optional_path():
     config = LauncherConfig(app_path="app.py", cwd="workspace")
 
@@ -117,6 +153,17 @@ def test_cwd_normalizes_to_optional_path():
 def test_empty_cwd_raises_configuration_error():
     with pytest.raises(ConfigurationError, match="cwd cannot be empty"):
         LauncherConfig(app_path="app.py", cwd=" ")
+
+
+def test_runtime_state_root_normalizes_to_optional_path():
+    config = LauncherConfig(app_path="app.py", runtime_state_root="runtime")
+
+    assert config.runtime_state_root == Path("runtime")
+
+
+def test_empty_runtime_state_root_raises_configuration_error():
+    with pytest.raises(ConfigurationError, match="runtime_state_root cannot be empty"):
+        LauncherConfig(app_path="app.py", runtime_state_root=" ")
 
 
 def test_runtime_event_log_normalizes_to_optional_path():
@@ -131,6 +178,30 @@ def test_runtime_event_log_normalizes_to_optional_path():
 def test_empty_runtime_event_log_raises_configuration_error():
     with pytest.raises(ConfigurationError, match="runtime_event_log cannot be empty"):
         LauncherConfig(app_path="app.py", runtime_event_log=" ")
+
+
+def test_app_icon_validates_existing_supported_file(tmp_path):
+    icon = tmp_path / "app.ico"
+    icon.write_bytes(b"icon")
+
+    config = LauncherConfig(app_path="app.py", app_icon=icon)
+
+    assert config.app_icon == icon
+
+
+def test_app_icon_rejects_missing_directory_and_extension(tmp_path):
+    with pytest.raises(ConfigurationError, match="app_icon does not exist"):
+        LauncherConfig(app_path="app.py", app_icon=tmp_path / "missing.ico")
+
+    directory = tmp_path / "icons"
+    directory.mkdir()
+    with pytest.raises(ConfigurationError, match="app_icon must be a file"):
+        LauncherConfig(app_path="app.py", app_icon=directory)
+
+    text_icon = tmp_path / "icon.txt"
+    text_icon.write_text("not an icon", encoding="utf-8")
+    with pytest.raises(ConfigurationError, match="app_icon must use one"):
+        LauncherConfig(app_path="app.py", app_icon=text_icon)
 
 
 def test_extra_env_is_copy_safe_and_string_normalized():

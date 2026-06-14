@@ -140,7 +140,7 @@ def _findings(
 def _recommendations(
     exposure: ExposureAssessment,
     transport: TransportPosture,
-) -> list[str]:
+) -> tuple[str, ...]:
     recommendations: list[str] = []
     if not exposure.exposed:
         recommendations.append("Use strict_local for localhost-only tools.")

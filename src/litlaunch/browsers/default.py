@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 
 from litlaunch.browsers.base import BrowserAdapter, BrowserCapability, BrowserKind
 from litlaunch.exceptions import BrowserError
@@ -51,7 +52,7 @@ class DefaultBrowserAdapter(BrowserAdapter):
 def detect_default_chromium_browser(
     platform_info: PlatformInfo | None = None,
     *,
-    registry_value_reader=None,
+    registry_value_reader: Callable[[str, str], str | None] | None = None,
 ) -> BrowserKind | None:
     """Return the Chromium browser kind for the Windows default browser if known."""
 
@@ -85,9 +86,16 @@ def _read_windows_registry_value(key_path: str, value_name: str) -> str | None:
     except ImportError:  # pragma: no cover - non-Windows Python builds.
         return None
 
+    registry: Any = winreg
+    current_user = getattr(registry, "HKEY_CURRENT_USER", None)
+    open_key = getattr(registry, "OpenKey", None)
+    query_value = getattr(registry, "QueryValueEx", None)
+    if current_user is None or open_key is None or query_value is None:
+        return None
+
     try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
-            value, _ = winreg.QueryValueEx(key, value_name)
+        with open_key(current_user, key_path) as key:
+            value, _ = query_value(key, value_name)
     except OSError:
         return None
     return str(value)

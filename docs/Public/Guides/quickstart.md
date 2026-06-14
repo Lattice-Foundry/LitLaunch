@@ -8,13 +8,15 @@ litlaunch app.py --mode webapp
 
 That local-first path gives you explicit backend ownership, Streamlit health
 checks, browser capability detection, an app-window experience where supported,
-clean shutdown handling, and diagnostics/reporting without shell scripts or
-custom runtime glue. Profiles, shortcuts, shutdown hooks, packaged-app runtime
-workflows, trust modes, and report tooling are available when the project needs
-more repeatable launch behavior or operational visibility. LitLaunch can run
-inside packaged/distributed Streamlit apps across Windows, Linux, and macOS, but
-it does not create installers or replace packaging tools. Windows and Linux
-receive first-party manual validation. macOS support is available with lighter
+isolated Chromium app-mode browser profiles, minimal Streamlit app chrome by
+default, clean shutdown handling, and diagnostics/reporting without shell
+scripts or custom runtime glue. Profiles, shortcuts, shutdown hooks,
+packaged-app runtime workflows, trust modes, and report tooling are available
+when the project needs more repeatable launch behavior or operational
+visibility. LitLaunch can run inside
+packaged/distributed Streamlit apps across Windows, Linux, and macOS, but it
+does not create installers or replace packaging tools. Windows and Linux receive
+first-party manual validation. macOS support is available with lighter
 first-party validation while community coverage broadens.
 
 ## Run The Minimal Example
@@ -58,6 +60,25 @@ Use `litlaunch --help` or a command-specific `--help` flag for reference help.
 litlaunch app.py --mode webapp
 ```
 
+LitLaunch hides Streamlit's default app toolbar/menu chrome by default through
+Streamlit's supported `client.toolbarMode = "minimal"` setting. Add
+`--show-streamlit-chrome` when you want Streamlit's default chrome visible:
+
+```powershell
+litlaunch app.py --mode webapp --show-streamlit-chrome
+```
+
+With an app identity icon:
+
+```powershell
+litlaunch app.py --mode webapp --app-icon assets/my-app.ico
+```
+
+`app_icon` is best-effort. LitLaunch uses it for native shortcut artifacts and,
+on Windows `.ico` app-window launches, applies the strongest browser/window
+icon strategy the platform permits. Browsers may still show their own icon
+briefly or on some surfaces.
+
 With Streamlit flags:
 
 ```powershell
@@ -91,11 +112,11 @@ can optionally create a project-local launch shortcut.
 [profiles.my-webapp]
 app_path = "app.py"
 title = "My App"
+app_icon = "assets/my-app.ico"
 mode = "webapp"
 browser = "edge"
 trust_mode = "development"
 port = 8501
-auto_port = false
 headless = true
 runtime_event_log = ".litlaunch/runtime-events.log"
 graceful_timeout = 15
@@ -134,9 +155,10 @@ Use `litlaunch report --profile my-webapp` for the default human-readable HTML
 diagnostics report. It writes `.litlaunch/reports/litlaunch-report.html` unless
 `--output` is provided. Use `litlaunch inspect --json` or
 `litlaunch inspect --bundle` for machine-readable diagnostics and support
-bundles. Generated reports, shortcuts, and managed browser scratch profiles live
-under `.litlaunch/` by default so projects can ignore them with one
-`.gitignore` entry.
+bundles. Generated reports and shortcuts live under `.litlaunch/` by default so
+projects can ignore persistent LitLaunch artifacts with one `.gitignore` entry.
+Ephemeral browser/runtime state uses system temp by default, and inspect/report
+output shows the resolved state paths.
 
 Reports include runtime governance, runtime exposure, and transport security
 posture. Local profiles can remain simple with `trust_mode = "development"` or
@@ -220,6 +242,7 @@ plan = StreamlitLauncher(config).build_launch_plan()
 print(plan.command_display)
 print(plan.app_url)
 print(plan.health_url)
+print(plan.streamlit_chrome_policy)
 ```
 
 `build_launch_plan()` is intended for diagnostics, integration tests, and
@@ -283,8 +306,10 @@ helpers, renderer, and clock while leaving the original launcher unchanged.
 `LauncherConfig.title` is used for display and app-window matching where
 webapp monitoring applies. Browser-window monitoring relies primarily on a
 managed temporary Chromium profile and pre-launch/post-launch window snapshots.
-If the actual app window title differs significantly, `--monitor-window` may
-timeout; use `--title` to override the expected title.
+For Streamlit apps, match the title to
+`st.set_page_config(page_title="...")`. If the actual app window title differs
+significantly, `--monitor-window` may timeout; use `--title` to override the
+expected title.
 
 Prefer either structured `streamlit_flags` or raw `streamlit_args` for a given
 Streamlit option. LitLaunch suppresses its own defaults when user options
@@ -292,7 +317,9 @@ overlap, but it does not deduplicate duplicate user options across both inputs.
 
 ## App-Side Shutdown Cleanup
 
-Streamlit apps can opt into graceful cleanup when launched by LitLaunch:
+Plain Streamlit apps do not need app-side setup for LitLaunch to stop the owned
+backend when a monitored window closes. Apps that have real cleanup work can
+opt into graceful cleanup when launched by LitLaunch:
 
 ```python
 from litlaunch import LauncherRuntime, ShutdownHookStatus

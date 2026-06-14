@@ -55,6 +55,7 @@ class BrowserLaunchResult:
     browser: BrowserCapability | None
     mode: LaunchMode
     message: str
+    cleanup_callbacks: tuple[Callable[[], object], ...] = ()
 
 
 class BrowserAdapter(ABC):

@@ -16,9 +16,9 @@ try:  # pragma: no cover - exercised on Python 3.11+
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
     try:
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as tomllib
     except ModuleNotFoundError:  # pragma: no cover - environment-specific
-        tomllib = None  # type: ignore[assignment]
+        tomllib = None
 
 
 PROFILE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -28,16 +28,21 @@ PYPROJECT_TOML = "pyproject.toml"
 CONFIG_FIELDS = {
     "app_path",
     "title",
+    "app_icon",
     "mode",
     "browser",
     "host",
     "port",
+    "port_range",
     "auto_port",
     "headless",
+    "show_streamlit_chrome",
+    "show_streamlit_output",
     "allow_browser_fallback",
     "allow_network_exposure",
     "trust_mode",
     "cwd",
+    "runtime_state_root",
     "extra_env",
     "runtime_event_log",
     "streamlit_flags",
@@ -182,7 +187,7 @@ def _read_toml(path: Path) -> Mapping[str, Any]:
     try:
         with path.open("rb") as file:
             data = tomllib.load(file)
-    except tomllib.TOMLDecodeError as exc:  # type: ignore[union-attr]
+    except tomllib.TOMLDecodeError as exc:
         raise ConfigurationError(f"Invalid TOML in {path}: {exc}") from exc
     except OSError as exc:
         raise ConfigurationError(
@@ -217,6 +222,19 @@ def _profile_from_mapping(
     config_values["app_path"] = _profile_path(config_values["app_path"], base_dir)
     if "cwd" in config_values and config_values["cwd"] is not None:
         config_values["cwd"] = _profile_path(config_values["cwd"], base_dir)
+    if (
+        "runtime_state_root" in config_values
+        and config_values["runtime_state_root"] is not None
+    ):
+        config_values["runtime_state_root"] = _profile_path(
+            config_values["runtime_state_root"],
+            base_dir,
+        )
+    if "app_icon" in config_values and config_values["app_icon"] is not None:
+        config_values["app_icon"] = _profile_path(
+            config_values["app_icon"],
+            base_dir,
+        )
     if (
         "runtime_event_log" in config_values
         and config_values["runtime_event_log"] is not None

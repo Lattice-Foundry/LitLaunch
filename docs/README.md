@@ -23,7 +23,17 @@ The local documentation rulebook is
 belong in ignored lanes such as `notes/`, `docs/private/`, `docs/local/`,
 `docs/**/scratch/`, `docs/**/tmp/`, and `docs/**/inbox/`.
 
-If durable internal records are needed later, use the approved standard folders
-such as `docs/architecture/`, `docs/audits/`, `docs/research/`,
-`docs/planning/`, `docs/testing/`, `docs/security/`, `docs/release/`, or
-`docs/archive/`, and keep them public-repo safe before tracking.
+Approved internal record folders are present with `.gitkeep` placeholders:
+
+- `docs/architecture/`
+- `docs/audits/`
+- `docs/planning/`
+- `docs/research/`
+- `docs/implementation/`
+- `docs/migrations/`
+- `docs/release/`
+- `docs/security/`
+- `docs/testing/`
+- `docs/archive/`
+
+Use these only for durable records that are safe for a public repository.

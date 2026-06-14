@@ -13,6 +13,18 @@ PUBLIC_DOCS_ROOT = DOCS_ROOT / "Public"
 GUIDES_ROOT = PUBLIC_DOCS_ROOT / "Guides"
 REFERENCE_ROOT = PUBLIC_DOCS_ROOT / "Reference"
 TROUBLESHOOTING_ROOT = PUBLIC_DOCS_ROOT / "Troubleshooting"
+PROFILE_A_INTERNAL_FOLDERS = (
+    "architecture",
+    "audits",
+    "planning",
+    "research",
+    "implementation",
+    "migrations",
+    "release",
+    "security",
+    "testing",
+    "archive",
+)
 
 
 def current_version() -> str:
@@ -133,6 +145,8 @@ def test_docs_follow_public_structure_standard():
     assert (DOCS_ROOT / "docs_structure_standard.md").is_file()
     assert (PUBLIC_DOCS_ROOT / "FAQ" / ".gitkeep").is_file()
     assert (PUBLIC_DOCS_ROOT / "Help" / ".gitkeep").is_file()
+    for folder in PROFILE_A_INTERNAL_FOLDERS:
+        assert (DOCS_ROOT / folder / ".gitkeep").is_file()
 
     loose_markdown = sorted(
         path.name

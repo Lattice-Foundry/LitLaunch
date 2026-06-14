@@ -4,7 +4,7 @@
 > absent from tracked public source after the 2026-06-14 exposure remediation
 > pass.
 
-**Status:** Proposed v1.0 (derived from the LitBridge/LitPack emerging standard)
+**Status:** Proposed v1.0 (derived from the emerging workspace standard)
 **Applies to:** repositories under the production, experimental, and web workspace roots, and all future SCG / LatticeFoundry projects
 **Companion document:** workspace documentation structure audit
 **Date:** 2026-06-14
@@ -37,7 +37,7 @@ This standard defines **where documentation lives, who it is for, and whether it
 | Experimental prototype | experimental project roots | Profile A (by default) | Lifecycle is "experimental"; docs *profile* is still A unless it is a website. |
 | Placeholder / inactive | e.g. `prod\litserver` | Defer | Adopt Profile A when the project becomes active. |
 
-The two non-website experimental projects (`noesiz`, `rinno`) use **Profile A** plus the **legal/lineage** internal folders (§9), because they are a Streamlit fork and an Inno clean-room reimplementation respectively.
+Forked, clean-room, or attribution-sensitive projects use **Profile A** plus the **legal/lineage** internal folders (§9).
 
 ---
 
@@ -220,8 +220,8 @@ Clean-room *hazard inventories* and detailed recon (the "do-not-port" lists) are
 
 - Every **required** standard folder that would otherwise be empty carries a **tracked `.gitkeep`** so the structure exists in a fresh clone.
 - This applies to scaffolded-ahead-of-content folders, especially `docs/Public/{Help,FAQ,Guides,Reference,Troubleshooting}/` and any internal lane created before its first real doc.
-- **Reference pattern (from rolethread):** `app_data/* ` ignored with `!app_data/.gitkeep` — keeps a required-but-empty folder tracked. Replicate this idiom.
-- If a repo uses a broad ignore rule that would hide a needed folder (e.g. noesiz `docs/*/`), add an explicit negation (`!docs/<folder>/` + `!docs/<folder>/.gitkeep`) rather than relying on the broad rule.
+- **Reference pattern:** `app_data/* ` ignored with `!app_data/.gitkeep` — keeps a required-but-empty folder tracked. Replicate this idiom.
+- If a repo uses a broad ignore rule that would hide a needed folder, add an explicit negation (`!docs/<folder>/` + `!docs/<folder>/.gitkeep`) rather than relying on the broad rule.
 - Remove a folder's `.gitkeep` once it has real tracked content (optional; harmless to keep).
 
 ---
@@ -295,7 +295,7 @@ Severity model: distinguish **currently-exposed** (live on a public repo/site no
 
 ## 18. `.gitignore` and Tracking Policy
 
-Each repo's `.gitignore` carries a **documentation-policy comment block** stating the tracked/ignored boundary in plain terms (the LitBridge model). Recommended canonical block:
+Each repo's `.gitignore` carries a **documentation-policy comment block** stating the tracked/ignored boundary in plain terms. Recommended canonical block:
 
 ```gitignore
 # Documentation policy (audience != tracking):
@@ -317,7 +317,7 @@ scratch/
 
 Rules:
 - **Do not blanket-ignore `docs/<subfolder>/`.** If a broad rule is unavoidable (e.g. a pre-public prototype), use explicit negations to keep durable trees and `legal/`/`lineage/` tracked, and add `.gitkeep` for required-empty folders.
-- **Scratch whitelist idiom (LitPack model)** is allowed for a mostly-scratch folder: `docs/research/scratch/*` ignored with `!` un-ignores for the few durable files — but prefer a dedicated `research/scratch/` lane over ignoring all of `research/`.
+- **Scratch whitelist idiom** is allowed for a mostly-scratch folder: `docs/research/scratch/*` ignored with `!` un-ignores for the few durable files — but prefer a dedicated `research/scratch/` lane over ignoring all of `research/`.
 - **Durable internal docs must not be hidden** in an ignored `notes/`/`internal/`/`.dev/` tree. Promote them into a tracked `docs/<category>/` (after rename/scrub) or accept they are knowingly local-only.
 - **Website repos** ignore only build output (`.svelte-kit`, `build`, `.output`, `.vercel`, `.netlify`, `.wrangler`), deps, and env; keep generated docs and `docs/**` tracked. Put portability-sensitive ignores (`.codex/`, `*.log`) in the repo-local `.gitignore`, not only the user global.
 - **Generated reports/exports** are either ignored or placed in a clearly tracked `docs/audits/` (when durable). Never let scratch reports become silently tracked.

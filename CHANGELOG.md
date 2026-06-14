@@ -102,7 +102,7 @@ the project history at the level most useful to release users and integrators.
 
 - Reorganized internal developer documentation into lane-based
   architecture, audits, research, roadmap, validation, and assets directories,
-  matching the current LitBridge/LitPack internal documentation model.
+  matching the current workspace internal documentation model.
 - Retired the root `notes/` working area in favor of tracked internal docs
   lanes and added ignore guardrails for future local scratch material.
 

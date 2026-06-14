@@ -183,8 +183,8 @@ expected browser window title. For Streamlit apps, this should usually match
 differs significantly from the expected title, monitoring may time out.
 
 LitLaunch also accepts conservative near-title matches such as
-`LitBridge Generic Demo` for `LitBridge Generic Interaction Demo`, but matching
-the profile title to the framework page title remains the most reliable setup.
+`Analytics Demo` for `Analytics Interaction Demo`, but matching the profile
+title to the framework page title remains the most reliable setup.
 
 ## Future Work
 

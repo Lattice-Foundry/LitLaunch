@@ -7,6 +7,32 @@ launch.
 Granular pre-release history is preserved in git. This changelog now presents
 the project history at the level most useful to release users and integrators.
 
+## Current Release Highlights
+
+- Cleaner app-window launches: LitLaunch now hides Streamlit's default toolbar
+  chrome by default, with `--show-streamlit-chrome` when you want it back.
+- Better webapp isolation: Chromium app-mode launches use temporary browser
+  profiles by default, keeping local app sessions from stepping on each other.
+- Safer multi-app launching: when a requested port is already busy, LitLaunch
+  can automatically choose the next available port instead of opening the wrong
+  local app.
+- Cleaner console output: Streamlit startup banners, usage-stat notices, and
+  backend server chatter stay hidden by default while LitLaunch reports the
+  selected local URL.
+- More reliable close-to-shutdown behavior: app-window and browser-window
+  monitoring now handles small title differences more gracefully.
+- Product-style app icons: profiles, shortcuts, diagnostics, and Windows
+  webapp launches can use `app_icon` for a more polished local app identity.
+- Cleaner generated artifacts: project-local reports and shortcuts stay under
+  `.litlaunch/`, while temporary runtime and browser state stays out of source
+  trees by default.
+- Stronger diagnostics and support surfaces: inspect/report workflows remain
+  local, shareable after review, and focused on practical runtime posture.
+- Tighter release quality: stricter type checking and release hygiene checks
+  guard the package before publication.
+- Cleaner public repository hygiene: internal working notes are excluded from
+  public package artifacts and the public source tree.
+
 ## 1.0.10 - Stable
 
 - Hardened port ownership checks so LitLaunch no longer treats an already

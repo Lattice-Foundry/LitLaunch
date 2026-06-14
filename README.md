@@ -191,9 +191,9 @@ LitLaunch is infrastructure, not magic orchestration.
 - Diagnostics report runtime governance, runtime exposure, and transport
   security posture, including Streamlit-native TLS awareness.
 
-See [docs/philosophy.md](docs/philosophy.md) and
-[docs/architecture.md](docs/architecture.md) for the full ownership model, and
-[docs/security.md](docs/security.md) for trust boundaries.
+See [docs/Public/Guides/philosophy.md](docs/Public/Guides/philosophy.md) and
+[docs/Public/Reference/architecture.md](docs/Public/Reference/architecture.md) for the full ownership model, and
+[docs/Public/Reference/security.md](docs/Public/Reference/security.md) for trust boundaries.
 
 ## Install
 
@@ -455,7 +455,7 @@ Streamlit health endpoint used by LitLaunch.
 
 The supported public surfaces are the configuration, launcher, launch-plan,
 profile, monitored-runner, backend-command-provider, app shutdown, and inspect
-diagnostics APIs documented in [docs/architecture.md](docs/architecture.md).
+diagnostics APIs documented in [docs/Public/Reference/architecture.md](docs/Public/Reference/architecture.md).
 Window provider internals, low-level browser/window matching details, and
 console presentation internals are implementation details and may evolve faster
 than the public API.
@@ -526,8 +526,8 @@ Plain Streamlit apps do not need app-side shutdown setup for the default
 window-close flow. Use `LauncherRuntime` hooks only when the app has custom
 cleanup work.
 
-See [docs/browser_support.md](docs/browser_support.md) and
-[docs/window_monitoring.md](docs/window_monitoring.md).
+See [docs/Public/Reference/browser-support.md](docs/Public/Reference/browser-support.md) and
+[docs/Public/Reference/window-monitoring.md](docs/Public/Reference/window-monitoring.md).
 
 ## Inspect And Troubleshooting
 
@@ -547,27 +547,28 @@ Streamlit-native TLS posture, and plaintext network-exposure risk. This is
 operational visibility, not a security guarantee: LitLaunch does not
 authenticate users, terminate TLS, or secure Streamlit applications.
 
-See [docs/inspect.md](docs/inspect.md) and
-[docs/troubleshooting.md](docs/troubleshooting.md).
+See [docs/Public/Reference/inspect.md](docs/Public/Reference/inspect.md) and
+[docs/Public/Troubleshooting/troubleshooting.md](docs/Public/Troubleshooting/troubleshooting.md).
 
 ## Documentation
 
-- [Overview](docs/overview.md)
-- [Philosophy](docs/philosophy.md)
-- [Installation](docs/installation.md)
-- [Quickstart](docs/quickstart.md)
-- [CLI](docs/cli.md)
-- [Security And Trust Boundaries](docs/security.md)
-- [Runtime Events](docs/runtime_events.md)
-- [Diagnostics Page Generator](docs/diagnostics_page.md)
-- [Browser Support](docs/browser_support.md)
-- [Window Monitoring](docs/window_monitoring.md)
-- [Inspect](docs/inspect.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Architecture](docs/architecture.md)
-- [RoleThread Lite Integration](docs/integration/rolethread.md)
-- [Packaging Notes](docs/integration/packaging_notes.md)
-- [Release Notes](RELEASE_NOTES.md)
+- [Overview](docs/Public/Guides/overview.md)
+- [Philosophy](docs/Public/Guides/philosophy.md)
+- [Installation](docs/Public/Guides/installation.md)
+- [Quickstart](docs/Public/Guides/quickstart.md)
+- [CLI](docs/Public/Reference/cli.md)
+- [Security And Trust Boundaries](docs/Public/Reference/security.md)
+- [Runtime Events](docs/Public/Reference/runtime-events.md)
+- [Diagnostics Page Generator](docs/Public/Reference/diagnostics-page.md)
+- [Browser Support](docs/Public/Reference/browser-support.md)
+- [Window Monitoring](docs/Public/Reference/window-monitoring.md)
+- [Inspect](docs/Public/Reference/inspect.md)
+- [Troubleshooting](docs/Public/Troubleshooting/troubleshooting.md)
+- [Architecture](docs/Public/Reference/architecture.md)
+- [Integration](docs/Public/Guides/integration/index.md)
+- [RoleThread Lite Integration](docs/Public/Guides/integration/rolethread.md)
+- [Packaging Notes](docs/Public/Guides/integration/packaging-notes.md)
+- [Changelog](CHANGELOG.md)
 
 ## Non-Goals
 

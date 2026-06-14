@@ -358,7 +358,7 @@ def inspect_sdist_names(names: Sequence[str], version: str) -> None:
     require_archive_entry(
         names,
         "public docs",
-        lambda name: name == f"{prefix}docs/overview.md",
+        lambda name: name == f"{prefix}docs/Public/Guides/overview.md",
     )
     internal_prefix = f"{prefix}docs/internal/"
     if any(name.startswith(internal_prefix) for name in names):

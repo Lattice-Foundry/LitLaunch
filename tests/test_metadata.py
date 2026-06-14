@@ -8,6 +8,11 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
 
 REPO_ROOT = Path(__file__).parents[1]
 VERSION_FILE = REPO_ROOT / "src" / "litlaunch" / "version.py"
+DOCS_ROOT = REPO_ROOT / "docs"
+PUBLIC_DOCS_ROOT = DOCS_ROOT / "Public"
+GUIDES_ROOT = PUBLIC_DOCS_ROOT / "Guides"
+REFERENCE_ROOT = PUBLIC_DOCS_ROOT / "Reference"
+TROUBLESHOOTING_ROOT = PUBLIC_DOCS_ROOT / "Troubleshooting"
 
 
 def current_version() -> str:
@@ -77,9 +82,11 @@ def test_changelog_exists_and_mentions_current_version():
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
     assert f"## {current_version()} - Stable" in changelog
+    assert "## Current Release Highlights" in changelog
     assert "## Beta Development Era" in changelog
     assert "## Alpha Development Era" in changelog
     assert "Granular pre-release history is preserved in git" in changelog
+    assert not (REPO_ROOT / "RELEASE_NOTES.md").exists()
     for milestone in (
         "Managed Chromium browser-window lifecycle",
         "`ShutdownHookStatus`",
@@ -96,26 +103,45 @@ def test_changelog_exists_and_mentions_current_version():
 def test_docs_foundation_exists_and_links_from_readme():
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     docs = [
-        "overview.md",
-        "philosophy.md",
-        "installation.md",
-        "quickstart.md",
-        "cli.md",
-        "browser_support.md",
-        "window_monitoring.md",
-        "inspect.md",
-        "diagnostics_page.md",
-        "troubleshooting.md",
-        "architecture.md",
-        "integration/rolethread.md",
-        "integration/packaging_notes.md",
+        "Public/Guides/overview.md",
+        "Public/Guides/philosophy.md",
+        "Public/Guides/installation.md",
+        "Public/Guides/quickstart.md",
+        "Public/Guides/integration/index.md",
+        "Public/Guides/integration/rolethread.md",
+        "Public/Guides/integration/packaging-notes.md",
+        "Public/Reference/cli.md",
+        "Public/Reference/browser-support.md",
+        "Public/Reference/window-monitoring.md",
+        "Public/Reference/inspect.md",
+        "Public/Reference/diagnostics-page.md",
+        "Public/Reference/runtime-events.md",
+        "Public/Reference/security.md",
+        "Public/Reference/architecture.md",
+        "Public/Troubleshooting/troubleshooting.md",
     ]
 
     for doc in docs:
-        path = REPO_ROOT / "docs" / doc
+        path = DOCS_ROOT / doc
         assert path.is_file()
         assert path.read_text(encoding="utf-8").strip()
         assert f"docs/{doc}" in readme
+
+
+def test_docs_follow_public_structure_standard():
+    assert (DOCS_ROOT / "README.md").is_file()
+    assert (DOCS_ROOT / "docs_structure_standard.md").is_file()
+    assert (PUBLIC_DOCS_ROOT / "FAQ" / ".gitkeep").is_file()
+    assert (PUBLIC_DOCS_ROOT / "Help" / ".gitkeep").is_file()
+
+    loose_markdown = sorted(
+        path.name
+        for path in DOCS_ROOT.glob("*.md")
+        if path.name not in {"README.md", "docs_structure_standard.md"}
+    )
+    assert loose_markdown == []
+    assert not (DOCS_ROOT / "integration.md").exists()
+    assert not (DOCS_ROOT / "integration").exists()
 
 
 def test_internal_docs_are_excluded_from_sdist_config():
@@ -133,16 +159,16 @@ def test_dead_diagnostics_module_has_been_removed():
 
 def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    quickstart = (REPO_ROOT / "docs" / "quickstart.md").read_text(encoding="utf-8")
-    architecture = (REPO_ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
-    troubleshooting = (REPO_ROOT / "docs" / "troubleshooting.md").read_text(
+    quickstart = (GUIDES_ROOT / "quickstart.md").read_text(encoding="utf-8")
+    architecture = (REFERENCE_ROOT / "architecture.md").read_text(encoding="utf-8")
+    troubleshooting = (TROUBLESHOOTING_ROOT / "troubleshooting.md").read_text(
         encoding="utf-8"
     )
-    cli = (REPO_ROOT / "docs" / "cli.md").read_text(encoding="utf-8")
+    cli = (REFERENCE_ROOT / "cli.md").read_text(encoding="utf-8")
 
     assert "source checkout" in readme
     assert "own Streamlit app path" in readme
-    assert "Package Install" in (REPO_ROOT / "docs" / "installation.md").read_text(
+    assert "Package Install" in (GUIDES_ROOT / "installation.md").read_text(
         encoding="utf-8"
     )
     assert "source-tree fixture" in quickstart
@@ -166,8 +192,8 @@ def test_docs_clarify_examples_run_start_and_shutdown_timeout_policy():
 
 def test_docs_document_current_cli_tools_workflows():
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    quickstart = (REPO_ROOT / "docs" / "quickstart.md").read_text(encoding="utf-8")
-    cli = (REPO_ROOT / "docs" / "cli.md").read_text(encoding="utf-8")
+    quickstart = (GUIDES_ROOT / "quickstart.md").read_text(encoding="utf-8")
+    cli = (REFERENCE_ROOT / "cli.md").read_text(encoding="utf-8")
 
     for text in (readme, quickstart, cli):
         assert "litlaunch create profile" in text
@@ -185,7 +211,7 @@ def test_docs_document_current_cli_tools_workflows():
 
 def test_docs_clarify_public_api_surface_policy():
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    architecture = (REPO_ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+    architecture = (REFERENCE_ROOT / "architecture.md").read_text(encoding="utf-8")
 
     assert "## Public API Surface" in readme
     assert "## Public API Surface" in architecture
@@ -204,8 +230,8 @@ def test_docs_clarify_public_api_surface_policy():
 
 
 def test_docs_clarify_redaction_limits_and_deferred_visual_placeholders():
-    inspect_doc = (REPO_ROOT / "docs" / "inspect.md").read_text(encoding="utf-8")
-    troubleshooting = (REPO_ROOT / "docs" / "troubleshooting.md").read_text(
+    inspect_doc = (REFERENCE_ROOT / "inspect.md").read_text(encoding="utf-8")
+    troubleshooting = (TROUBLESHOOTING_ROOT / "troubleshooting.md").read_text(
         encoding="utf-8"
     )
 
@@ -216,17 +242,17 @@ def test_docs_clarify_redaction_limits_and_deferred_visual_placeholders():
     screenshot_placeholder = "[screenshot" + " needed]"
     diagram_placeholder = "[diagram" + " needed]"
     public_doc_text = "\n".join(
-        path.read_text(encoding="utf-8") for path in (REPO_ROOT / "docs").glob("*.md")
+        path.read_text(encoding="utf-8") for path in PUBLIC_DOCS_ROOT.rglob("*.md")
     )
     assert screenshot_placeholder not in public_doc_text
     assert diagram_placeholder not in public_doc_text
 
 
 def test_docs_clarify_with_port_title_and_streamlit_passthrough_policy():
-    quickstart = (REPO_ROOT / "docs" / "quickstart.md").read_text(encoding="utf-8")
-    architecture = (REPO_ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
-    cli = (REPO_ROOT / "docs" / "cli.md").read_text(encoding="utf-8")
-    rolethread = (REPO_ROOT / "docs" / "integration" / "rolethread.md").read_text(
+    quickstart = (GUIDES_ROOT / "quickstart.md").read_text(encoding="utf-8")
+    architecture = (REFERENCE_ROOT / "architecture.md").read_text(encoding="utf-8")
+    cli = (REFERENCE_ROOT / "cli.md").read_text(encoding="utf-8")
+    rolethread = (GUIDES_ROOT / "integration" / "rolethread.md").read_text(
         encoding="utf-8"
     )
 
@@ -240,11 +266,10 @@ def test_docs_clarify_with_port_title_and_streamlit_passthrough_policy():
 
 
 def test_internal_docs_are_not_tracked_in_public_source_tree():
-    assert not (REPO_ROOT / "docs" / "internal").exists()
+    assert not (DOCS_ROOT / "internal").exists()
 
     public_paths = [REPO_ROOT / "README.md"]
-    public_paths.extend((REPO_ROOT / "docs").glob("*.md"))
-    public_paths.extend((REPO_ROOT / "docs" / "integration").glob("*.md"))
+    public_paths.extend(PUBLIC_DOCS_ROOT.rglob("*.md"))
 
     for path in public_paths:
         assert "docs/internal" not in path.read_text(encoding="utf-8")

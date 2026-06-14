@@ -208,20 +208,18 @@ def test_docs_clarify_redaction_limits_and_deferred_visual_placeholders():
     troubleshooting = (REPO_ROOT / "docs" / "troubleshooting.md").read_text(
         encoding="utf-8"
     )
-    validation_notes = (
-        REPO_ROOT / "docs" / "internal" / "validation" / "release_validation_notes.md"
-    ).read_text(encoding="utf-8")
 
     assert "pattern-based" in inspect_doc
     assert "Encoded, base64, URL-wrapped" in inspect_doc
     assert "Review support bundles before sharing" in inspect_doc
     assert "home/user path prefixes" in troubleshooting
-    assert "Visual Documentation" in validation_notes
-    assert "Runtime Profiles" in validation_notes
     screenshot_placeholder = "[screenshot" + " needed]"
     diagram_placeholder = "[diagram" + " needed]"
-    assert screenshot_placeholder not in validation_notes
-    assert diagram_placeholder not in validation_notes
+    public_doc_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in (REPO_ROOT / "docs").glob("*.md")
+    )
+    assert screenshot_placeholder not in public_doc_text
+    assert diagram_placeholder not in public_doc_text
 
 
 def test_docs_clarify_with_port_title_and_streamlit_passthrough_policy():
@@ -241,28 +239,8 @@ def test_docs_clarify_with_port_title_and_streamlit_passthrough_policy():
     assert "does not deduplicate repeated user-supplied" in cli
 
 
-def test_internal_docs_exist_but_are_not_linked_from_public_docs():
-    internal_docs = [
-        "README.md",
-        "architecture/rolethread_integration_plan.md",
-        "architecture/rolethread_runtime_mapping.md",
-        "audits/litlaunch_dominate_audit.md",
-        "audits/litlaunch_security_audit_0_91_23b1.md",
-        "audits/rolethread_pre_publish_weakness_hunt.md",
-        "research/cli_surface_recon.md",
-        "research/visible_surface_recon.md",
-        "roadmap/rolethread_handoff_checklist.md",
-        "validation/release_validation_notes.md",
-        "validation/rolethread_litlaunch_manual_test_plan.md",
-        "validation/rolethread_test_matrix.md",
-    ]
-
-    for doc in internal_docs:
-        path = REPO_ROOT / "docs" / "internal" / doc
-        text = path.read_text(encoding="utf-8")
-        assert path.is_file()
-        assert "INTERNAL" in text
-        assert text.strip()
+def test_internal_docs_are_not_tracked_in_public_source_tree():
+    assert not (REPO_ROOT / "docs" / "internal").exists()
 
     public_paths = [REPO_ROOT / "README.md"]
     public_paths.extend((REPO_ROOT / "docs").glob("*.md"))

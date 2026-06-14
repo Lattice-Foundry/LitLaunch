@@ -50,10 +50,15 @@ desktop.ini
 *.temp
 .litlaunch/
 
-# Internal documentation scratch
-# Preserved internal docs live under docs/internal/{architecture,audits,research,roadmap,validation}.
-# Keep root-level personal notes and transient internal scratch out of git.
+# Documentation policy for this public repository:
+# Public docs remain tracked. Private/internal/scratch notes stay local.
+# The former docs/internal tree is intentionally ignored so sensitive
+# development records cannot be re-added to the public GitHub source tree.
 notes/
-docs/internal/scratch/
-docs/internal/tmp/
-docs/internal/inbox/
+scratch/
+docs/internal/
+docs/**/scratch/
+docs/**/tmp/
+docs/**/inbox/
+docs/private/
+docs/local/

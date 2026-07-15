@@ -40,6 +40,13 @@ class TrustMode(str, Enum):
     INTERNAL_NETWORK = "internal_network"
 
 
+class HostSizingPolicy(str, Enum):
+    """Supported public host-window sizing policies."""
+
+    OFF = "off"
+    INITIAL = "initial"
+
+
 FlagValue = str | int | float | bool | None
 StreamlitFlags = Mapping[str, FlagValue] | Sequence[str]
 NormalizedStreamlitFlags = MappingProxyType[str, FlagValue] | tuple[str, ...]
@@ -67,6 +74,7 @@ class LauncherConfig:
     allow_browser_fallback: bool
     allow_network_exposure: bool
     trust_mode: TrustMode
+    host_sizing: HostSizingPolicy
     cwd: Path | None
     runtime_state_root: Path | None
     extra_env: MappingProxyType[str, str]
@@ -93,6 +101,7 @@ class LauncherConfig:
         allow_browser_fallback: bool = True,
         allow_network_exposure: bool = False,
         trust_mode: TrustMode | str = TrustMode.DEVELOPMENT,
+        host_sizing: HostSizingPolicy | str = HostSizingPolicy.OFF,
         cwd: str | Path | None = None,
         runtime_state_root: str | Path | None = None,
         extra_env: Mapping[str, str] = _EMPTY_ENV,
@@ -108,6 +117,7 @@ class LauncherConfig:
         mode = _normalize_launch_mode(mode)
         browser = _normalize_browser_choice(browser)
         trust_mode = _normalize_trust_mode(trust_mode)
+        host_sizing = _normalize_host_sizing_policy(host_sizing)
         host = _normalize_host(host)
         port = _normalize_port(port)
         port_range = _normalize_port_range(port_range)
@@ -155,6 +165,7 @@ class LauncherConfig:
         object.__setattr__(self, "allow_browser_fallback", bool(allow_browser_fallback))
         object.__setattr__(self, "allow_network_exposure", bool(allow_network_exposure))
         object.__setattr__(self, "trust_mode", trust_mode)
+        object.__setattr__(self, "host_sizing", host_sizing)
         object.__setattr__(self, "cwd", cwd)
         object.__setattr__(self, "runtime_state_root", runtime_state_root)
         object.__setattr__(self, "extra_env", extra_env)
@@ -263,10 +274,15 @@ def _is_plausible_hostname(value: str) -> bool:
 
 
 def _normalize_enum(
-    enum_type: type[LaunchMode] | type[BrowserChoice] | type[TrustMode],
-    value: LaunchMode | BrowserChoice | TrustMode | str,
+    enum_type: (
+        type[LaunchMode]
+        | type[BrowserChoice]
+        | type[TrustMode]
+        | type[HostSizingPolicy]
+    ),
+    value: LaunchMode | BrowserChoice | TrustMode | HostSizingPolicy | str,
     field_name: str,
-) -> LaunchMode | BrowserChoice | TrustMode:
+) -> LaunchMode | BrowserChoice | TrustMode | HostSizingPolicy:
     if isinstance(value, enum_type):
         return value
     try:
@@ -288,6 +304,15 @@ def _normalize_browser_choice(value: BrowserChoice | str) -> BrowserChoice:
 
 def _normalize_trust_mode(value: TrustMode | str) -> TrustMode:
     return cast(TrustMode, _normalize_enum(TrustMode, value, "trust_mode"))
+
+
+def _normalize_host_sizing_policy(
+    value: HostSizingPolicy | str,
+) -> HostSizingPolicy:
+    return cast(
+        HostSizingPolicy,
+        _normalize_enum(HostSizingPolicy, value, "host_sizing"),
+    )
 
 
 def _normalize_port(value: int | None) -> int | None:

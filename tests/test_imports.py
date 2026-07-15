@@ -32,6 +32,8 @@ from litlaunch import (
     DiagnosticStatus,
     HealthChecker,
     HookConsoleVisibility,
+    HostSizingHandoff,
+    HostSizingPolicy,
     HTMLDiagnosticsRenderer,
     JSONDiagnosticsRenderer,
     LauncherConfig,
@@ -83,6 +85,7 @@ from litlaunch import (
     create_diagnostics_page,
     create_runtime_event_file_sink,
     create_window_monitor,
+    get_host_sizing_handoff,
     get_theme_color,
     hook_orange,
     is_chromium_window,
@@ -121,6 +124,8 @@ def test_public_imports_are_available():
     assert DiagnosticsReport
     assert HTMLDiagnosticsRenderer
     assert HealthChecker
+    assert HostSizingHandoff
+    assert HostSizingPolicy.OFF.value == "off"
     assert HookConsoleVisibility.NORMAL.value == "normal"
     assert JSONDiagnosticsRenderer
     assert issubclass(ConfigurationError, LitLaunchError)
@@ -160,6 +165,7 @@ def test_public_imports_are_available():
     assert StreamlitLauncher
     assert THEME_COLORS["streamlit_blue"].hex == "#1c83e1"
     assert get_theme_color(hook_orange).hex == "#F7630C"
+    assert callable(get_host_sizing_handoff)
     assert ThemeColor
     assert WindowsChromiumWindowMonitor
     assert WindowsWindowProvider
@@ -223,6 +229,8 @@ def test_public_all_is_explicit():
         "HTMLDiagnosticsRenderer",
         "HealthChecker",
         "HookConsoleVisibility",
+        "HostSizingHandoff",
+        "HostSizingPolicy",
         "JSONDiagnosticsRenderer",
         "LaunchEvent",
         "LaunchMode",
@@ -278,6 +286,7 @@ def test_public_all_is_explicit():
         "create_diagnostics_page",
         "create_window_monitor",
         "get_theme_color",
+        "get_host_sizing_handoff",
         "hook_orange",
         "is_chromium_window",
         "is_hex_color",

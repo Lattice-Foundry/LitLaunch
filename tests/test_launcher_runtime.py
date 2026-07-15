@@ -3,11 +3,15 @@ import os
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
+import litlaunch.launcher as launcher_module
 from litlaunch import LauncherConfig, LaunchMode, RuntimeEvent
 from litlaunch._browser_authority import (
     BrowserLaunchAuthority,
     BrowserLaunchStrategy,
 )
+from litlaunch._host_sizing_config import evaluate_host_sizing_eligibility
 from litlaunch._host_sizing_transport import HOST_SIZING_ENV_KEYS
 from litlaunch.artifacts import OWNED_MARKER, cleanup_litlaunch_owned_dir
 from litlaunch.backend import BackendCommand, BackendCommandContext
@@ -193,6 +197,15 @@ class FakePrivateHostSizingActivation:
         return self.runtime
 
 
+@pytest.fixture
+def windows_host_sizing_eligibility(monkeypatch):
+    monkeypatch.setattr(
+        launcher_module,
+        "evaluate_host_sizing_eligibility",
+        lambda config: evaluate_host_sizing_eligibility(config, is_windows=True),
+    )
+
+
 class FakeBackendCommandProvider:
     def __init__(
         self,
@@ -277,6 +290,70 @@ def test_runtime_event_sink_receives_basic_launch_lifecycle_events():
     assert events[-1].category == "browser"
 
 
+def test_host_sizing_off_does_not_begin_an_injected_activation():
+    activation = FakePrivateHostSizingActivation(FakePrivateHostSizingRuntime([]))
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            mode="webapp",
+            browser="edge",
+            host_sizing="off",
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        clock=FakeClock(),
+        _host_sizing_activation=activation,  # type: ignore[arg-type]
+    )
+
+    assert launcher.start().ok is True
+    assert activation.configs == []
+
+
+def test_statically_ineligible_host_sizing_warns_once_and_launches_base_app(
+    windows_host_sizing_eligibility,
+):
+    events: list[RuntimeEvent] = []
+    stream = StringIO()
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            mode="webapp",
+            browser="auto",
+            host_sizing="initial",
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        console_renderer=ConsoleRenderer(
+            stream=stream,
+            theme=ConsoleTheme(use_color=False),
+        ),
+        event_sink=events.append,
+        clock=FakeClock(),
+    )
+
+    session = launcher.start()
+    output = stream.getvalue()
+
+    assert session.ok is True
+    assert output.count("requires explicit Edge or Chrome selection") == 1
+    assert [event.name for event in events[:2]] == [
+        "launch_planned",
+        "host_sizing_ineligible",
+    ]
+    event = events[1]
+    assert event.details == {
+        "policy": "initial",
+        "status": "unsupported_browser",
+    }
+    assert "token" not in repr(event).lower()
+
+
 def test_runtime_session_retains_then_invalidates_nonowning_browser_authority():
     process_manager = FakeProcessManager()
     authority = BrowserLaunchAuthority(
@@ -310,7 +387,9 @@ def test_runtime_session_retains_then_invalidates_nonowning_browser_authority():
     assert stopped_process.popen.pid != authority.root_process_id
 
 
-def test_private_host_sizing_uses_production_lifecycle_and_closes_before_backend():
+def test_private_host_sizing_uses_production_lifecycle_and_closes_before_backend(
+    windows_host_sizing_eligibility,
+):
     calls = []
 
     class OrderedProcessManager(FakeProcessManager):
@@ -323,7 +402,13 @@ def test_private_host_sizing_uses_production_lifecycle_and_closes_before_backend
     runtime = FakePrivateHostSizingRuntime(calls)
     activation = FakePrivateHostSizingActivation(runtime)
     launcher = StreamlitLauncher(
-        LauncherConfig(app_path="app.py", port=8600),
+        LauncherConfig(
+            app_path="app.py",
+            port=8600,
+            mode="webapp",
+            browser="edge",
+            host_sizing="initial",
+        ),
         port_manager=FakePortManager(8600),
         process_manager=process_manager,
         health_checker=FakeHealthChecker(healthy=True),
@@ -350,7 +435,9 @@ def test_private_host_sizing_uses_production_lifecycle_and_closes_before_backend
     assert session._browser_authority_snapshot() is None
 
 
-def test_private_host_sizing_rolls_back_before_browser_failure_backend_stop():
+def test_private_host_sizing_rolls_back_before_browser_failure_backend_stop(
+    windows_host_sizing_eligibility,
+):
     calls = []
 
     class OrderedProcessManager(FakeProcessManager):
@@ -361,7 +448,13 @@ def test_private_host_sizing_rolls_back_before_browser_failure_backend_stop():
     runtime = FakePrivateHostSizingRuntime(calls)
     process_manager = OrderedProcessManager()
     launcher = StreamlitLauncher(
-        LauncherConfig(app_path="app.py", port=8600),
+        LauncherConfig(
+            app_path="app.py",
+            port=8600,
+            mode="webapp",
+            browser="edge",
+            host_sizing="initial",
+        ),
         port_manager=FakePortManager(8600),
         process_manager=process_manager,
         health_checker=FakeHealthChecker(healthy=True),
@@ -377,7 +470,9 @@ def test_private_host_sizing_rolls_back_before_browser_failure_backend_stop():
     assert calls.index(("host-sizing-close",)) < calls.index(("backend-stop",))
 
 
-def test_private_host_sizing_rolls_back_after_backend_start_failure():
+def test_private_host_sizing_rolls_back_after_backend_start_failure(
+    windows_host_sizing_eligibility,
+):
     calls = []
 
     class FailingProcessManager(FakeProcessManager):
@@ -387,7 +482,13 @@ def test_private_host_sizing_rolls_back_after_backend_start_failure():
 
     runtime = FakePrivateHostSizingRuntime(calls)
     launcher = StreamlitLauncher(
-        LauncherConfig(app_path="app.py", port=8600),
+        LauncherConfig(
+            app_path="app.py",
+            port=8600,
+            mode="webapp",
+            browser="edge",
+            host_sizing="initial",
+        ),
         port_manager=FakePortManager(8600),
         process_manager=FailingProcessManager(),
         health_checker=FakeHealthChecker(healthy=True),
@@ -404,7 +505,9 @@ def test_private_host_sizing_rolls_back_after_backend_start_failure():
     assert [call[0] for call in calls] == ["prepare", "host-sizing-close"]
 
 
-def test_private_host_sizing_exception_does_not_break_valid_base_launch():
+def test_private_host_sizing_exception_does_not_break_valid_base_launch(
+    windows_host_sizing_eligibility,
+):
     calls = []
 
     class FailingPrivateRuntime(FakePrivateHostSizingRuntime):
@@ -413,7 +516,13 @@ def test_private_host_sizing_exception_does_not_break_valid_base_launch():
 
     runtime = FailingPrivateRuntime(calls)
     launcher = StreamlitLauncher(
-        LauncherConfig(app_path="app.py", port=8600),
+        LauncherConfig(
+            app_path="app.py",
+            port=8600,
+            mode="webapp",
+            browser="edge",
+            host_sizing="initial",
+        ),
         port_manager=FakePortManager(8600),
         process_manager=FakeProcessManager(),
         health_checker=FakeHealthChecker(healthy=True),

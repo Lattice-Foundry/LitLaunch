@@ -41,6 +41,7 @@ CONFIG_FIELDS = {
     "allow_browser_fallback",
     "allow_network_exposure",
     "trust_mode",
+    "host_sizing",
     "cwd",
     "runtime_state_root",
     "extra_env",

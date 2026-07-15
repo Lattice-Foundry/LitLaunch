@@ -5,10 +5,12 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
+from litlaunch._host_sizing_config import evaluate_host_sizing_eligibility
 from litlaunch.browsers import BrowserCapability, BrowserResolution
 from litlaunch.browsers.registry import BrowserRegistry, create_default_browser_registry
 from litlaunch.config import (
     BrowserChoice,
+    HostSizingPolicy,
     LauncherConfig,
     LaunchMode,
     StreamlitFlags,
@@ -68,6 +70,7 @@ class DiagnosticCollector:
         allow_browser_fallback: bool = True,
         allow_network_exposure: bool = False,
         trust_mode: TrustMode | str = TrustMode.DEVELOPMENT,
+        host_sizing: HostSizingPolicy | str = HostSizingPolicy.OFF,
         cwd: str | Path | None = None,
         runtime_state_root: str | Path | None = None,
         extra_env: Mapping[str, str] | None = None,
@@ -138,12 +141,14 @@ class DiagnosticCollector:
                     allow_browser_fallback=allow_browser_fallback,
                     allow_network_exposure=allow_network_exposure,
                     trust_mode=trust_mode,
+                    host_sizing=host_sizing,
                     cwd=cwd,
                     runtime_state_root=runtime_state_root,
                     extra_env=extra_env or {},
                     streamlit_flags=streamlit_flags or {},
                     streamlit_args=streamlit_args,
                     app_args=app_args,
+                    host_sizing_is_windows=platform_info.is_windows,
                 )
             )
 
@@ -506,12 +511,14 @@ class DiagnosticCollector:
         allow_browser_fallback: bool,
         allow_network_exposure: bool,
         trust_mode: TrustMode | str,
+        host_sizing: HostSizingPolicy | str,
         cwd: str | Path | None,
         runtime_state_root: str | Path | None,
         extra_env: Mapping[str, str],
         streamlit_flags: StreamlitFlags,
         streamlit_args: Sequence[str],
         app_args: Sequence[str],
+        host_sizing_is_windows: bool,
     ) -> DiagnosticSection:
         path = Path(app_path)
         resolved_path = path.resolve()
@@ -559,6 +566,7 @@ class DiagnosticCollector:
                 allow_browser_fallback=allow_browser_fallback,
                 allow_network_exposure=allow_network_exposure,
                 trust_mode=trust_mode,
+                host_sizing=host_sizing,
                 cwd=cwd,
                 runtime_state_root=runtime_state_root,
                 extra_env=extra_env,
@@ -568,6 +576,10 @@ class DiagnosticCollector:
             )
             launcher = self.launcher_factory(config)
             plan = launcher.build_launch_plan()
+            host_sizing_eligibility = evaluate_host_sizing_eligibility(
+                config,
+                is_windows=host_sizing_is_windows,
+            )
         except Exception as exc:
             items.append(
                 DiagnosticItem(
@@ -622,6 +634,23 @@ class DiagnosticCollector:
                     "Streamlit console output policy",
                     DiagnosticStatus.INFO,
                     plan.streamlit_output_policy,
+                ),
+                DiagnosticItem(
+                    "Host sizing policy",
+                    DiagnosticStatus.INFO,
+                    f"{config.host_sizing.value} (Experimental)",
+                ),
+                DiagnosticItem(
+                    "Host sizing eligibility",
+                    (
+                        DiagnosticStatus.OK
+                        if host_sizing_eligibility.eligible
+                        else DiagnosticStatus.INFO
+                        if host_sizing_eligibility.status.value == "disabled"
+                        else DiagnosticStatus.WARNING
+                    ),
+                    host_sizing_eligibility.status.value,
+                    detail=host_sizing_eligibility.reason,
                 ),
                 *(
                     (

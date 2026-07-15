@@ -167,3 +167,23 @@ For internal dashboards and analyst tools:
 
 LitLaunch's goal is to make runtime behavior visible and controlled. It is not a
 replacement for application security or network security.
+
+## Experimental Host-Sizing Capability
+
+When an eligible app explicitly requests `host_sizing = "initial"`, LitLaunch
+creates a short-lived loopback endpoint with a per-launch capability token,
+launch ID, fixed source, and exact app-origin policy. The app must deliberately
+forward that handoff to one trusted top-level frontend. The token is sent in the
+documented custom request header, never in a URL.
+
+The capability is bounded to host-sizing reports for that launch. LitLaunch
+validates schema, origin, token, sequence, report rate, exact browser-process
+authority, exact window authority, window state, and target bounds before one
+height-only mutation. The endpoint closes after the attempt or when the runtime
+stops.
+
+Do not log, persist, cache, or place the handoff in static frontend assets.
+Frontend access grants the ability to request the one bounded sizing attempt.
+This token does not protect against trusted or untrusted code already executing
+inside the app process, and host sizing does not add authentication or secure
+the Streamlit application.

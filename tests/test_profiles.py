@@ -6,6 +6,7 @@ import pytest
 from litlaunch import (
     BrowserChoice,
     ConfigurationError,
+    HostSizingPolicy,
     LaunchMode,
     LaunchProfile,
     TrustMode,
@@ -49,6 +50,7 @@ headless = true
 show_streamlit_chrome = true
 show_streamlit_output = true
 allow_browser_fallback = false
+host_sizing = "initial"
 cwd = "."
 runtime_state_root = ".runtime/litlaunch"
 streamlit_args = ["--server.runOnSave", "true"]
@@ -94,6 +96,7 @@ stable_polls = 2
     assert profile.config.show_streamlit_chrome is True
     assert profile.config.show_streamlit_output is True
     assert profile.config.allow_browser_fallback is False
+    assert profile.config.host_sizing == HostSizingPolicy.INITIAL
     assert profile.config.cwd == tmp_path
     assert profile.config.runtime_state_root == tmp_path / ".runtime" / "litlaunch"
     assert profile.config.extra_env["APP_ENV"] == "local"

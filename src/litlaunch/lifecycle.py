@@ -91,3 +91,7 @@ class LaunchPlan:
     browser_profile_root: Path | None = None
     browser_profile_policy: str = "external/default browser profile"
     browser_profile_cleanup: str = "not owned by LitLaunch"
+    host_sizing_policy: str = "off"
+    host_sizing_eligibility: str = "disabled"
+    host_sizing_eligibility_reason: str = "Host sizing is off."
+    host_sizing_experimental: bool = True

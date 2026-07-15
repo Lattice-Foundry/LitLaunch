@@ -18,7 +18,7 @@ from litlaunch.cli.config import (
     profile_value,
     runtime_auto_port_value,
 )
-from litlaunch.config import BrowserChoice, LaunchMode, TrustMode
+from litlaunch.config import BrowserChoice, HostSizingPolicy, LaunchMode, TrustMode
 from litlaunch.console import ConsoleMode, ConsoleRenderer
 from litlaunch.exceptions import LitLaunchError
 from litlaunch.inspect import (
@@ -65,6 +65,11 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
         "--trust-mode",
         choices=[item.value for item in TrustMode],
         help="Set the operational trust mode for posture diagnostics.",
+    )
+    parser.add_argument(
+        "--host-sizing",
+        choices=[item.value for item in HostSizingPolicy],
+        help="Evaluate the Experimental off or initial host-sizing policy.",
     )
     parser.add_argument(
         "--port",
@@ -162,6 +167,11 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
         "--trust-mode",
         choices=[item.value for item in TrustMode],
         help="Set the operational trust mode for posture diagnostics.",
+    )
+    parser.add_argument(
+        "--host-sizing",
+        choices=[item.value for item in HostSizingPolicy],
+        help="Evaluate the Experimental off or initial host-sizing policy.",
     )
     parser.add_argument(
         "--host",
@@ -360,6 +370,12 @@ def collect_diagnostics_report(
             profile_config,
             "trust_mode",
             TrustMode.DEVELOPMENT,
+        ),
+        host_sizing=profile_value(
+            getattr(args, "host_sizing", None),
+            profile_config,
+            "host_sizing",
+            HostSizingPolicy.OFF,
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
         runtime_state_root=profile_value(

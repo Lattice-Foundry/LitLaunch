@@ -32,6 +32,18 @@ browser cache into a source tree. Use `--runtime-state-root` or profile
 If a launch explicitly passes `--browser-arg=--user-data-dir=...`, LitLaunch
 respects that user profile choice and does not replace or clean it.
 
+## Experimental Initial Host Sizing
+
+One initial height fit is available only for Windows webapp launches with an
+explicit Edge or Chrome selection and the LitLaunch-managed temporary browser
+profile. External `--user-data-dir` profiles, browser tabs, default-browser
+selection, non-loopback apps, and unsupported window states are ineligible.
+
+Host sizing preserves width and position, applies at most one bounded native
+height change, and fails without interrupting the app. It is off by default and
+requires an app-owned trusted frontend adapter. See the
+[initial host-sizing guide](../Guides/host-sizing.md).
+
 ## Custom App Icons
 
 Profiles and CLI launches can configure an app identity icon. For the strongest
@@ -148,6 +160,8 @@ capability and reports the launch failure without retrying alternatives.
   icon metadata where supported.
 - Managed browser-window lifecycle is best-effort and currently strongest on
   Windows with Edge or Chrome/Chromium.
+- Experimental initial host sizing is Windows-only, webapp-only, height-only,
+  managed-profile-only, and supported only for explicit Edge or Chrome.
 
 Resolution is deterministic: LitLaunch starts from the requested browser choice,
 checks whether that browser can satisfy the requested mode, and only considers a

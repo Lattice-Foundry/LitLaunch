@@ -28,11 +28,16 @@ unrelated sessions.
 ## Monitoring Is Observational
 
 Window monitoring observes app-mode windows or LitLaunch-created managed
-browser windows and reports lifecycle signals. It does not control windows or
-browser processes. When a monitored window closes, `RuntimeSession` handles
+browser windows and reports lifecycle signals. Monitoring does not control
+windows or browser processes. When a monitored window closes, `RuntimeSession` handles
 backend shutdown through the normal graceful shutdown path. If LitLaunch cannot
 identify a browser window confidently, it falls back to the manual Ctrl+C stop
 path.
+
+Experimental initial host sizing is a separate, explicit capability. On one
+narrow eligible Windows webapp path, it can apply at most one bounded
+height-only change to an exactly authorized app window. It does not weaken the
+observational monitoring boundary or grant browser-process ownership.
 
 ## Stdlib-First
 

@@ -8,6 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from litlaunch._browser_authority import BrowserLaunchAuthority
+from litlaunch._host_sizing_config import evaluate_host_sizing_eligibility
 from litlaunch._host_sizing_production import (
     PrivateHostSizingRuntime,
     _PrivateHostSizingActivation,
@@ -30,7 +31,7 @@ from litlaunch.browser_profiles import (
 )
 from litlaunch.browsers import BrowserLauncher, BrowserRegistry, BrowserResolution
 from litlaunch.browsers.registry import create_default_browser_registry
-from litlaunch.config import LauncherConfig, LaunchMode
+from litlaunch.config import HostSizingPolicy, LauncherConfig, LaunchMode
 from litlaunch.console import ConsolePhase, ConsoleRenderer
 from litlaunch.events import (
     RuntimeEventEmitter,
@@ -57,6 +58,7 @@ from litlaunch.runtime_console import (
     render_network_exposure_warning,
     render_phase_start,
     render_phase_success,
+    render_phase_warning,
     render_runtime_header,
     render_runtime_ready,
 )
@@ -209,9 +211,9 @@ class StreamlitLauncher:
         """
 
         render_runtime_header(self.console_renderer, self.config)
-        private_host_sizing = self._begin_private_host_sizing()
         self._emit_launch_planned()
         self._enforce_network_exposure_acknowledgement()
+        private_host_sizing = self._begin_private_host_sizing()
         self._emit_backend_starting()
         backend_start = self._start_backend(
             wait_for_health=True,
@@ -473,12 +475,42 @@ class StreamlitLauncher:
         )
 
     def _begin_private_host_sizing(self) -> PrivateHostSizingRuntime | None:
-        activation = self._host_sizing_activation
-        if activation is None:
+        if self.config.host_sizing == HostSizingPolicy.OFF:
             return None
+        eligibility = evaluate_host_sizing_eligibility(self.config)
+        if not eligibility.eligible:
+            self.event_emitter.emit(
+                "host_sizing_ineligible",
+                category="host_sizing",
+                level="warning",
+                message=eligibility.reason,
+                details={
+                    "policy": eligibility.policy.value,
+                    "status": eligibility.status.value,
+                },
+            )
+            render_phase_warning(
+                self.console_renderer,
+                ConsolePhase.HOST_SIZING,
+                eligibility.reason,
+            )
+            return None
+        activation = self._host_sizing_activation or _PrivateHostSizingActivation(
+            event_emitter=self.event_emitter,
+        )
         try:
             return activation.begin(self.config)
-        except Exception:
+        except Exception as exc:
+            self.event_emitter.emit(
+                "host_sizing_failed_safely",
+                category="host_sizing",
+                level="warning",
+                message="Host sizing could not be initialized; launch will continue.",
+                details={
+                    "policy": self.config.host_sizing.value,
+                    "error": type(exc).__name__,
+                },
+            )
             return None
 
     def _runtime_event_sink(
@@ -584,6 +616,7 @@ class StreamlitLauncher:
                 "streamlit_output": (
                     "visible" if self.config.show_streamlit_output else "hidden"
                 ),
+                "host_sizing": self.config.host_sizing.value,
                 "runtime_state_root": runtime_state_root_for_config(self.config),
             },
         )

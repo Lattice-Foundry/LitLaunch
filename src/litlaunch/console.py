@@ -47,6 +47,7 @@ class ConsolePhase(str, Enum):
     MONITOR = "Monitor"
     SHUTDOWN = "Shutdown"
     HOOK = "Hook"
+    HOST_SIZING = "Sizing"
 
 
 CONSOLE_CATEGORY_LABELS = frozenset(
@@ -58,6 +59,7 @@ CONSOLE_CATEGORY_LABELS = frozenset(
         "Browser",
         "Monitor",
         "Shutdown",
+        "Sizing",
     }
 )
 CONSOLE_CATEGORY_WIDTH = max(len(label) for label in CONSOLE_CATEGORY_LABELS)

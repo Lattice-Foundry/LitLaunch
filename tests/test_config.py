@@ -5,6 +5,7 @@ import pytest
 from litlaunch import (
     BrowserChoice,
     ConfigurationError,
+    HostSizingPolicy,
     LauncherConfig,
     LaunchMode,
     TrustMode,
@@ -25,6 +26,7 @@ def test_default_config_normalizes_correctly():
     assert config.show_streamlit_output is False
     assert config.allow_browser_fallback is True
     assert config.trust_mode == TrustMode.DEVELOPMENT
+    assert config.host_sizing == HostSizingPolicy.OFF
 
 
 def test_string_mode_and_browser_normalize_to_enums():
@@ -65,6 +67,21 @@ def test_show_streamlit_output_normalizes_to_bool():
 def test_invalid_trust_mode_raises_configuration_error():
     with pytest.raises(ConfigurationError, match="Invalid trust_mode"):
         LauncherConfig(app_path="app.py", trust_mode="public_internet")
+
+
+def test_initial_host_sizing_normalizes_to_public_policy():
+    config = LauncherConfig(app_path="app.py", host_sizing="initial")
+
+    assert config.host_sizing == HostSizingPolicy.INITIAL
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["enabled", "continuous", "auto", "fit", "viewport", "resize", True, False],
+)
+def test_host_sizing_rejects_values_outside_exact_public_vocabulary(value):
+    with pytest.raises(ConfigurationError, match="Invalid host_sizing"):
+        LauncherConfig(app_path="app.py", host_sizing=value)
 
 
 def test_empty_app_path_raises_configuration_error():

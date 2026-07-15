@@ -7,6 +7,7 @@ LitLaunch follows the workspace Profile A documentation structure.
 Public documentation lives under `docs/Public/**`:
 
 - [Guides](Public/Guides/)
+- [Experimental Initial Host Sizing](Public/Guides/host-sizing.md)
 - [Integration Guides](Public/Guides/integration/)
 - [Reference](Public/Reference/)
 - [Troubleshooting](Public/Troubleshooting/)

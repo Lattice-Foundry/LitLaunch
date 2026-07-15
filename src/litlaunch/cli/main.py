@@ -61,6 +61,7 @@ _LAUNCH_OPTION_NAMES = frozenset(
         "--mode",
         "--browser",
         "--trust-mode",
+        "--host-sizing",
         "--port",
         "--port-range",
         "--host",

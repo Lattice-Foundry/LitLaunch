@@ -87,7 +87,7 @@ def test_pyproject_urls_use_canonical_repository_location():
     assert urls["Homepage"] == "https://github.com/Lattice-Foundry/LitLaunch"
     assert urls["Repository"] == "https://github.com/Lattice-Foundry/LitLaunch"
     assert urls["Issues"] == "https://github.com/Lattice-Foundry/LitLaunch/issues"
-    assert urls["PyPI"] == "https://pypi.org/project/litlaunch/1.0.10/"
+    assert urls["PyPI"] == "https://pypi.org/project/litlaunch/1.0.11/"
 
 
 def test_changelog_exists_and_mentions_current_version():
@@ -165,6 +165,7 @@ def test_internal_docs_are_excluded_from_sdist_config():
 
     exclude = pyproject["tool"]["hatch"]["build"]["targets"]["sdist"]["exclude"]
     assert "/notes" in exclude
+    assert "/docs/research" in exclude
     assert "/docs/internal" not in exclude
 
 

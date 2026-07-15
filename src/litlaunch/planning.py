@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
+from litlaunch._host_sizing_config import evaluate_host_sizing_eligibility
 from litlaunch.artifacts import browser_profiles_dir, runtime_state_root_for_config
 from litlaunch.backend import (
     BackendCommand,
@@ -45,6 +46,7 @@ def build_launch_plan(
     )
     backend_command = build_backend_command(backend_command_provider, context)
     runtime_state_root = runtime_state_root_for_config(config)
+    host_sizing = evaluate_host_sizing_eligibility(config)
     return LaunchPlan(
         command=backend_command.command,
         command_display=format_command_preview(backend_command.command),
@@ -78,6 +80,10 @@ def build_launch_plan(
         browser_profile_root=browser_profiles_dir(runtime_state_root),
         browser_profile_policy=browser_profile_policy(config),
         browser_profile_cleanup=browser_profile_cleanup(config),
+        host_sizing_policy=config.host_sizing.value,
+        host_sizing_eligibility=host_sizing.status.value,
+        host_sizing_eligibility_reason=host_sizing.reason,
+        host_sizing_experimental=host_sizing.experimental,
     )
 
 

@@ -90,6 +90,11 @@ Window monitoring does not:
 - inspect browser URLs
 - use browser automation, CDP, remote debugging, or address-bar scraping
 
+Experimental initial host sizing is separate from monitoring. When an app
+explicitly sets `host_sizing = "initial"`, the launcher may use exact window
+authority to apply one bounded height-only fit. Monitoring itself remains
+observational, and host sizing never owns, kills, or closes browser processes.
+
 When a close is observed, `RuntimeSession.stop()` requests optional app-side
 cleanup when the app has enabled it, then stops only the owned backend process
 if needed. Plain Streamlit apps do not need app-side setup for the default close

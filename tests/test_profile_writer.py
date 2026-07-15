@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
+from litlaunch.config import (
+    BrowserChoice,
+    HostSizingPolicy,
+    LauncherConfig,
+    LaunchMode,
+    TrustMode,
+)
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.profiles import LaunchProfile, load_profile
 from litlaunch.profiles import writer as profile_writer
@@ -234,6 +240,21 @@ def test_profile_writer_round_trips_visible_streamlit_output_policy(tmp_path: Pa
 
     assert "show_streamlit_output = true" in result.toml
     assert loaded.config.show_streamlit_output is True
+
+
+def test_profile_writer_round_trips_initial_host_sizing_policy(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(app_path=app, host_sizing=HostSizingPolicy.INITIAL),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert 'host_sizing = "initial"' in result.toml
+    assert loaded.config.host_sizing == HostSizingPolicy.INITIAL
 
 
 def test_profile_writer_round_trips_app_icon(tmp_path: Path):

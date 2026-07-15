@@ -3,7 +3,9 @@
 LitLaunch can optionally emit small structured runtime events to Python
 integrations. This is useful for packaged apps that want product logs or support
 trails for launch, health, browser, monitor, hook, shutdown, and port-release
-milestones.
+milestones. Experimental host-sizing launches may also emit a small set of
+channel-ready, eligible/ineligible, report-accepted, applied, completed,
+timed-out, skipped, or failed-safely outcomes.
 
 Runtime events are not telemetry. LitLaunch does not upload, rotate, or manage
 event logs. Applications can either provide a Python sink or ask LitLaunch to
@@ -89,6 +91,12 @@ browser, PID, or hook label. LitLaunch does not include raw environment values
 or secret-bearing command previews in runtime event details. The built-in file
 sink applies lightweight redaction to sensitive-looking event messages and
 detail keys before writing JSONL.
+
+Host-sizing events include only coarse policy status and bounded counts. They
+do not contain capability tokens, endpoint credentials, launch IDs, report
+bodies, process trees, authority IDs, or window handles. Rejected request
+traffic is retained only as bounded aggregate state inside the sizing channel,
+not emitted as one public event per request.
 
 If your sink adds custom event details or writes events to disk, that app-owned
 sink is responsible for redacting app-specific sensitive data before persisting

@@ -16,7 +16,10 @@ from litlaunch._host_sizing_authority import (
     PrivateHostSizingActivationGate,
     ProcessBoundWindowsWindowAuthorityVerifier,
 )
-from litlaunch._host_sizing_policy import HostSizingPolicy, HostSizingPolicyConfig
+from litlaunch._host_sizing_policy import (
+    HostSizingPolicy as InitialHostSizingPolicy,
+)
+from litlaunch._host_sizing_policy import HostSizingPolicyConfig
 from litlaunch._host_sizing_runtime import (
     HostSizingMutationCapability,
     HostSizingRuntimeCoordinator,
@@ -32,8 +35,12 @@ from litlaunch._host_sizing_window import (
     TrustedWindowsWindowSizer,
     WindowSizingAuthority,
 )
+from litlaunch.config import (
+    HostSizingPolicy as PublicHostSizingPolicy,
+)
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.console import ConsoleRenderer
+from litlaunch.events import RuntimeEventEmitter
 
 PRIVATE_HOST_SIZING_SOURCE_ID = "primary-surface"
 _SOURCE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -111,12 +118,11 @@ CoordinatorFactory = Callable[
 
 
 class _PrivateHostSizingActivation:
-    """Internal constructor-only activation gate; disabled unless injected."""
+    """Internal collaborator factory selected by the public launch policy."""
 
     def __init__(
         self,
         *,
-        enabled: bool = False,
         source_id: str = PRIVATE_HOST_SIZING_SOURCE_ID,
         policy_config: HostSizingPolicyConfig | None = None,
         activation_gate_factory: Callable[
@@ -126,11 +132,11 @@ class _PrivateHostSizingActivation:
         mutation_factory: MutationFactory | None = None,
         coordinator_factory: CoordinatorFactory | None = None,
         runtime_factory: RuntimeFactory | None = None,
+        event_emitter: RuntimeEventEmitter | None = None,
     ) -> None:
         normalized_source = str(source_id).strip()
         if not _SOURCE_ID_PATTERN.fullmatch(normalized_source):
             raise ValueError("Private host-sizing source ID is invalid.")
-        self.enabled = enabled is True
         self.source_id = normalized_source
         self.policy_config = policy_config or HostSizingPolicyConfig()
         self.activation_gate_factory = activation_gate_factory
@@ -138,14 +144,15 @@ class _PrivateHostSizingActivation:
         self.mutation_factory = mutation_factory or _default_mutation_factory
         self.coordinator_factory = coordinator_factory or _default_coordinator_factory
         self.runtime_factory = runtime_factory or _PrivateHostSizingProductionRuntime
+        self.event_emitter = event_emitter or RuntimeEventEmitter()
 
     def begin(
         self,
         config: LauncherConfig,
     ) -> PrivateHostSizingRuntime | None:
-        """Create one private per-launch runtime only when explicitly enabled."""
+        """Create one per-launch runtime only for the public initial policy."""
 
-        if not self.enabled:
+        if config.host_sizing != PublicHostSizingPolicy.INITIAL:
             return None
         return self.runtime_factory(
             config=config,
@@ -155,6 +162,7 @@ class _PrivateHostSizingActivation:
             channel_starter=self.channel_starter,
             mutation_factory=self.mutation_factory,
             coordinator_factory=self.coordinator_factory,
+            event_emitter=self.event_emitter,
         )
 
 
@@ -171,6 +179,7 @@ class _PrivateHostSizingProductionRuntime:
         channel_starter: ChannelStarter,
         mutation_factory: MutationFactory,
         coordinator_factory: CoordinatorFactory,
+        event_emitter: RuntimeEventEmitter,
     ) -> None:
         self.config = config
         self.source_id = source_id
@@ -179,10 +188,11 @@ class _PrivateHostSizingProductionRuntime:
         self.channel_starter = channel_starter
         self.mutation_factory = mutation_factory
         self.coordinator_factory = coordinator_factory
+        self.event_emitter = event_emitter
         self._lock = threading.RLock()
         self._launch_id = secrets.token_urlsafe(18)
         self._status = PrivateHostSizingProductionStatus.CREATED
-        self._reason = "Private host-sizing activation created."
+        self._reason = "Host-sizing activation created."
         self._closed = False
         self._channel: HostSizingChannel | None = None
         self._coordinator: HostSizingRuntimeCoordinator | None = None
@@ -190,10 +200,11 @@ class _PrivateHostSizingProductionRuntime:
         self._pending_report: HostSizingReport | None = None
         self._baseline_handles: tuple[str, ...] | None = None
         self._terminal_snapshot: HostSizingRuntimeSnapshot | None = None
+        self._report_event_emitted = False
         if config.mode != LaunchMode.WEBAPP:
-            self._mark_ineligible("Private host sizing requires webapp mode.")
+            self._mark_ineligible("Host sizing requires webapp mode.")
         elif not activation_gate.is_windows:
-            self._mark_ineligible("Private host sizing requires Windows.")
+            self._mark_ineligible("Host sizing requires Windows.")
 
     def prepare_backend(
         self,
@@ -216,7 +227,7 @@ class _PrivateHostSizingProductionRuntime:
                 accepted_report_callback=self._accept_report,
             )
         except Exception:
-            self._fail("Private host-sizing channel startup failed.")
+            self._fail("Host-sizing channel startup failed.")
             return {}
         with self._lock:
             if self._closed:
@@ -224,12 +235,18 @@ class _PrivateHostSizingProductionRuntime:
             else:
                 self._channel = channel
                 self._status = PrivateHostSizingProductionStatus.CHANNEL_READY
-                self._reason = "Private host-sizing channel is ready."
+                self._reason = "Host-sizing channel is ready."
                 close_after = False
                 environment = self._backend_env_locked()
         if close_after:
             channel.close()
             return {}
+        self.event_emitter.emit(
+            "host_sizing_channel_ready",
+            category="host_sizing",
+            message="Experimental host-sizing channel is ready.",
+            details={"policy": self.config.host_sizing.value},
+        )
         return environment
 
     def capture_window_baseline(self) -> bool:
@@ -241,14 +258,14 @@ class _PrivateHostSizingProductionRuntime:
         try:
             baseline = self.activation_gate.capture_baseline_handles()
         except Exception:
-            self._fail("Private host-sizing window baseline capture failed.")
+            self._fail("Host-sizing window baseline capture failed.")
             return False
         with self._lock:
             if self._closed:
                 return False
             self._baseline_handles = baseline
             self._status = PrivateHostSizingProductionStatus.BASELINE_READY
-            self._reason = "Private host-sizing window baseline is ready."
+            self._reason = "Host-sizing window baseline is ready."
         return True
 
     def authority_launch_id(self) -> str | None:
@@ -272,7 +289,7 @@ class _PrivateHostSizingProductionRuntime:
                 return False
             baseline = self._baseline_handles
         if baseline is None:
-            self._mark_ineligible("Private host-sizing window baseline is unavailable.")
+            self._mark_ineligible("Host-sizing window baseline is unavailable.")
             return False
         if authority is None or authority.launch_id != self._launch_id:
             self._mark_ineligible(
@@ -290,7 +307,7 @@ class _PrivateHostSizingProductionRuntime:
                 ),
             )
         except Exception:
-            self._fail("Private host-sizing authority collection failed.")
+            self._fail("Host-sizing authority collection failed.")
             return False
         if not eligibility.eligible or eligibility.window_authority is None:
             self._mark_ineligible(eligibility.reason)
@@ -305,11 +322,11 @@ class _PrivateHostSizingProductionRuntime:
             with self._lock:
                 channel = self._channel
             if channel is None or not channel.active:
-                raise RuntimeError("Private host-sizing channel is no longer active.")
+                raise RuntimeError("Host-sizing channel is no longer active.")
             coordinator.attach_channel(channel)
             coordinator.start()
         except Exception:
-            self._fail("Private host-sizing coordinator startup failed.")
+            self._fail("Host-sizing coordinator startup failed.")
             return False
 
         with self._lock:
@@ -319,7 +336,7 @@ class _PrivateHostSizingProductionRuntime:
             else:
                 self._coordinator = coordinator
                 self._status = PrivateHostSizingProductionStatus.ACTIVE
-                self._reason = "Private host-sizing coordinator is active."
+                self._reason = "Host-sizing coordinator is active."
                 pending = self._pending_report
                 self._pending_report = None
                 close_after = False
@@ -336,6 +353,12 @@ class _PrivateHostSizingProductionRuntime:
             return False
         if pending is not None:
             self._deliver_report(coordinator, pending)
+        self.event_emitter.emit(
+            "host_sizing_eligible",
+            category="host_sizing",
+            message="Exact host-sizing window authority established.",
+            details={"policy": self.config.host_sizing.value},
+        )
         return True
 
     def close(self) -> None:
@@ -358,7 +381,7 @@ class _PrivateHostSizingProductionRuntime:
                 PrivateHostSizingProductionStatus.INELIGIBLE,
                 PrivateHostSizingProductionStatus.TERMINAL,
             }:
-                self._reason = "Private host-sizing lifecycle closed."
+                self._reason = "Host-sizing lifecycle closed."
         if coordinator is not None:
             with suppress(Exception):
                 coordinator.shutdown()
@@ -412,12 +435,22 @@ class _PrivateHostSizingProductionRuntime:
         with self._lock:
             if self._closed:
                 return
+            emit_report = not self._report_event_emitted
+            self._report_event_emitted = True
             coordinator = self._coordinator
             if coordinator is None:
                 pending = self._pending_report
                 if pending is None or report.sequence > pending.sequence:
                     self._pending_report = report
-                return
+        if emit_report:
+            self.event_emitter.emit(
+                "host_sizing_report_accepted",
+                category="host_sizing",
+                message="Authoritative host-sizing report accepted.",
+                details={"policy": self.config.host_sizing.value},
+            )
+        if coordinator is None:
+            return
         self._deliver_report(coordinator, report)
 
     def _deliver_report(
@@ -428,7 +461,7 @@ class _PrivateHostSizingProductionRuntime:
         try:
             coordinator.consume_accepted_report(report)
         except Exception:
-            self._fail("Private host-sizing report delivery failed.")
+            self._fail("Host-sizing report delivery failed.")
 
     def _watch_terminal(self, coordinator: HostSizingRuntimeCoordinator) -> None:
         completed = coordinator.wait()
@@ -454,7 +487,8 @@ class _PrivateHostSizingProductionRuntime:
                 self._reason = snapshot.last_decision.reason
             else:
                 self._status = PrivateHostSizingProductionStatus.FAILED
-                self._reason = "Private host-sizing terminal cleanup failed."
+                self._reason = "Host-sizing terminal cleanup failed."
+        self._emit_terminal_event(completed, snapshot)
 
     def _backend_env_locked(self) -> dict[str, str]:
         assert self._channel is not None
@@ -483,7 +517,63 @@ class _PrivateHostSizingProductionRuntime:
                 return
             self._status = status
             self._reason = reason
+        event_name = (
+            "host_sizing_ineligible"
+            if status == PrivateHostSizingProductionStatus.INELIGIBLE
+            else "host_sizing_failed_safely"
+        )
+        self.event_emitter.emit(
+            event_name,
+            category="host_sizing",
+            level="warning",
+            message=reason,
+            details={"policy": self.config.host_sizing.value, "status": status.value},
+        )
         self.close()
+
+    def _emit_terminal_event(
+        self,
+        completed: bool,
+        snapshot: HostSizingRuntimeSnapshot | None,
+    ) -> None:
+        if not completed or snapshot is None:
+            self.event_emitter.emit(
+                "host_sizing_failed_safely",
+                category="host_sizing",
+                level="warning",
+                message="Host sizing ended without a terminal policy result.",
+                details={"policy": self.config.host_sizing.value},
+            )
+            return
+        policy_state = snapshot.policy_state.value
+        if snapshot.mutation_calls == 1 and policy_state == "complete":
+            name = "host_sizing_applied"
+            level = "info"
+            message = "Initial host-window height fit applied."
+        elif policy_state == "timed_out":
+            name = "host_sizing_timed_out"
+            level = "warning"
+            message = "Host sizing timed out without changing the window."
+        elif policy_state == "complete":
+            name = "host_sizing_completed"
+            level = "info"
+            message = "Host sizing completed without a window change."
+        else:
+            name = "host_sizing_skipped"
+            level = "warning"
+            message = "Host sizing stopped safely without another mutation."
+        self.event_emitter.emit(
+            name,
+            category="host_sizing",
+            level=level,
+            message=message,
+            details={
+                "policy": self.config.host_sizing.value,
+                "policy_state": policy_state,
+                "reports": snapshot.accepted_reports,
+                "mutations": snapshot.mutation_calls,
+            },
+        )
 
 
 def _default_mutation_factory(
@@ -507,7 +597,7 @@ def _default_coordinator_factory(
     authority: WindowSizingAuthority,
 ) -> HostSizingRuntimeCoordinator:
     return HostSizingRuntimeCoordinator(
-        policy=HostSizingPolicy(config=policy_config),
+        policy=InitialHostSizingPolicy(config=policy_config),
         mutation=mutation,
         authority=authority,
     )

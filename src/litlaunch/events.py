@@ -23,6 +23,7 @@ RUNTIME_EVENT_CATEGORIES = frozenset(
         "shutdown",
         "hook",
         "port",
+        "host_sizing",
     }
 )
 

@@ -79,6 +79,19 @@ on Windows `.ico` app-window launches, applies the strongest browser/window
 icon strategy the platform permits. Browsers may still show their own icon
 briefly or on some surfaces.
 
+## Experimental Initial Host Sizing
+
+Product apps with one trusted frontend sizing surface can opt into one bounded
+initial height fit on eligible Windows Edge or Chrome webapp launches:
+
+```powershell
+litlaunch app.py --mode webapp --browser edge --host-sizing initial
+```
+
+The feature is off by default and requires an app-owned frontend adapter. See
+the [initial host-sizing guide](host-sizing.md) for the complete profile,
+Python handoff, security, and adapter contract.
+
 With Streamlit flags:
 
 ```powershell

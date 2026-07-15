@@ -21,7 +21,13 @@ from litlaunch.colors import (
     is_hex_color,
     is_theme_color_name,
 )
-from litlaunch.config import BrowserChoice, LauncherConfig, LaunchMode, TrustMode
+from litlaunch.config import (
+    BrowserChoice,
+    HostSizingPolicy,
+    LauncherConfig,
+    LaunchMode,
+    TrustMode,
+)
 from litlaunch.console import (
     ConsoleMode,
     ConsolePhase,
@@ -47,6 +53,7 @@ from litlaunch.exceptions import (
     ProcessError,
 )
 from litlaunch.health import HealthChecker
+from litlaunch.host_sizing import HostSizingHandoff, get_host_sizing_handoff
 from litlaunch.inspect import (
     DiagnosticCollector,
     DiagnosticItem,
@@ -121,6 +128,8 @@ __all__ = [
     "get_theme_color",
     "hook_orange",
     "HealthChecker",
+    "HostSizingHandoff",
+    "HostSizingPolicy",
     "HookConsoleVisibility",
     "DiagnosticCollector",
     "DiagnosticItem",
@@ -182,6 +191,7 @@ __all__ = [
     "WindowTarget",
     "__version__",
     "create_diagnostics_page",
+    "get_host_sizing_handoff",
     "create_window_monitor",
     "is_chromium_window",
     "is_hex_color",

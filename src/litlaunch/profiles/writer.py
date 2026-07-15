@@ -140,6 +140,8 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
         )
     if config.trust_mode.value != "development":
         lines.append(f'trust_mode = "{config.trust_mode.value}"')
+    if config.host_sizing.value != "off":
+        lines.append(f'host_sizing = "{config.host_sizing.value}"')
     if config.cwd is not None:
         lines.append(f"cwd = {_toml_string(_display_path(config.cwd, base_dir))}")
     if config.runtime_state_root is not None:

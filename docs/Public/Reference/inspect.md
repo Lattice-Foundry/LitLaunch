@@ -52,9 +52,15 @@ With a target app, the report adds:
 - requested port, selected port, auto-port status, and port range
 - Streamlit app chrome policy
 - Streamlit/backend console output policy
+- Experimental host-sizing policy and static eligibility reason
 - app URL display
 - health URL display
 - browser resolution summary
+
+Host-sizing diagnostics are credential-free. They do not include the report
+endpoint, capability token, launch ID, process authority, process tree, or
+window handle. Static eligibility does not promise that exact runtime window
+authority will be available after browser launch.
 
 For wildcard bind hosts such as `0.0.0.0` and `::`, URL displays use the local
 client URL LitLaunch can connect to for browser launch and health checks, while

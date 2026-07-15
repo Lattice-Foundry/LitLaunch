@@ -2,7 +2,7 @@
 
 ## Package Install
 
-Install from [PyPI](https://pypi.org/project/litlaunch/1.0.10/):
+Install from [PyPI](https://pypi.org/project/litlaunch/1.0.11/):
 
 ```powershell
 python -m pip install litlaunch

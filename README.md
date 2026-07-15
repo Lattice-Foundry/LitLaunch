@@ -67,6 +67,12 @@ Profiles may include `app_icon` for app identity. LitLaunch uses it for native
 shortcut artifacts and, on Windows `.ico` app-window launches, applies the
 strongest browser/window icon strategy the platform permits.
 
+Eligible local Windows product apps can also opt into one Experimental,
+height-only initial window fit with `host_sizing = "initial"`. The app keeps
+ownership of frontend measurement while LitLaunch owns the authenticated,
+bounded native sizing attempt. See the
+[initial host-sizing guide](docs/Public/Guides/host-sizing.md).
+
 ### Built for real packaged applications
 
 LitLaunch works cleanly inside packaged Streamlit applications and
@@ -171,6 +177,8 @@ their product.
 - Provide tokened loopback graceful shutdown hooks for app cleanup.
 - Inspect local runtime readiness without launching the app.
 - Keep failure output calm, concise, and actionable.
+- Optionally apply one authenticated initial height fit for eligible Windows
+  Edge or Chrome webapp windows.
 
 ## Runtime Philosophy
 
@@ -180,6 +188,8 @@ LitLaunch is infrastructure, not magic orchestration.
 - Browser processes are launched but never owned, killed, or controlled.
 - Window monitoring is observational only. LitLaunch may observe a managed
   browser/app window, but it does not kill or close browser processes.
+- Experimental host sizing is a separate explicit capability that can apply
+  one bounded height-only change to an exactly authorized app window.
 - Commands are argument tuples, never shell strings.
 - Runtime dependencies remain stdlib-first; Python 3.10 uses the lightweight
   `tomli` backport for TOML profile loading.
@@ -197,7 +207,7 @@ See [docs/Public/Guides/philosophy.md](docs/Public/Guides/philosophy.md) and
 
 ## Install
 
-Install from [PyPI](https://pypi.org/project/litlaunch/1.0.10/):
+Install from [PyPI](https://pypi.org/project/litlaunch/1.0.11/):
 
 ```powershell
 python -m pip install litlaunch
@@ -416,7 +426,9 @@ result = run_monitored_webapp(
 ```
 
 The monitored runner observes the app window and returns a
-`MonitoredRunResult`. It does not own, kill, close, or control browser windows.
+`MonitoredRunResult`. Monitoring does not own, kill, or close browser windows;
+the separate Experimental `host_sizing = "initial"` policy may apply one
+bounded height-only change when explicitly configured and fully eligible.
 
 Show launch behavior without starting Streamlit or opening a browser:
 
@@ -425,6 +437,8 @@ plan = StreamlitLauncher(config).build_launch_plan()
 print(plan.command_display)
 print(plan.app_url)
 print(plan.streamlit_chrome_policy)
+print(plan.host_sizing_policy)
+print(plan.host_sizing_eligibility)
 ```
 
 `build_launch_plan()` is useful for diagnostics, integration tests, and

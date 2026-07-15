@@ -29,6 +29,8 @@ RuntimeSession owns backend process
 These public surfaces are supported:
 
 - `LauncherConfig`
+- `HostSizingPolicy`
+- `HostSizingHandoff` and `get_host_sizing_handoff()`
 - `StreamlitLauncher`
 - `LaunchPlan`
 - `LaunchProfile`
@@ -79,8 +81,8 @@ and a fixed port, leaving the original launcher unchanged.
 `build_launch_plan()` returns a `LaunchPlan` for diagnostics, tests, and
 integration checks. It resolves the backend port, command, URLs, browser
 resolution, backend description, working directory, app args, Streamlit flags,
-passthrough args, and redacted environment display without starting a backend
-process or opening a browser.
+passthrough args, host-sizing policy/static eligibility, and redacted
+environment display without starting a backend process or opening a browser.
 
 Python integrations can attach an optional runtime event sink to
 `StreamlitLauncher` when they need product logs or support trails. The sink is a
@@ -195,8 +197,31 @@ the manual Ctrl+C stop path.
 standard monitored app-mode flow without manually assembling platform detection,
 monitor creation, baseline capture, `WindowTarget` construction, session
 monitoring, and result interpretation. It returns a `MonitoredRunResult` and
-keeps the same ownership boundary: LitLaunch may stop the owned backend session,
-but it never owns, kills, closes, or controls browser windows.
+keeps the same ownership boundary: monitoring may stop the owned backend
+session, but it never owns, kills, or closes browser windows. The separate
+Experimental host-sizing policy below is the only bounded window-geometry
+mutation in this model.
+
+## Experimental Host-Sizing Flow
+
+```text
+host_sizing = "initial"
+validate static launch eligibility
+start launch-scoped authenticated loopback channel
+inject private handoff into the app child process
+launch managed Edge/Chrome webapp
+establish exact launch-process and stable window authority
+accept one authoritative frontend measurement stream
+stabilize and apply at most one bounded height-only change
+close the sizing channel permanently
+```
+
+The public surface is limited to the launch policy and immutable handoff
+metadata. Transport, timing, bounds, process authority, window authority,
+geometry conversion, and native mutation stay private. Any failure leaves the
+base app running and the window unchanged. See the
+[initial host-sizing guide](../Guides/host-sizing.md) for eligibility and the
+app-owned frontend contract.
 
 ## Inspect Architecture
 

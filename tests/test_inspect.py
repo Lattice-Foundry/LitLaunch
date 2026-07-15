@@ -251,6 +251,22 @@ def test_diagnostic_status_values():
     assert DiagnosticStatus.INFO.value == "info"
 
 
+def test_inspect_reports_credential_free_experimental_host_sizing_state():
+    report = make_collector().collect(
+        EXAMPLE_APP,
+        mode="webapp",
+        browser="edge",
+        host_sizing="initial",
+    )
+    messages = report_item_messages(report)
+    rendered = JSONDiagnosticsRenderer().render(report)
+
+    assert messages[("Target", "Host sizing policy")] == "initial (Experimental)"
+    assert messages[("Target", "Host sizing eligibility")] == "eligible"
+    assert "capability_token" not in rendered
+    assert "host-sizing/report" not in rendered
+
+
 def test_diagnostics_report_counts_and_ok_behavior():
     report = DiagnosticsReport(
         "Report",

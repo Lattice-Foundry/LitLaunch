@@ -45,7 +45,8 @@ from litlaunch._host_sizing_window import (
 )
 from litlaunch.artifacts import mark_litlaunch_owned
 from litlaunch.browsers import BrowserKind
-from litlaunch.config import LauncherConfig, LaunchMode
+from litlaunch.config import BrowserChoice, HostSizingPolicy, LauncherConfig, LaunchMode
+from litlaunch.events import RuntimeEvent, RuntimeEventEmitter
 
 ALLOWED_ORIGIN = "http://127.0.0.1:8501"
 
@@ -174,6 +175,7 @@ def start_runtime(
     quiet_period_seconds: float = 0.0,
     timeout_seconds: float = 1.0,
     channel_starter=None,
+    events: list[RuntimeEvent] | None = None,
 ):
     resolved_gate = gate or FakeGate()
     resolved_mutation = mutation or FakeMutation()
@@ -181,16 +183,25 @@ def start_runtime(
     if channel_starter is not None:
         kwargs["channel_starter"] = channel_starter
     activation = _PrivateHostSizingActivation(
-        enabled=True,
         activation_gate_factory=lambda: resolved_gate,
         mutation_factory=lambda _authority, _gate: resolved_mutation,
         policy_config=HostSizingPolicyConfig(
             quiet_period_seconds=quiet_period_seconds,
             timeout_seconds=timeout_seconds,
         ),
+        event_emitter=RuntimeEventEmitter(
+            events.append if events is not None else None
+        ),
         **kwargs,
     )
-    runtime = activation.begin(LauncherConfig("app.py", mode=mode))
+    runtime = activation.begin(
+        LauncherConfig(
+            "app.py",
+            mode=mode,
+            browser=BrowserChoice.EDGE,
+            host_sizing=HostSizingPolicy.INITIAL,
+        )
+    )
     assert runtime is not None
     return runtime, resolved_gate, resolved_mutation
 
@@ -304,6 +315,31 @@ def test_private_production_buffers_early_report_until_authority_exists(tmp_path
     snapshot = wait_for_terminal(runtime)
     assert snapshot.status == PrivateHostSizingProductionStatus.TERMINAL
     assert len(mutation.calls) == 1
+
+
+def test_public_production_events_are_bounded_and_credential_free(tmp_path: Path):
+    events: list[RuntimeEvent] = []
+    runtime, _gate, _mutation = start_runtime(events=events)
+    env = dict(runtime.prepare_backend(ALLOWED_ORIGIN, None))
+    assert runtime.capture_window_baseline() is True
+    assert runtime.activate_after_browser(
+        browser_authority(tmp_path, env[LITLAUNCH_HOST_SIZING_LAUNCH_ID]),
+        backend_is_running=lambda: True,
+    )
+    assert send(env, payload(env)) == 202
+
+    wait_for_terminal(runtime)
+
+    assert [event.name for event in events] == [
+        "host_sizing_channel_ready",
+        "host_sizing_eligible",
+        "host_sizing_report_accepted",
+        "host_sizing_applied",
+    ]
+    rendered = repr(events)
+    assert env[LITLAUNCH_HOST_SIZING_TOKEN] not in rendered
+    assert env[LITLAUNCH_HOST_SIZING_ENDPOINT] not in rendered
+    assert env[LITLAUNCH_HOST_SIZING_LAUNCH_ID] not in rendered
 
 
 def test_private_production_pending_buffer_keeps_highest_callback_sequence(
@@ -428,10 +464,11 @@ def test_private_activation_is_default_off_and_non_webapp_is_ineligible():
     assert runtime.snapshot().status == PrivateHostSizingProductionStatus.INELIGIBLE
 
 
-def test_private_production_has_no_public_export_or_configuration_surface():
+def test_private_production_exposes_only_the_approved_public_surface():
     config = LauncherConfig("app.py")
 
     assert not hasattr(litlaunch, "PrivateHostSizingActivation")
     assert not hasattr(litlaunch, "HostSizingRuntimeCoordinator")
-    assert not hasattr(config, "host_sizing")
+    assert litlaunch.HostSizingPolicy is HostSizingPolicy
+    assert config.host_sizing is HostSizingPolicy.OFF
     assert not hasattr(config, "host_sizing_enabled")

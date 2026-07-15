@@ -11,6 +11,7 @@ from typing import Any
 from litlaunch.cli.common import split_passthrough_args
 from litlaunch.config import (
     BrowserChoice,
+    HostSizingPolicy,
     LauncherConfig,
     LaunchMode,
     StreamlitFlags,
@@ -77,6 +78,14 @@ def add_runtime_flags(
         "--trust-mode",
         choices=[item.value for item in TrustMode],
         help="Set the operational trust mode for this launch.",
+    )
+    parser.add_argument(
+        "--host-sizing",
+        choices=[item.value for item in HostSizingPolicy],
+        help=(
+            "Set Experimental host sizing: off, or one initial height fit on "
+            "eligible Windows webapp launches."
+        ),
     )
     parser.add_argument(
         "--port",
@@ -349,6 +358,12 @@ def runtime_config_from_args(
             profile_config,
             "trust_mode",
             TrustMode.DEVELOPMENT,
+        ),
+        host_sizing=profile_value(
+            getattr(args, "host_sizing", None),
+            profile_config,
+            "host_sizing",
+            HostSizingPolicy.OFF,
         ),
         cwd=profile_config.cwd if profile_config is not None else None,
         runtime_state_root=profile_value(

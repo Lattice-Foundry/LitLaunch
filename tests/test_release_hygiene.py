@@ -294,6 +294,26 @@ def test_release_script_rejects_local_notes_in_sdist():
         )
 
 
+def test_release_script_rejects_engineering_research_in_sdist():
+    module = load_release_script()
+    version = module.read_project_version()
+    prefix = f"litlaunch-{version}"
+
+    with pytest.raises(RuntimeError, match="Engineering research"):
+        module.inspect_sdist_names(
+            (
+                f"{prefix}/README.md",
+                f"{prefix}/LICENSE",
+                f"{prefix}/pyproject.toml",
+                f"{prefix}/docs/Public/Guides/overview.md",
+                f"{prefix}/docs/research/host_sizing_notes.md",
+                f"{prefix}/src/litlaunch/__init__.py",
+                f"{prefix}/src/litlaunch/py.typed",
+            ),
+            version,
+        )
+
+
 def test_release_script_require_archive_entry_raises_for_missing_entry():
     module = load_release_script()
 

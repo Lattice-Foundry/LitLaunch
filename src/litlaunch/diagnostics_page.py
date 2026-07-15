@@ -356,6 +356,7 @@ def _collect_diagnostics() -> tuple[Any | None, str | None, str | None]:
                 profile_config.allow_network_exposure if profile_config else False
             ),
             trust_mode=profile_config.trust_mode if profile_config else "development",
+            host_sizing=profile_config.host_sizing if profile_config else "off",
             cwd=profile_config.cwd if profile_config else _project_root(),
             runtime_state_root=(
                 profile_config.runtime_state_root if profile_config else None

@@ -9,29 +9,58 @@ the project history at the level most useful to release users and integrators.
 
 ## Current Release Highlights
 
+- Experimental initial host sizing lets eligible local Windows product apps
+  request one authenticated, height-only fit while keeping frontend measurement
+  app-owned and all unsafe cases fail-soft.
+
 - Cleaner app-window launches: LitLaunch now hides Streamlit's default toolbar
   chrome by default, with `--show-streamlit-chrome` when you want it back.
+
 - Better webapp isolation: Chromium app-mode launches use temporary browser
   profiles by default, keeping local app sessions from stepping on each other.
+
 - Safer multi-app launching: when a requested port is already busy, LitLaunch
   can automatically choose the next available port instead of opening the wrong
   local app.
+
 - Cleaner console output: Streamlit startup banners, usage-stat notices, and
   backend server chatter stay hidden by default while LitLaunch reports the
   selected local URL.
+
 - More reliable close-to-shutdown behavior: app-window and browser-window
   monitoring now handles small title differences more gracefully.
+
 - Product-style app icons: profiles, shortcuts, diagnostics, and Windows
   webapp launches can use `app_icon` for a more polished local app identity.
+
 - Cleaner generated artifacts: project-local reports and shortcuts stay under
   `.litlaunch/`, while temporary runtime and browser state stays out of source
   trees by default.
+
 - Stronger diagnostics and support surfaces: inspect/report workflows remain
   local, shareable after review, and focused on practical runtime posture.
+
 - Tighter release quality: stricter type checking and release hygiene checks
   guard the package before publication.
+
 - Cleaner public repository hygiene: internal working notes are excluded from
   public package artifacts and the public source tree.
+
+## 1.0.11 - Stable
+
+- Added the Experimental `host_sizing = "off" | "initial"` launch policy,
+  defaulting to `off` for backward-compatible launches.
+- Added profile, CLI, and Python configuration parity for one bounded initial
+  height fit on eligible Windows Edge or Chrome webapp windows.
+- Added the immutable, redaction-safe `get_host_sizing_handoff()` accessor for
+  deliberate app-owned frontend integration.
+- Connected public activation to the proven authenticated transport, exact
+  process/window authority, stabilization, height-only mutation, and terminal
+  cleanup pipeline.
+- Added credential-free plan, inspect, and runtime-event status while keeping
+  normal console output quiet and sizing failures non-fatal.
+- Documented the complete app-owned frontend adapter contract and current
+  Windows, browser, profile, loopback, one-shot, and display-validation limits.
 
 ## 1.0.10 - Stable
 

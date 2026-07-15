@@ -595,7 +595,8 @@ def test_policy_accepts_only_typed_validated_reports():
 def test_policy_remains_private_and_has_no_transport_or_native_behavior():
     source = Path(policy_module.__file__).read_text(encoding="utf-8")
 
-    assert not hasattr(litlaunch, "HostSizingPolicy")
+    assert litlaunch.HostSizingPolicy is not HostSizingPolicy
+    assert not hasattr(litlaunch, "HostSizingPolicyConfig")
     assert "parse_host_sizing_report" not in source
     assert "start_host_sizing_channel" not in source
     assert "WindowsGeometryBackend" not in source

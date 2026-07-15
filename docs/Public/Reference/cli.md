@@ -85,6 +85,7 @@ litlaunch run app.py --port 8501 --no-auto-port
 litlaunch run app.py --host 0.0.0.0 --allow-network-exposure
 litlaunch run app.py --no-browser-fallback
 litlaunch run app.py --show-streamlit-chrome
+litlaunch run app.py --mode webapp --browser edge --host-sizing initial
 litlaunch run app.py --dry-run
 litlaunch run --profile my-webapp
 litlaunch run --config litlaunch.toml --profile my-webapp
@@ -130,6 +131,33 @@ messages printed by the backend process. LitLaunch still prints the resolved
 local URL and port through its own console output. Use
 `--show-streamlit-output` or profile `show_streamlit_output = true` when you
 intentionally want the raw Streamlit/backend output stream visible.
+
+## Experimental Host Sizing
+
+`--host-sizing` accepts exactly `off` or `initial`. The default is `off`.
+`initial` requests one bounded height-only fit and is eligible only for local
+Windows webapp launches using an explicit Edge or Chrome browser and the
+LitLaunch-managed browser profile:
+
+```powershell
+litlaunch app.py --mode webapp --browser edge --host-sizing initial
+litlaunch --profile studio --host-sizing off
+```
+
+Profiles can set the same policy:
+
+```toml
+[profiles.studio]
+app_path = "app.py"
+mode = "webapp"
+browser = "edge"
+host_sizing = "initial"
+```
+
+The app must deliberately forward the launch-scoped handoff to one trusted
+frontend sizing surface. See the
+[initial host-sizing guide](../Guides/host-sizing.md). Unsupported launch
+shapes continue without resizing.
 
 CLI webapp launches enable app-window close monitoring by default where window
 monitoring is supported; use `--no-monitor-window` only when you intentionally

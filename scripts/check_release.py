@@ -363,6 +363,9 @@ def inspect_sdist_names(names: Sequence[str], version: str) -> None:
     internal_prefix = f"{prefix}docs/internal/"
     if any(name.startswith(internal_prefix) for name in names):
         raise RuntimeError("Internal integration docs must not be included in sdist.")
+    research_prefix = f"{prefix}docs/research/"
+    if any(name.startswith(research_prefix) for name in names):
+        raise RuntimeError("Engineering research must not be included in sdist.")
     notes_prefix = f"{prefix}notes/"
     if any(name.startswith(notes_prefix) for name in names):
         raise RuntimeError("Local notes must not be included in sdist.")
@@ -535,6 +538,8 @@ def run_installed_wheel_smoke(wheel_path: Path, version: str) -> None:
                 (
                     "import litlaunch; "
                     f"assert litlaunch.__version__ == {version!r}; "
+                    "assert litlaunch.HostSizingPolicy.OFF.value == 'off'; "
+                    "assert litlaunch.get_host_sizing_handoff() is None; "
                     "print(litlaunch.__version__)"
                 ),
             ),
@@ -594,6 +599,9 @@ def _venv_script(venv_dir: Path, name: str) -> Path:
 def _smoke_env() -> dict[str, str]:
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
+    for name in tuple(env):
+        if name.startswith("LITLAUNCH_HOST_SIZING_"):
+            env.pop(name)
     return env
 
 

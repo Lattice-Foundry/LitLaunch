@@ -2075,6 +2075,29 @@ def test_cli_runtime_accepts_app_icon():
     assert launcher.config.app_icon == icon
 
 
+def test_cli_runtime_maps_exact_host_sizing_policy():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+
+    code = main(
+        [
+            str(EXAMPLE_APP),
+            "--mode",
+            "webapp",
+            "--browser",
+            "edge",
+            "--host-sizing",
+            "initial",
+            "--no-monitor-window",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+    )
+
+    assert code == 0
+    assert FakeLauncher.instances[0].config.host_sizing.value == "initial"
+
+
 def test_cli_root_profile_shorthand_uses_profile_runtime_path():
     with temporary_output_dir() as output_dir:
         app = output_dir / "app.py"

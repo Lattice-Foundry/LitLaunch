@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 from pathlib import Path
 
+from litlaunch._browser_authority import BrowserLaunchAuthority
+from litlaunch._host_sizing_production import (
+    PrivateHostSizingRuntime,
+    _PrivateHostSizingActivation,
+)
 from litlaunch._protocols import ClockProvider
 from litlaunch.artifacts import (
     cleanup_litlaunch_owned_dir,
@@ -75,6 +80,7 @@ class StreamlitLauncher:
         console_renderer: ConsoleRenderer | None = None,
         event_sink: RuntimeEventSink | None = None,
         clock: ClockProvider = time,
+        _host_sizing_activation: _PrivateHostSizingActivation | None = None,
     ) -> None:
         self.config = (
             config if isinstance(config, LauncherConfig) else LauncherConfig(config)
@@ -98,6 +104,7 @@ class StreamlitLauncher:
             console_renderer=console_renderer,
         )
         self.clock = clock
+        self._host_sizing_activation = _host_sizing_activation
 
     def build_command(self) -> tuple[str, ...]:
         """Build the backend command without starting a process.
@@ -202,6 +209,7 @@ class StreamlitLauncher:
         """
 
         render_runtime_header(self.console_renderer, self.config)
+        private_host_sizing = self._begin_private_host_sizing()
         self._emit_launch_planned()
         self._enforce_network_exposure_acknowledgement()
         self._emit_backend_starting()
@@ -209,6 +217,11 @@ class StreamlitLauncher:
             wait_for_health=True,
             health_timeout_seconds=health_timeout_seconds,
             health_interval_seconds=health_interval_seconds,
+            private_env_provider=(
+                private_host_sizing.prepare_backend
+                if private_host_sizing is not None
+                else None
+            ),
         )
         backend_result = backend_start.result
         self._emit_backend_start_result(backend_result)
@@ -218,6 +231,7 @@ class StreamlitLauncher:
             or managed_process is None
             or backend_result.url is None
         ):
+            _close_private_host_sizing(private_host_sizing)
             return RuntimeSession(
                 result=backend_result,
                 process=None,
@@ -265,6 +279,11 @@ class StreamlitLauncher:
         )
         extra_browser_args, cleanup_callbacks = self._browser_launch_args()
         runtime_state_root = runtime_state_root_for_config(self.config)
+        if private_host_sizing is not None and not _prepare_private_browser_authority(
+            private_host_sizing,
+            self.browser_launcher,
+        ):
+            private_host_sizing = None
         browser_start_time = self.clock.monotonic()
         browser_result = self.browser_launcher.launch(
             resolution,
@@ -277,9 +296,11 @@ class StreamlitLauncher:
             artifact_root=runtime_state_root,
         )
         cleanup_callbacks = (*cleanup_callbacks, *browser_result.cleanup_callbacks)
+        browser_authority = _browser_authority_snapshot(self.browser_launcher)
         browser_elapsed = self.clock.monotonic() - browser_start_time
 
         if not browser_result.ok:
+            _close_private_host_sizing(private_host_sizing)
             self._record(
                 events,
                 LaunchState.TERMINATING,
@@ -331,6 +352,16 @@ class StreamlitLauncher:
                 clock=self.clock,
             )
 
+        if private_host_sizing is not None:
+            try:
+                private_host_sizing.activate_after_browser(
+                    browser_authority,
+                    backend_is_running=lambda: self.process_manager.is_running(
+                        managed_process
+                    ),
+                )
+            except Exception:
+                _close_private_host_sizing(private_host_sizing)
         self._record(events, LaunchState.RUNNING, browser_result.message, render=False)
         render_phase_success(
             self.console_renderer,
@@ -370,6 +401,8 @@ class StreamlitLauncher:
             event_emitter=self.event_emitter,
             port_release_checker=self.port_manager.is_port_available,
             cleanup_callbacks=cleanup_callbacks,
+            browser_authority=browser_authority,
+            _private_host_sizing_runtime=private_host_sizing,
             clock=self.clock,
         )
 
@@ -392,6 +425,9 @@ class StreamlitLauncher:
         wait_for_health: bool,
         health_timeout_seconds: float,
         health_interval_seconds: float,
+        private_env_provider: (
+            Callable[[str, ConsoleRenderer | None], Mapping[str, str]] | None
+        ) = None,
     ) -> BackendStartResult:
         """Start the Streamlit backend and return the managed process."""
 
@@ -407,6 +443,16 @@ class StreamlitLauncher:
             wait_for_health=wait_for_health,
             health_timeout_seconds=health_timeout_seconds,
             health_interval_seconds=health_interval_seconds,
+            _private_env_provider=(
+                (
+                    lambda app_url: private_env_provider(
+                        app_url,
+                        self.console_renderer,
+                    )
+                )
+                if private_env_provider is not None
+                else None
+            ),
         )
 
     def with_port(self, port: int) -> StreamlitLauncher:
@@ -423,7 +469,17 @@ class StreamlitLauncher:
             console_renderer=self.console_renderer,
             event_sink=self.event_sink,
             clock=self.clock,
+            _host_sizing_activation=self._host_sizing_activation,
         )
+
+    def _begin_private_host_sizing(self) -> PrivateHostSizingRuntime | None:
+        activation = self._host_sizing_activation
+        if activation is None:
+            return None
+        try:
+            return activation.begin(self.config)
+        except Exception:
+            return None
 
     def _runtime_event_sink(
         self,
@@ -577,6 +633,64 @@ def _run_cleanup_callbacks(callbacks: tuple[Callable[[], object], ...]) -> None:
             callback()
         except Exception:
             continue
+
+
+def _browser_authority_snapshot(
+    browser_launcher: object,
+) -> BrowserLaunchAuthority | None:
+    getter = getattr(browser_launcher, "_process_authority_snapshot", None)
+    if not callable(getter):
+        return None
+    try:
+        authority = getter()
+    except Exception:
+        return None
+    return authority if isinstance(authority, BrowserLaunchAuthority) else None
+
+
+def _bind_browser_authority_launch_id(
+    browser_launcher: object,
+    launch_id: str | None,
+) -> None:
+    if launch_id is None:
+        return
+    setter = getattr(browser_launcher, "_set_process_authority_launch_id", None)
+    if not callable(setter):
+        return
+    try:
+        setter(launch_id)
+    except Exception:
+        return
+
+
+def _prepare_private_browser_authority(
+    runtime: PrivateHostSizingRuntime,
+    browser_launcher: object,
+) -> bool:
+    try:
+        if not runtime.capture_window_baseline():
+            runtime.close()
+            return False
+        launch_id = runtime.authority_launch_id()
+        if launch_id is None:
+            runtime.close()
+            return False
+        _bind_browser_authority_launch_id(browser_launcher, launch_id)
+        return True
+    except Exception:
+        _close_private_host_sizing(runtime)
+        return False
+
+
+def _close_private_host_sizing(
+    runtime: PrivateHostSizingRuntime | None,
+) -> None:
+    if runtime is None:
+        return
+    try:
+        runtime.close()
+    except Exception:
+        return
 
 
 def _browser_launch_display_mode(

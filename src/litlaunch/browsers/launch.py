@@ -4,12 +4,23 @@ from __future__ import annotations
 
 import os
 import subprocess
+import time
 import uuid
 import webbrowser
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import cast
 
+from litlaunch._browser_authority import (
+    BrowserLaunchAuthority,
+    BrowserLaunchStrategy,
+    create_browser_launch_authority,
+)
+from litlaunch._protocols import ClockProvider
+from litlaunch._windows_shell import (
+    WindowsShellProcess,
+    open_windows_shortcut_with_process,
+)
 from litlaunch.artifacts import browser_shortcuts_dir
 from litlaunch.browsers.base import (
     BrowserCapability,
@@ -37,6 +48,10 @@ class BrowserLauncher:
         browser_open: Callable[[str], bool] = webbrowser.open,
         shortcut_writer: Callable[..., object] = write_windows_shortcut,
         shortcut_opener: Callable[[Path], object] | None = None,
+        process_authority_factory: Callable[
+            ..., BrowserLaunchAuthority | None
+        ] = create_browser_launch_authority,
+        clock: ClockProvider = time,
         is_windows: bool | None = None,
     ) -> None:
         self.registry = registry or create_default_browser_registry()
@@ -44,7 +59,12 @@ class BrowserLauncher:
         self.browser_open = browser_open
         self.shortcut_writer = shortcut_writer
         self.shortcut_opener = shortcut_opener or open_windows_shortcut
+        self.process_authority_factory = process_authority_factory
+        self.clock = clock
         self.is_windows = os.name == "nt" if is_windows is None else is_windows
+        self._process_authority: BrowserLaunchAuthority | None = None
+        self._pending_authority_launch_id: str | None = None
+        self._active_authority_launch_id: str | None = None
 
     def launch(
         self,
@@ -59,6 +79,37 @@ class BrowserLauncher:
         artifact_root: Path | None = None,
     ) -> BrowserLaunchResult:
         """Launch the selected browser capability."""
+
+        self._process_authority = None
+        self._active_authority_launch_id = self._pending_authority_launch_id
+        self._pending_authority_launch_id = None
+        try:
+            return self._launch_selected(
+                resolution,
+                url=url,
+                mode=mode,
+                title=title,
+                extra_args=extra_args,
+                allow_fallback=allow_fallback,
+                app_icon=app_icon,
+                artifact_root=artifact_root,
+            )
+        finally:
+            self._active_authority_launch_id = None
+
+    def _launch_selected(
+        self,
+        resolution: BrowserResolution,
+        *,
+        url: str,
+        mode: LaunchMode,
+        title: str,
+        extra_args: Sequence[str],
+        allow_fallback: bool,
+        app_icon: Path | None,
+        artifact_root: Path | None,
+    ) -> BrowserLaunchResult:
+        """Launch one resolution while a private authority binding is active."""
 
         capability = resolution.selected
         if capability is None:
@@ -181,8 +232,9 @@ class BrowserLauncher:
             if shortcut_result.ok:
                 return shortcut_result
 
+        launched_at = self.clock.monotonic()
         try:
-            self.popen_factory(command, shell=False)
+            process = self.popen_factory(command, shell=False)
         except Exception as exc:
             return BrowserLaunchResult(
                 ok=False,
@@ -191,6 +243,13 @@ class BrowserLauncher:
                 mode=mode,
                 message=f"Browser launch failed: {exc}",
             )
+        self._retain_process_authority(
+            process_id=getattr(process, "pid", None),
+            capability=capability,
+            command=command,
+            launch_strategy=BrowserLaunchStrategy.DIRECT,
+            launched_at_monotonic=launched_at,
+        )
         return BrowserLaunchResult(
             ok=True,
             command=command,
@@ -229,7 +288,8 @@ class BrowserLauncher:
                 icon_path=app_icon,
                 app_user_model_id=app_user_model_id,
             )
-            self.shortcut_opener(shortcut_path)
+            launched_at = self.clock.monotonic()
+            shell_process = self.shortcut_opener(shortcut_path)
         except Exception as exc:
             _remove_path_quietly(shortcut_path)
             return BrowserLaunchResult(
@@ -240,6 +300,15 @@ class BrowserLauncher:
                 message=f"Windows icon shortcut launch failed: {exc}",
             )
 
+        if isinstance(shell_process, WindowsShellProcess):
+            self._retain_process_authority(
+                process_id=shell_process.process_id,
+                root_creation_time_100ns=shell_process.creation_time_100ns,
+                capability=capability,
+                command=command,
+                launch_strategy=BrowserLaunchStrategy.WINDOWS_SHORTCUT,
+                launched_at_monotonic=launched_at,
+            )
         return BrowserLaunchResult(
             ok=True,
             command=command,
@@ -285,8 +354,9 @@ class BrowserLauncher:
             *tuple(str(arg) for arg in extra_args),
             url,
         )
+        launched_at = self.clock.monotonic()
         try:
-            self.popen_factory(command, shell=False)
+            process = self.popen_factory(command, shell=False)
         except Exception as exc:
             return BrowserLaunchResult(
                 ok=False,
@@ -295,6 +365,13 @@ class BrowserLauncher:
                 mode=mode,
                 message=f"Browser launch failed: {exc}",
             )
+        self._retain_process_authority(
+            process_id=getattr(process, "pid", None),
+            capability=capability,
+            command=command,
+            launch_strategy=BrowserLaunchStrategy.DIRECT,
+            launched_at_monotonic=launched_at,
+        )
         return BrowserLaunchResult(
             ok=True,
             command=command,
@@ -302,6 +379,52 @@ class BrowserLauncher:
             mode=mode,
             message=f"Launched {capability.name}.",
         )
+
+    def _process_authority_snapshot(self) -> BrowserLaunchAuthority | None:
+        """Return direct-launch identity without claiming process ownership."""
+
+        return self._process_authority
+
+    def _set_process_authority_launch_id(self, launch_id: str) -> None:
+        """Bind the next browser authority to one private transport launch ID."""
+
+        normalized = str(launch_id).strip()
+        if not normalized or len(normalized) > 256:
+            raise ValueError("Browser authority launch ID is invalid.")
+        self._pending_authority_launch_id = normalized
+
+    def _retain_process_authority(
+        self,
+        *,
+        process_id: object,
+        capability: BrowserCapability,
+        command: tuple[str, ...],
+        launch_strategy: BrowserLaunchStrategy,
+        launched_at_monotonic: float,
+        root_creation_time_100ns: int | None = None,
+    ) -> None:
+        if (
+            isinstance(process_id, bool)
+            or not isinstance(process_id, int)
+            or process_id <= 0
+        ):
+            return
+        executable_path = capability.executable_path
+        if executable_path is None:
+            return
+        try:
+            self._process_authority = self.process_authority_factory(
+                root_process_id=process_id,
+                root_creation_time_100ns=root_creation_time_100ns,
+                browser_kind=capability.kind,
+                executable_path=executable_path,
+                command=command,
+                launch_strategy=launch_strategy,
+                launched_at_monotonic=launched_at_monotonic,
+                launch_id=self._active_authority_launch_id,
+            )
+        except Exception:
+            self._process_authority = None
 
 
 def _launch_candidates(
@@ -435,10 +558,7 @@ def _remove_path_quietly(path: Path) -> None:
         return
 
 
-def open_windows_shortcut(path: Path) -> None:
-    """Open a Windows shortcut through the OS shell association."""
+def open_windows_shortcut(path: Path) -> WindowsShellProcess | None:
+    """Open a Windows shortcut and retain process identity when available."""
 
-    opener = getattr(os, "startfile", None)
-    if not callable(opener):
-        raise RuntimeError("os.startfile is not available on this platform.")
-    cast(Callable[[str], object], opener)(str(path))
+    return open_windows_shortcut_with_process(path)

@@ -4,6 +4,11 @@ from io import StringIO
 from pathlib import Path
 
 from litlaunch import LauncherConfig, LaunchMode, RuntimeEvent
+from litlaunch._browser_authority import (
+    BrowserLaunchAuthority,
+    BrowserLaunchStrategy,
+)
+from litlaunch._host_sizing_transport import HOST_SIZING_ENV_KEYS
 from litlaunch.artifacts import OWNED_MARKER, cleanup_litlaunch_owned_dir
 from litlaunch.backend import BackendCommand, BackendCommandContext
 from litlaunch.browsers import (
@@ -107,10 +112,15 @@ class FakeBrowserRegistry:
 
 
 class FakeBrowserLauncher:
-    def __init__(self, ok=True):
+    def __init__(self, ok=True, authority=None):
         self.ok = ok
+        self.authority = authority
         self.calls = []
         self.artifact_roots = []
+        self.authority_launch_ids = []
+
+    def _set_process_authority_launch_id(self, launch_id):
+        self.authority_launch_ids.append(launch_id)
 
     def launch(
         self,
@@ -134,6 +144,53 @@ class FakeBrowserLauncher:
             mode=mode,
             message="browser launched" if self.ok else "browser failed",
         )
+
+    def _process_authority_snapshot(self):
+        return self.authority
+
+
+class FakePrivateHostSizingRuntime:
+    def __init__(self, calls):
+        self.calls = calls
+        self.closed = False
+        self.activated_with = None
+
+    def prepare_backend(self, app_url, console_renderer):
+        self.calls.append(("prepare", app_url, console_renderer))
+        return {
+            "LITLAUNCH_HOST_SIZING_ENABLED": "1",
+            "LITLAUNCH_HOST_SIZING_SOURCE_ID": "primary-surface",
+        }
+
+    def capture_window_baseline(self):
+        self.calls.append(("baseline",))
+        return True
+
+    def authority_launch_id(self):
+        return "private-launch-123456"
+
+    def activate_after_browser(self, authority, *, backend_is_running):
+        self.calls.append(("activate", backend_is_running()))
+        self.activated_with = authority
+        return True
+
+    def close(self):
+        if not self.closed:
+            self.calls.append(("host-sizing-close",))
+            self.closed = True
+
+    def snapshot(self):
+        return {"closed": self.closed}
+
+
+class FakePrivateHostSizingActivation:
+    def __init__(self, runtime):
+        self.runtime = runtime
+        self.configs = []
+
+    def begin(self, config):
+        self.configs.append(config)
+        return self.runtime
 
 
 class FakeBackendCommandProvider:
@@ -218,6 +275,159 @@ def test_runtime_event_sink_receives_basic_launch_lifecycle_events():
     assert events[2].details["pid"] == "999"
     assert events[3].details["port"] == "8600"
     assert events[-1].category == "browser"
+
+
+def test_runtime_session_retains_then_invalidates_nonowning_browser_authority():
+    process_manager = FakeProcessManager()
+    authority = BrowserLaunchAuthority(
+        launch_id="runtime-launch-123456",
+        root_process_id=4321,
+        root_creation_time_100ns=123456,
+        browser_kind=BrowserKind.EDGE,
+        executable_path=Path("C:/Edge/msedge.exe"),
+        managed_profile_dir=Path("C:/Temp/litlaunch-profile"),
+        launch_strategy=BrowserLaunchStrategy.WINDOWS_SHORTCUT,
+        launched_at_monotonic=1.0,
+    )
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True, authority=authority),
+        clock=FakeClock(),
+    )
+
+    session = launcher.start()
+
+    assert session._browser_authority_snapshot() == authority
+    session.stop()
+    assert session._browser_authority_snapshot() is None
+    assert len(process_manager.stopped) == 1
+    stopped_process, _timeout = process_manager.stopped[0]
+    assert stopped_process.popen.pid == 999
+    assert stopped_process.popen.pid != authority.root_process_id
+
+
+def test_private_host_sizing_uses_production_lifecycle_and_closes_before_backend():
+    calls = []
+
+    class OrderedProcessManager(FakeProcessManager):
+        def stop(self, process, terminate_timeout_seconds=5.0):
+            calls.append(("backend-stop",))
+            super().stop(process, terminate_timeout_seconds)
+
+    process_manager = OrderedProcessManager()
+    browser_launcher = FakeBrowserLauncher(ok=True)
+    runtime = FakePrivateHostSizingRuntime(calls)
+    activation = FakePrivateHostSizingActivation(runtime)
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=browser_launcher,
+        clock=FakeClock(),
+        _host_sizing_activation=activation,  # type: ignore[arg-type]
+    )
+
+    session = launcher.start()
+    child_env = process_manager.started[0][1]["env"]
+
+    assert session.ok is True
+    assert child_env["LITLAUNCH_HOST_SIZING_ENABLED"] == "1"
+    assert child_env["LITLAUNCH_HOST_SIZING_SOURCE_ID"] == "primary-surface"
+    assert browser_launcher.authority_launch_ids == ["private-launch-123456"]
+    assert [call[0] for call in calls[:3]] == ["prepare", "baseline", "activate"]
+    assert session._host_sizing_snapshot() == {"closed": False}
+
+    session.stop()
+
+    assert calls.index(("host-sizing-close",)) < calls.index(("backend-stop",))
+    assert session._host_sizing_snapshot() == {"closed": True}
+    assert session._browser_authority_snapshot() is None
+
+
+def test_private_host_sizing_rolls_back_before_browser_failure_backend_stop():
+    calls = []
+
+    class OrderedProcessManager(FakeProcessManager):
+        def stop(self, process, terminate_timeout_seconds=5.0):
+            calls.append(("backend-stop",))
+            super().stop(process, terminate_timeout_seconds)
+
+    runtime = FakePrivateHostSizingRuntime(calls)
+    process_manager = OrderedProcessManager()
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=False),
+        clock=FakeClock(),
+        _host_sizing_activation=FakePrivateHostSizingActivation(runtime),  # type: ignore[arg-type]
+    )
+
+    session = launcher.start()
+
+    assert session.ok is False
+    assert calls.index(("host-sizing-close",)) < calls.index(("backend-stop",))
+
+
+def test_private_host_sizing_rolls_back_after_backend_start_failure():
+    calls = []
+
+    class FailingProcessManager(FakeProcessManager):
+        def start(self, command, **kwargs):
+            self.started.append((command, kwargs))
+            raise OSError("fake backend process start failure")
+
+    runtime = FakePrivateHostSizingRuntime(calls)
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        process_manager=FailingProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        clock=FakeClock(),
+        _host_sizing_activation=FakePrivateHostSizingActivation(runtime),  # type: ignore[arg-type]
+    )
+
+    session = launcher.start()
+
+    assert session.ok is False
+    assert runtime.closed is True
+    assert [call[0] for call in calls] == ["prepare", "host-sizing-close"]
+
+
+def test_private_host_sizing_exception_does_not_break_valid_base_launch():
+    calls = []
+
+    class FailingPrivateRuntime(FakePrivateHostSizingRuntime):
+        def capture_window_baseline(self):
+            raise RuntimeError("fake private baseline failure")
+
+    runtime = FailingPrivateRuntime(calls)
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py", port=8600),
+        port_manager=FakePortManager(8600),
+        process_manager=FakeProcessManager(),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        clock=FakeClock(),
+        _host_sizing_activation=FakePrivateHostSizingActivation(runtime),  # type: ignore[arg-type]
+    )
+
+    session = launcher.start()
+
+    assert session.ok is True
+    assert runtime.closed is True
+    assert session._host_sizing_snapshot() is None
 
 
 def test_runtime_event_sink_does_not_receive_raw_env_secrets():
@@ -806,6 +1016,32 @@ def test_start_backend_passes_cwd_and_extra_env_without_mutating_global_env(
     assert env["LITLAUNCH_SHUTDOWN_TOKEN"] != "global-token"
     assert os.environ["APP_SETTING"] == "global"
     assert os.environ["LITLAUNCH_SHUTDOWN_TOKEN"] == "global-token"
+
+
+def test_start_backend_strips_private_host_sizing_environment_when_disabled(
+    monkeypatch,
+):
+    for name in HOST_SIZING_ENV_KEYS:
+        monkeypatch.setenv(name, "ambient-private-value")
+    process_manager = FakeProcessManager()
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            extra_env={
+                name: "configured-private-value" for name in HOST_SIZING_ENV_KEYS
+            },
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend()
+    env = process_manager.started[0][1]["env"]
+
+    assert session.ok is True
+    assert HOST_SIZING_ENV_KEYS.isdisjoint(env)
 
 
 def test_verbose_backend_command_detail_redacts_sensitive_values():

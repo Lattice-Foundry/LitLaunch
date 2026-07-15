@@ -1,5 +1,14 @@
 from pathlib import Path
 
+import pytest
+
+from litlaunch._browser_authority import (
+    BrowserLaunchStrategy,
+    WindowsProcessRecord,
+    create_browser_launch_authority,
+)
+from litlaunch._windows_shell import WindowsShellProcess
+from litlaunch.browser_profiles import create_managed_browser_profile
 from litlaunch.browsers import (
     BrowserCapability,
     BrowserKind,
@@ -369,3 +378,198 @@ def test_browser_launcher_has_no_termination_surface():
     assert not hasattr(launcher, "kill")
     assert not hasattr(launcher, "terminate")
     assert not hasattr(launcher, "stop")
+
+
+def test_direct_app_launch_retains_private_nonowning_process_authority(
+    tmp_path: Path,
+):
+    class FakeProcess:
+        pid = 4321
+
+    profile = create_managed_browser_profile(tmp_path)
+    executable = Path("C:/Program Files/Google/Chrome/Application/chrome.exe")
+
+    def authority_factory(**kwargs):
+        return create_browser_launch_authority(
+            **kwargs,
+            root_record_provider=lambda process_id: WindowsProcessRecord(
+                process_id,
+                0,
+                123456,
+                executable,
+            ),
+        )
+
+    launcher = BrowserLauncher(
+        registry=BrowserRegistry((ChromeAdapter(),)),
+        popen_factory=lambda command, **kwargs: FakeProcess(),
+        process_authority_factory=authority_factory,
+    )
+    launcher._set_process_authority_launch_id("private-channel-launch-123456")
+
+    result = launcher.launch(
+        resolution(capability(BrowserKind.CHROME, str(executable))),
+        url="http://127.0.0.1:8501",
+        mode=LaunchMode.WEBAPP,
+        extra_args=(f"--user-data-dir={profile}",),
+    )
+    process_authority = launcher._process_authority_snapshot()
+
+    assert result.ok is True
+    assert process_authority is not None
+    assert process_authority.root_process_id == 4321
+    assert process_authority.root_creation_time_100ns == 123456
+    assert process_authority.browser_kind == BrowserKind.CHROME
+    assert process_authority.managed_profile_dir == profile
+    assert process_authority.launch_strategy == BrowserLaunchStrategy.DIRECT
+    assert process_authority.launch_id == "private-channel-launch-123456"
+
+
+def test_windows_shortcut_launch_does_not_infer_process_authority(tmp_path: Path):
+    icon = tmp_path / "studio.ico"
+    icon.write_bytes(b"icon")
+
+    def shortcut_writer(**kwargs):
+        kwargs["shortcut_path"].write_text("shortcut", encoding="utf-8")
+
+    launcher = BrowserLauncher(
+        registry=BrowserRegistry((EdgeAdapter(),)),
+        shortcut_writer=shortcut_writer,
+        shortcut_opener=lambda _path: None,
+        is_windows=True,
+    )
+
+    result = launcher.launch(
+        resolution(capability(BrowserKind.EDGE, "C:/Edge/msedge.exe")),
+        url="http://127.0.0.1:8501",
+        mode=LaunchMode.WEBAPP,
+        app_icon=icon,
+        artifact_root=tmp_path,
+    )
+
+    assert result.ok is True
+    assert launcher._process_authority_snapshot() is None
+    result.cleanup_callbacks[0]()
+
+
+def test_windows_shortcut_launch_retains_exact_shell_process_authority(
+    tmp_path: Path,
+):
+    icon = tmp_path / "studio.ico"
+    icon.write_bytes(b"icon")
+    profile = create_managed_browser_profile(tmp_path / "runtime state")
+    executable = "C:/Program Files/Microsoft/Edge/Application/msedge.exe"
+
+    def shortcut_writer(**kwargs):
+        kwargs["shortcut_path"].write_text("shortcut", encoding="utf-8")
+
+    launcher = BrowserLauncher(
+        registry=BrowserRegistry((EdgeAdapter(),)),
+        shortcut_writer=shortcut_writer,
+        shortcut_opener=lambda _path: WindowsShellProcess(8765, 987654321),
+        is_windows=True,
+    )
+
+    result = launcher.launch(
+        resolution(capability(BrowserKind.EDGE, executable)),
+        url="http://127.0.0.1:8501",
+        mode=LaunchMode.WEBAPP,
+        title="Product Studio",
+        extra_args=(f"--user-data-dir={profile}", "--new-window"),
+        app_icon=icon,
+        artifact_root=tmp_path,
+    )
+    authority = launcher._process_authority_snapshot()
+
+    assert result.ok is True
+    assert authority is not None
+    assert authority.root_process_id == 8765
+    assert authority.root_creation_time_100ns == 987654321
+    assert authority.browser_kind == BrowserKind.EDGE
+    assert authority.executable_path == Path(executable)
+    assert authority.managed_profile_dir == profile
+    assert authority.launch_strategy == BrowserLaunchStrategy.WINDOWS_SHORTCUT
+    assert f"--user-data-dir={profile}" in result.command
+    assert "--new-window" in result.command
+    result.cleanup_callbacks[0]()
+
+
+@pytest.mark.parametrize(
+    ("browser_kind", "adapter", "executable"),
+    [
+        (
+            BrowserKind.EDGE,
+            EdgeAdapter(),
+            "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+        ),
+        (
+            BrowserKind.CHROME,
+            ChromeAdapter(),
+            "C:/Program Files/Google/Chrome/Application/chrome.exe",
+        ),
+    ],
+)
+def test_windows_shortcut_authority_has_edge_chrome_parity(
+    tmp_path: Path,
+    browser_kind: BrowserKind,
+    adapter,
+    executable: str,
+):
+    icon = tmp_path / f"{browser_kind.value}.ico"
+    icon.write_bytes(b"icon")
+    profile = create_managed_browser_profile(tmp_path / browser_kind.value)
+
+    def shortcut_writer(**kwargs):
+        kwargs["shortcut_path"].write_text("shortcut", encoding="utf-8")
+
+    launcher = BrowserLauncher(
+        registry=BrowserRegistry((adapter,)),
+        shortcut_writer=shortcut_writer,
+        shortcut_opener=lambda _path: WindowsShellProcess(8765, 987654321),
+        is_windows=True,
+    )
+
+    result = launcher.launch(
+        resolution(capability(browser_kind, executable)),
+        url="http://127.0.0.1:8501",
+        mode=LaunchMode.WEBAPP,
+        extra_args=(f"--user-data-dir={profile}",),
+        app_icon=icon,
+        artifact_root=tmp_path,
+    )
+    authority = launcher._process_authority_snapshot()
+
+    assert result.ok is True
+    assert authority is not None
+    assert authority.browser_kind == browser_kind
+    assert authority.executable_path == Path(executable)
+    assert authority.managed_profile_dir == profile
+    assert authority.launch_strategy == BrowserLaunchStrategy.WINDOWS_SHORTCUT
+    result.cleanup_callbacks[0]()
+
+
+def test_authority_factory_failure_does_not_break_normal_browser_launch(
+    tmp_path: Path,
+):
+    profile = create_managed_browser_profile(tmp_path)
+
+    class FakeProcess:
+        pid = 4321
+
+    launcher = BrowserLauncher(
+        registry=BrowserRegistry((ChromeAdapter(),)),
+        popen_factory=lambda command, **kwargs: FakeProcess(),
+        process_authority_factory=lambda **kwargs: (_ for _ in ()).throw(
+            RuntimeError("authority unavailable")
+        ),
+    )
+
+    result = launcher.launch(
+        resolution(capability(BrowserKind.CHROME, "C:/Chrome/chrome.exe")),
+        url="http://127.0.0.1:8501",
+        mode=LaunchMode.WEBAPP,
+        extra_args=(f"--user-data-dir={profile}",),
+    )
+
+    assert result.ok is True
+    assert launcher._process_authority_snapshot() is None

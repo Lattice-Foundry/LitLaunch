@@ -5,8 +5,11 @@ from __future__ import annotations
 import subprocess
 import time
 from collections.abc import Callable, Sequence
+from contextlib import suppress
 from types import TracebackType
+from typing import Protocol
 
+from litlaunch._browser_authority import BrowserLaunchAuthority
 from litlaunch._protocols import ClockProvider
 from litlaunch.browsers import BrowserCapability
 from litlaunch.console import ConsoleMode, ConsolePhase, ConsoleRenderer
@@ -31,6 +34,14 @@ from litlaunch.windowing import (
 )
 
 
+class _PrivateHostSizingRuntimeOwner(Protocol):
+    def close(self) -> None:
+        """Close private sizing work before backend shutdown."""
+
+    def snapshot(self) -> object:
+        """Return credential-free internal lifecycle evidence."""
+
+
 class RuntimeSession:
     """Own a live Streamlit backend process started by LitLaunch.
 
@@ -49,7 +60,9 @@ class RuntimeSession:
         event_emitter: RuntimeEventEmitter | None = None,
         port_release_checker: Callable[[str, int], bool] | None = None,
         cleanup_callbacks: Sequence[Callable[[], object]] = (),
+        browser_authority: BrowserLaunchAuthority | None = None,
         clock: ClockProvider = time,
+        _private_host_sizing_runtime: _PrivateHostSizingRuntimeOwner | None = None,
     ) -> None:
         self.result = result
         self.process = process
@@ -60,6 +73,10 @@ class RuntimeSession:
         self._port_release_checker = port_release_checker
         self._cleanup_callbacks = tuple(cleanup_callbacks)
         self._cleanup_done = False
+        self._browser_authority = browser_authority
+        self._private_host_sizing_runtime = _private_host_sizing_runtime
+        self._private_host_sizing_snapshot_value: object | None = None
+        self._shutdown_started = False
         self.clock = clock
         self._events = list(result.events)
         self._state = result.state
@@ -117,6 +134,22 @@ class RuntimeSession:
 
         return self.result.browser_launched
 
+    def _browser_authority_snapshot(self) -> BrowserLaunchAuthority | None:
+        """Return launch identity metadata without implying process ownership."""
+
+        return self._browser_authority
+
+    def _host_sizing_snapshot(self) -> object | None:
+        """Return credential-free private activation evidence for internal tests."""
+
+        runtime = self._private_host_sizing_runtime
+        if runtime is None:
+            return self._private_host_sizing_snapshot_value
+        try:
+            return runtime.snapshot()
+        except Exception:
+            return self._private_host_sizing_snapshot_value
+
     @property
     def events(self) -> tuple[LaunchEvent, ...]:
         """Return immutable lifecycle events observed by the session."""
@@ -138,6 +171,7 @@ class RuntimeSession:
     ) -> None:
         """Gracefully stop the app, then terminate the owned backend if needed."""
 
+        self._begin_shutdown()
         if self.process is None or self._stopped:
             self._run_cleanup_callbacks()
             return
@@ -549,11 +583,29 @@ class RuntimeSession:
         )
 
     def _run_cleanup_callbacks(self) -> None:
+        self._begin_shutdown()
         if self._cleanup_done:
             return
         self._cleanup_done = True
+        self._browser_authority = None
         for callback in self._cleanup_callbacks:
             try:
                 callback()
             except Exception:
                 continue
+
+    def _begin_shutdown(self) -> None:
+        if self._shutdown_started:
+            return
+        self._shutdown_started = True
+        self._browser_authority = None
+        runtime = self._private_host_sizing_runtime
+        self._private_host_sizing_runtime = None
+        if runtime is None:
+            return
+        with suppress(Exception):
+            runtime.close()
+        try:
+            self._private_host_sizing_snapshot_value = runtime.snapshot()
+        except Exception:
+            self._private_host_sizing_snapshot_value = None

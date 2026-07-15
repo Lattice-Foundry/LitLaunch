@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import os
 import secrets
+from collections.abc import Callable, Mapping
 from typing import NamedTuple
 
+from litlaunch._host_sizing_transport import HOST_SIZING_ENV_KEYS
 from litlaunch._protocols import ClockProvider
 from litlaunch.backend import BackendCommandProvider
 from litlaunch.config import LauncherConfig
@@ -50,6 +52,7 @@ def start_backend_process(
     wait_for_health: bool,
     health_timeout_seconds: float,
     health_interval_seconds: float,
+    _private_env_provider: Callable[[str], Mapping[str, str]] | None = None,
 ) -> BackendStartResult:
     """Start the backend process and optionally wait for health."""
 
@@ -114,7 +117,11 @@ def start_backend_process(
             port=shutdown_config.port,
             token=shutdown_config.token,
         )
-        env = _build_backend_env(config, shutdown_config)
+        private_env = _build_private_backend_env(
+            context.app_url,
+            _private_env_provider,
+        )
+        env = _build_backend_env(config, shutdown_config, private_env)
         _record(
             events,
             LaunchState.PROCESS_STARTING,
@@ -394,11 +401,33 @@ def _requested_port_start(config: LauncherConfig) -> int:
 def _build_backend_env(
     config: LauncherConfig,
     shutdown_config: ShutdownConfig,
+    private_env: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    return {
+    environment = {
         **os.environ,
         **config.extra_env,
-        **shutdown_config.as_env(),
+    }
+    for name in HOST_SIZING_ENV_KEYS:
+        environment.pop(name, None)
+    environment.update(shutdown_config.as_env())
+    environment.update(private_env or {})
+    return environment
+
+
+def _build_private_backend_env(
+    app_url: str,
+    provider: Callable[[str], Mapping[str, str]] | None,
+) -> dict[str, str]:
+    if provider is None:
+        return {}
+    try:
+        supplied = {str(key): str(value) for key, value in provider(app_url).items()}
+    except Exception:
+        return {}
+    return {
+        key: value
+        for key, value in supplied.items()
+        if key in HOST_SIZING_ENV_KEYS and "\x00" not in value
     }
 
 

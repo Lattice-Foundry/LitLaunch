@@ -34,10 +34,11 @@ backend shutdown through the normal graceful shutdown path. If LitLaunch cannot
 identify a browser window confidently, it falls back to the manual Ctrl+C stop
 path.
 
-Experimental initial host sizing is a separate, explicit capability. On one
-narrow eligible Windows webapp path, it can apply at most one bounded
-height-only change to an exactly authorized app window. It does not weaken the
-observational monitoring boundary or grant browser-process ownership.
+Experimental host sizing is a separate, explicit capability. On one narrow
+eligible Windows webapp path, `initial` can apply one bounded height-only
+change and `continuous` can accept meaningful later content-fit updates for the
+same exact window. Neither policy weakens the observational monitoring boundary
+or grants browser-process ownership.
 
 ## Stdlib-First
 

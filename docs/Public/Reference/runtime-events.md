@@ -5,7 +5,7 @@ integrations. This is useful for packaged apps that want product logs or support
 trails for launch, health, browser, monitor, hook, shutdown, and port-release
 milestones. Experimental host-sizing launches may also emit a small set of
 channel-ready, eligible/ineligible, report-accepted, applied, completed,
-timed-out, skipped, or failed-safely outcomes.
+timed-out, skipped, failed-safely, or continuous-channel-closed outcomes.
 
 Runtime events are not telemetry. LitLaunch does not upload, rotate, or manage
 event logs. Applications can either provide a Python sink or ask LitLaunch to

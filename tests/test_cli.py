@@ -22,7 +22,7 @@ from litlaunch import __version__
 from litlaunch.browsers import BrowserCapability, BrowserKind, BrowserResolution
 from litlaunch.cli import build_parser, main
 from litlaunch.colors import THEME_COLORS, muted_amber, streamlit_blue, terminal_green
-from litlaunch.config import BrowserChoice, LaunchMode, TrustMode
+from litlaunch.config import BrowserChoice, HostSizingPolicy, LaunchMode, TrustMode
 from litlaunch.console import strip_ansi
 from litlaunch.events import RuntimeEventEmitter
 from litlaunch.inspect import (
@@ -2096,6 +2096,29 @@ def test_cli_runtime_maps_exact_host_sizing_policy():
 
     assert code == 0
     assert FakeLauncher.instances[0].config.host_sizing.value == "initial"
+
+
+def test_cli_runtime_maps_continuous_host_sizing_policy():
+    stream = StringIO()
+    session = FakeSession(ok=True, wait_return=0)
+
+    code = main(
+        [
+            str(EXAMPLE_APP),
+            "--mode",
+            "webapp",
+            "--browser",
+            "edge",
+            "--host-sizing",
+            "continuous",
+            "--no-monitor-window",
+        ],
+        stream=stream,
+        launcher_factory=reset_fake_launcher(session),
+    )
+
+    assert code == 0
+    assert FakeLauncher.instances[0].config.host_sizing is (HostSizingPolicy.CONTINUOUS)
 
 
 def test_cli_root_profile_shorthand_uses_profile_runtime_path():

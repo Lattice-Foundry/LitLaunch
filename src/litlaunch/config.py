@@ -45,6 +45,7 @@ class HostSizingPolicy(str, Enum):
 
     OFF = "off"
     INITIAL = "initial"
+    CONTINUOUS = "continuous"
 
 
 FlagValue = str | int | float | bool | None

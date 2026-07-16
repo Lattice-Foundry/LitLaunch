@@ -20,6 +20,7 @@ from litlaunch._host_sizing_policy import (
     HostSizingPolicy,
     HostSizingPolicyConfig,
     HostSizingPolicyError,
+    HostSizingPolicyMode,
     HostSizingPolicyState,
 )
 from litlaunch._host_sizing_transport import (
@@ -532,6 +533,116 @@ def test_fake_mutation_collaborator_failure_aborts_policy():
     assert len(collaborator.decisions) == 1
 
 
+def test_continuous_policy_accepts_later_growth_and_shrink_decisions():
+    clock = FakeClock()
+    policy = HostSizingPolicy(
+        config=HostSizingPolicyConfig(quiet_period_seconds=0),
+        mode=HostSizingPolicyMode.CONTINUOUS,
+        clock=clock,
+    )
+    exact_authority(policy)
+
+    growth = policy.observe_report(report(1, viewport_height=700, desired_height=900))
+    after_growth = policy.acknowledge_apply(applied=True)
+    shrink = policy.observe_report(
+        report(
+            2,
+            content_height=600,
+            viewport_height=900,
+            desired_height=700,
+        )
+    )
+    after_shrink = policy.acknowledge_apply(applied=True)
+    snapshot = policy.snapshot()
+
+    assert growth.action == HostSizingAction.APPLY
+    assert shrink.action == HostSizingAction.APPLY
+    assert after_growth.state == HostSizingPolicyState.WAITING
+    assert after_shrink.state == HostSizingPolicyState.WAITING
+    assert snapshot.apply_decisions == 2
+    assert snapshot.last_applied_sequence == 2
+    assert snapshot.last_applied_target_height == 700
+    assert snapshot.state.terminal is False
+
+
+def test_continuous_policy_ignores_duplicate_and_subpixel_target_jitter():
+    policy = HostSizingPolicy(
+        config=HostSizingPolicyConfig(quiet_period_seconds=0),
+        mode=HostSizingPolicyMode.CONTINUOUS,
+        clock=FakeClock(),
+    )
+    exact_authority(policy)
+    assert policy.observe_report(report(desired_height=900)).action == (
+        HostSizingAction.APPLY
+    )
+    policy.acknowledge_apply(applied=True)
+
+    duplicate = policy.observe_report(
+        report(2, viewport_height=900, desired_height=900)
+    )
+    jitter = policy.observe_report(
+        report(
+            3,
+            content_height=742.25,
+            viewport_height=900,
+            desired_height=900.25,
+        )
+    )
+
+    assert duplicate.action == HostSizingAction.IGNORE
+    assert jitter.action == HostSizingAction.IGNORE
+    assert policy.snapshot().apply_decisions == 1
+
+
+def test_continuous_policy_remains_active_past_initial_timeout():
+    clock = FakeClock()
+    policy = HostSizingPolicy(
+        config=HostSizingPolicyConfig(timeout_seconds=0.1),
+        mode=HostSizingPolicyMode.CONTINUOUS,
+        clock=clock,
+    )
+    exact_authority(policy)
+    clock.advance(10)
+
+    decision = policy.evaluate()
+
+    assert decision.action == HostSizingAction.WAIT
+    assert decision.state == HostSizingPolicyState.WAITING
+
+
+def test_continuous_policy_failure_closes_later_sizing_authority():
+    policy = HostSizingPolicy(
+        config=HostSizingPolicyConfig(quiet_period_seconds=0),
+        mode=HostSizingPolicyMode.CONTINUOUS,
+        clock=FakeClock(),
+    )
+    exact_authority(policy)
+    assert policy.observe_report(report(desired_height=900)).action == (
+        HostSizingAction.APPLY
+    )
+
+    failed = policy.acknowledge_apply(
+        applied=False,
+        reason="Exact window authority was no longer safe.",
+    )
+    later = policy.observe_report(report(2, desired_height=700))
+
+    assert failed.state == HostSizingPolicyState.ABORTED
+    assert later.action == HostSizingAction.IGNORE
+
+
+def test_initial_policy_still_closes_authority_after_one_apply():
+    policy, _clock, decision = apply_ready_policy(desired_height=900)
+    assert decision.action == HostSizingAction.APPLY
+    policy.acknowledge_apply(applied=True)
+
+    later = policy.observe_report(report(2, viewport_height=900, desired_height=700))
+
+    assert later.action == HostSizingAction.IGNORE
+    assert policy.snapshot().state == HostSizingPolicyState.COMPLETE
+    assert policy.snapshot().apply_decisions == 1
+
+
 def test_apply_decision_waits_for_explicit_acknowledgement():
     policy, _clock, decision = apply_ready_policy()
 
@@ -564,6 +675,25 @@ def test_concurrent_reports_leave_highest_sequence_as_authority():
     assert snapshot.last_sequence == 50
     assert snapshot.latest_report == report(50, desired_height=750)
     assert snapshot.bound_source_id == "primary-surface"
+
+
+def test_continuous_concurrent_reports_stabilize_on_highest_sequence():
+    policy = HostSizingPolicy(
+        mode=HostSizingPolicyMode.CONTINUOUS,
+        clock=FakeClock(),
+    )
+    exact_authority(policy)
+    reports = [
+        report(sequence, desired_height=700 + sequence) for sequence in range(1, 51)
+    ]
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        tuple(executor.map(policy.observe_report, reports))
+
+    snapshot = policy.snapshot()
+    assert snapshot.last_sequence == 50
+    assert snapshot.latest_report == report(50, desired_height=750)
+    assert snapshot.apply_decisions == 0
 
 
 def test_monotonic_clock_regression_fails_closed_as_programmer_error():

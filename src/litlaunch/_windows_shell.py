@@ -79,7 +79,8 @@ def open_windows_shortcut_with_process(path: Path) -> WindowsShellProcess | None
     shell_execute.argtypes = [ctypes.POINTER(info_type)]
     shell_execute.restype = wintypes.BOOL
     if not shell_execute(ctypes.byref(info)):
-        error = ctypes.get_last_error()
+        get_last_error = getattr(ctypes, "get_last_error", None)
+        error = int(get_last_error()) if get_last_error is not None else 0
         raise WindowsShellLaunchError(
             f"Windows shortcut shell activation failed with error {error}."
         )

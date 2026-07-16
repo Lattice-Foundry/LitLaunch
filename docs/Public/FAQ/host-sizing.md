@@ -1,32 +1,39 @@
 # Experimental Host-Sizing FAQ
 
-## What does initial host sizing do?
+## What policies are available?
 
-It lets one trusted frontend surface request one bounded height fit after a
-local Windows webapp opens. LitLaunch preserves the window's width, position,
-activation, Z-order, and monitor placement.
+`off` disables sizing and is the default. `initial` allows one stabilized
+sizing attempt near startup. `continuous` keeps authenticated sizing authority
+for meaningful later content growth and shrink until the runtime stops.
+
+## Which policy should I use?
+
+Use `initial` when the application layout settles once. Use `continuous` for
+apps with route changes, expandable tools, or other trusted content that can
+change height after launch.
 
 ## How do I enable it?
 
-Set `host_sizing = "initial"` in a profile or pass `--host-sizing initial`.
-The only policies are `off` and `initial`, and omission means `off`.
+Set `host_sizing = "initial"` or `host_sizing = "continuous"` in a profile, or
+pass the matching `--host-sizing` value. Omission means `off`.
 
 ## Why is it off by default?
 
 The app must deliberately provide a complete desired host viewport height, and
-the feature changes native window geometry. Default-off behavior keeps ordinary
-launches unchanged and avoids guessing about product-owned layout.
+the feature changes native window geometry. Default-off behavior avoids
+guessing about product-owned layout.
 
-## What does initial mean?
+## Does continuous resize on every frontend update?
 
-The frontend may report while its first layout settles. LitLaunch then makes at
-most one sizing attempt and permanently closes that launch's sizing channel.
-Later content changes do not resize the window.
+No. Reports must be authenticated, launch-bound, source-bound, and
+monotonically sequenced. LitLaunch ignores duplicates, stale reports, and target
+jitter at or below one CSS pixel, then stabilizes meaningful changes before a
+native attempt.
 
 ## Does it resize width or move the window?
 
-No. The policy is height-only and preserves width and position. It is not
-continuous fitting or general window management.
+No. Both policies are height-only and preserve width and position. Host sizing
+is not general window management.
 
 ## What happens if fitting is unavailable?
 
@@ -38,8 +45,8 @@ authority loss, timeouts, and native refusal all fail safely.
 
 Current scope is Windows webapp mode with an explicit Edge or Chrome selection,
 a LitLaunch-managed browser profile, a loopback app host, and one trusted
-frontend adapter. Browser tabs, unmanaged profiles, network-exposed apps,
-width fitting, and continuous fitting are outside the feature.
+frontend adapter. Browser tabs, unmanaged profiles, network-exposed apps, and
+width fitting are outside the feature.
 
 ## Why is it Experimental?
 
@@ -49,12 +56,13 @@ taskbar layouts, and independent Windows hosts remain unproven.
 
 ## Does it require LitBridge?
 
-No. LitBridge can supply app measurements, but any trusted frontend can use the
-documented report contract. LitLaunch does not import or detect LitBridge.
+No. LitBridge can supply host-relative content measurements, but any trusted
+frontend can use the documented report contract. LitLaunch does not import or
+detect LitBridge.
 
 ## How should the handoff be handled?
 
 Forward it only to the trusted frontend surface for the current launch. Do not
 log, persist, cache, place it in a URL, or embed it into static frontend assets.
-See the [initial host-sizing guide](../Guides/host-sizing.md) for the audited
-adapter pattern.
+See the [host-sizing guide](../Guides/host-sizing.md) for the audited adapter
+pattern.

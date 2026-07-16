@@ -1,4 +1,4 @@
-"""Private deterministic policy for one initial host-window fit decision.
+"""Private deterministic policy for authenticated host-window fit decisions.
 
 The policy consumes authenticated, validated reports and produces immutable
 decisions. It does not parse transport input, discover windows, convert geometry,
@@ -27,6 +27,13 @@ class HostSizingPolicyError(RuntimeError):
     """Raised when the private policy is configured or driven incorrectly."""
 
 
+class HostSizingPolicyMode(str, Enum):
+    """Internal decision lifetime selected from the public launch policy."""
+
+    INITIAL = "initial"
+    CONTINUOUS = "continuous"
+
+
 class HostSizingAction(str, Enum):
     """Actions emitted by the private policy state machine."""
 
@@ -38,7 +45,7 @@ class HostSizingAction(str, Enum):
 
 
 class HostSizingPolicyState(str, Enum):
-    """Lifecycle states for the initial-fit policy."""
+    """Lifecycle states shared by initial and continuous fitting."""
 
     WAITING = "waiting"
     STABILIZING = "stabilizing"
@@ -72,7 +79,7 @@ class HostSizingAuthorityStatus(str, Enum):
 
 @dataclass(frozen=True)
 class HostSizingPolicyConfig:
-    """Internal initial-fit timing and CSS viewport bounds."""
+    """Internal stabilization timing and CSS viewport bounds."""
 
     quiet_period_seconds: float = HOST_SIZING_QUIET_PERIOD_SECONDS
     timeout_seconds: float = HOST_SIZING_TIMEOUT_SECONDS
@@ -160,6 +167,7 @@ class HostSizingPolicySnapshot:
     """Immutable policy state for deterministic tests and bounded diagnostics."""
 
     state: HostSizingPolicyState
+    mode: HostSizingPolicyMode
     authority_status: HostSizingAuthorityStatus
     authority_id: str | None
     bound_launch_id: str | None
@@ -170,19 +178,25 @@ class HostSizingPolicySnapshot:
     timeout_deadline: float
     quiet_deadline: float | None
     apply_decisions: int
+    last_applied_sequence: int | None
+    last_applied_target_height: int | None
     terminal_reason: str | None
 
 
 class HostSizingPolicy:
-    """Thread-safe state machine for one bounded initial-fit decision."""
+    """Thread-safe state machine for bounded initial or continuous fitting."""
 
     def __init__(
         self,
         *,
         config: HostSizingPolicyConfig | None = None,
+        mode: HostSizingPolicyMode = HostSizingPolicyMode.INITIAL,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
+        if not isinstance(mode, HostSizingPolicyMode):
+            raise TypeError("Host-sizing policy mode is invalid.")
         self.config = config or HostSizingPolicyConfig()
+        self.mode = mode
         self._clock = clock
         self._lock = threading.RLock()
         started_at = self._read_clock_value()
@@ -199,7 +213,15 @@ class HostSizingPolicy:
         self._material_signature: tuple[float, float | None, float, float] | None = None
         self._quiet_deadline: float | None = None
         self._apply_decisions = 0
+        self._last_applied_sequence: int | None = None
+        self._last_applied_target_height: int | None = None
         self._terminal_reason: str | None = None
+
+    @property
+    def continuous(self) -> bool:
+        """Return whether successful decisions preserve session authority."""
+
+        return self.mode == HostSizingPolicyMode.CONTINUOUS
 
     def observe_report(self, report: HostSizingReport) -> HostSizingDecision:
         """Consume one already validated report without parsing transport input."""
@@ -366,7 +388,7 @@ class HostSizingPolicy:
         applied: bool,
         reason: str | None = None,
     ) -> HostSizingDecision:
-        """Resolve the one pending apply decision after a collaborator handles it."""
+        """Resolve one pending apply after the mutation collaborator handles it."""
 
         if not isinstance(applied, bool):
             raise TypeError("Apply acknowledgement must be a boolean.")
@@ -380,6 +402,21 @@ class HostSizingPolicy:
             if timeout is not None:
                 return timeout
             if applied:
+                if self.continuous:
+                    report = self._latest_report
+                    assert report is not None
+                    self._last_applied_sequence = report.sequence
+                    self._last_applied_target_height = self._bounded_target(
+                        report.desired_host_viewport.height
+                    )[1]
+                    self._state = HostSizingPolicyState.WAITING
+                    self._quiet_deadline = None
+                    return self._decision(
+                        HostSizingAction.WAIT,
+                        reason
+                        or "Continuous host-sizing apply completed; waiting for "
+                        "meaningful later input.",
+                    )
                 return self._terminate(
                     HostSizingPolicyState.COMPLETE,
                     HostSizingAction.COMPLETE,
@@ -432,6 +469,7 @@ class HostSizingPolicy:
         with self._lock:
             return HostSizingPolicySnapshot(
                 state=self._state,
+                mode=self.mode,
                 authority_status=self._authority_status,
                 authority_id=self._authority_id,
                 bound_launch_id=self._bound_launch_id,
@@ -442,6 +480,8 @@ class HostSizingPolicy:
                 timeout_deadline=self._timeout_deadline,
                 quiet_deadline=self._quiet_deadline,
                 apply_decisions=self._apply_decisions,
+                last_applied_sequence=self._last_applied_sequence,
+                last_applied_target_height=self._last_applied_target_height,
                 terminal_reason=self._terminal_reason,
             )
 
@@ -474,7 +514,7 @@ class HostSizingPolicy:
                 HostSizingAction.WAIT,
                 "Waiting for host-sizing input to stabilize.",
             )
-        if self._apply_decisions != 0:
+        if self._apply_decisions != 0 and not self.continuous:
             return self._terminate(
                 HostSizingPolicyState.ABORTED,
                 HostSizingAction.ABORT,
@@ -490,6 +530,18 @@ class HostSizingPolicy:
                 "Bounded target is already within the host-sizing minimum "
                 "viewport delta."
             )
+            if self.continuous:
+                self._last_applied_sequence = self._latest_report.sequence
+                self._last_applied_target_height = desired
+                self._state = HostSizingPolicyState.WAITING
+                self._quiet_deadline = None
+                return self._decision(
+                    HostSizingAction.IGNORE,
+                    reason,
+                    desired_viewport_height=desired,
+                    requested_viewport_height=requested,
+                    clamp_reasons=clamp_reasons,
+                )
             self._state = HostSizingPolicyState.COMPLETE
             self._terminal_reason = reason
             return self._decision(
@@ -499,17 +551,25 @@ class HostSizingPolicy:
                 requested_viewport_height=requested,
                 clamp_reasons=clamp_reasons,
             )
-        self._apply_decisions = 1
+        self._apply_decisions += 1
         self._state = HostSizingPolicyState.APPLY_PENDING
         return self._decision(
             HostSizingAction.APPLY,
-            "Stable initial host-sizing decision is ready for a mutation collaborator.",
+            (
+                "Stable continuous host-sizing decision is ready for a mutation "
+                "collaborator."
+                if self.continuous
+                else "Stable initial host-sizing decision is ready for a mutation "
+                "collaborator."
+            ),
             desired_viewport_height=desired,
             requested_viewport_height=requested,
             clamp_reasons=clamp_reasons,
         )
 
     def _timeout_if_due(self, now: float) -> HostSizingDecision | None:
+        if self.continuous:
+            return None
         if now < self._timeout_deadline:
             return None
         return self._terminate(

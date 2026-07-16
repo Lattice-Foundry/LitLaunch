@@ -257,6 +257,21 @@ def test_profile_writer_round_trips_initial_host_sizing_policy(tmp_path: Path):
     assert loaded.config.host_sizing == HostSizingPolicy.INITIAL
 
 
+def test_profile_writer_round_trips_continuous_host_sizing_policy(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hello')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(app_path=app, host_sizing=HostSizingPolicy.CONTINUOUS),
+    )
+
+    result = write_litlaunch_profile(profile, tmp_path / "litlaunch.toml")
+    loaded = load_profile("web", result.path)
+
+    assert 'host_sizing = "continuous"' in result.toml
+    assert loaded.config.host_sizing == HostSizingPolicy.CONTINUOUS
+
+
 def test_profile_writer_round_trips_app_icon(tmp_path: Path):
     app = tmp_path / "app.py"
     icon = tmp_path / "assets" / "app.ico"

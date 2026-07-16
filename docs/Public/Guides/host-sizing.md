@@ -1,17 +1,23 @@
-# Experimental Initial Host Sizing
+# Experimental Host Sizing
 
-LitLaunch can perform one bounded initial height fit for an eligible local
-Windows webapp window. The feature is Experimental and off by default.
+LitLaunch can fit the height of an eligible local Windows webapp window from
+trusted frontend measurements. The feature is Experimental and off by default.
 
-It is intended for product-style Streamlit apps whose trusted frontend can
-calculate the complete host viewport height needed for the initial layout.
-LitLaunch owns authentication, stabilization, exact window authority, native
-height mutation, and cleanup. The application owns measurement and geometry
-interpretation.
+Three policies are available:
 
-It defaults to `off` because fitting requires an app-owned measurement adapter
-and changes native window geometry. Apps that do not opt in keep normal
-LitLaunch behavior.
+- `off` disables host sizing and is the default;
+- `initial` accepts one stabilized sizing attempt near startup, then closes
+  sizing authority; and
+- `continuous` keeps sizing authority for the runtime session and accepts later
+  meaningful content-fit updates.
+
+Use `initial` for apps whose layout settles once. Use `continuous` for product
+apps with route changes, expandable tools, or other trusted content that may
+grow or shrink after launch.
+
+The frontend owns browser and application geometry measurement. LitLaunch owns
+authentication, sequencing, stabilization, exact window authority, native
+height calculation, work-area clamping, mutation verification, and cleanup.
 
 ## Requirements
 
@@ -33,7 +39,7 @@ Browser mode, default-browser selection, external `--user-data-dir` profiles,
 network-exposed hosts, and unsupported window states do not resize. The app
 still launches normally.
 
-## Enable Initial Sizing
+## Choose A Policy
 
 Profiles are the recommended surface:
 
@@ -43,7 +49,7 @@ app_path = "app.py"
 title = "Studio"
 mode = "webapp"
 browser = "edge"
-host_sizing = "initial"
+host_sizing = "continuous"
 ```
 
 ```powershell
@@ -53,7 +59,7 @@ litlaunch --profile studio
 The direct CLI and Python configuration use the same policy:
 
 ```powershell
-litlaunch app.py --mode webapp --browser chrome --host-sizing initial
+litlaunch app.py --mode webapp --browser chrome --host-sizing continuous
 ```
 
 ```python
@@ -63,15 +69,15 @@ config = LauncherConfig(
     "app.py",
     mode="webapp",
     browser="edge",
-    host_sizing="initial",
+    host_sizing="continuous",
 )
 session = StreamlitLauncher(config).start()
 ```
 
-The only values are `off` and `initial`. Omission means `off`. An explicit
-`--host-sizing off` can override a profile for one launch.
+Replace `continuous` with `initial` for one sizing attempt. Omission means
+`off`, and `--host-sizing off` can override a profile for one launch.
 
-## Obtain the Frontend Handoff
+## Obtain The Frontend Handoff
 
 The app process can request short-lived handoff metadata after an eligible
 launch activates its private reporting channel:
@@ -94,11 +100,9 @@ def host_sizing_bootstrap():
     }
 ```
 
-Pass that mapping only to the trusted top-level frontend that owns sizing.
-Do not log, persist, cache, place in a URL, or include it in static build
-artifacts. Frontend exposure grants one bounded sizing capability for that
-launch. Code already running inside the app process can read the same launch
-environment, so the handoff is not an application-security boundary.
+Pass that mapping only to the trusted top-level frontend that owns sizing. Do
+not log, persist, cache, place it in a URL, or include it in static build
+artifacts. The capability belongs only to the current launch.
 
 The accessor returns `None` when host sizing is inactive or no valid
 LitLaunch-managed child handoff exists. Its returned object is immutable, and
@@ -107,8 +111,8 @@ its representation redacts the capability token.
 ## App-Owned Reference Adapter
 
 The frontend sends authenticated reports directly to LitLaunch from the exact
-loopback app origin. This small TypeScript pattern is framework-neutral and
-intentionally remains app-owned:
+loopback app origin. The same report contract supports both `initial` and
+`continuous`; later reports use increasing sequence values.
 
 ```ts
 type HostSizingHandoff = {
@@ -120,31 +124,29 @@ type HostSizingHandoff = {
   capabilityToken: string;
 };
 
-type ContentSize = {
-  height: number;
-  width?: number;
-};
-
 type HostSizingObservation = {
   sequence: number;
   devicePixelRatio: number;
-  content: ContentSize;
+  content: {
+    height: number;
+    width?: number;
+  };
   hostViewport: {
     height: number;
     width?: number;
   };
+  desiredHostViewportHeight: number;
 };
 
 export function createHostSizingReporter(handoff: HostSizingHandoff) {
-  return async function reportInitialHostSize(
+  return async function reportHostSize(
     observation: HostSizingObservation,
-    desiredHostViewportHeight: number,
   ): Promise<void> {
     if (
       !Number.isFinite(observation.content.height) ||
       !Number.isFinite(observation.hostViewport.height) ||
       !Number.isFinite(observation.devicePixelRatio) ||
-      !Number.isFinite(desiredHostViewportHeight)
+      !Number.isFinite(observation.desiredHostViewportHeight)
     ) {
       return;
     }
@@ -168,7 +170,7 @@ export function createHostSizingReporter(handoff: HostSizingHandoff) {
           content: observation.content,
           host_viewport: observation.hostViewport,
           desired_host_viewport: {
-            height: desiredHostViewportHeight,
+            height: observation.desiredHostViewportHeight,
           },
         }),
       });
@@ -179,12 +181,14 @@ export function createHostSizingReporter(handoff: HostSizingHandoff) {
 }
 ```
 
-The application must supply the complete desired host viewport height.
-Component content height alone is not a native window target because the host
-viewport may include app shell, spacing, headers, or other product-owned
-layout.
+The desired height must be the complete host-relative viewport target.
+Component height alone is insufficient because the app shell may include
+headers, spacing, or other product-owned layout.
 
-For LitBridge, wire one top-level `onContentSize` callback to this adapter:
+For LitBridge, forward one authoritative top-level content-size callback. Map
+its host-relative content-bottom measurement directly to the desired host
+viewport height rather than recreating iframe offsets or DOM geometry in
+LitLaunch:
 
 ```ts
 const reportHostSize = createHostSizingReporter(hostSizingHandoff);
@@ -194,47 +198,51 @@ const app = createLitBridgeApp({
     root: ".studio-app",
     fit: "content",
     onContentSize(size) {
-      if (size.hostViewportHeight === undefined) {
+      if (
+        size.hostViewportHeight === undefined ||
+        size.hostContentBottom === undefined
+      ) {
         return;
       }
-      const desiredHostViewportHeight = size.height + appOwnedShellHeight;
-      void reportHostSize(
-        {
-          sequence: size.sequence,
-          devicePixelRatio: window.devicePixelRatio,
-          content: { height: size.height, width: size.width },
-          hostViewport: {
-            height: size.hostViewportHeight,
-            width: size.hostViewportWidth,
-          },
+      void reportHostSize({
+        sequence: size.sequence,
+        devicePixelRatio: window.devicePixelRatio,
+        content: { height: size.height, width: size.width },
+        hostViewport: {
+          height: size.hostViewportHeight,
+          width: size.hostViewportWidth,
         },
-        desiredHostViewportHeight,
-      );
+        desiredHostViewportHeight: size.hostContentBottom,
+      });
     },
   },
 });
 ```
 
-Use one authoritative top-level surface and the `sourceId` supplied by the
-handoff. LitBridge is optional. Any trusted frontend can use the same report
-contract.
-LitLaunch does not import LitBridge, inject page scripts, or infer complete
-host geometry from component measurements.
+LitBridge is optional. Any trusted frontend can provide the same complete
+measurement. LitLaunch does not import LitBridge, inspect the DOM, inject page
+scripts, or infer browser geometry from constants.
 
 ## Runtime Behavior
 
-The frontend may submit updated measurements while the initial layout settles.
-LitLaunch retains monotonic reports from the one designated source, waits for
-the bounded quiet period, and attempts at most one height-only change. Width,
-position, activation, Z-order, and monitor placement are preserved.
+Both policies retain only monotonically increasing reports from the one source
+identified by the handoff. Duplicate, stale, malformed, unauthenticated, and
+cross-launch reports are refused. Material input waits through a short quiet
+period, and target differences at or below one CSS pixel do not mutate the
+window.
 
-After the attempt completes, times out, aborts, or fails safely, the sizing
-channel closes permanently for that launch. Later content changes do not
-resize the window.
+With `initial`, the first stabilized sizing attempt completes the policy and
+closes the channel. Later route or content changes cannot resize the window.
 
-User movement, resizing, snapping, maximizing, minimizing, authority loss, an
-unsafe target, or native refusal causes LitLaunch to leave the window
-unchanged. These outcomes do not stop the backend or close the app.
+With `continuous`, a successful attempt returns the policy to an active waiting
+state. Later meaningful growth or shrink measurements can produce another
+height-only attempt until runtime shutdown. Each attempt revalidates the exact
+browser process, HWND, normal window state, and last verified geometry.
+
+Width, position, activation, Z-order, and monitor placement are preserved.
+User movement or resizing, snapping, maximizing, minimizing, authority loss,
+an unsafe target, or native refusal stops sizing safely without stopping the
+backend or closing the app. LitLaunch never retries a native mutation.
 
 ## Diagnostics
 
@@ -246,19 +254,22 @@ litlaunch inspect --profile studio --json
 ```
 
 Plans and reports show the requested policy and static eligibility. Runtime
-event logs may record coarse outcomes such as channel ready, report accepted,
-applied, timed out, skipped, or failed safely. They never include the
-capability token, endpoint credentials, launch authority, process tree, or
-window handle.
+event logs contain only coarse lifecycle outcomes and bounded counts. They do
+not include capability tokens, endpoint credentials, launch IDs, report bodies,
+process trees, authority IDs, or window handles. Routine continuous resizes do
+not add normal console noise.
 
 ## Limits
 
-Initial host sizing is not continuous fitting, width fitting, browser-tab
-control, browser automation, a general window manager, hosted-app behavior, or
-an application security feature. Current evidence covers Edge and Chrome on one
-Windows 11 host with 100% and 150% mixed-DPI displays, including a negative-origin
-secondary monitor. Windows 10, 125% scaling, additional monitor/taskbar layouts,
-and independent hosts remain part of the Experimental maturity boundary.
+Host sizing is not width fitting, browser-tab control, browser automation,
+general window management, hosted-app behavior, or an application-security
+feature. `continuous` is content-fit policy for one exact LitLaunch-owned app
+window, not arbitrary window control.
+
+Current evidence covers Edge and Chrome on one Windows 11 host with 100% and
+150% mixed-DPI displays, including a negative-origin secondary monitor.
+Windows 10, 125% scaling, additional monitor/taskbar layouts, and independent
+hosts remain part of the Experimental maturity boundary.
 
 See the [host-sizing FAQ](../FAQ/host-sizing.md) for concise behavior and scope
 answers.

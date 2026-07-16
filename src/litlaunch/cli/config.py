@@ -83,8 +83,9 @@ def add_runtime_flags(
         "--host-sizing",
         choices=[item.value for item in HostSizingPolicy],
         help=(
-            "Set Experimental host sizing: off, or one initial height fit on "
-            "eligible Windows webapp launches."
+            "Set Experimental host sizing: off, one initial height fit, or "
+            "continuous meaningful content-fit updates on eligible Windows "
+            "webapp launches."
         ),
     )
     parser.add_argument(

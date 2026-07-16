@@ -1,4 +1,4 @@
-"""Private one-shot host-sizing transport, policy, and mutation orchestration.
+"""Private host-sizing transport, policy, and mutation orchestration.
 
 The coordinator joins authenticated reports, deterministic policy, and exact native
 mutation without collapsing their separate trust boundaries.
@@ -36,7 +36,7 @@ class HostSizingRuntimeError(RuntimeError):
 
 
 class HostSizingMutationCapability(Protocol):
-    """Narrow one-shot native mutation collaborator contract."""
+    """Narrow policy-selected native mutation collaborator contract."""
 
     def apply(
         self,
@@ -61,10 +61,13 @@ class HostSizingRuntimeSnapshot:
     mutation_result: HostSizingMutationResult | None
     failure_reason: str | None
     channel_active: bool
+    continuous_active: bool
+    last_accepted_sequence: int | None
+    last_target_height: int | None
 
 
 class HostSizingRuntimeCoordinator:
-    """Coordinate one private initial-fit attempt without retries or loops."""
+    """Coordinate authenticated policy decisions without native retries."""
 
     def __init__(
         self,
@@ -201,12 +204,13 @@ class HostSizingRuntimeCoordinator:
         """Return one credential-free view of orchestration state."""
 
         with self._lock:
+            policy_snapshot = self.policy.snapshot()
             channel_active = (
                 self._channel.active if self._channel is not None else False
             )
             return HostSizingRuntimeSnapshot(
-                active=not self._closed and not self.policy.snapshot().state.terminal,
-                policy_state=self.policy.snapshot().state,
+                active=not self._closed and not policy_snapshot.state.terminal,
+                policy_state=policy_snapshot.state,
                 accepted_reports=self._accepted_reports,
                 mutation_calls=self._mutation_calls,
                 acknowledgements=self._acknowledgements,
@@ -215,19 +219,28 @@ class HostSizingRuntimeCoordinator:
                 mutation_result=self._mutation_result,
                 failure_reason=self._failure_reason,
                 channel_active=channel_active,
+                continuous_active=(
+                    self.policy.continuous
+                    and not self._closed
+                    and not policy_snapshot.state.terminal
+                ),
+                last_accepted_sequence=policy_snapshot.last_sequence,
+                last_target_height=policy_snapshot.last_applied_target_height,
             )
 
     def _dispatch_locked(self, decision: HostSizingDecision) -> HostSizingDecision:
         self._last_decision = decision
         if decision.action == HostSizingAction.APPLY:
-            if self._mutation_calls != 0 or self._acknowledgements != 0:
+            if not self.policy.continuous and (
+                self._mutation_calls != 0 or self._acknowledgements != 0
+            ):
                 self._failure_reason = (
                     "Coordinator refused a second host-sizing mutation decision."
                 )
                 self._last_decision = self.policy.abort(self._failure_reason)
             else:
                 self._apply_decision = decision
-                self._mutation_calls = 1
+                self._mutation_calls += 1
                 try:
                     result = self.mutation.apply(
                         decision=decision,
@@ -243,14 +256,14 @@ class HostSizingRuntimeCoordinator:
                     self._failure_reason = (
                         "Host-sizing mutation collaborator failed unexpectedly."
                     )
-                    self._acknowledgements = 1
+                    self._acknowledgements += 1
                     self._acknowledge_locked(
                         applied=False,
                         reason=self._failure_reason,
                     )
                 else:
                     self._mutation_result = result
-                    self._acknowledgements = 1
+                    self._acknowledgements += 1
                     self._acknowledge_locked(
                         applied=acknowledgement_succeeded,
                         reason=result_reason,

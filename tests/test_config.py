@@ -75,9 +75,15 @@ def test_initial_host_sizing_normalizes_to_public_policy():
     assert config.host_sizing == HostSizingPolicy.INITIAL
 
 
+def test_continuous_host_sizing_normalizes_to_public_policy():
+    config = LauncherConfig(app_path="app.py", host_sizing="continuous")
+
+    assert config.host_sizing == HostSizingPolicy.CONTINUOUS
+
+
 @pytest.mark.parametrize(
     "value",
-    ["enabled", "continuous", "auto", "fit", "viewport", "resize", True, False],
+    ["enabled", "auto", "fit", "viewport", "resize", True, False],
 )
 def test_host_sizing_rejects_values_outside_exact_public_vocabulary(value):
     with pytest.raises(ConfigurationError, match="Invalid host_sizing"):

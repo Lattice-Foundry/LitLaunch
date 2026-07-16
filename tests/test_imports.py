@@ -126,6 +126,7 @@ def test_public_imports_are_available():
     assert HealthChecker
     assert HostSizingHandoff
     assert HostSizingPolicy.OFF.value == "off"
+    assert HostSizingPolicy.CONTINUOUS.value == "continuous"
     assert HookConsoleVisibility.NORMAL.value == "normal"
     assert JSONDiagnosticsRenderer
     assert issubclass(ConfigurationError, LitLaunchError)

@@ -1,4 +1,4 @@
-"""Private production-lifecycle activation for one initial host-sizing attempt."""
+"""Private production lifecycle for Experimental host-sizing policies."""
 
 from __future__ import annotations
 
@@ -17,9 +17,12 @@ from litlaunch._host_sizing_authority import (
     ProcessBoundWindowsWindowAuthorityVerifier,
 )
 from litlaunch._host_sizing_policy import (
-    HostSizingPolicy as InitialHostSizingPolicy,
+    HostSizingPolicy as DecisionHostSizingPolicy,
 )
-from litlaunch._host_sizing_policy import HostSizingPolicyConfig
+from litlaunch._host_sizing_policy import (
+    HostSizingPolicyConfig,
+    HostSizingPolicyMode,
+)
 from litlaunch._host_sizing_runtime import (
     HostSizingMutationCapability,
     HostSizingRuntimeCoordinator,
@@ -34,11 +37,15 @@ from litlaunch._host_sizing_transport import (
 from litlaunch._host_sizing_window import (
     TrustedWindowsWindowSizer,
     WindowSizingAuthority,
+    WindowSizingLifetime,
 )
 from litlaunch.config import (
     HostSizingPolicy as PublicHostSizingPolicy,
 )
-from litlaunch.config import LauncherConfig, LaunchMode
+from litlaunch.config import (
+    LauncherConfig,
+    LaunchMode,
+)
 from litlaunch.console import ConsoleRenderer
 from litlaunch.events import RuntimeEventEmitter
 
@@ -72,6 +79,9 @@ class PrivateHostSizingProductionSnapshot:
     mutation_calls: int
     acknowledgements: int
     policy_state: str | None
+    continuous_active: bool
+    last_accepted_sequence: int | None
+    last_target_height: int | None
 
 
 class PrivateHostSizingRuntime(Protocol):
@@ -141,8 +151,8 @@ class _PrivateHostSizingActivation:
         self.policy_config = policy_config or HostSizingPolicyConfig()
         self.activation_gate_factory = activation_gate_factory
         self.channel_starter = channel_starter
-        self.mutation_factory = mutation_factory or _default_mutation_factory
-        self.coordinator_factory = coordinator_factory or _default_coordinator_factory
+        self.mutation_factory = mutation_factory
+        self.coordinator_factory = coordinator_factory
         self.runtime_factory = runtime_factory or _PrivateHostSizingProductionRuntime
         self.event_emitter = event_emitter or RuntimeEventEmitter()
 
@@ -150,18 +160,28 @@ class _PrivateHostSizingActivation:
         self,
         config: LauncherConfig,
     ) -> PrivateHostSizingRuntime | None:
-        """Create one per-launch runtime only for the public initial policy."""
+        """Create one per-launch runtime for an enabled public sizing policy."""
 
-        if config.host_sizing != PublicHostSizingPolicy.INITIAL:
+        if config.host_sizing not in {
+            PublicHostSizingPolicy.INITIAL,
+            PublicHostSizingPolicy.CONTINUOUS,
+        }:
             return None
+        mutation_factory = self.mutation_factory or _mutation_factory_for_policy(
+            config.host_sizing
+        )
+        coordinator_factory = (
+            self.coordinator_factory
+            or _coordinator_factory_for_policy(config.host_sizing)
+        )
         return self.runtime_factory(
             config=config,
             source_id=self.source_id,
             policy_config=self.policy_config,
             activation_gate=self.activation_gate_factory(),
             channel_starter=self.channel_starter,
-            mutation_factory=self.mutation_factory,
-            coordinator_factory=self.coordinator_factory,
+            mutation_factory=mutation_factory,
+            coordinator_factory=coordinator_factory,
             event_emitter=self.event_emitter,
         )
 
@@ -384,14 +404,27 @@ class _PrivateHostSizingProductionRuntime:
                 PrivateHostSizingProductionStatus.INELIGIBLE,
                 PrivateHostSizingProductionStatus.TERMINAL,
             }:
-                self._reason = "Host-sizing lifecycle closed."
+                self._status = PrivateHostSizingProductionStatus.TERMINAL
+                self._reason = "Host-sizing authority closed with the runtime."
+            emit_continuous_close = (
+                self.config.host_sizing == PublicHostSizingPolicy.CONTINUOUS
+                and coordinator is not None
+            )
+        final_snapshot: HostSizingRuntimeSnapshot | None = None
         if coordinator is not None:
             with suppress(Exception):
                 coordinator.shutdown()
+            with suppress(Exception):
+                final_snapshot = coordinator.snapshot()
+            if final_snapshot is not None:
+                with self._lock:
+                    self._terminal_snapshot = final_snapshot
         if channel is not None and channel.active:
             channel.close()
         if watcher is not None and watcher is not threading.current_thread():
             watcher.join(timeout=2.0)
+        if emit_continuous_close:
+            self._emit_continuous_closed(final_snapshot)
 
     def snapshot(self) -> PrivateHostSizingProductionSnapshot:
         """Return one credential-free internal production lifecycle snapshot."""
@@ -427,6 +460,21 @@ class _PrivateHostSizingProductionRuntime:
             ),
             policy_state=(
                 runtime_snapshot.policy_state.value
+                if runtime_snapshot is not None
+                else None
+            ),
+            continuous_active=(
+                runtime_snapshot.continuous_active
+                if runtime_snapshot is not None
+                else False
+            ),
+            last_accepted_sequence=(
+                runtime_snapshot.last_accepted_sequence
+                if runtime_snapshot is not None
+                else None
+            ),
+            last_target_height=(
+                runtime_snapshot.last_target_height
                 if runtime_snapshot is not None
                 else None
             ),
@@ -578,10 +626,34 @@ class _PrivateHostSizingProductionRuntime:
             },
         )
 
+    def _emit_continuous_closed(
+        self,
+        snapshot: HostSizingRuntimeSnapshot | None,
+    ) -> None:
+        """Emit one bounded session summary without exposing capability data."""
+
+        details: dict[str, str | int] = {
+            "policy": self.config.host_sizing.value,
+            "reports": snapshot.accepted_reports if snapshot is not None else 0,
+            "mutations": snapshot.mutation_calls if snapshot is not None else 0,
+        }
+        if snapshot is not None and snapshot.last_accepted_sequence is not None:
+            details["last_sequence"] = snapshot.last_accepted_sequence
+        if snapshot is not None and snapshot.last_target_height is not None:
+            details["last_target_height"] = snapshot.last_target_height
+        self.event_emitter.emit(
+            "host_sizing_channel_closed",
+            category="host_sizing",
+            message="Continuous host-sizing authority closed with the runtime.",
+            details=details,
+        )
+
 
 def _default_mutation_factory(
     authority: BrowserLaunchAuthority,
     gate: PrivateHostSizingActivationGate,
+    *,
+    lifetime: WindowSizingLifetime = WindowSizingLifetime.ONE_SHOT,
 ) -> HostSizingMutationCapability:
     verifier = ProcessBoundWindowsWindowAuthorityVerifier(
         authority,
@@ -591,6 +663,7 @@ def _default_mutation_factory(
     return TrustedWindowsWindowSizer(
         backend=gate.geometry_backend,
         authority_verifier=verifier,
+        lifetime=lifetime,
     )
 
 
@@ -598,12 +671,54 @@ def _default_coordinator_factory(
     policy_config: HostSizingPolicyConfig,
     mutation: HostSizingMutationCapability,
     authority: WindowSizingAuthority,
+    *,
+    mode: HostSizingPolicyMode = HostSizingPolicyMode.INITIAL,
 ) -> HostSizingRuntimeCoordinator:
     return HostSizingRuntimeCoordinator(
-        policy=InitialHostSizingPolicy(config=policy_config),
+        policy=DecisionHostSizingPolicy(config=policy_config, mode=mode),
         mutation=mutation,
         authority=authority,
     )
+
+
+def _mutation_factory_for_policy(policy: PublicHostSizingPolicy) -> MutationFactory:
+    lifetime = (
+        WindowSizingLifetime.SESSION
+        if policy == PublicHostSizingPolicy.CONTINUOUS
+        else WindowSizingLifetime.ONE_SHOT
+    )
+
+    def create(
+        authority: BrowserLaunchAuthority,
+        gate: PrivateHostSizingActivationGate,
+    ) -> HostSizingMutationCapability:
+        return _default_mutation_factory(authority, gate, lifetime=lifetime)
+
+    return create
+
+
+def _coordinator_factory_for_policy(
+    policy: PublicHostSizingPolicy,
+) -> CoordinatorFactory:
+    mode = (
+        HostSizingPolicyMode.CONTINUOUS
+        if policy == PublicHostSizingPolicy.CONTINUOUS
+        else HostSizingPolicyMode.INITIAL
+    )
+
+    def create(
+        policy_config: HostSizingPolicyConfig,
+        mutation: HostSizingMutationCapability,
+        authority: WindowSizingAuthority,
+    ) -> HostSizingRuntimeCoordinator:
+        return _default_coordinator_factory(
+            policy_config,
+            mutation,
+            authority,
+            mode=mode,
+        )
+
+    return create
 
 
 def _safe_running(callback: Callable[[], bool]) -> bool:

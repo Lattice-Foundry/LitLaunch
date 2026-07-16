@@ -1,7 +1,7 @@
-"""Private one-shot Windows host-sizing mutation capability.
+"""Private exact-authority Windows host-sizing mutation capability.
 
-This module consumes one policy-approved decision and one exact immutable authority.
-It does not discover launch authority, activate transport, or expose public controls.
+This module consumes policy-approved decisions for one exact immutable authority. It
+does not discover launch authority, activate transport, or expose public controls.
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 import threading
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Protocol
 
@@ -48,12 +48,19 @@ class HostSizingWindowError(RuntimeError):
 
 
 class HostSizingMutationStatus(str, Enum):
-    """Terminal outcomes from the one-shot mutation capability."""
+    """Outcomes from one guarded native mutation attempt."""
 
     APPLIED = "applied"
     NO_CHANGE = "no_change"
     REFUSED = "refused"
     FAILED = "failed"
+
+
+class WindowSizingLifetime(str, Enum):
+    """Internal authority lifetime for a native sizing capability."""
+
+    ONE_SHOT = "one_shot"
+    SESSION = "session"
 
 
 @dataclass(frozen=True)
@@ -134,7 +141,7 @@ class WindowAuthorityVerification:
 
 @dataclass(frozen=True)
 class HostSizingMutationResult:
-    """Credential-free one-shot result suitable for policy acknowledgement."""
+    """Credential-free result suitable for policy acknowledgement."""
 
     status: HostSizingMutationStatus
     reason: str
@@ -163,7 +170,7 @@ class HostSizingMutationResult:
 
     @property
     def safe_to_retry(self) -> bool:
-        """One-shot mutation results are never retryable."""
+        """Native mutation attempts are never retried automatically."""
 
         return False
 
@@ -230,25 +237,38 @@ class WindowsWindowAuthorityVerifier:
 
 
 class TrustedWindowsWindowSizer:
-    """Apply at most one approved decision through guarded Windows geometry seams."""
+    """Apply approved decisions to one exact, continuously revalidated window."""
 
     def __init__(
         self,
         *,
         backend: GeometryBackend | None = None,
         authority_verifier: WindowAuthorityVerifier | None = None,
+        lifetime: WindowSizingLifetime = WindowSizingLifetime.ONE_SHOT,
     ) -> None:
+        if not isinstance(lifetime, WindowSizingLifetime):
+            raise TypeError("Window-sizing capability lifetime is invalid.")
         self.backend = backend or WindowsGeometryBackend()
         self.authority_verifier = authority_verifier or WindowsWindowAuthorityVerifier()
+        self.lifetime = lifetime
         self._lock = threading.Lock()
-        self._consumed = False
+        self._apply_calls = 0
+        self._bound_authority: WindowSizingAuthority | None = None
+        self._expected_geometry: WindowGeometry | None = None
 
     @property
     def consumed(self) -> bool:
-        """Return whether this one-shot capability has received an apply call."""
+        """Return whether this capability has received an apply call."""
 
         with self._lock:
-            return self._consumed
+            return self._apply_calls > 0
+
+    @property
+    def apply_calls(self) -> int:
+        """Return the number of serialized policy decisions received."""
+
+        with self._lock:
+            return self._apply_calls
 
     def apply(
         self,
@@ -259,16 +279,26 @@ class TrustedWindowsWindowSizer:
         """Apply one exact bounded height mutation or return a fail-closed result."""
 
         with self._lock:
-            if self._consumed:
+            if self.lifetime == WindowSizingLifetime.ONE_SHOT and self._apply_calls > 0:
                 return self._result(
                     HostSizingMutationStatus.REFUSED,
                     "Window-sizing capability was already consumed.",
                     decision,
                     authority,
                 )
-            self._consumed = True
+            if self._bound_authority is None:
+                self._bound_authority = authority
+                self._expected_geometry = authority.baseline
+            elif authority != self._bound_authority:
+                return self._result(
+                    HostSizingMutationStatus.REFUSED,
+                    "Window-sizing authority changed during the runtime session.",
+                    decision,
+                    authority,
+                )
+            self._apply_calls += 1
             try:
-                return self._apply_once(decision=decision, authority=authority)
+                result = self._apply_once(decision=decision, authority=authority)
             except Exception:
                 return self._result(
                     HostSizingMutationStatus.FAILED,
@@ -277,6 +307,9 @@ class TrustedWindowsWindowSizer:
                     authority,
                     mutation_attempted=True,
                 )
+            if result.acknowledgement_succeeded and result.after is not None:
+                self._expected_geometry = result.after
+            return result
 
     def _apply_once(
         self,
@@ -284,6 +317,14 @@ class TrustedWindowsWindowSizer:
         decision: HostSizingDecision,
         authority: WindowSizingAuthority,
     ) -> HostSizingMutationResult:
+        expected_geometry = self._expected_geometry
+        if expected_geometry is None:
+            return self._result(
+                HostSizingMutationStatus.REFUSED,
+                "Window-sizing capability has no verified geometry baseline.",
+                decision,
+                authority,
+            )
         decision_error = _decision_error(decision, authority)
         if decision_error is not None:
             return self._result(
@@ -311,6 +352,7 @@ class TrustedWindowsWindowSizer:
                 decision,
                 authority,
             )
+        pre_apply = _normalize_managed_pre_apply(expected_geometry, pre_apply)
         geometry_error = _invalid_geometry_reason(pre_apply)
         if geometry_error is not None:
             return self._result(
@@ -320,10 +362,10 @@ class TrustedWindowsWindowSizer:
                 authority,
                 pre_apply=pre_apply,
             )
-        if geometry_changed(authority.baseline, pre_apply):
+        if geometry_changed(expected_geometry, pre_apply):
             return self._result(
                 HostSizingMutationStatus.REFUSED,
-                "Window geometry or state changed after authority capture.",
+                "Window geometry or state changed outside verified host sizing.",
                 decision,
                 authority,
                 pre_apply=pre_apply,
@@ -390,6 +432,7 @@ class TrustedWindowsWindowSizer:
                 plan=plan,
                 mutation_attempted=True,
             )
+        after = _normalize_managed_post_apply(pre_apply, after, plan)
         post_identity = self.authority_verifier.verify(authority)
         post_error = _post_apply_error(pre_apply, after, plan)
         if not post_identity.exact or post_error is not None:
@@ -417,8 +460,8 @@ class TrustedWindowsWindowSizer:
             mutation_attempted=True,
         )
 
-    @staticmethod
     def _result(
+        self,
         status: HostSizingMutationStatus,
         reason: str,
         decision: HostSizingDecision,
@@ -429,12 +472,13 @@ class TrustedWindowsWindowSizer:
         plan: HeightResizePlan | None = None,
         mutation_attempted: bool = False,
     ) -> HostSizingMutationResult:
+        baseline = self._expected_geometry or authority.baseline
         return HostSizingMutationResult(
             status=status,
             reason=reason,
             decision=decision,
             authority_id=authority.authority_id,
-            baseline=authority.baseline,
+            baseline=baseline,
             pre_apply=pre_apply,
             after=after,
             plan=plan,
@@ -602,3 +646,43 @@ def _post_apply_error(
     if after.outer.bottom > after.work_area.bottom:
         return "Native resize exceeded the current monitor work area."
     return None
+
+
+def _normalize_managed_pre_apply(
+    expected: WindowGeometry,
+    observed: WindowGeometry,
+) -> WindowGeometry:
+    """Ignore a snap heuristic caused solely by our verified prior resize."""
+
+    if (
+        expected.state == WindowGeometryState.NORMAL
+        and observed.state == WindowGeometryState.SNAPPED
+        and replace(observed, state=WindowGeometryState.NORMAL) == expected
+    ):
+        return expected
+    return observed
+
+
+def _normalize_managed_post_apply(
+    before: WindowGeometry,
+    after: WindowGeometry,
+    plan: HeightResizePlan,
+) -> WindowGeometry:
+    """Keep an exact host-created work-area clamp in managed normal state."""
+
+    if (
+        before.state == WindowGeometryState.NORMAL
+        and after.state == WindowGeometryState.SNAPPED
+        and "monitor_work_area" in plan.clamp_reasons
+        and after.outer.left == before.outer.left
+        and after.outer.top == before.outer.top
+        and after.outer.width == before.outer.width
+        and abs(after.outer.height - plan.target_outer_height) <= 1
+        and after.dpi == before.dpi
+        and after.monitor_handle == before.monitor_handle
+        and after.monitor == before.monitor
+        and after.work_area == before.work_area
+        and after.show_command == before.show_command
+    ):
+        return replace(after, state=WindowGeometryState.NORMAL)
+    return after

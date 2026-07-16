@@ -20,6 +20,7 @@ from litlaunch._host_sizing_policy import (
     HostSizingAction,
     HostSizingPolicy,
     HostSizingPolicyConfig,
+    HostSizingPolicyMode,
     HostSizingPolicyState,
 )
 from litlaunch._host_sizing_runtime import HostSizingRuntimeCoordinator
@@ -342,6 +343,51 @@ def test_fake_transport_and_fake_mutation_prove_coordinator_contract():
     assert snapshot.accepted_reports == 1
     assert snapshot.mutation_calls == 1
     assert snapshot.acknowledgements == 1
+
+
+def test_continuous_coordinator_serializes_growth_and_shrink_mutations():
+    mutation = FakeMutationCapability()
+    coordinator = HostSizingRuntimeCoordinator(
+        policy=HostSizingPolicy(
+            config=HostSizingPolicyConfig(quiet_period_seconds=0),
+            mode=HostSizingPolicyMode.CONTINUOUS,
+        ),
+        mutation=mutation,
+        authority=authority(),
+    )
+
+    growth = coordinator.consume_accepted_report(
+        report(sequence=1, current_height=700, desired_height=900)
+    )
+    shrink = coordinator.consume_accepted_report(
+        report(sequence=2, current_height=900, desired_height=700)
+    )
+    snapshot = coordinator.snapshot()
+
+    assert growth.state == HostSizingPolicyState.WAITING
+    assert shrink.state == HostSizingPolicyState.WAITING
+    assert snapshot.mutation_calls == 2
+    assert snapshot.acknowledgements == 2
+    assert snapshot.continuous_active is True
+    assert snapshot.last_accepted_sequence == 2
+    assert snapshot.last_target_height == 700
+    assert [decision.sequence for decision in mutation.decisions] == [1, 2]
+
+
+def test_continuous_coordinator_shutdown_is_terminal_and_idempotent():
+    mutation = FakeMutationCapability()
+    coordinator = HostSizingRuntimeCoordinator(
+        policy=HostSizingPolicy(mode=HostSizingPolicyMode.CONTINUOUS),
+        mutation=mutation,
+        authority=authority(),
+    )
+
+    first = coordinator.shutdown()
+    second = coordinator.shutdown()
+
+    assert first.state == HostSizingPolicyState.SHUT_DOWN
+    assert second == first
+    assert coordinator.snapshot().continuous_active is False
 
 
 def test_transport_rejection_never_reaches_policy_or_mutation():

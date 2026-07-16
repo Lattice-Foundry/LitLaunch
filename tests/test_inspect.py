@@ -267,6 +267,19 @@ def test_inspect_reports_credential_free_experimental_host_sizing_state():
     assert "host-sizing/report" not in rendered
 
 
+def test_inspect_reports_continuous_host_sizing_policy():
+    report = make_collector().collect(
+        EXAMPLE_APP,
+        mode="webapp",
+        browser="edge",
+        host_sizing="continuous",
+    )
+    messages = report_item_messages(report)
+
+    assert messages[("Target", "Host sizing policy")] == ("continuous (Experimental)")
+    assert messages[("Target", "Host sizing eligibility")] == "eligible"
+
+
 def test_diagnostics_report_counts_and_ok_behavior():
     report = DiagnosticsReport(
         "Report",

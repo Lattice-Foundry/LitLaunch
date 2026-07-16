@@ -9,9 +9,9 @@ the project history at the level most useful to release users and integrators.
 
 ## Current Release Highlights
 
-- Experimental initial host sizing lets eligible local Windows product apps
-  request one authenticated, height-only fit while keeping frontend measurement
-  app-owned and all unsafe cases fail-soft.
+- Experimental host sizing lets eligible local Windows product apps request one
+  initial fit or continuous authenticated content-fit updates while keeping
+  frontend measurement app-owned and unsafe cases fail-soft.
 
 - Cleaner app-window launches: LitLaunch now hides Streamlit's default toolbar
   chrome by default, with `--show-streamlit-chrome` when you want it back.
@@ -45,6 +45,19 @@ the project history at the level most useful to release users and integrators.
 
 - Cleaner public repository hygiene: internal working notes are excluded from
   public package artifacts and the public source tree.
+
+## 1.1.1 - Stable
+
+- Added the Experimental `host_sizing = "continuous"` policy for meaningful
+  later content growth and shrink in route-driven product apps.
+- Preserved the default `off` behavior and exact one-attempt semantics of
+  `host_sizing = "initial"`.
+- Revalidated the same exact browser process, HWND, window state, and last
+  verified geometry before every continuous height-only attempt.
+- Kept the authenticated loopback channel active only for the runtime session,
+  with sequence, dedupe, jitter, worker, body, and rate safeguards intact.
+- Added low-noise continuous lifecycle diagnostics and updated the public
+  profile, CLI, Python, frontend-adapter, security, and troubleshooting guidance.
 
 ## 1.1.0 - Stable
 

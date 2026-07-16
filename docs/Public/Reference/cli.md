@@ -134,13 +134,15 @@ intentionally want the raw Streamlit/backend output stream visible.
 
 ## Experimental Host Sizing
 
-`--host-sizing` accepts exactly `off` or `initial`. The default is `off`.
-`initial` requests one bounded height-only fit and is eligible only for local
-Windows webapp launches using an explicit Edge or Chrome browser and the
-LitLaunch-managed browser profile:
+`--host-sizing` accepts exactly `off`, `initial`, or `continuous`. The default
+is `off`. `initial` requests one bounded height-only fit. `continuous` accepts
+meaningful later growth and shrink reports until runtime shutdown. Both enabled
+policies are eligible only for local Windows webapp launches using an explicit
+Edge or Chrome browser and the LitLaunch-managed browser profile:
 
 ```powershell
 litlaunch app.py --mode webapp --browser edge --host-sizing initial
+litlaunch app.py --mode webapp --browser edge --host-sizing continuous
 litlaunch --profile studio --host-sizing off
 ```
 
@@ -156,7 +158,7 @@ host_sizing = "initial"
 
 The app must deliberately forward the launch-scoped handoff to one trusted
 frontend sizing surface. See the
-[initial host-sizing guide](../Guides/host-sizing.md). Unsupported launch
+[host-sizing guide](../Guides/host-sizing.md). Unsupported launch
 shapes continue without resizing.
 
 CLI webapp launches enable app-window close monitoring by default where window

@@ -51,8 +51,8 @@ Implemented:
 - Lightweight console rendering
 - Argparse CLI
 - Optional Windows-first Chromium window monitoring
-- Experimental one-shot initial height fitting for eligible Windows Edge and
-  Chrome webapp integrations
+- Experimental initial and continuous height fitting for eligible Windows Edge
+  and Chrome webapp integrations
 
 Out of scope:
 

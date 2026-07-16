@@ -30,7 +30,7 @@ class HostSizingEligibilityStatus(str, Enum):
 
 @dataclass(frozen=True)
 class HostSizingEligibility:
-    """Credential-free pre-launch assessment for the public initial-fit policy."""
+    """Credential-free pre-launch assessment for an enabled sizing policy."""
 
     policy: HostSizingPolicy
     status: HostSizingEligibilityStatus

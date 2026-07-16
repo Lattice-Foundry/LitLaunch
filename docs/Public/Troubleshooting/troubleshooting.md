@@ -98,10 +98,10 @@ If a webapp/app-window launch opens successfully and then reports
 For Streamlit, make the LitLaunch profile `title` or CLI `--title` match
 `st.set_page_config(page_title="...")`.
 
-## Initial Host Sizing Did Not Resize
+## Host Sizing Did Not Resize
 
-Experimental initial host sizing intentionally leaves the window unchanged
-when any safety or authority requirement is missing. Check the profile first:
+Experimental host sizing intentionally leaves the window unchanged when any
+safety or authority requirement is missing. Check the profile first:
 
 ```toml
 [profiles.studio]
@@ -110,6 +110,9 @@ mode = "webapp"
 browser = "edge"
 host_sizing = "initial"
 ```
+
+Use `host_sizing = "continuous"` when later route or content changes should
+produce additional meaningful growth or shrink attempts.
 
 Then run:
 
@@ -120,13 +123,14 @@ litlaunch report --profile studio --open
 Common reasons include a non-Windows platform, browser mode, `auto` or default
 browser selection, an external `--user-data-dir`, a non-loopback host, no
 frontend report, wrong app-origin wiring, unavailable exact window authority,
-user movement or resizing during stabilization, a snapped/maximized/minimized
-window, timeout, or native mutation refusal.
+user movement or resizing, a snapped/maximized/minimized window, timeout in
+`initial` mode, a stale or duplicate sequence, target jitter, or native
+mutation refusal.
 
 These are fail-soft outcomes: the app should remain running and usable. Review
 the credential-free runtime event log when configured. Do not print or attach
 the frontend handoff or capability token to support reports. See the
-[initial host-sizing guide](../Guides/host-sizing.md) for the supported adapter
+[host-sizing guide](../Guides/host-sizing.md) for the supported adapter
 contract.
 
 ## Network Exposure Launch Times Out

@@ -67,11 +67,12 @@ Profiles may include `app_icon` for app identity. LitLaunch uses it for native
 shortcut artifacts and, on Windows `.ico` app-window launches, applies the
 strongest browser/window icon strategy the platform permits.
 
-Eligible local Windows product apps can also opt into one Experimental,
-height-only initial window fit with `host_sizing = "initial"`. The app keeps
-ownership of frontend measurement while LitLaunch owns the authenticated,
-bounded native sizing attempt. See the
-[initial host-sizing guide](docs/Public/Guides/host-sizing.md).
+Eligible local Windows product apps can opt into Experimental height-only host
+sizing with `host_sizing = "initial"` for one startup fit or
+`host_sizing = "continuous"` for meaningful later content growth and shrink.
+The app owns frontend measurement while LitLaunch owns authenticated native
+sizing policy and safety. See the
+[host-sizing guide](docs/Public/Guides/host-sizing.md).
 
 ### Built for real packaged applications
 
@@ -189,7 +190,7 @@ LitLaunch is infrastructure, not magic orchestration.
 - Window monitoring is observational only. LitLaunch may observe a managed
   browser/app window, but it does not kill or close browser processes.
 - Experimental host sizing is a separate explicit capability that can apply
-  one bounded height-only change to an exactly authorized app window.
+  bounded height-only changes to an exactly authorized app window.
 - Commands are argument tuples, never shell strings.
 - Runtime dependencies remain stdlib-first; Python 3.10 uses the lightweight
   `tomli` backport for TOML profile loading.
@@ -207,7 +208,7 @@ See [docs/Public/Guides/philosophy.md](docs/Public/Guides/philosophy.md) and
 
 ## Install
 
-Install from [PyPI](https://pypi.org/project/litlaunch/1.1.0/):
+Install from [PyPI](https://pypi.org/project/litlaunch/1.1.1/):
 
 ```powershell
 python -m pip install litlaunch
@@ -427,8 +428,8 @@ result = run_monitored_webapp(
 
 The monitored runner observes the app window and returns a
 `MonitoredRunResult`. Monitoring does not own, kill, or close browser windows;
-the separate Experimental `host_sizing = "initial"` policy may apply one
-bounded height-only change when explicitly configured and fully eligible.
+the separate Experimental host-sizing policy may apply bounded height-only
+changes when explicitly configured and fully eligible.
 
 Show launch behavior without starting Streamlit or opening a browser:
 
@@ -582,7 +583,7 @@ See [docs/Public/Reference/inspect.md](docs/Public/Reference/inspect.md) and
 - [Philosophy](docs/Public/Guides/philosophy.md)
 - [Installation](docs/Public/Guides/installation.md)
 - [Quickstart](docs/Public/Guides/quickstart.md)
-- [Experimental Initial Host Sizing](docs/Public/Guides/host-sizing.md)
+- [Experimental Host Sizing](docs/Public/Guides/host-sizing.md)
 - [Host-Sizing FAQ](docs/Public/FAQ/host-sizing.md)
 - [CLI](docs/Public/Reference/cli.md)
 - [Security And Trust Boundaries](docs/Public/Reference/security.md)

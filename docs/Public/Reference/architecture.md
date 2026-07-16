@@ -205,22 +205,22 @@ mutation in this model.
 ## Experimental Host-Sizing Flow
 
 ```text
-host_sizing = "initial"
+host_sizing = "initial" | "continuous"
 validate static launch eligibility
 start launch-scoped authenticated loopback channel
 inject private handoff into the app child process
 launch managed Edge/Chrome webapp
 establish exact launch-process and stable window authority
 accept one authoritative frontend measurement stream
-stabilize and apply at most one bounded height-only change
-close the sizing channel permanently
+stabilize and apply policy-approved bounded height-only changes
+close after one initial attempt or retain authority until continuous shutdown
 ```
 
 The public surface is limited to the launch policy and immutable handoff
 metadata. Transport, timing, bounds, process authority, window authority,
 geometry conversion, and native mutation stay private. Any failure leaves the
 base app running and the window unchanged. See the
-[initial host-sizing guide](../Guides/host-sizing.md) for eligibility and the
+[host-sizing guide](../Guides/host-sizing.md) for eligibility and the
 app-owned frontend contract.
 
 ## Inspect Architecture

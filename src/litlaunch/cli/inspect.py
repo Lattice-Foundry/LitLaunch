@@ -69,7 +69,9 @@ def add_inspect_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--host-sizing",
         choices=[item.value for item in HostSizingPolicy],
-        help="Evaluate the Experimental off or initial host-sizing policy.",
+        help=(
+            "Evaluate the Experimental off, initial, or continuous host-sizing policy."
+        ),
     )
     parser.add_argument(
         "--port",
@@ -171,7 +173,9 @@ def add_report_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--host-sizing",
         choices=[item.value for item in HostSizingPolicy],
-        help="Evaluate the Experimental off or initial host-sizing policy.",
+        help=(
+            "Evaluate the Experimental off, initial, or continuous host-sizing policy."
+        ),
     )
     parser.add_argument(
         "--host",

@@ -1,4 +1,4 @@
-"""Public application handoff for Experimental initial host sizing."""
+"""Public application handoff for Experimental host sizing."""
 
 from __future__ import annotations
 

@@ -26,6 +26,7 @@ from litlaunch._host_sizing_policy import (
     HostSizingAuthorityStatus,
     HostSizingPolicy,
     HostSizingPolicyConfig,
+    HostSizingPolicyMode,
     HostSizingPolicyState,
 )
 from litlaunch._host_sizing_transport import HostSizingReport, SurfaceDimensions
@@ -35,6 +36,7 @@ from litlaunch._host_sizing_window import (
     TrustedWindowsWindowSizer,
     WindowAuthorityVerification,
     WindowSizingAuthority,
+    WindowSizingLifetime,
     WindowsWindowAuthorityVerifier,
     create_window_sizing_authority,
 )
@@ -745,6 +747,161 @@ def test_one_shot_capability_refuses_second_call_after_success():
     assert second.status == HostSizingMutationStatus.REFUSED
     assert sizer.consumed is True
     assert len(backend.set_calls) == 1
+
+
+def test_session_capability_rebases_after_verified_growth_then_allows_shrink():
+    baseline = geometry(work_area=NativeRect(0, 0, 1920, 1800))
+    after_growth = after_height(939, base=baseline)
+    after_shrink = after_height(739, base=after_growth)
+    backend = FakeGeometryBackend(
+        baseline,
+        after_growth,
+        after_growth,
+        after_shrink,
+    )
+    sizer = TrustedWindowsWindowSizer(
+        backend=backend,
+        authority_verifier=FakeAuthorityVerifier(),
+        lifetime=WindowSizingLifetime.SESSION,
+    )
+    policy = HostSizingPolicy(
+        config=HostSizingPolicyConfig(quiet_period_seconds=0),
+        mode=HostSizingPolicyMode.CONTINUOUS,
+        clock=FakeClock(),
+    )
+    policy.observe_authority(
+        HostSizingAuthorityStatus.EXACT,
+        authority_id="window-authority-1",
+    )
+    exact = authority(baseline=baseline)
+
+    growth = policy.observe_report(
+        HostSizingReport(
+            protocol=1,
+            launch_id="launch-authority-123456",
+            source_id="primary-surface",
+            sequence=1,
+            device_pixel_ratio=1.0,
+            content=SurfaceDimensions(850, 1180),
+            host_viewport=SurfaceDimensions(761, 1280),
+            desired_host_viewport=SurfaceDimensions(900),
+        )
+    )
+    growth_result = sizer.apply(decision=growth, authority=exact)
+    policy.acknowledge_apply(applied=growth_result.acknowledgement_succeeded)
+    shrink = policy.observe_report(
+        HostSizingReport(
+            protocol=1,
+            launch_id="launch-authority-123456",
+            source_id="primary-surface",
+            sequence=2,
+            device_pixel_ratio=1.0,
+            content=SurfaceDimensions(650, 1180),
+            host_viewport=SurfaceDimensions(900, 1280),
+            desired_host_viewport=SurfaceDimensions(700),
+        )
+    )
+    shrink_result = sizer.apply(decision=shrink, authority=exact)
+
+    assert growth_result.applied is True
+    assert shrink_result.applied is True
+    assert shrink_result.baseline == after_growth
+    assert backend.set_calls == [(100, 1000, 939), (100, 1000, 739)]
+    assert sizer.apply_calls == 2
+    assert sizer.authority_verifier.calls == 4
+
+
+def test_session_capability_can_shrink_after_its_own_work_area_clamp():
+    baseline = geometry(
+        outer=NativeRect(0, 100, 640, 900),
+        client_width=624,
+        client_height=761,
+        work_area=NativeRect(0, 0, 1920, 1000),
+    )
+    clamped = geometry(
+        outer=NativeRect(0, 100, 640, 1000),
+        client_width=624,
+        client_height=861,
+        work_area=baseline.work_area,
+        state=WindowGeometryState.SNAPPED,
+    )
+    shrunk = geometry(
+        outer=NativeRect(0, 100, 640, 800),
+        client_width=624,
+        client_height=661,
+        work_area=baseline.work_area,
+    )
+    backend = FakeGeometryBackend(baseline, clamped, clamped, shrunk)
+    sizer = TrustedWindowsWindowSizer(
+        backend=backend,
+        authority_verifier=FakeAuthorityVerifier(),
+        lifetime=WindowSizingLifetime.SESSION,
+    )
+    policy = HostSizingPolicy(
+        config=HostSizingPolicyConfig(quiet_period_seconds=0),
+        mode=HostSizingPolicyMode.CONTINUOUS,
+        clock=FakeClock(),
+    )
+    policy.observe_authority(
+        HostSizingAuthorityStatus.EXACT,
+        authority_id="window-authority-1",
+    )
+    exact = authority(baseline=baseline)
+
+    clamp = policy.observe_report(
+        HostSizingReport(
+            protocol=1,
+            launch_id="launch-authority-123456",
+            source_id="primary-surface",
+            sequence=1,
+            device_pixel_ratio=1.0,
+            content=SurfaceDimensions(1500, 624),
+            host_viewport=SurfaceDimensions(761, 624),
+            desired_host_viewport=SurfaceDimensions(1600),
+        )
+    )
+    clamp_result = sizer.apply(decision=clamp, authority=exact)
+    policy.acknowledge_apply(applied=clamp_result.acknowledgement_succeeded)
+    shrink = policy.observe_report(
+        HostSizingReport(
+            protocol=1,
+            launch_id="launch-authority-123456",
+            source_id="primary-surface",
+            sequence=2,
+            device_pixel_ratio=1.0,
+            content=SurfaceDimensions(620, 624),
+            host_viewport=SurfaceDimensions(861, 624),
+            desired_host_viewport=SurfaceDimensions(661),
+        )
+    )
+    shrink_result = sizer.apply(decision=shrink, authority=exact)
+
+    assert clamp_result.applied is True
+    assert clamp_result.after is not None
+    assert clamp_result.after.state == WindowGeometryState.NORMAL
+    assert shrink_result.applied is True
+    assert backend.set_calls == [(100, 640, 900), (100, 640, 700)]
+
+
+def test_session_capability_refuses_unverified_user_geometry_change():
+    _policy, decision = pending_policy_decision()
+    baseline = geometry(work_area=NativeRect(0, 0, 1920, 1800))
+    moved = replace(
+        baseline,
+        outer=NativeRect(110, 100, 1110, 900),
+    )
+    backend = FakeGeometryBackend(moved)
+    sizer = TrustedWindowsWindowSizer(
+        backend=backend,
+        authority_verifier=FakeAuthorityVerifier(),
+        lifetime=WindowSizingLifetime.SESSION,
+    )
+
+    result = sizer.apply(decision=decision, authority=authority(baseline=baseline))
+
+    assert result.status == HostSizingMutationStatus.REFUSED
+    assert "outside verified host sizing" in result.reason
+    assert backend.set_calls == []
 
 
 def test_concurrent_apply_calls_can_attempt_only_one_mutation():

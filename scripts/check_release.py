@@ -576,6 +576,8 @@ def run_installed_wheel_smoke(wheel_path: Path, version: str) -> None:
                     "import litlaunch; "
                     f"assert litlaunch.__version__ == {version!r}; "
                     "assert litlaunch.HostSizingPolicy.OFF.value == 'off'; "
+                    "assert litlaunch.HostSizingPolicy.CONTINUOUS.value == "
+                    "'continuous'; "
                     "assert litlaunch.get_host_sizing_handoff() is None; "
                     "print(litlaunch.__version__)"
                 ),

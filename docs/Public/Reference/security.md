@@ -170,21 +170,23 @@ replacement for application security or network security.
 
 ## Experimental Host-Sizing Capability
 
-When an eligible app explicitly requests `host_sizing = "initial"`, LitLaunch
-creates a short-lived loopback endpoint with a per-launch capability token,
-launch ID, fixed source, and exact app-origin policy. The app must deliberately
-forward that handoff to one trusted top-level frontend. The token is sent in the
-documented custom request header, never in a URL.
+When an eligible app explicitly requests `host_sizing = "initial"` or
+`host_sizing = "continuous"`, LitLaunch creates a launch-scoped loopback
+endpoint with a per-launch capability token, launch ID, fixed source, and exact
+app-origin policy. The app must deliberately forward that handoff to one trusted
+top-level frontend. The token is sent in the documented custom request header,
+never in a URL.
 
 The capability is bounded to host-sizing reports for that launch. LitLaunch
 validates schema, origin, token, sequence, report rate, exact browser-process
-authority, exact window authority, window state, and target bounds before one
-height-only mutation. Request bodies, connection duration, and concurrent
-request workers are bounded. The endpoint closes after the attempt or when the
-runtime stops.
+authority, exact window authority, window state, and target bounds before any
+height-only mutation. Request bodies, connection duration, accepted report
+count, and concurrent request workers are bounded. `initial` closes after one
+attempt. `continuous` retains the same authenticated channel until runtime
+shutdown or a terminal safety refusal.
 
 Do not log, persist, cache, or place the handoff in static frontend assets.
-Frontend access grants the ability to request the one bounded sizing attempt.
-This token does not protect against trusted or untrusted code already executing
-inside the app process, and host sizing does not add authentication or secure
-the Streamlit application.
+Frontend access grants the ability to request policy-bounded height fitting for
+that launch. This token does not protect against trusted or untrusted code
+already executing inside the app process, and host sizing does not add
+application authentication or secure the Streamlit application.

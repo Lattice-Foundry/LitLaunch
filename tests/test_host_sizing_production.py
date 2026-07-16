@@ -176,6 +176,7 @@ def start_runtime(
     timeout_seconds: float = 1.0,
     channel_starter=None,
     events: list[RuntimeEvent] | None = None,
+    host_sizing: HostSizingPolicy = HostSizingPolicy.INITIAL,
 ):
     resolved_gate = gate or FakeGate()
     resolved_mutation = mutation or FakeMutation()
@@ -199,7 +200,7 @@ def start_runtime(
             "app.py",
             mode=mode,
             browser=BrowserChoice.EDGE,
-            host_sizing=HostSizingPolicy.INITIAL,
+            host_sizing=host_sizing,
         )
     )
     assert runtime is not None
@@ -394,6 +395,116 @@ def test_private_production_timeout_without_adapter_is_terminal(tmp_path: Path):
     assert snapshot.status == PrivateHostSizingProductionStatus.TERMINAL
     assert snapshot.policy_state == "timed_out"
     assert mutation.calls == []
+
+
+def test_continuous_production_retains_channel_for_growth_and_shrink(
+    tmp_path: Path,
+):
+    events: list[RuntimeEvent] = []
+    runtime, _gate, mutation = start_runtime(
+        host_sizing=HostSizingPolicy.CONTINUOUS,
+        events=events,
+    )
+    env = dict(runtime.prepare_backend(ALLOWED_ORIGIN, None))
+    assert runtime.capture_window_baseline() is True
+    assert runtime.activate_after_browser(
+        browser_authority(tmp_path, env[LITLAUNCH_HOST_SIZING_LAUNCH_ID]),
+        backend_is_running=lambda: True,
+    )
+    assert send(env, payload(env, sequence=1)) == 202
+    second = payload(env, sequence=2)
+    second["content"] = {"height": 600, "width": 1180}
+    second["host_viewport"] = {"height": 900, "width": 1280}
+    second["desired_host_viewport"] = {"height": 700}
+    assert send(env, second) == 202
+
+    deadline = time.monotonic() + 2.0
+    snapshot = runtime.snapshot()
+    while snapshot.mutation_calls < 2 and time.monotonic() < deadline:
+        time.sleep(0.01)
+        snapshot = runtime.snapshot()
+
+    assert snapshot.continuous_active is True
+    assert snapshot.channel_active is True
+    assert snapshot.mutation_calls == 2
+    assert snapshot.last_accepted_sequence == 2
+    assert snapshot.last_target_height == 700
+    assert len(mutation.calls) == 2
+
+    runtime.close()
+    closed = runtime.snapshot()
+    assert closed.closed is True
+    assert closed.status == PrivateHostSizingProductionStatus.TERMINAL
+    assert closed.channel_active is False
+    assert closed.continuous_active is False
+    assert [event.name for event in events].count("host_sizing_report_accepted") == 1
+    assert [event.name for event in events].count("host_sizing_channel_closed") == 1
+    with pytest.raises(urllib.error.URLError):
+        send(env, payload(env, sequence=3))
+
+
+def test_continuous_production_does_not_use_initial_report_timeout(tmp_path: Path):
+    runtime, _gate, mutation = start_runtime(
+        host_sizing=HostSizingPolicy.CONTINUOUS,
+        timeout_seconds=0.05,
+    )
+    env = dict(runtime.prepare_backend(ALLOWED_ORIGIN, None))
+    assert runtime.capture_window_baseline() is True
+    assert runtime.activate_after_browser(
+        browser_authority(tmp_path, env[LITLAUNCH_HOST_SIZING_LAUNCH_ID]),
+        backend_is_running=lambda: True,
+    )
+    time.sleep(0.1)
+
+    snapshot = runtime.snapshot()
+    assert snapshot.closed is False
+    assert snapshot.continuous_active is True
+    assert mutation.calls == []
+    runtime.close()
+
+
+def test_continuous_production_channels_are_launch_isolated(tmp_path: Path):
+    first, _first_gate, first_mutation = start_runtime(
+        host_sizing=HostSizingPolicy.CONTINUOUS
+    )
+    second, _second_gate, second_mutation = start_runtime(
+        host_sizing=HostSizingPolicy.CONTINUOUS
+    )
+    first_env = dict(first.prepare_backend(ALLOWED_ORIGIN, None))
+    second_env = dict(second.prepare_backend(ALLOWED_ORIGIN, None))
+    assert first.capture_window_baseline() is True
+    assert second.capture_window_baseline() is True
+    assert first.activate_after_browser(
+        browser_authority(
+            tmp_path / "first",
+            first_env[LITLAUNCH_HOST_SIZING_LAUNCH_ID],
+        ),
+        backend_is_running=lambda: True,
+    )
+    assert second.activate_after_browser(
+        browser_authority(
+            tmp_path / "second",
+            second_env[LITLAUNCH_HOST_SIZING_LAUNCH_ID],
+        ),
+        backend_is_running=lambda: True,
+    )
+
+    assert send(first_env, payload(second_env)) == 403
+    assert first_mutation.calls == []
+    assert second_mutation.calls == []
+    assert send(first_env, payload(first_env)) == 202
+    assert send(second_env, payload(second_env)) == 202
+
+    deadline = time.monotonic() + 2.0
+    while (
+        len(first_mutation.calls) < 1 or len(second_mutation.calls) < 1
+    ) and time.monotonic() < deadline:
+        time.sleep(0.01)
+
+    assert len(first_mutation.calls) == 1
+    assert len(second_mutation.calls) == 1
+    first.close()
+    second.close()
 
 
 def test_private_production_shutdown_before_quiet_period_prevents_mutation(

@@ -186,7 +186,14 @@ class FixedPortManager:
         return 8501
 
 
-def test_launch_plan_reports_credential_free_public_policy_state(monkeypatch):
+@pytest.mark.parametrize(
+    "policy",
+    [HostSizingPolicy.INITIAL, HostSizingPolicy.CONTINUOUS],
+)
+def test_launch_plan_reports_credential_free_public_policy_state(
+    monkeypatch,
+    policy,
+):
     monkeypatch.setattr(
         planning_module,
         "evaluate_host_sizing_eligibility",
@@ -196,7 +203,7 @@ def test_launch_plan_reports_credential_free_public_policy_state(monkeypatch):
         "app.py",
         mode="webapp",
         browser="edge",
-        host_sizing=HostSizingPolicy.INITIAL,
+        host_sizing=policy,
     )
     plan = StreamlitLauncher(
         config,
@@ -204,7 +211,7 @@ def test_launch_plan_reports_credential_free_public_policy_state(monkeypatch):
     ).build_launch_plan(include_browser_resolution=False)
     rendered = repr(plan)
 
-    assert plan.host_sizing_policy == "initial"
+    assert plan.host_sizing_policy == policy.value
     assert plan.host_sizing_experimental is True
     assert plan.host_sizing_eligibility == "eligible"
     assert _TOKEN not in rendered

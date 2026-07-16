@@ -61,6 +61,8 @@ the project history at the level most useful to release users and integrators.
   normal console output quiet and sizing failures non-fatal.
 - Documented the complete app-owned frontend adapter contract and current
   Windows, browser, profile, loopback, one-shot, and display-validation limits.
+- Expanded native validation across Edge and Chrome, direct and shortcut launches,
+  and a real 100%/150% mixed-DPI Windows 11 monitor layout.
 
 ## 1.0.10 - Stable
 

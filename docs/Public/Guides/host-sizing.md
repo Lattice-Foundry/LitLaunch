@@ -245,6 +245,7 @@ window handle.
 
 Initial host sizing is not continuous fitting, width fitting, browser-tab
 control, browser automation, a general window manager, hosted-app behavior, or
-an application security feature. Current evidence covers Edge and Chrome on
-one Windows 11 host at 96 DPI. Broader Windows versions, display scaling, and
-mixed-DPI setups remain part of the Experimental maturity boundary.
+an application security feature. Current evidence covers Edge and Chrome on one
+Windows 11 host with 100% and 150% mixed-DPI displays, including a negative-origin
+secondary monitor. Windows 10, 125% scaling, additional monitor/taskbar layouts,
+and independent hosts remain part of the Experimental maturity boundary.

@@ -57,6 +57,9 @@ desktop.ini
 notes/
 scratch/
 docs/internal/
+# Host-sizing research and validation notebooks are retained locally; only
+# docs/research/.gitkeep belongs in the public repository.
+docs/research/*.md
 docs/**/scratch/
 docs/**/tmp/
 docs/**/inbox/

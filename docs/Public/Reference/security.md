@@ -179,8 +179,9 @@ documented custom request header, never in a URL.
 The capability is bounded to host-sizing reports for that launch. LitLaunch
 validates schema, origin, token, sequence, report rate, exact browser-process
 authority, exact window authority, window state, and target bounds before one
-height-only mutation. The endpoint closes after the attempt or when the runtime
-stops.
+height-only mutation. Request bodies, connection duration, and concurrent
+request workers are bounded. The endpoint closes after the attempt or when the
+runtime stops.
 
 Do not log, persist, cache, or place the handoff in static frontend assets.
 Frontend access grants the ability to request the one bounded sizing attempt.

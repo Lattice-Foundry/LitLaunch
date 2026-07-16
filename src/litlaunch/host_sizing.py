@@ -19,6 +19,8 @@ from litlaunch._host_sizing_transport import (
     LITLAUNCH_HOST_SIZING_PROTOCOL,
     LITLAUNCH_HOST_SIZING_SOURCE_ID,
     LITLAUNCH_HOST_SIZING_TOKEN,
+    HostSizingTransportError,
+    normalize_allowed_origin,
 )
 
 _LAUNCH_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{16,256}$")
@@ -27,7 +29,11 @@ _SOURCE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 @dataclass(frozen=True)
 class HostSizingHandoff:
-    """Short-lived frontend capability metadata for one LitLaunch launch."""
+    """Short-lived capability metadata for deliberate app-to-frontend handoff.
+
+    Treat instances as credentials: do not log, persist, or embed them into static
+    frontend assets.
+    """
 
     endpoint: str
     launch_id: str
@@ -51,7 +57,11 @@ class HostSizingHandoff:
 
 
 def get_host_sizing_handoff() -> HostSizingHandoff | None:
-    """Return the active launch handoff, or ``None`` when unavailable."""
+    """Return the active launch handoff, or ``None`` when unavailable.
+
+    Applications must deliberately forward the result to one trusted frontend
+    sizing surface. LitLaunch does not discover or inject frontend adapters.
+    """
 
     return _handoff_from_env(os.environ)
 
@@ -80,9 +90,13 @@ def _handoff_from_env(env: Mapping[str, str]) -> HostSizingHandoff | None:
         return None
     if not _SOURCE_ID_PATTERN.fullmatch(source_id):
         return None
-    if not _valid_loopback_url(endpoint, required_path=HOST_SIZING_ENDPOINT_PATH):
+    if not _valid_endpoint_url(endpoint):
         return None
-    if not _valid_loopback_url(origin, required_path=""):
+    try:
+        normalized_origin = normalize_allowed_origin(origin)
+    except HostSizingTransportError:
+        return None
+    if normalized_origin != origin:
         return None
     return HostSizingHandoff(
         endpoint=endpoint,
@@ -94,7 +108,7 @@ def _handoff_from_env(env: Mapping[str, str]) -> HostSizingHandoff | None:
     )
 
 
-def _valid_loopback_url(value: str, *, required_path: str) -> bool:
+def _valid_endpoint_url(value: str) -> bool:
     try:
         parsed = urlsplit(value)
         port = parsed.port
@@ -106,7 +120,7 @@ def _valid_loopback_url(value: str, *, required_path: str) -> bool:
         and port is not None
         and parsed.username is None
         and parsed.password is None
-        and parsed.path == required_path
+        and parsed.path == HOST_SIZING_ENDPOINT_PATH
         and not parsed.query
         and not parsed.fragment
     )

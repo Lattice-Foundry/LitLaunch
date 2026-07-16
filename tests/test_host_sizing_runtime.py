@@ -22,14 +22,12 @@ from litlaunch._host_sizing_policy import (
     HostSizingPolicyConfig,
     HostSizingPolicyState,
 )
-from litlaunch._host_sizing_runtime import (
-    HostSizingRuntimeCoordinator,
-    start_private_host_sizing_runtime,
-)
+from litlaunch._host_sizing_runtime import HostSizingRuntimeCoordinator
 from litlaunch._host_sizing_transport import (
     HOST_SIZING_TOKEN_HEADER,
     HostSizingReport,
     SurfaceDimensions,
+    start_host_sizing_channel,
 )
 from litlaunch._host_sizing_window import (
     HostSizingMutationResult,
@@ -284,13 +282,20 @@ def start_runtime(
 ):
     initial = baseline or geometry()
     capability, backend = sizer(initial, exact=exact, set_error=set_error)
-    coordinator = start_private_host_sizing_runtime(
-        allowed_origin=ALLOWED_ORIGIN,
+    coordinator = HostSizingRuntimeCoordinator(
+        policy=HostSizingPolicy(
+            config=config or HostSizingPolicyConfig(quiet_period_seconds=0)
+        ),
         authority=authority(baseline=initial),
         mutation=capability,
-        policy_config=config or HostSizingPolicyConfig(quiet_period_seconds=0),
         poll_interval_seconds=0.005,
     )
+    channel = start_host_sizing_channel(
+        allowed_origin=ALLOWED_ORIGIN,
+        accepted_report_callback=coordinator.consume_accepted_report,
+    )
+    coordinator.attach_channel(channel)
+    coordinator.start()
     return coordinator, backend
 
 
@@ -581,15 +586,9 @@ def test_authenticated_dpr_reaches_native_conversion_unchanged():
     assert backend.set_calls == [(100, 1800, 1406)]
 
 
-def test_runtime_remains_private_and_inactive_in_normal_launcher_sources():
+def test_runtime_coordinator_remains_private_and_has_no_activation_shortcut():
     runtime_source = Path(runtime_module.__file__).read_text(encoding="utf-8")
-    launcher_source = (
-        Path(runtime_module.__file__)
-        .with_name("launcher.py")
-        .read_text(encoding="utf-8")
-    )
 
     assert not hasattr(litlaunch, "HostSizingRuntimeCoordinator")
-    assert not hasattr(litlaunch, "start_private_host_sizing_runtime")
-    assert "start_private_host_sizing_runtime" not in launcher_source
-    assert "start_host_sizing_channel" in runtime_source
+    assert "class HostSizingRuntimeCoordinator" in runtime_source
+    assert "start_host_sizing_channel" not in runtime_source

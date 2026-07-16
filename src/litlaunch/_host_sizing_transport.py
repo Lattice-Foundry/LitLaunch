@@ -11,10 +11,12 @@ import json
 import math
 import re
 import secrets
+import socket
 import threading
 import time
 from collections import Counter, deque
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import Enum
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -35,6 +37,8 @@ HOST_SIZING_MAX_SEQUENCE = (1 << 63) - 1
 HOST_SIZING_MAX_SOURCE_ID_LENGTH = 128
 HOST_SIZING_MIN_DEVICE_PIXEL_RATIO = 0.5
 HOST_SIZING_MAX_DEVICE_PIXEL_RATIO = 8.0
+HOST_SIZING_MAX_REQUEST_WORKERS = 8
+HOST_SIZING_CONNECTION_TIMEOUT_SECONDS = 2.0
 
 LITLAUNCH_HOST_SIZING_ENABLED = "LITLAUNCH_HOST_SIZING_ENABLED"
 LITLAUNCH_HOST_SIZING_ENDPOINT = "LITLAUNCH_HOST_SIZING_ENDPOINT"
@@ -63,10 +67,50 @@ _ALLOWED_REQUEST_HEADERS = frozenset(
         HOST_SIZING_TOKEN_HEADER.lower(),
     }
 )
+_SocketRequest = socket.socket | tuple[bytes, socket.socket]
 
 
 class HostSizingTransportError(RuntimeError):
     """Raised when the private host-sizing channel cannot be created safely."""
+
+
+class _BoundedThreadingHTTPServer(ThreadingHTTPServer):
+    """Serve a small bounded set of local requests without retaining workers."""
+
+    daemon_threads = True
+    request_queue_size = HOST_SIZING_MAX_REQUEST_WORKERS
+
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        request_handler_class: type[BaseHTTPRequestHandler],
+        *,
+        max_workers: int = HOST_SIZING_MAX_REQUEST_WORKERS,
+    ) -> None:
+        if max_workers < 1:
+            raise ValueError("Host-sizing request worker bound must be positive.")
+        self._worker_slots = threading.BoundedSemaphore(max_workers)
+        super().__init__(server_address, request_handler_class)
+
+    def process_request(self, request: _SocketRequest, client_address: object) -> None:
+        if not self._worker_slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._worker_slots.release()
+            raise
+
+    def process_request_thread(
+        self,
+        request: _SocketRequest,
+        client_address: object,
+    ) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._worker_slots.release()
 
 
 class HostSizingReportDecision(str, Enum):
@@ -167,7 +211,7 @@ class HostSizingChannelConfig:
         return f"http://{self.host}:{self.port}{HOST_SIZING_ENDPOINT_PATH}"
 
     def as_env(self) -> dict[str, str]:
-        """Return private environment values for a future app adapter handoff."""
+        """Return launch-scoped environment values for deliberate app handoff."""
 
         return {
             LITLAUNCH_HOST_SIZING_ENABLED: "1",
@@ -302,7 +346,7 @@ class HostSizingChannel:
         *,
         config: HostSizingChannelConfig,
         store: HostSizingReportStore,
-        server: ThreadingHTTPServer,
+        server: _BoundedThreadingHTTPServer,
         thread: threading.Thread,
     ) -> None:
         self.config = config
@@ -400,13 +444,12 @@ def start_host_sizing_channel(
     handler = _build_host_sizing_handler(request_context)
 
     try:
-        server = ThreadingHTTPServer((host, port), handler)
+        server = _BoundedThreadingHTTPServer((host, port), handler)
     except OSError as exc:
         resolved_store.close()
         raise HostSizingTransportError(
             "Could not bind the private host-sizing loopback endpoint."
         ) from exc
-    server.daemon_threads = True
     actual_port = int(server.server_address[1])
     try:
         config = HostSizingChannelConfig(
@@ -548,6 +591,10 @@ def _build_host_sizing_handler(
     context: _HostSizingRequestContext,
 ) -> type[BaseHTTPRequestHandler]:
     class HostSizingHandler(BaseHTTPRequestHandler):
+        def setup(self) -> None:
+            super().setup()
+            self.connection.settimeout(HOST_SIZING_CONNECTION_TIMEOUT_SECONDS)
+
         def do_OPTIONS(self) -> None:  # noqa: N802 - HTTP handler contract.
             if self.path != HOST_SIZING_ENDPOINT_PATH:
                 self._write_json(404, {"ok": False, "message": "Not found."})
@@ -650,7 +697,26 @@ def _build_host_sizing_handler(
                     origin=origin,
                 )
                 return
-            body = self.rfile.read(body_length)
+            try:
+                body = self.rfile.read(body_length)
+            except (TimeoutError, OSError):
+                context.store.record_rejection("request_timeout")
+                self.close_connection = True
+                with suppress(OSError):
+                    self._write_json(
+                        408,
+                        {"ok": False, "message": "Request timed out."},
+                        origin=origin,
+                    )
+                return
+            if len(body) != body_length:
+                context.store.record_rejection("truncated_body")
+                self._write_json(
+                    400,
+                    {"ok": False, "message": "Request body is incomplete."},
+                    origin=origin,
+                )
+                return
             try:
                 report = parse_host_sizing_report(body)
             except HostSizingTransportError as exc:

@@ -1,7 +1,7 @@
 """Private one-shot Windows host-sizing mutation capability.
 
-This module consumes one LL-HS2 apply decision and one exact immutable authority. It
-does not discover launch authority, activate transport, or expose public controls.
+This module consumes one policy-approved decision and one exact immutable authority.
+It does not discover launch authority, activate transport, or expose public controls.
 """
 
 from __future__ import annotations
@@ -134,7 +134,7 @@ class WindowAuthorityVerification:
 
 @dataclass(frozen=True)
 class HostSizingMutationResult:
-    """Credential-free one-shot result suitable for LL-HS2 acknowledgement."""
+    """Credential-free one-shot result suitable for policy acknowledgement."""
 
     status: HostSizingMutationStatus
     reason: str
@@ -154,7 +154,7 @@ class HostSizingMutationResult:
 
     @property
     def acknowledgement_succeeded(self) -> bool:
-        """Return the safe success value for LL-HS2 acknowledgement."""
+        """Return the safe success value for policy acknowledgement."""
 
         return self.status in {
             HostSizingMutationStatus.APPLIED,
@@ -230,7 +230,7 @@ class WindowsWindowAuthorityVerifier:
 
 
 class TrustedWindowsWindowSizer:
-    """Apply at most one LL-HS2 decision through guarded Windows geometry seams."""
+    """Apply at most one approved decision through guarded Windows geometry seams."""
 
     def __init__(
         self,
@@ -452,7 +452,7 @@ def create_window_sizing_authority(
     managed_profile: bool,
     app_mode: bool,
 ) -> WindowSizingAuthority:
-    """Promote one exact LL-HS0 probe into immutable mutation authority."""
+    """Promote one exact stable probe into immutable mutation authority."""
 
     if probe.status != WindowAuthorityStatus.EXACT or probe.window is None:
         raise HostSizingWindowError("Window probe did not establish exact authority.")
@@ -487,20 +487,20 @@ def _decision_error(
     authority: WindowSizingAuthority,
 ) -> str | None:
     if not isinstance(decision, HostSizingDecision):
-        return "Window sizing requires a typed LL-HS2 decision."
+        return "Window sizing requires a typed policy decision."
     if decision.action != HostSizingAction.APPLY:
-        return "Window sizing requires an LL-HS2 apply decision."
+        return "Window sizing requires a policy apply decision."
     if decision.state != HostSizingPolicyState.APPLY_PENDING:
-        return "LL-HS2 decision is not awaiting mutation acknowledgement."
+        return "Policy decision is not awaiting mutation acknowledgement."
     if decision.authority_id != authority.authority_id:
-        return "LL-HS2 decision authority does not match the authorized window."
+        return "Policy decision authority does not match the authorized window."
     if (
         isinstance(decision.desired_viewport_height, bool)
         or not isinstance(decision.desired_viewport_height, int)
         or decision.desired_viewport_height < HOST_SIZING_HARD_MIN_VIEWPORT_HEIGHT
         or decision.desired_viewport_height > HOST_SIZING_HARD_MAX_VIEWPORT_HEIGHT
     ):
-        return "LL-HS2 desired viewport height is outside hard policy bounds."
+        return "Desired viewport height is outside hard policy bounds."
     current = decision.current_viewport_height
     if (
         isinstance(current, bool)
@@ -508,7 +508,7 @@ def _decision_error(
         or not math.isfinite(float(current))
         or current <= 0
     ):
-        return "LL-HS2 current viewport height is invalid."
+        return "Current viewport height is invalid."
     ratio = decision.device_pixel_ratio
     if (
         isinstance(ratio, bool)
@@ -517,20 +517,20 @@ def _decision_error(
         or ratio < HOST_SIZING_MIN_DEVICE_PIXEL_RATIO
         or ratio > HOST_SIZING_MAX_DEVICE_PIXEL_RATIO
     ):
-        return "LL-HS2 device-pixel ratio is outside protocol bounds."
+        return "Device-pixel ratio is outside protocol bounds."
     if (
         not decision.source_id
         or isinstance(decision.sequence, bool)
         or not isinstance(decision.sequence, int)
         or decision.sequence < 1
     ):
-        return "LL-HS2 decision is missing report authority metadata."
+        return "Policy decision is missing report authority metadata."
     if (
         isinstance(decision.requested_viewport_height, bool)
         or not isinstance(decision.requested_viewport_height, int)
         or decision.requested_viewport_height < 1
     ):
-        return "LL-HS2 decision is missing normalized target metadata."
+        return "Policy decision is missing normalized target metadata."
     return None
 
 

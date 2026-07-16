@@ -4,9 +4,11 @@ import copy
 import http.client
 import json
 import socket
+import threading
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from http.server import BaseHTTPRequestHandler
 from io import StringIO
 from pathlib import Path
 
@@ -28,6 +30,7 @@ from litlaunch._host_sizing_transport import (
     HostSizingReportDecision,
     HostSizingReportStore,
     HostSizingTransportError,
+    normalize_allowed_origin,
     parse_host_sizing_report,
     start_host_sizing_channel,
 )
@@ -171,6 +174,97 @@ def test_channel_rejects_nonliteral_bind_host():
             allowed_origin=ALLOWED_ORIGIN,
             host="localhost",
         )
+
+
+@pytest.mark.parametrize(
+    ("origin", "normalized"),
+    [
+        ("http://localhost:8501", "http://localhost:8501"),
+        ("http://127.0.0.2:8501", "http://127.0.0.2:8501"),
+        ("http://[::1]:8501", "http://[::1]:8501"),
+    ],
+)
+def test_allowed_origin_accepts_exact_loopback_forms(origin, normalized):
+    assert normalize_allowed_origin(origin) == normalized
+
+
+def test_request_server_refuses_workers_beyond_its_hard_bound():
+    entered = threading.Event()
+    release = threading.Event()
+    active = 0
+    peak = 0
+    lock = threading.Lock()
+
+    class BlockingHandler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802 - HTTP handler contract.
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            entered.set()
+            release.wait(2.0)
+            with lock:
+                active -= 1
+            self.send_response(204)
+            self.end_headers()
+
+        def log_message(self, format, *args):
+            return
+
+    server = transport_module._BoundedThreadingHTTPServer(
+        ("127.0.0.1", 0),
+        BlockingHandler,
+        max_workers=1,
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    first = socket.create_connection(server.server_address, timeout=1.0)
+    second = None
+    try:
+        first.sendall(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        assert entered.wait(1.0)
+        second = socket.create_connection(server.server_address, timeout=1.0)
+        second.sendall(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        second.settimeout(1.0)
+        try:
+            refused = second.recv(1)
+        except ConnectionResetError:
+            refused = b""
+        assert refused == b""
+        assert peak == 1
+    finally:
+        release.set()
+        first.close()
+        if second is not None:
+            second.close()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2.0)
+
+
+def test_incomplete_request_body_times_out_without_retaining_a_worker(channel):
+    client = socket.create_connection(
+        ("127.0.0.1", channel.config.port),
+        timeout=1.0,
+    )
+    client.settimeout(4.0)
+    try:
+        request = (
+            "POST /host-sizing/report HTTP/1.1\r\n"
+            "Host: 127.0.0.1\r\n"
+            f"Origin: {ALLOWED_ORIGIN}\r\n"
+            f"{HOST_SIZING_TOKEN_HEADER}: {channel.config.token}\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: 20\r\n\r\n"
+            "{"
+        ).encode()
+        client.sendall(request)
+        response = client.recv(4096)
+    finally:
+        client.close()
+
+    assert b"408 Request Timeout" in response
+    assert channel.snapshot().rejection_counts["request_timeout"] == 1
 
 
 def test_channel_bind_failure_leaves_no_endpoint_thread():

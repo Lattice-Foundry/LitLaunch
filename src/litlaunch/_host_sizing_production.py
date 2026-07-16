@@ -211,7 +211,10 @@ class _PrivateHostSizingProductionRuntime:
         app_url: str,
         console_renderer: ConsoleRenderer | None,
     ) -> Mapping[str, str]:
-        """Start LL-HS1 before backend startup and return its private handoff."""
+        """Start authenticated transport before backend startup.
+
+        Return the launch-scoped child-process handoff environment.
+        """
 
         with self._lock:
             if self._closed:
@@ -250,7 +253,7 @@ class _PrivateHostSizingProductionRuntime:
         return environment
 
     def capture_window_baseline(self) -> bool:
-        """Capture immutable pre-browser HWND exclusions through the LL-HS5 gate."""
+        """Capture immutable pre-browser HWND exclusions for exact authority."""
 
         with self._lock:
             if self._closed or self._channel is None or not self._channel.active:
@@ -282,7 +285,7 @@ class _PrivateHostSizingProductionRuntime:
         *,
         backend_is_running: Callable[[], bool],
     ) -> bool:
-        """Establish exact HWND authority and attach LL-HS4 to the early channel."""
+        """Establish exact HWND authority and attach mutation to the early channel."""
 
         with self._lock:
             if self._closed or self._channel is None:

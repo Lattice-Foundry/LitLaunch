@@ -146,6 +146,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     version = read_project_version()
     ensure_classifier_version_consistency(version)
     ensure_no_suspicious_repo_root_artifacts()
+    ensure_no_private_docs_tracked()
     ensure_no_credentials()
     run_mypy()
 
@@ -436,6 +437,42 @@ def ensure_no_credentials(root: Path = PROJECT_ROOT) -> None:
             f"{_display_path(path, root)}:{location}" for path, location in findings
         )
         raise RuntimeError(f"Potential credentials found: {joined}")
+
+
+def find_forbidden_tracked_private_docs(
+    tracked_paths: Sequence[str],
+) -> tuple[str, ...]:
+    """Return private documentation paths that must remain outside public Git."""
+
+    forbidden_prefixes = (
+        "docs/internal/",
+        "docs/private/",
+        "docs/local/",
+        "notes/",
+    )
+    return tuple(
+        path
+        for path in tracked_paths
+        if path.startswith(forbidden_prefixes)
+        or (path.startswith("docs/research/") and path != "docs/research/.gitkeep")
+    )
+
+
+def ensure_no_private_docs_tracked(root: Path = PROJECT_ROOT) -> None:
+    """Fail when private research or note lanes are tracked in public source."""
+
+    result = subprocess.run(
+        ("git", "ls-files"),
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    findings = find_forbidden_tracked_private_docs(result.stdout.splitlines())
+    if findings:
+        raise RuntimeError(
+            "Private documentation is tracked in public source: " + ", ".join(findings)
+        )
 
 
 def find_forbidden_repo_tree_artifacts(root: Path = PROJECT_ROOT) -> tuple[Path, ...]:

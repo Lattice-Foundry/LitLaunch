@@ -1,4 +1,5 @@
 import ast
+import re
 from pathlib import Path
 
 try:
@@ -87,7 +88,7 @@ def test_pyproject_urls_use_canonical_repository_location():
     assert urls["Homepage"] == "https://github.com/Lattice-Foundry/LitLaunch"
     assert urls["Repository"] == "https://github.com/Lattice-Foundry/LitLaunch"
     assert urls["Issues"] == "https://github.com/Lattice-Foundry/LitLaunch/issues"
-    assert urls["PyPI"] == "https://pypi.org/project/litlaunch/1.0.11/"
+    assert urls["PyPI"] == "https://pypi.org/project/litlaunch/1.1.0/"
 
 
 def test_changelog_exists_and_mentions_current_version():
@@ -119,6 +120,8 @@ def test_docs_foundation_exists_and_links_from_readme():
         "Public/Guides/philosophy.md",
         "Public/Guides/installation.md",
         "Public/Guides/quickstart.md",
+        "Public/Guides/host-sizing.md",
+        "Public/FAQ/host-sizing.md",
         "Public/Guides/integration/index.md",
         "Public/Guides/integration/rolethread.md",
         "Public/Guides/integration/packaging-notes.md",
@@ -289,3 +292,33 @@ def test_internal_docs_are_not_tracked_in_public_source_tree():
 
     for path in public_paths:
         assert "docs/internal" not in path.read_text(encoding="utf-8")
+
+
+def test_public_markdown_links_resolve_inside_the_repository():
+    link_pattern = re.compile(r"(?<!!)\[[^]]+\]\(([^)]+)\)")
+    documents = [REPO_ROOT / "README.md", *PUBLIC_DOCS_ROOT.rglob("*.md")]
+
+    for document in documents:
+        text = document.read_text(encoding="utf-8")
+        for raw_target in link_pattern.findall(text):
+            target = raw_target.strip().strip("<>").split("#", 1)[0]
+            if not target or target.startswith(("http://", "https://", "mailto:")):
+                continue
+            resolved = (document.parent / target).resolve()
+            assert resolved.is_relative_to(REPO_ROOT)
+            assert resolved.exists(), f"Broken link in {document}: {raw_target}"
+
+
+def test_public_docs_exclude_local_paths_and_host_sizing_milestone_language():
+    public_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (REPO_ROOT / "README.md", *PUBLIC_DOCS_ROOT.rglob("*.md"))
+    )
+
+    assert "X:" + "\\dev" not in public_text
+    assert "C:" + "\\Users" not in public_text
+    assert "LL-HS" not in public_text
+
+
+def test_superseded_host_sizing_spike_harness_is_not_packaged_source():
+    assert not (REPO_ROOT / "src" / "litlaunch" / "_host_sizing_spike.py").exists()

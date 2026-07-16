@@ -146,7 +146,7 @@ def test_handoff_accessor_is_immutable_and_redacts_capability_token(monkeypatch)
         (LITLAUNCH_HOST_SIZING_TOKEN, "too-short"),
         (LITLAUNCH_HOST_SIZING_LAUNCH_ID, "short"),
         (LITLAUNCH_HOST_SIZING_LAUNCH_ID, "launch.id.123456789"),
-        (LITLAUNCH_HOST_SIZING_ORIGIN, "https://127.0.0.1:8501"),
+        (LITLAUNCH_HOST_SIZING_ORIGIN, "http://example.com:8501"),
         (LITLAUNCH_HOST_SIZING_PROTOCOL, "2"),
         (LITLAUNCH_HOST_SIZING_SOURCE_ID, "bad source"),
     ],
@@ -163,6 +163,22 @@ def test_handoff_accessor_is_unavailable_without_managed_child_metadata(monkeypa
         monkeypatch.delenv(key, raising=False)
 
     assert litlaunch.get_host_sizing_handoff() is None
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://localhost:8501",
+        "http://127.0.0.2:8501",
+        "http://[::1]:8501",
+        "https://127.0.0.1:8501",
+    ],
+)
+def test_handoff_accepts_runtime_supported_exact_loopback_origins(origin):
+    environment = valid_handoff_env()
+    environment[LITLAUNCH_HOST_SIZING_ORIGIN] = origin
+
+    assert _handoff_from_env(environment) is not None
 
 
 class FixedPortManager:

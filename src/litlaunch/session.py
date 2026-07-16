@@ -140,7 +140,7 @@ class RuntimeSession:
         return self._browser_authority
 
     def _host_sizing_snapshot(self) -> object | None:
-        """Return credential-free private activation evidence for internal tests."""
+        """Return a credential-free private runtime outcome snapshot."""
 
         runtime = self._private_host_sizing_runtime
         if runtime is None:

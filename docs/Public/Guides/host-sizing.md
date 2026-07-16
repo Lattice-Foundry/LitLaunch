@@ -9,6 +9,10 @@ LitLaunch owns authentication, stabilization, exact window authority, native
 height mutation, and cleanup. The application owns measurement and geometry
 interpretation.
 
+It defaults to `off` because fitting requires an app-owned measurement adapter
+and changes native window geometry. Apps that do not opt in keep normal
+LitLaunch behavior.
+
 ## Requirements
 
 Every requirement must be met:
@@ -21,6 +25,9 @@ Every requirement must be met:
 - one trusted frontend surface designated as the sizing authority;
 - a normal, unsnapped app window; and
 - a complete desired host viewport height reported in CSS pixels.
+
+Both direct and generated-shortcut launches are supported when they retain
+LitLaunch's exact managed browser-process and window authority.
 
 Browser mode, default-browser selection, external `--user-data-dir` profiles,
 network-exposed hosts, and unsupported window states do not resize. The app
@@ -64,10 +71,10 @@ session = StreamlitLauncher(config).start()
 The only values are `off` and `initial`. Omission means `off`. An explicit
 `--host-sizing off` can override a profile for one launch.
 
-## Obtain The Frontend Handoff
+## Obtain the Frontend Handoff
 
-The app process can request short-lived handoff metadata after LitLaunch has
-authorized host sizing:
+The app process can request short-lived handoff metadata after an eligible
+launch activates its private reporting channel:
 
 ```python
 from litlaunch.host_sizing import get_host_sizing_handoff
@@ -99,8 +106,9 @@ its representation redacts the capability token.
 
 ## App-Owned Reference Adapter
 
-The frontend sends authenticated reports directly to LitLaunch. This small
-TypeScript pattern is framework-neutral and intentionally remains app-owned:
+The frontend sends authenticated reports directly to LitLaunch from the exact
+loopback app origin. This small TypeScript pattern is framework-neutral and
+intentionally remains app-owned:
 
 ```ts
 type HostSizingHandoff = {
@@ -207,7 +215,9 @@ const app = createLitBridgeApp({
 });
 ```
 
-LitBridge is optional. Any trusted frontend can use the same report contract.
+Use one authoritative top-level surface and the `sourceId` supplied by the
+handoff. LitBridge is optional. Any trusted frontend can use the same report
+contract.
 LitLaunch does not import LitBridge, inject page scripts, or infer complete
 host geometry from component measurements.
 
@@ -249,3 +259,6 @@ an application security feature. Current evidence covers Edge and Chrome on one
 Windows 11 host with 100% and 150% mixed-DPI displays, including a negative-origin
 secondary monitor. Windows 10, 125% scaling, additional monitor/taskbar layouts,
 and independent hosts remain part of the Experimental maturity boundary.
+
+See the [host-sizing FAQ](../FAQ/host-sizing.md) for concise behavior and scope
+answers.

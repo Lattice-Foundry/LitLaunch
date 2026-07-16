@@ -46,7 +46,7 @@ the project history at the level most useful to release users and integrators.
 - Cleaner public repository hygiene: internal working notes are excluded from
   public package artifacts and the public source tree.
 
-## 1.0.11 - Stable
+## 1.1.0 - Stable
 
 - Added the Experimental `host_sizing = "off" | "initial"` launch policy,
   defaulting to `off` for backward-compatible launches.
@@ -63,6 +63,15 @@ the project history at the level most useful to release users and integrators.
   Windows, browser, profile, loopback, one-shot, and display-validation limits.
 - Expanded native validation across Edge and Chrome, direct and shortcut launches,
   and a real 100%/150% mixed-DPI Windows 11 monitor layout.
+- Bounded host-sizing request workers and incomplete local connections so the
+  optional reporting channel cannot retain unbounded request threads.
+- Aligned the public handoff with exact HTTP/HTTPS loopback origins supported by
+  the authenticated transport while keeping the endpoint on literal
+  `127.0.0.1`.
+- Removed the superseded geometry spike executable and activation shortcut,
+  leaving one production policy, authority, and mutation path.
+- Completed public guide, FAQ, troubleshooting, security, and release guidance
+  while keeping engineering evidence out of public source and package artifacts.
 
 ## 1.0.10 - Stable
 

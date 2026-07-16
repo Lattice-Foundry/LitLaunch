@@ -53,6 +53,26 @@ def test_release_script_reads_current_version():
     assert not Version(version).is_prerelease
 
 
+def test_release_script_rejects_tracked_private_documentation_lanes():
+    module = load_release_script()
+
+    findings = module.find_forbidden_tracked_private_docs(
+        (
+            "docs/research/.gitkeep",
+            "docs/research/host_sizing_notes.md",
+            "docs/internal/plan.md",
+            "notes/local.md",
+            "docs/Public/Guides/host-sizing.md",
+        )
+    )
+
+    assert findings == (
+        "docs/research/host_sizing_notes.md",
+        "docs/internal/plan.md",
+        "notes/local.md",
+    )
+
+
 @pytest.mark.parametrize("version", ["1.0.0b1", "1.0.0rc1"])
 def test_release_script_allows_beta_classifier_with_prerelease_version(version: str):
     module = load_release_script()

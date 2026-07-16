@@ -8,6 +8,7 @@ Public documentation lives under `docs/Public/**`:
 
 - [Guides](Public/Guides/)
 - [Experimental Initial Host Sizing](Public/Guides/host-sizing.md)
+- [Host-Sizing FAQ](Public/FAQ/host-sizing.md)
 - [Integration Guides](Public/Guides/integration/)
 - [Reference](Public/Reference/)
 - [Troubleshooting](Public/Troubleshooting/)
@@ -38,3 +39,6 @@ Approved internal record folders are present with `.gitkeep` placeholders:
 - `docs/archive/`
 
 Use these only for durable records that are safe for a public repository.
+LitLaunch host-sizing research and validation notebooks are a repo-specific
+local-only exception under `docs/research/`; only that folder's `.gitkeep` is
+tracked.

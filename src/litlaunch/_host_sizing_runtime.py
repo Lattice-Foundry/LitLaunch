@@ -1,8 +1,7 @@
 """Private one-shot host-sizing transport, policy, and mutation orchestration.
 
-This module is intentionally disconnected from normal LitLaunch launches. It joins
-the independently proven LL-HS1 through LL-HS3 seams without exposing configuration
-or weakening any layer's trust boundary.
+The coordinator joins authenticated reports, deterministic policy, and exact native
+mutation without collapsing their separate trust boundaries.
 """
 
 from __future__ import annotations
@@ -17,20 +16,17 @@ from litlaunch._host_sizing_policy import (
     HostSizingAuthorityStatus,
     HostSizingDecision,
     HostSizingPolicy,
-    HostSizingPolicyConfig,
     HostSizingPolicyState,
 )
 from litlaunch._host_sizing_transport import (
     HostSizingChannel,
     HostSizingChannelConfig,
     HostSizingReport,
-    start_host_sizing_channel,
 )
 from litlaunch._host_sizing_window import (
     HostSizingMutationResult,
     WindowSizingAuthority,
 )
-from litlaunch.console import ConsoleRenderer
 
 HOST_SIZING_RUNTIME_POLL_SECONDS = 0.025
 
@@ -40,7 +36,7 @@ class HostSizingRuntimeError(RuntimeError):
 
 
 class HostSizingMutationCapability(Protocol):
-    """Narrow one-shot LL-HS3 collaborator contract."""
+    """Narrow one-shot native mutation collaborator contract."""
 
     def apply(
         self,
@@ -110,7 +106,7 @@ class HostSizingRuntimeCoordinator:
             return self._channel.config if self._channel is not None else None
 
     def attach_channel(self, channel: HostSizingChannel) -> None:
-        """Attach the dedicated LL-HS1 channel before starting lifecycle polling."""
+        """Attach the dedicated report channel before lifecycle polling starts."""
 
         if not isinstance(channel, HostSizingChannel):
             raise TypeError("Host-sizing runtime requires a HostSizingChannel.")
@@ -149,7 +145,7 @@ class HostSizingRuntimeCoordinator:
         self,
         report: HostSizingReport,
     ) -> HostSizingDecision:
-        """Consume one LL-HS1-authenticated typed report and dispatch its decision."""
+        """Consume one authenticated typed report and dispatch its decision."""
 
         if not isinstance(report, HostSizingReport):
             raise TypeError(
@@ -293,41 +289,6 @@ class HostSizingRuntimeCoordinator:
             channel = self._channel
         if channel is not None:
             channel.close()
-
-
-def start_private_host_sizing_runtime(
-    *,
-    allowed_origin: str,
-    authority: WindowSizingAuthority,
-    mutation: HostSizingMutationCapability,
-    policy_config: HostSizingPolicyConfig | None = None,
-    console_renderer: ConsoleRenderer | None = None,
-    token: str | None = None,
-    launch_id: str | None = None,
-    poll_interval_seconds: float = HOST_SIZING_RUNTIME_POLL_SECONDS,
-) -> HostSizingRuntimeCoordinator:
-    """Start the private inactive-by-default LL-HS1-to-LL-HS3 pipeline."""
-
-    coordinator = HostSizingRuntimeCoordinator(
-        policy=HostSizingPolicy(config=policy_config),
-        mutation=mutation,
-        authority=authority,
-        poll_interval_seconds=poll_interval_seconds,
-    )
-    try:
-        channel = start_host_sizing_channel(
-            allowed_origin=allowed_origin,
-            console_renderer=console_renderer,
-            token=token,
-            launch_id=launch_id,
-            accepted_report_callback=coordinator.consume_accepted_report,
-        )
-        coordinator.attach_channel(channel)
-        coordinator.start()
-    except Exception:
-        coordinator.shutdown()
-        raise
-    return coordinator
 
 
 def _positive_finite_poll_interval(value: object) -> float:

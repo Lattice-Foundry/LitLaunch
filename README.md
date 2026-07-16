@@ -207,7 +207,7 @@ See [docs/Public/Guides/philosophy.md](docs/Public/Guides/philosophy.md) and
 
 ## Install
 
-Install from [PyPI](https://pypi.org/project/litlaunch/1.0.11/):
+Install from [PyPI](https://pypi.org/project/litlaunch/1.1.0/):
 
 ```powershell
 python -m pip install litlaunch
@@ -582,6 +582,8 @@ See [docs/Public/Reference/inspect.md](docs/Public/Reference/inspect.md) and
 - [Philosophy](docs/Public/Guides/philosophy.md)
 - [Installation](docs/Public/Guides/installation.md)
 - [Quickstart](docs/Public/Guides/quickstart.md)
+- [Experimental Initial Host Sizing](docs/Public/Guides/host-sizing.md)
+- [Host-Sizing FAQ](docs/Public/FAQ/host-sizing.md)
 - [CLI](docs/Public/Reference/cli.md)
 - [Security And Trust Boundaries](docs/Public/Reference/security.md)
 - [Runtime Events](docs/Public/Reference/runtime-events.md)

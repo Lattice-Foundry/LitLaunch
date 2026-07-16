@@ -1,7 +1,8 @@
 """Private deterministic policy for one initial host-window fit decision.
 
-The policy consumes validated LL-HS1 reports and produces immutable decisions. It
-does not parse transport input, discover windows, convert geometry, or mutate hosts.
+The policy consumes authenticated, validated reports and produces immutable
+decisions. It does not parse transport input, discover windows, convert geometry,
+or mutate native state.
 """
 
 from __future__ import annotations
@@ -156,7 +157,7 @@ class HostSizingDecision:
 
 @dataclass(frozen=True)
 class HostSizingPolicySnapshot:
-    """Immutable policy state for deterministic tests and future diagnostics."""
+    """Immutable policy state for deterministic tests and bounded diagnostics."""
 
     state: HostSizingPolicyState
     authority_status: HostSizingAuthorityStatus

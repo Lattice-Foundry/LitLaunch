@@ -1,7 +1,7 @@
-"""Internal LL-HS0 authority and Windows geometry spike primitives.
+"""Private Windows geometry primitives for one guarded host-height mutation.
 
-This module is intentionally private and unsupported. It proves whether a future
-host-sizing feature is viable without changing the observation-only window monitor.
+Geometry capture is DPI-aware and mutation preserves window position, width,
+activation, Z-order, and monitor placement.
 """
 
 from __future__ import annotations
@@ -9,17 +9,13 @@ from __future__ import annotations
 import ctypes
 import math
 import os
-import time
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager, suppress
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Protocol
 
-from litlaunch.browsers import BrowserKind
-from litlaunch.windowing.base import WindowInfo, WindowTarget
-from litlaunch.windowing.title_match import window_matches_browser_kind
-from litlaunch.windowing.windows import WindowsWindowProvider
+from litlaunch.windowing.base import WindowInfo
 
 _wintypes: Any
 try:
@@ -44,7 +40,7 @@ _WinDLL = getattr(ctypes, "WinDLL", None)
 
 
 class WindowAuthorityStatus(str, Enum):
-    """Internal LL-HS0 authority classifications."""
+    """Fail-closed exact-window authority classifications."""
 
     EXACT = "exact"
     NONE = "none"
@@ -86,7 +82,7 @@ class NativeRect:
 
 
 class WindowGeometryState(str, Enum):
-    """Window states relevant to the LL-HS0 mutation gate."""
+    """Window states relevant to the native mutation gate."""
 
     NORMAL = "normal"
     MINIMIZED = "minimized"
@@ -129,20 +125,8 @@ class HeightResizePlan:
     clamp_reasons: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True)
-class GeometryApplyResult:
-    """Result from the spike's single guarded native mutation."""
-
-    applied: bool
-    reason: str
-    baseline: WindowGeometry
-    pre_apply: WindowGeometry
-    after: WindowGeometry | None
-    plan: HeightResizePlan
-
-
 class GeometryBackend(Protocol):
-    """Private native geometry seam used by the spike and deterministic fakes."""
+    """Private native geometry seam used by mutation and deterministic fakes."""
 
     def capture(self, handle: int) -> WindowGeometry:
         """Capture one physical-pixel window geometry snapshot."""
@@ -153,165 +137,6 @@ class GeometryBackend(Protocol):
 
 class GeometryProbeError(RuntimeError):
     """Raised when stable native geometry cannot be established."""
-
-
-def classify_window_authority(
-    windows: Iterable[WindowInfo],
-    *,
-    baseline_handles: Iterable[str],
-    browser_kind: BrowserKind,
-    title_token: str,
-    launch_pids: Iterable[int],
-    is_windows: bool = True,
-) -> WindowAuthorityProbe:
-    """Classify exact authority without changing passive monitor behavior."""
-
-    if not is_windows:
-        return WindowAuthorityProbe(
-            status=WindowAuthorityStatus.UNSUPPORTED,
-            window=None,
-            candidates=(),
-            reason="Exact app-window authority is only probed on Windows.",
-        )
-
-    normalized_token = title_token.strip().casefold()
-    if not normalized_token:
-        return WindowAuthorityProbe(
-            status=WindowAuthorityStatus.UNSUPPORTED,
-            window=None,
-            candidates=(),
-            reason="A non-empty unique title token is required.",
-        )
-
-    baseline = {str(handle).strip() for handle in baseline_handles}
-    owned_pids = {int(pid) for pid in launch_pids if int(pid) > 0}
-    if not owned_pids:
-        return WindowAuthorityProbe(
-            status=WindowAuthorityStatus.UNSUPPORTED,
-            window=None,
-            candidates=(),
-            reason="No launched browser process identity is available.",
-        )
-
-    new_windows = tuple(window for window in windows if window.handle not in baseline)
-    chromium_windows = tuple(
-        window
-        for window in new_windows
-        if window.class_name.startswith("Chrome_WidgetWin")
-        and window_matches_browser_kind(window, browser_kind)
-    )
-    title_matches = tuple(
-        window
-        for window in chromium_windows
-        if normalized_token in window.title.casefold()
-    )
-    candidates = tuple(
-        window
-        for window in title_matches
-        if window.pid is not None and window.pid in owned_pids
-    )
-
-    if len(candidates) == 1:
-        window = candidates[0]
-        return WindowAuthorityProbe(
-            status=WindowAuthorityStatus.EXACT,
-            window=window,
-            candidates=candidates,
-            reason=(
-                "Exactly one new Chromium app window matched the unique title "
-                f"token, browser kind, and launched process tree: HWND {window.handle}."
-            ),
-            stable_polls=1,
-        )
-    if len(candidates) > 1:
-        handles = ", ".join(window.handle for window in candidates)
-        return WindowAuthorityProbe(
-            status=WindowAuthorityStatus.AMBIGUOUS,
-            window=None,
-            candidates=candidates,
-            reason=f"Multiple launch-associated app windows matched: {handles}.",
-        )
-
-    return WindowAuthorityProbe(
-        status=WindowAuthorityStatus.NONE,
-        window=None,
-        candidates=(),
-        reason=(
-            "No exact app window matched. "
-            f"new={len(new_windows)}, chromium={len(chromium_windows)}, "
-            f"title={len(title_matches)}, launch_process=0."
-        ),
-    )
-
-
-def wait_for_exact_window_authority(
-    provider: WindowsWindowProvider,
-    *,
-    baseline_handles: Iterable[str],
-    browser_kind: BrowserKind,
-    title_token: str,
-    launch_pid_provider: Callable[[], Iterable[int]],
-    timeout_seconds: float = 10.0,
-    poll_interval_seconds: float = 0.1,
-    stable_poll_count: int = 3,
-    clock: Callable[[], float] = time.monotonic,
-    sleeper: Callable[[float], None] = time.sleep,
-) -> WindowAuthorityProbe:
-    """Wait for one exact candidate to remain unique across stable polls."""
-
-    if timeout_seconds <= 0 or poll_interval_seconds <= 0:
-        raise ValueError("authority timeouts and intervals must be positive.")
-    if stable_poll_count < 1:
-        raise ValueError("stable_poll_count must be at least one.")
-
-    deadline = clock() + timeout_seconds
-    target = WindowTarget(title_token)
-    stable_handle: str | None = None
-    stable_polls = 0
-    last = WindowAuthorityProbe(
-        WindowAuthorityStatus.NONE,
-        None,
-        (),
-        "No authority observation has completed.",
-    )
-
-    while clock() <= deadline:
-        last = classify_window_authority(
-            provider.capture(target),
-            baseline_handles=baseline_handles,
-            browser_kind=browser_kind,
-            title_token=title_token,
-            launch_pids=launch_pid_provider(),
-            is_windows=provider.is_windows,
-        )
-        if last.status == WindowAuthorityStatus.AMBIGUOUS:
-            return last
-        if last.status == WindowAuthorityStatus.UNSUPPORTED:
-            return last
-        if last.status == WindowAuthorityStatus.EXACT and last.window is not None:
-            if last.window.handle == stable_handle:
-                stable_polls += 1
-            else:
-                stable_handle = last.window.handle
-                stable_polls = 1
-            if stable_polls >= stable_poll_count:
-                return replace(
-                    last,
-                    reason=f"{last.reason} Stable for {stable_polls} polls.",
-                    stable_polls=stable_polls,
-                )
-        else:
-            stable_handle = None
-            stable_polls = 0
-        sleeper(poll_interval_seconds)
-
-    return replace(
-        last,
-        status=WindowAuthorityStatus.NONE,
-        window=None,
-        reason=f"Exact app-window authority was not established: {last.reason}",
-        stable_polls=stable_polls,
-    )
 
 
 def plan_height_resize(
@@ -441,7 +266,7 @@ def geometry_changed(
     baseline: WindowGeometry,
     current: WindowGeometry,
 ) -> bool:
-    """Return whether user/system geometry changed before spike application."""
+    """Return whether user or system geometry changed before mutation."""
 
     return (
         baseline.handle != current.handle
@@ -457,95 +282,8 @@ def geometry_changed(
     )
 
 
-class HostSizingGeometryProbe:
-    """Apply at most one guarded spike resize through a private native seam."""
-
-    def __init__(self, backend: GeometryBackend) -> None:
-        self.backend = backend
-
-    def apply(
-        self,
-        *,
-        handle: int,
-        baseline: WindowGeometry,
-        plan: HeightResizePlan,
-    ) -> GeometryApplyResult:
-        """Refuse stale snapshots, then apply one non-moving height mutation."""
-
-        pre_apply = self.backend.capture(handle)
-        if not plan.safe:
-            return GeometryApplyResult(
-                False,
-                plan.reason,
-                baseline,
-                pre_apply,
-                None,
-                plan,
-            )
-        if geometry_changed(baseline, pre_apply):
-            return GeometryApplyResult(
-                False,
-                "Window geometry changed after authority capture; refusing mutation.",
-                baseline,
-                pre_apply,
-                None,
-                plan,
-            )
-        if pre_apply.state != WindowGeometryState.NORMAL:
-            return GeometryApplyResult(
-                False,
-                f"Window state changed to {pre_apply.state.value}; refusing mutation.",
-                baseline,
-                pre_apply,
-                None,
-                plan,
-            )
-
-        if plan.target_outer_height == pre_apply.outer.height:
-            return GeometryApplyResult(
-                False,
-                "Window is already at the planned outer height.",
-                baseline,
-                pre_apply,
-                pre_apply,
-                plan,
-            )
-
-        self.backend.set_outer_size(
-            handle,
-            width=plan.target_outer_width,
-            height=plan.target_outer_height,
-        )
-        after = self.backend.capture(handle)
-        preserved = (
-            after.outer.left == pre_apply.outer.left
-            and after.outer.top == pre_apply.outer.top
-            and after.outer.width == pre_apply.outer.width
-        )
-        height_matches = abs(after.outer.height - plan.target_outer_height) <= 1
-        if not preserved or not height_matches:
-            return GeometryApplyResult(
-                False,
-                "Native resize completed but post-apply geometry did not match "
-                "the plan.",
-                baseline,
-                pre_apply,
-                after,
-                plan,
-            )
-        return GeometryApplyResult(
-            True,
-            "Applied one height-only resize with position, width, Z-order, and "
-            "activation preserved.",
-            baseline,
-            pre_apply,
-            after,
-            plan,
-        )
-
-
 class WindowsGeometryBackend:
-    """Private LL-HS0 Win32 geometry backend using thread-scoped DPI context."""
+    """Private Win32 geometry backend using thread-scoped DPI context."""
 
     def __init__(
         self,

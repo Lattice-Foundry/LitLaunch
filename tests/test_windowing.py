@@ -27,12 +27,19 @@ class FakeClock:
         return self.value
 
 
-def window(handle, title="My Streamlit App", process_name=None):
+def window(
+    handle,
+    title="My Streamlit App",
+    process_name=None,
+    *,
+    pid=123,
+    class_name="Chrome_WidgetWin_1",
+):
     return WindowInfo(
         handle=handle,
         title=title,
-        class_name="Chrome_WidgetWin_1",
-        pid=123,
+        class_name=class_name,
+        pid=pid,
         process_name=process_name,
     )
 
@@ -75,16 +82,24 @@ def test_window_info_defaults_and_immutability():
 
 
 def test_window_target_normalizes_baseline_and_requires_title_for_app_mode():
-    target = WindowTarget(" My App ", baseline_handles=[" 0x1 ", "0x2"])
+    target = WindowTarget(
+        " My App ",
+        baseline_handles=[" 0x1 ", "0x2"],
+        launch_process_ids={123, 456},
+    )
 
     assert target.title == "My App"
     assert target.baseline_handles == ("0x1", "0x2")
+    assert target.launch_process_ids == frozenset({123, 456})
     with pytest.raises(ValueError, match="title"):
         WindowTarget("")
+    with pytest.raises(ValueError, match="launch_process_ids"):
+        WindowTarget("My App", launch_process_ids={0})
 
 
 def test_window_monitor_config_validation():
     assert WindowMonitorConfig().stable_poll_count == 2
+    assert WindowMonitorConfig().prestable_replacement_grace_seconds == 3.0
 
     with pytest.raises(ValueError, match="appear_timeout"):
         WindowMonitorConfig(appear_timeout_seconds=0)
@@ -92,6 +107,8 @@ def test_window_monitor_config_validation():
         WindowMonitorConfig(poll_interval_seconds=0)
     with pytest.raises(ValueError, match="stable_poll_count"):
         WindowMonitorConfig(stable_poll_count=0)
+    with pytest.raises(ValueError, match="prestable_replacement_grace_seconds"):
+        WindowMonitorConfig(prestable_replacement_grace_seconds=0)
 
 
 def test_window_result_and_event_are_frozen_and_tuple_safe():
@@ -319,7 +336,8 @@ def test_polling_monitor_default_title_matches_new_app_mode_window():
 
 def test_polling_monitor_matches_transient_url_title_before_page_title_settles():
     transient = window("0x200", title="127.0.0.1_/")
-    monitor = monitor_for((transient,), ())
+    stable = window("0x201", title="RoleThread Lite")
+    monitor = monitor_for((transient,), (), (stable,), (stable,), ())
 
     result = monitor.wait_for_close(
         WindowTarget("RoleThread Lite", url="http://127.0.0.1:8501"),
@@ -330,13 +348,13 @@ def test_polling_monitor_matches_transient_url_title_before_page_title_settles()
     assert result.closed is True
     assert result.observed is True
     assert result.status == WindowMonitorStatus.WINDOW_CLOSED
-    assert result.target == transient
-    assert "before stable observation" in result.message
+    assert result.target == stable
+    assert result.message == "App-mode window closed."
 
 
 def test_polling_monitor_treats_early_disappearing_candidate_as_closed():
     transient = window("0x111")
-    monitor = monitor_for((transient,), ())
+    monitor = monitor_for((transient,), (), (), ())
 
     result = monitor.wait_for_close(
         WindowTarget("Streamlit"),
@@ -349,6 +367,66 @@ def test_polling_monitor_treats_early_disappearing_candidate_as_closed():
     assert result.status == WindowMonitorStatus.WINDOW_CLOSED
     assert result.target == transient
     assert "before stable observation" in result.message
+
+
+def test_polling_monitor_rejects_replacement_from_another_process():
+    transient = window("0x111", process_name="msedge", pid=123)
+    unrelated = window("0x999", process_name="msedge", pid=456)
+    monitor = monitor_for((transient,), (), (unrelated,), ())
+
+    result = monitor.wait_for_close(
+        WindowTarget("Streamlit", browser_kind=BrowserKind.EDGE),
+        backend_is_running=lambda: True,
+        config=config(stable_poll_count=2),
+    )
+
+    assert result.closed is True
+    assert result.target == transient
+    assert "before stable observation" in result.message
+
+
+def test_polling_monitor_adopts_replacement_from_same_launch_process_family():
+    transient = window("0x111", process_name="msedge", pid=123)
+    replacement = window("0x222", process_name="msedge", pid=456)
+    monitor = monitor_for(
+        (transient,),
+        (),
+        (replacement,),
+        (replacement,),
+        (),
+    )
+
+    result = monitor.wait_for_close(
+        WindowTarget(
+            "Streamlit",
+            browser_kind=BrowserKind.EDGE,
+            launch_process_ids={123, 456},
+        ),
+        backend_is_running=lambda: True,
+        config=config(stable_poll_count=2),
+    )
+
+    assert result.closed is True
+    assert result.target == replacement
+
+
+def test_polling_monitor_rejects_replacement_with_another_window_class():
+    transient = window("0x111", process_name="msedge")
+    unrelated = window(
+        "0x999",
+        process_name="msedge",
+        class_name="Chrome_WidgetWin_2",
+    )
+    monitor = monitor_for((transient,), (), (unrelated,), ())
+
+    result = monitor.wait_for_close(
+        WindowTarget("Streamlit", browser_kind=BrowserKind.EDGE),
+        backend_is_running=lambda: True,
+        config=config(stable_poll_count=2),
+    )
+
+    assert result.closed is True
+    assert result.target == transient
 
 
 def test_polling_monitor_keeps_waiting_when_candidate_handle_changes():

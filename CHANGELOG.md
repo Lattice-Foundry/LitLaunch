@@ -46,6 +46,19 @@ the project history at the level most useful to release users and integrators.
 - Cleaner public repository hygiene: internal working notes are excluded from
   public package artifacts and the public source tree.
 
+## 1.1.3 - Stable
+
+- Made cold Chromium app-mode launches resilient to a transient startup window
+  being replaced before stable observation. LitLaunch now searches for a
+  matching same-launch-process-family, same-window-class replacement during a
+  short bounded grace period before accepting the early close as a shutdown
+  signal.
+- Preserved existing lifecycle authority after stable observation: closing the
+  adopted app window still triggers immediate graceful backend shutdown.
+- Applied the same bounded replacement rule to the browser-launch handoff gap
+  and added regression coverage for valid, absent, wrong-process, and
+  wrong-window-class replacements.
+
 ## 1.1.2 - Stable
 
 - Hardened failure and long-running paths after a pre-release audit:

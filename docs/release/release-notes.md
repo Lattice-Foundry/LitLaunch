@@ -3,7 +3,18 @@
 The full, detailed history lives in
 [`CHANGELOG.md`](../../CHANGELOG.md).
 
-## v1.1.2
+## v1.1.3
+
+LitLaunch now tolerates a bounded Chromium app-window replacement during
+startup. If Edge or Chrome destroys a matching candidate before it becomes
+stable, LitLaunch waits briefly for a replacement from the same process and
+window-class identity, or from the same validated managed launch process family,
+instead of treating the transient close as the user's shutdown request. Closing
+the stable observed window remains authoritative and still stops the owned
+backend normally.
+
+This patch builds on the 1.1.x Experimental host-sizing release described
+below.
 
 The headline of the 1.1.x line is **Experimental host sizing** — LitLaunch can
 fit the height of an eligible local Windows webapp window to your app's content,

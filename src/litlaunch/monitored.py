@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
+from litlaunch._browser_authority import (
+    BrowserLaunchAuthority,
+    BrowserProcessTreeTracker,
+)
 from litlaunch.artifacts import project_root_for_config
 from litlaunch.config import LauncherConfig, LaunchMode
 from litlaunch.exceptions import ConfigurationError
@@ -34,6 +39,7 @@ from litlaunch.windowing import (
     apply_windows_window_icon,
     create_window_monitor,
 )
+from litlaunch.windowing.polling import _compatible_replacement_candidates
 from litlaunch.windows_shortcut import windows_app_user_model_id
 
 
@@ -134,7 +140,22 @@ def run_monitored_webapp(
                 or not session_is_running(session),
             )
 
-        startup_close_result = startup_probe.closed_before_monitor_result()
+        target = WindowTarget(
+            launcher.config.title,
+            url=session.url,
+            browser_kind=getattr(session.browser, "kind", None),
+            app_mode=True,
+            baseline_handles=tuple(window.handle for window in baseline),
+            observed_callback=_app_icon_observed_callback(
+                launcher.config.app_icon,
+                app_user_model_id=_app_icon_app_user_model_id(launcher.config),
+            ),
+            launch_process_ids=_browser_launch_process_ids(session),
+        )
+        startup_close_result = startup_probe.closed_before_monitor_result(
+            target,
+            config=config,
+        )
         if startup_close_result is not None:
             session.add_event(
                 LaunchState.WINDOW_CLOSED,
@@ -155,17 +176,6 @@ def run_monitored_webapp(
                 stopped_cleanly=not session_is_running(session),
             )
 
-        target = WindowTarget(
-            launcher.config.title,
-            url=session.url,
-            browser_kind=getattr(session.browser, "kind", None),
-            app_mode=True,
-            baseline_handles=tuple(window.handle for window in baseline),
-            observed_callback=_app_icon_observed_callback(
-                launcher.config.app_icon,
-                app_user_model_id=_app_icon_app_user_model_id(launcher.config),
-            ),
-        )
         result = session.monitor_window(
             resolved_monitor,
             target,
@@ -264,6 +274,20 @@ def _app_icon_app_user_model_id(config: LauncherConfig) -> str | None:
         config.title,
         config.app_icon,
     )
+
+
+def _browser_launch_process_ids(session: RuntimeSession) -> frozenset[int]:
+    getter = getattr(session, "_browser_authority_snapshot", None)
+    if not callable(getter):
+        return frozenset()
+    try:
+        authority = getter()
+    except Exception:
+        return frozenset()
+    if not isinstance(authority, BrowserLaunchAuthority):
+        return frozenset()
+    snapshot = BrowserProcessTreeTracker().capture(authority)
+    return snapshot.browser_process_ids if snapshot.active else frozenset()
 
 
 def run_profile(
@@ -372,20 +396,39 @@ class _StartupWindowProbe:
         if self._thread is not None:
             self._thread.join(timeout=1.0)
 
-    def closed_before_monitor_result(self) -> WindowMonitorResult | None:
+    def closed_before_monitor_result(
+        self,
+        target: WindowTarget,
+        *,
+        config: WindowMonitorConfig,
+    ) -> WindowMonitorResult | None:
         with self._lock:
             observed = self._observed
         if observed is None:
             return None
 
-        try:
-            active_handles = {
-                window.handle for window in self.monitor.capture(self.target)
-            }
-        except Exception:
-            return None
-        if observed.handle in active_handles:
-            return None
+        deadline = time.monotonic() + config.prestable_replacement_grace_seconds
+        while True:
+            try:
+                active_windows = tuple(
+                    window
+                    for window in self.monitor.capture(target)
+                    if window.handle not in target.baseline_handles
+                )
+            except Exception:
+                return None
+            if observed.handle in {window.handle for window in active_windows}:
+                return None
+            if _compatible_replacement_candidates(
+                observed,
+                target,
+                active_windows,
+            ):
+                return None
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            self._stop.wait(min(self.poll_interval_seconds, remaining))
         return WindowMonitorResult(
             supported=True,
             observed=True,

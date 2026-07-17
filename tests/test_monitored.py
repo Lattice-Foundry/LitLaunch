@@ -81,6 +81,39 @@ class StartupCloseMonitor:
         raise AssertionError("startup close should be handled before monitor wait")
 
 
+class StartupReplacementMonitor(StartupCloseMonitor):
+    def __init__(self):
+        super().__init__()
+        self.closed_capture_calls = 0
+
+    def capture(self, target):
+        if not self.baseline_seen:
+            self.baseline_seen = True
+            return ()
+        if self.visible:
+            window = WindowInfo(
+                "initial",
+                title="127.0.0.1_/",
+                class_name="Chrome_WidgetWin_1",
+                pid=123,
+                process_name="msedge",
+            )
+            self.seen.set()
+            return (window,)
+        self.closed_capture_calls += 1
+        if self.closed_capture_calls < 2:
+            return ()
+        return (
+            WindowInfo(
+                "replacement",
+                title="127.0.0.1_/",
+                class_name="Chrome_WidgetWin_1",
+                pid=123,
+                process_name="msedge",
+            ),
+        )
+
+
 class FakeSession:
     def __init__(
         self,
@@ -434,6 +467,10 @@ def test_run_monitored_webapp_handles_window_closed_during_browser_launch_gap():
     result = run_monitored_webapp(
         launcher,
         monitor=monitor,
+        window_monitor_config=WindowMonitorConfig(
+            poll_interval_seconds=0.001,
+            prestable_replacement_grace_seconds=0.01,
+        ),
         graceful_timeout_seconds=7.0,
     )
 
@@ -445,6 +482,30 @@ def test_run_monitored_webapp_handles_window_closed_during_browser_launch_gap():
     )
     assert session.monitor_calls == []
     assert session.stop_calls == [((), {"graceful_timeout_seconds": 7.0})]
+
+
+def test_run_monitored_webapp_adopts_startup_window_replacement():
+    monitor = StartupReplacementMonitor()
+    session = FakeSession(monitor_result=closed_result())
+    launcher = StartupCloseLauncher(
+        LauncherConfig(app_path="app.py", mode="webapp"),
+        session,
+        monitor,
+    )
+
+    result = run_monitored_webapp(
+        launcher,
+        monitor=monitor,
+        window_monitor_config=WindowMonitorConfig(
+            poll_interval_seconds=0.001,
+            prestable_replacement_grace_seconds=0.05,
+        ),
+    )
+
+    assert result.exit_code == 0
+    assert session.monitor_calls
+    assert session.monitor_calls[0][1].browser_kind == BrowserKind.EDGE
+    assert session.stop_calls == []
 
 
 def test_run_monitored_webapp_requires_webapp_mode():

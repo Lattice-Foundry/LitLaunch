@@ -54,6 +54,7 @@ class WindowTarget:
     app_mode: bool = True
     baseline_handles: tuple[str, ...] = field(default_factory=tuple)
     observed_callback: Callable[[WindowInfo], object] | None = None
+    launch_process_ids: frozenset[int] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
         title = str(self.title).strip()
@@ -63,6 +64,15 @@ class WindowTarget:
         object.__setattr__(self, "title", title)
         object.__setattr__(self, "baseline_handles", baseline_handles)
         object.__setattr__(self, "app_mode", bool(self.app_mode))
+        process_ids = frozenset(self.launch_process_ids)
+        if any(
+            isinstance(process_id, bool)
+            or not isinstance(process_id, int)
+            or process_id <= 0
+            for process_id in process_ids
+        ):
+            raise ValueError("launch_process_ids must contain positive integers.")
+        object.__setattr__(self, "launch_process_ids", process_ids)
         if self.app_mode and not title:
             raise ValueError("window target title cannot be empty for app-mode.")
 
@@ -75,6 +85,7 @@ class WindowMonitorConfig:
     poll_interval_seconds: float = 1.0
     stable_poll_count: int = 2
     require_app_mode: bool = True
+    prestable_replacement_grace_seconds: float = 3.0
 
     def __post_init__(self) -> None:
         if self.appear_timeout_seconds <= 0:
@@ -83,6 +94,8 @@ class WindowMonitorConfig:
             raise ValueError("poll_interval_seconds must be positive.")
         if self.stable_poll_count < 1:
             raise ValueError("stable_poll_count must be at least 1.")
+        if self.prestable_replacement_grace_seconds <= 0:
+            raise ValueError("prestable_replacement_grace_seconds must be positive.")
         object.__setattr__(self, "require_app_mode", bool(self.require_app_mode))
 
 

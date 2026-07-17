@@ -115,7 +115,11 @@ Python integrations can pass the same monitoring concepts through
 `WindowMonitorConfig.appear_timeout_seconds` controls how long to wait for the
 window to appear, `poll_interval_seconds` controls polling cadence, and
 `stable_poll_count` controls how many matching polls are required before a
-window is treated as observed.
+window is treated as observed. If a candidate disappears before reaching that
+threshold, LitLaunch uses a short bounded replacement grace period. A
+replacement must still match the target and retain compatible process and
+window-class identity. This grace never applies after a window has become the
+stable observed target; closing that window remains the shutdown signal.
 
 For integrations that want LitLaunch to assemble the normal monitored webapp
 flow, use `run_monitored_webapp()`. It captures baseline windows before launch,
@@ -172,6 +176,7 @@ using:
 - window title
 - Chromium window class signals
 - browser process-name signals when available
+- exact managed-launch process-family identity when available
 - baseline handle exclusion
 - stable polling
 

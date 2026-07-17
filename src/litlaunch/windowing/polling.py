@@ -96,10 +96,13 @@ class PollingWindowMonitor:
     ) -> WindowInfo | WindowMonitorResult:
         deadline = self.clock.monotonic() + config.appear_timeout_seconds
         candidate: WindowInfo | None = None
+        closed_candidate: WindowInfo | None = None
+        replacement_deadline: float | None = None
         diagnostic_windows: tuple[WindowInfo, ...] = ()
         stable_count = 0
 
-        while self.clock.monotonic() <= deadline:
+        while True:
+            now = self.clock.monotonic()
             if not backend_is_running():
                 return self._result(
                     WindowMonitorStatus.BACKEND_EXITED,
@@ -109,6 +112,11 @@ class PollingWindowMonitor:
                     observed=False,
                     closed=False,
                 )
+            if replacement_deadline is not None and now >= replacement_deadline:
+                assert closed_candidate is not None
+                return self._prestable_close_result(closed_candidate, events)
+            if replacement_deadline is None and now > deadline:
+                break
 
             try:
                 diagnostic_windows = self._diagnostic_windows(target)
@@ -123,26 +131,32 @@ class PollingWindowMonitor:
                     closed=False,
                 )
 
-            selected = candidates[-1] if candidates else None
+            selected: WindowInfo | None
+            if closed_candidate is not None:
+                replacements = _compatible_replacement_candidates(
+                    closed_candidate,
+                    target,
+                    candidates,
+                )
+                if replacements:
+                    selected = replacements[-1]
+                    candidate = selected
+                    closed_candidate = None
+                    replacement_deadline = None
+                    stable_count = 1
+                else:
+                    self.sleeper(config.poll_interval_seconds)
+                    continue
+            else:
+                selected = candidates[-1] if candidates else None
             if selected is None:
                 if candidate is not None:
-                    self._add_event(
-                        events,
-                        WindowMonitorStatus.WINDOW_CLOSED,
-                        "App-mode window closed before stable observation.",
-                        candidate,
+                    closed_candidate = candidate
+                    candidate = None
+                    stable_count = 0
+                    replacement_deadline = (
+                        now + config.prestable_replacement_grace_seconds
                     )
-                    return self._result(
-                        WindowMonitorStatus.WINDOW_CLOSED,
-                        "App-mode window closed before stable observation.",
-                        events,
-                        supported=True,
-                        observed=True,
-                        closed=True,
-                        target=candidate,
-                    )
-                candidate = None
-                stable_count = 0
             elif candidate is not None and selected.handle == candidate.handle:
                 stable_count += 1
             else:
@@ -164,6 +178,28 @@ class PollingWindowMonitor:
             closed=False,
             expected_title=target.title,
             candidates=diagnostic_windows,
+        )
+
+    def _prestable_close_result(
+        self,
+        candidate: WindowInfo,
+        events: list[WindowMonitorEvent],
+    ) -> WindowMonitorResult:
+        message = "App-mode window closed before stable observation."
+        self._add_event(
+            events,
+            WindowMonitorStatus.WINDOW_CLOSED,
+            message,
+            candidate,
+        )
+        return self._result(
+            WindowMonitorStatus.WINDOW_CLOSED,
+            message,
+            events,
+            supported=True,
+            observed=True,
+            closed=True,
+            target=candidate,
         )
 
     def _wait_for_target_close(
@@ -281,9 +317,51 @@ class PollingWindowMonitor:
 def _matches_target(window: WindowInfo, target: WindowTarget) -> bool:
     if not target.app_mode:
         return False
+    if target.launch_process_ids and window.pid not in target.launch_process_ids:
+        return False
     if not matches_window_title(window.title, target.title, target.url):
         return False
     return window_matches_browser_kind(window, target.browser_kind)
+
+
+def _compatible_replacement_candidates(
+    previous: WindowInfo,
+    target: WindowTarget,
+    candidates: Sequence[WindowInfo],
+) -> tuple[WindowInfo, ...]:
+    return tuple(
+        window
+        for window in candidates
+        if _matches_target(window, target)
+        and _has_compatible_window_identity(previous, window, target)
+    )
+
+
+def _has_compatible_window_identity(
+    previous: WindowInfo,
+    replacement: WindowInfo,
+    target: WindowTarget,
+) -> bool:
+    if target.launch_process_ids:
+        if previous.pid not in target.launch_process_ids:
+            return False
+    elif (
+        previous.pid is not None
+        and replacement.pid is not None
+        and previous.pid != replacement.pid
+    ):
+        return False
+    if (
+        previous.process_name
+        and replacement.process_name
+        and previous.process_name.casefold() != replacement.process_name.casefold()
+    ):
+        return False
+    return not (
+        previous.class_name
+        and replacement.class_name
+        and previous.class_name.casefold() != replacement.class_name.casefold()
+    )
 
 
 def _notify_target_observed(target: WindowTarget, window: WindowInfo) -> None:

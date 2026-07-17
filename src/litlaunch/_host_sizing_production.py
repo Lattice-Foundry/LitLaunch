@@ -32,6 +32,7 @@ from litlaunch._host_sizing_transport import (
     LITLAUNCH_HOST_SIZING_SOURCE_ID,
     HostSizingChannel,
     HostSizingReport,
+    HostSizingReportStore,
     start_host_sizing_channel,
 )
 from litlaunch._host_sizing_window import (
@@ -248,6 +249,7 @@ class _PrivateHostSizingProductionRuntime:
                 launch_id=self._launch_id,
                 expected_source_id=self.source_id,
                 accepted_report_callback=self._accept_report,
+                store=_report_store_for_policy(self.config.host_sizing),
             )
         except Exception:
             self._fail("Host-sizing channel startup failed.")
@@ -719,6 +721,20 @@ def _coordinator_factory_for_policy(
         )
 
     return create
+
+
+def _report_store_for_policy(policy: PublicHostSizingPolicy) -> HostSizingReportStore:
+    """Return a report store whose lifetime bound matches the sizing policy.
+
+    ``initial`` keeps the default one-shot lifetime ceiling. ``continuous`` runs
+    for the whole session, so it disables the lifetime ceiling and relies on the
+    sliding per-window rate limit alone; otherwise a long session would hit the
+    ceiling and silently stop tracking content.
+    """
+
+    if policy == PublicHostSizingPolicy.CONTINUOUS:
+        return HostSizingReportStore(max_accepted_reports=None)
+    return HostSizingReportStore()
 
 
 def _safe_running(callback: Callable[[], bool]) -> bool:

@@ -262,6 +262,11 @@ def _wait_for_backend_health(
         timeout_seconds=health_timeout_seconds,
         interval_seconds=health_interval_seconds,
     )
+    if healthy and not process_manager.is_running(managed_process):
+        # The owned backend is no longer running, so a health response now can
+        # only come from a foreign listener that raced onto the same port. Fail
+        # closed instead of adopting it as the launched app.
+        healthy = False
     health_elapsed = clock.monotonic() - health_start_time
     if not healthy:
         failure_message = _health_failure_message(

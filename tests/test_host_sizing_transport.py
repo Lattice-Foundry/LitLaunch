@@ -470,6 +470,32 @@ def test_report_requires_exact_origin_token_and_launch_id(channel):
     assert channel.snapshot().latest_report is None
 
 
+def test_report_rejects_forged_host_header(channel):
+    body = json.dumps(report_payload(channel)).encode()
+    connection = http.client.HTTPConnection(
+        "127.0.0.1",
+        channel.config.port,
+        timeout=2.0,
+    )
+    connection.putrequest("POST", HOST_SIZING_ENDPOINT_PATH, skip_host=True)
+    connection.putheader("Host", "attacker.example")
+    connection.putheader("Origin", ALLOWED_ORIGIN)
+    connection.putheader(HOST_SIZING_TOKEN_HEADER, channel.config.token)
+    connection.putheader("Content-Type", "application/json")
+    connection.putheader("Content-Length", str(len(body)))
+    connection.endheaders()
+    connection.send(body)
+    response = connection.getresponse()
+    status = response.status
+    response.read()
+    connection.close()
+
+    # DNS-rebinding defense: a non-loopback Host is refused even with a valid
+    # origin and token, and the report is not retained.
+    assert status == 403
+    assert channel.snapshot().latest_report is None
+
+
 def test_report_requires_json_and_enforces_body_limit(channel):
     wrong_type = send_report(
         channel,
@@ -645,6 +671,40 @@ def test_report_store_rate_limit_is_bounded_and_recovers():
     assert limited.decision == HostSizingReportDecision.RATE_LIMITED
     assert recovered.decision == HostSizingReportDecision.ACCEPTED
     assert store.snapshot().accepted_count == 3
+
+
+def test_report_store_lifetime_cap_can_be_disabled_for_session_policies():
+    clock = FakeClock()
+    store = HostSizingReportStore(
+        clock=clock,
+        max_reports_per_window=100_000,
+        rate_window_seconds=1.0,
+        max_accepted_reports=None,
+    )
+    base = parse_host_sizing_report(
+        json.dumps(
+            {
+                "protocol": 1,
+                "launch_id": "launch-id-1234567890",
+                "source_id": "primary-surface",
+                "sequence": 1,
+                "device_pixel_ratio": 1.0,
+                "content": {"height": 742},
+                "host_viewport": {"height": 812},
+                "desired_host_viewport": {"height": 790},
+            }
+        ).encode()
+    )
+
+    accepted = sum(
+        store.accept(copy_report(base, sequence=sequence)).accepted
+        for sequence in range(1, 1300)
+    )
+
+    # A session-length (continuous) store keeps accepting well past the one-shot
+    # 1024 lifetime ceiling; only the sliding per-window rate limit applies.
+    assert accepted == 1299
+    assert store.snapshot().accepted_count == 1299
 
 
 def copy_report(report, *, sequence):

@@ -583,3 +583,15 @@ def test_private_production_exposes_only_the_approved_public_surface():
     assert litlaunch.HostSizingPolicy is HostSizingPolicy
     assert config.host_sizing is HostSizingPolicy.OFF
     assert not hasattr(config, "host_sizing_enabled")
+
+
+def test_continuous_report_store_has_no_lifetime_cap_but_initial_does():
+    from litlaunch._host_sizing_production import _report_store_for_policy
+
+    continuous = _report_store_for_policy(HostSizingPolicy.CONTINUOUS)
+    initial = _report_store_for_policy(HostSizingPolicy.INITIAL)
+
+    # Continuous sizing must keep tracking content for the whole session, so its
+    # store carries no one-shot lifetime ceiling; initial keeps the 1024 ceiling.
+    assert continuous._max_accepted_reports is None
+    assert initial._max_accepted_reports == 1024

@@ -222,10 +222,12 @@ def test_write_shortcut_force_and_executable_mode(tmp_path: Path):
     write_shortcut(plan, force=True)
 
 
-def test_windows_shortcut_escapes_cmd_sensitive_characters(tmp_path: Path):
+def test_windows_shortcut_script_quotes_special_chars_without_stray_carets(
+    tmp_path: Path,
+):
     app = tmp_path / "app.py"
     app.write_text("print('hi')\n", encoding="utf-8")
-    app_root = tmp_path / 'App & Data % "Carets^"'
+    app_root = tmp_path / "App & Data % Carets^"
     profile = LaunchProfile(
         "web-profile",
         LauncherConfig(app_path=app, cwd=app_root),
@@ -241,13 +243,35 @@ def test_windows_shortcut_escapes_cmd_sensitive_characters(tmp_path: Path):
         )
     )
 
+    # Inside quoted batch arguments & < > | ^ are literal; only % expands and is
+    # doubled. The previous caret-escaping inserted stray carets that corrupted
+    # paths containing these characters (verified round-tripping via cmd.exe).
     assert "%%" in plan.content
-    assert "^&" in plan.content
-    assert "^^" in plan.content
-    assert '^"' in plan.content
+    assert "^&" not in plan.content
+    assert "^^" not in plan.content
     assert '"X:/Python/python.exe" "-m" "litlaunch.cli"' in plan.content
     assert '"--profile" "web-profile"' in plan.content
-    assert "litlaunch ^& config.toml" in plan.content
+    assert "litlaunch & config.toml" in plan.content
+
+
+def test_linux_desktop_exec_doubles_literal_percent(tmp_path: Path):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    config = tmp_path / "50% off" / "litlaunch.toml"
+    profile = LaunchProfile("my-webapp", LauncherConfig(app_path=app))
+
+    plan = build_shortcut_plan(
+        ShortcutRequest(
+            profile=profile,
+            platform=platform_info(OperatingSystem.LINUX),
+            config_path=config,
+        )
+    )
+
+    # A literal percent in a Desktop Entry Exec value must be doubled ("%%"); a
+    # bare "%o" would be parsed as an (invalid) field code by GLib/KDE.
+    assert "50%% off" in plan.content
+    assert "50% off" not in plan.content
 
 
 def test_windows_app_user_model_id_is_stable_and_labelled(tmp_path: Path):

@@ -288,10 +288,16 @@ class HostSizingRuntimeCoordinator:
     def _run(self) -> None:
         try:
             while not self._stop_event.wait(self._poll_interval_seconds):
-                self.tick()
+                try:
+                    self.tick()
+                except Exception:
+                    # A policy/clock failure must end the loop, not spin or hang.
+                    break
                 if self._terminal_event.is_set():
                     break
         finally:
+            # Always release any waiter, even if tick() raised unexpectedly.
+            self._terminal_event.set()
             self._close_channel()
             with self._lock:
                 self._closed = True

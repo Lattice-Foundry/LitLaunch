@@ -9,6 +9,10 @@ LitLaunch itself does not depend on Streamlit for this feature. The generated
 page imports Streamlit inside its render function so generation works even in
 environments where Streamlit is not installed.
 
+The generated page requires **Streamlit 1.43 or newer** to render, because its
+operational charts use Streamlit's `width="stretch"` layout API. The host app
+provides Streamlit at run time; LitLaunch does not pin it.
+
 The page is meant to be a practical starting point for support workflows in
 packaged local apps, internal tools, dashboards, and local-first utilities. It
 collects LitLaunch runtime diagnostics, gives users a central place to create

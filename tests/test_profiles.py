@@ -261,3 +261,41 @@ app_path = "app.py"
 
     with pytest.raises(ConfigurationError, match="profile name"):
         load_profile("bad name", config_path)
+
+
+def test_profile_preview_explains_fixed_port_is_not_a_cli_trap(tmp_path):
+    from io import StringIO
+
+    from litlaunch import LauncherConfig
+    from litlaunch.profiles.rendering import preview_profile
+
+    fixed = LaunchProfile(
+        name="web",
+        config=LauncherConfig("app.py", port=8501, auto_port=False),
+    )
+    adaptive = LaunchProfile(
+        name="web",
+        config=LauncherConfig("app.py", port=8501, auto_port=True),
+    )
+
+    fixed_stream = StringIO()
+    preview_profile(
+        fixed_stream,
+        fixed,
+        config_path=tmp_path / "litlaunch.toml",
+        launch_experience="browser",
+    )
+    adaptive_stream = StringIO()
+    preview_profile(
+        adaptive_stream,
+        adaptive,
+        config_path=tmp_path / "litlaunch.toml",
+        launch_experience="browser",
+    )
+
+    # A stored fixed-port preference must not read as a plain "disabled" that
+    # silently governs CLI launches; it must point at the explicit control.
+    fixed_output = fixed_stream.getvalue()
+    assert "--no-auto-port" in fixed_output
+    assert "Auto-port: disabled" not in fixed_output
+    assert "Auto-port: enabled" in adaptive_stream.getvalue()

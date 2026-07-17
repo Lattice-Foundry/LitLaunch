@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import replace
 from pathlib import Path
 
@@ -51,7 +52,7 @@ from litlaunch.health import (
 from litlaunch.lifecycle import LaunchEvent, LaunchPlan, LaunchResult, LaunchState
 from litlaunch.planning import build_launch_plan
 from litlaunch.ports import PortManager
-from litlaunch.process import ProcessManager
+from litlaunch.process import ManagedProcess, ProcessManager
 from litlaunch.runtime_console import (
     render_browser_resolution,
     render_failure_guidance,
@@ -245,168 +246,235 @@ class StreamlitLauncher:
                 clock=self.clock,
             )
 
-        events = list(backend_result.events)
-        self._record(
-            events,
-            LaunchState.BROWSER_RESOLVING,
-            "Resolving browser.",
-            render=False,
+        return self._launch_browser_and_build_session(
+            backend_start=backend_start,
+            backend_result=backend_result,
+            managed_process=managed_process,
+            private_host_sizing=private_host_sizing,
         )
-        resolution = self.resolve_browser(
-            prefer_app_mode=self.config.mode == LaunchMode.WEBAPP
-        )
-        self._record(
-            events,
-            LaunchState.BROWSER_LAUNCHING,
-            resolution.message,
-            render=False,
-        )
-        render_browser_resolution(
-            self.console_renderer,
-            resolution,
-            prefer_app_mode=self.config.mode == LaunchMode.WEBAPP,
-        )
-        browser_name = (
-            resolution.selected.name if resolution.selected is not None else "browser"
-        )
-        browser_mode = _browser_launch_display_mode(
-            mode=self.config.mode,
-            extra_args=self.config.extra_browser_args,
-        )
-        render_phase_start(
-            self.console_renderer,
-            ConsolePhase.BROWSER,
-            f"opening {browser_name} {browser_mode}",
-            verbose_only=True,
-        )
-        extra_browser_args, cleanup_callbacks = self._browser_launch_args()
-        runtime_state_root = runtime_state_root_for_config(self.config)
-        if private_host_sizing is not None and not _prepare_private_browser_authority(
-            private_host_sizing,
-            self.browser_launcher,
-        ):
-            private_host_sizing = None
-        browser_start_time = self.clock.monotonic()
-        browser_result = self.browser_launcher.launch(
-            resolution,
-            url=backend_result.url,
-            mode=self.config.mode,
-            title=self.config.title,
-            extra_args=extra_browser_args,
-            allow_fallback=self.config.allow_browser_fallback,
-            app_icon=self.config.app_icon,
-            artifact_root=runtime_state_root,
-        )
-        cleanup_callbacks = (*cleanup_callbacks, *browser_result.cleanup_callbacks)
-        browser_authority = _browser_authority_snapshot(self.browser_launcher)
-        browser_elapsed = self.clock.monotonic() - browser_start_time
 
-        if not browser_result.ok:
-            _close_private_host_sizing(private_host_sizing)
+    def _launch_browser_and_build_session(
+        self,
+        *,
+        backend_start: BackendStartResult,
+        backend_result: LaunchResult,
+        managed_process: ManagedProcess,
+        private_host_sizing: PrivateHostSizingRuntime | None,
+    ) -> RuntimeSession:
+        """Resolve and launch the browser, then build the live session.
+
+        The owned backend is already running and healthy on entry. Any
+        unexpected failure in this phase must not orphan that backend or leak the
+        managed browser profile or host-sizing endpoint, so a single failure
+        boundary tears everything down before the exception propagates. The
+        original exception is preserved rather than converted, so genuine
+        programming errors stay visible.
+        """
+
+        # start() only reaches this helper once the backend is healthy with a URL.
+        assert backend_result.url is not None
+        cleanup_callbacks: tuple[Callable[[], object], ...] = ()
+        try:
+            events = list(backend_result.events)
             self._record(
                 events,
-                LaunchState.TERMINATING,
-                "Browser launch failed; stopping owned backend.",
+                LaunchState.BROWSER_RESOLVING,
+                "Resolving browser.",
                 render=False,
             )
-            render_failure_guidance(
+            resolution = self.resolve_browser(
+                prefer_app_mode=self.config.mode == LaunchMode.WEBAPP
+            )
+            self._record(
+                events,
+                LaunchState.BROWSER_LAUNCHING,
+                resolution.message,
+                render=False,
+            )
+            render_browser_resolution(
                 self.console_renderer,
-                "Browser: launch failed; stopping backend.",
-                likely_cause=browser_result.message,
-                next_steps=(
-                    "Check that the requested browser is installed and launchable.",
-                    (
-                        "Use --browser default or enable fallback if app-mode "
-                        "is not required."
+                resolution,
+                prefer_app_mode=self.config.mode == LaunchMode.WEBAPP,
+            )
+            browser_name = (
+                resolution.selected.name
+                if resolution.selected is not None
+                else "browser"
+            )
+            browser_mode = _browser_launch_display_mode(
+                mode=self.config.mode,
+                extra_args=self.config.extra_browser_args,
+            )
+            render_phase_start(
+                self.console_renderer,
+                ConsolePhase.BROWSER,
+                f"opening {browser_name} {browser_mode}",
+                verbose_only=True,
+            )
+            extra_browser_args, cleanup_callbacks = self._browser_launch_args()
+            runtime_state_root = runtime_state_root_for_config(self.config)
+            if (
+                private_host_sizing is not None
+                and not _prepare_private_browser_authority(
+                    private_host_sizing,
+                    self.browser_launcher,
+                )
+            ):
+                private_host_sizing = None
+            browser_start_time = self.clock.monotonic()
+            browser_result = self.browser_launcher.launch(
+                resolution,
+                url=backend_result.url,
+                mode=self.config.mode,
+                title=self.config.title,
+                extra_args=extra_browser_args,
+                allow_fallback=self.config.allow_browser_fallback,
+                app_icon=self.config.app_icon,
+                artifact_root=runtime_state_root,
+            )
+            cleanup_callbacks = (*cleanup_callbacks, *browser_result.cleanup_callbacks)
+            browser_authority = _browser_authority_snapshot(self.browser_launcher)
+            browser_elapsed = self.clock.monotonic() - browser_start_time
+
+            if not browser_result.ok:
+                _close_private_host_sizing(private_host_sizing)
+                self._record(
+                    events,
+                    LaunchState.TERMINATING,
+                    "Browser launch failed; stopping owned backend.",
+                    render=False,
+                )
+                render_failure_guidance(
+                    self.console_renderer,
+                    "Browser: launch failed; stopping backend.",
+                    likely_cause=browser_result.message,
+                    next_steps=(
+                        "Check that the requested browser is installed and launchable.",
+                        (
+                            "Use --browser default or enable fallback if app-mode "
+                            "is not required."
+                        ),
                     ),
-                ),
-                detail=browser_result.message,
-            )
-            self.process_manager.stop(managed_process)
-            self._render_port_release_if_verified(backend_result.url)
-            _run_cleanup_callbacks(cleanup_callbacks)
+                    detail=browser_result.message,
+                )
+                self.process_manager.stop(managed_process)
+                self._render_port_release_if_verified(backend_result.url)
+                _run_cleanup_callbacks(cleanup_callbacks)
+                self._record(
+                    events,
+                    LaunchState.FAILED,
+                    browser_result.message,
+                    render=False,
+                )
+                failure_result = LaunchResult(
+                    ok=False,
+                    state=LaunchState.FAILED,
+                    command=backend_result.command,
+                    pid=backend_result.pid,
+                    url=backend_result.url,
+                    message=browser_result.message,
+                    events=tuple(events),
+                    browser=browser_result.browser,
+                    browser_command=browser_result.command,
+                    browser_launched=False,
+                )
+                return RuntimeSession(
+                    result=failure_result,
+                    process=None,
+                    process_manager=self.process_manager,
+                    shutdown_client=None,
+                    console_renderer=self.console_renderer,
+                    event_emitter=self.event_emitter,
+                    port_release_checker=self.port_manager.is_port_available,
+                    clock=self.clock,
+                )
+
+            if private_host_sizing is not None:
+                try:
+                    private_host_sizing.activate_after_browser(
+                        browser_authority,
+                        backend_is_running=lambda: self.process_manager.is_running(
+                            managed_process
+                        ),
+                    )
+                except Exception:
+                    _close_private_host_sizing(private_host_sizing)
             self._record(
-                events,
-                LaunchState.FAILED,
-                browser_result.message,
-                render=False,
+                events, LaunchState.RUNNING, browser_result.message, render=False
             )
-            failure_result = LaunchResult(
-                ok=False,
-                state=LaunchState.FAILED,
+            render_phase_success(
+                self.console_renderer,
+                ConsolePhase.BROWSER,
+                browser_result.message,
+                elapsed_seconds=browser_elapsed,
+            )
+            self.event_emitter.emit(
+                "browser_launched",
+                category="browser",
+                message=browser_result.message,
+                details={
+                    "browser": browser_name,
+                    "mode": self.config.mode.value,
+                    "url": backend_result.url,
+                },
+            )
+            render_runtime_ready(self.console_renderer, backend_result.url)
+            result = LaunchResult(
+                ok=True,
+                state=LaunchState.RUNNING,
                 command=backend_result.command,
                 pid=backend_result.pid,
                 url=backend_result.url,
-                message=browser_result.message,
+                message="Streamlit backend is running and browser launch succeeded.",
                 events=tuple(events),
                 browser=browser_result.browser,
                 browser_command=browser_result.command,
-                browser_launched=False,
+                browser_launched=True,
             )
             return RuntimeSession(
-                result=failure_result,
-                process=None,
+                result=result,
+                process=managed_process,
                 process_manager=self.process_manager,
-                shutdown_client=None,
+                shutdown_client=backend_start.shutdown_client,
                 console_renderer=self.console_renderer,
                 event_emitter=self.event_emitter,
                 port_release_checker=self.port_manager.is_port_available,
+                cleanup_callbacks=cleanup_callbacks,
+                browser_authority=browser_authority,
+                _private_host_sizing_runtime=private_host_sizing,
                 clock=self.clock,
             )
+        except BaseException:
+            self._abort_running_backend(
+                managed_process=managed_process,
+                url=backend_result.url,
+                cleanup_callbacks=cleanup_callbacks,
+                private_host_sizing=private_host_sizing,
+            )
+            raise
 
-        if private_host_sizing is not None:
-            try:
-                private_host_sizing.activate_after_browser(
-                    browser_authority,
-                    backend_is_running=lambda: self.process_manager.is_running(
-                        managed_process
-                    ),
-                )
-            except Exception:
-                _close_private_host_sizing(private_host_sizing)
-        self._record(events, LaunchState.RUNNING, browser_result.message, render=False)
-        render_phase_success(
-            self.console_renderer,
-            ConsolePhase.BROWSER,
-            browser_result.message,
-            elapsed_seconds=browser_elapsed,
-        )
-        self.event_emitter.emit(
-            "browser_launched",
-            category="browser",
-            message=browser_result.message,
-            details={
-                "browser": browser_name,
-                "mode": self.config.mode.value,
-                "url": backend_result.url,
-            },
-        )
-        render_runtime_ready(self.console_renderer, backend_result.url)
-        result = LaunchResult(
-            ok=True,
-            state=LaunchState.RUNNING,
-            command=backend_result.command,
-            pid=backend_result.pid,
-            url=backend_result.url,
-            message="Streamlit backend is running and browser launch succeeded.",
-            events=tuple(events),
-            browser=browser_result.browser,
-            browser_command=browser_result.command,
-            browser_launched=True,
-        )
-        return RuntimeSession(
-            result=result,
-            process=managed_process,
-            process_manager=self.process_manager,
-            shutdown_client=backend_start.shutdown_client,
-            console_renderer=self.console_renderer,
-            event_emitter=self.event_emitter,
-            port_release_checker=self.port_manager.is_port_available,
-            cleanup_callbacks=cleanup_callbacks,
-            browser_authority=browser_authority,
-            _private_host_sizing_runtime=private_host_sizing,
-            clock=self.clock,
-        )
+    def _abort_running_backend(
+        self,
+        *,
+        managed_process: ManagedProcess,
+        url: str | None,
+        cleanup_callbacks: tuple[Callable[[], object], ...],
+        private_host_sizing: PrivateHostSizingRuntime | None,
+    ) -> None:
+        """Tear down an already-running backend after an unexpected launch failure.
+
+        Ordering mirrors normal shutdown: cancel host sizing, stop the owned
+        backend, verify port release, then run managed-profile/browser cleanup.
+        Every step is guarded so one failure cannot suppress the others or mask
+        the original exception being propagated by the caller.
+        """
+
+        _close_private_host_sizing(private_host_sizing)
+        with suppress(Exception):
+            self.process_manager.stop(managed_process)
+        with suppress(Exception):
+            self._render_port_release_if_verified(url)
+        _run_cleanup_callbacks(cleanup_callbacks)
 
     def run(
         self,

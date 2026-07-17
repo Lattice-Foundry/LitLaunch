@@ -878,6 +878,24 @@ def test_redact_sensitive_text_patterns():
     assert redacted.count("<redacted>") == 6
 
 
+def test_redact_sensitive_text_hides_url_embedded_credentials():
+    redacted = redact_sensitive_text(
+        "database at postgres://alice:s3cr3tpw@db.internal:5432/app"
+    )
+
+    # Credentials embedded in a URL are redacted regardless of the key name, and
+    # the non-sensitive host is preserved.
+    assert "alice" not in redacted
+    assert "s3cr3tpw" not in redacted
+    assert "postgres://<redacted>@db.internal:5432/app" in redacted
+
+
+def test_redact_sensitive_text_keeps_credential_free_urls_intact():
+    text = "endpoint http://127.0.0.1:8501/_stcore/health"
+
+    assert redact_sensitive_text(text) == text
+
+
 def test_redact_sensitive_text_hides_common_home_path_prefixes(monkeypatch):
     monkeypatch.setenv("USERPROFILE", r"C:\Users\Ada")
     monkeypatch.setenv("HOME", "/home/ada")

@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import ast
 import keyword
+import re
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
 from litlaunch.exceptions import ConfigurationError
+
+_TEMPLATE_PLACEHOLDER_PATTERN = re.compile(r"__[A-Z_]+__")
 
 DEFAULT_FUNCTION_NAME = "render_litlaunch_diagnostics"
 DEFAULT_PAGE_TITLE = "Runtime Diagnostics"
@@ -194,6 +197,8 @@ def _render_page_template(options: DiagnosticsPageOptions) -> str:
 
 This file is app-owned after generation. You can edit, theme, move, or replace
 it to match your Streamlit application.
+
+Requires Streamlit >= 1.43 (the operational charts use the width="stretch" API).
 """
 
 from __future__ import annotations
@@ -1836,16 +1841,23 @@ def _runtime_event_log_path() -> Path | None:
         return _resolve_project_path(EVENT_LOG_PATH)
     return None
 '''
-    return (
-        template.replace("__APP_NAME__", app_name)
-        .replace("__PROFILE_NAME__", profile_name)
-        .replace("__PROJECT_ROOT__", project_root)
-        .replace("__INCLUDE_EVENTS__", include_events)
-        .replace("__EVENT_LOG_PATH__", event_log_path)
-        .replace("__EVENT_LOG_ENV_VAR__", event_log_env_var)
-        .replace("__PAGE_TITLE__", page_title)
-        .replace("__THEME__", theme)
-        .replace("__FUNCTION_NAME__", generated_function)
+    replacements = {
+        "__APP_NAME__": app_name,
+        "__PROFILE_NAME__": profile_name,
+        "__PROJECT_ROOT__": project_root,
+        "__INCLUDE_EVENTS__": include_events,
+        "__EVENT_LOG_PATH__": event_log_path,
+        "__EVENT_LOG_ENV_VAR__": event_log_env_var,
+        "__PAGE_TITLE__": page_title,
+        "__THEME__": theme,
+        "__FUNCTION_NAME__": generated_function,
+    }
+    # Substitute in a single pass over the template. A value that itself contains
+    # a "__NAME__" token (e.g. a crafted app or profile name) is inserted verbatim
+    # and never re-scanned, so it cannot corrupt a later placeholder.
+    return _TEMPLATE_PLACEHOLDER_PATTERN.sub(
+        lambda match: replacements.get(match.group(0), match.group(0)),
+        template,
     )
 
 

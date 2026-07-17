@@ -634,3 +634,63 @@ def test_generation_does_not_import_streamlit(tmp_path, monkeypatch):
     monkeypatch.setattr(builtins, "__import__", fail_on_streamlit)
 
     create_diagnostics_page(output_path=tmp_path / "diagnostics.py")
+
+
+def test_generated_page_placeholder_is_not_corrupted_by_crafted_names():
+    source = _source_for(
+        app_name="My __PROFILE_NAME__ App",
+        profile_name="real-profile",
+    )
+
+    # Single-pass substitution: the crafted app name (which contains another
+    # placeholder token) is inserted verbatim and the real profile placeholder
+    # still resolves, so the module stays valid Python.
+    ast.parse(source)
+    assert "My __PROFILE_NAME__ App" in source
+    assert "real-profile" in source
+
+
+def test_generated_diagnostics_page_executes_under_streamlit(tmp_path):
+    pytest.importorskip("streamlit")
+    from streamlit.testing.v1 import AppTest
+
+    page_path = tmp_path / "litlaunch_diagnostics.py"
+    create_diagnostics_page(
+        output_path=page_path,
+        app_name="Studio <edge> & report",
+        profile_name="studio-webapp",
+    )
+    driver = tmp_path / "driver.py"
+    driver.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(tmp_path)!r})\n"
+        "from litlaunch_diagnostics import render_litlaunch_diagnostics\n"
+        "render_litlaunch_diagnostics()\n",
+        encoding="utf-8",
+    )
+
+    # Absent event log: the page must render (not just AST-parse) with no
+    # unhandled exception, exercising the real Streamlit widget/chart APIs.
+    absent = AppTest.from_file(str(driver), default_timeout=60).run()
+    assert not absent.exception
+
+    # Malformed event log: a corrupt JSONL log must not crash the page.
+    event_log = tmp_path / "runtime-events.log"
+    event_log.write_text("not-json\n{broken\n", encoding="utf-8")
+    malformed_page = tmp_path / "malformed_diag.py"
+    create_diagnostics_page(
+        output_path=malformed_page,
+        app_name="Studio",
+        profile_name="studio-webapp",
+        event_log_path=event_log,
+    )
+    malformed_driver = tmp_path / "malformed_driver.py"
+    malformed_driver.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(tmp_path)!r})\n"
+        "from malformed_diag import render_litlaunch_diagnostics\n"
+        "render_litlaunch_diagnostics()\n",
+        encoding="utf-8",
+    )
+    malformed = AppTest.from_file(str(malformed_driver), default_timeout=60).run()
+    assert not malformed.exception

@@ -139,15 +139,26 @@ class PortManager:
                 "Close the existing app, choose another port, or enable auto-port."
             )
 
-        next_port = port + 1
-        if next_port > range_end:
-            raise PortError(f"Port {port} is unavailable and no higher port exists.")
-        return self.find_available_port(
-            host,
-            next_port,
-            max_attempts=_range_attempts(next_port, range_end),
-            end_port=range_end,
+        # auto_port: prefer higher ports within the configured range, then wrap
+        # to lower ports so the whole declared range stays usable, not just ports
+        # above the requested one.
+        for candidate in _auto_port_candidates(port, range_start, range_end):
+            if self.is_port_available(host, candidate):
+                return candidate
+        raise PortError(
+            f"Port {port} is unavailable and no free port remains in "
+            f"{range_start} through {range_end}."
         )
+
+
+def _auto_port_candidates(port: int, range_start: int, range_end: int) -> list[int]:
+    """Return adaptive port candidates: higher ports first, then wrap to lower.
+
+    The requested port is excluded because it was already probed. Ordering is
+    deterministic so two runs behave predictably.
+    """
+
+    return [*range(port + 1, range_end + 1), *range(range_start, port)]
 
 
 def _port_range_bounds(config: LauncherConfig) -> tuple[int, int]:

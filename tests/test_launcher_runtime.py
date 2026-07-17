@@ -505,6 +505,108 @@ def test_private_host_sizing_rolls_back_after_backend_start_failure(
     assert [call[0] for call in calls] == ["prepare", "host-sizing-close"]
 
 
+def test_start_stops_backend_when_browser_launcher_raises(
+    windows_host_sizing_eligibility,
+):
+    calls = []
+
+    class RaisingBrowserLauncher(FakeBrowserLauncher):
+        def launch(self, *args, **kwargs):
+            raise RuntimeError("unexpected browser launch failure")
+
+    class TrackingProcessManager(FakeProcessManager):
+        def stop(self, process, terminate_timeout_seconds=5.0):
+            calls.append(("backend-stop",))
+            super().stop(process, terminate_timeout_seconds)
+
+    process_manager = TrackingProcessManager()
+    runtime = FakePrivateHostSizingRuntime(calls)
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            port=8600,
+            mode="webapp",
+            browser="edge",
+            host_sizing="initial",
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=RaisingBrowserLauncher(ok=True),
+        clock=FakeClock(),
+        _host_sizing_activation=FakePrivateHostSizingActivation(runtime),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(RuntimeError, match="unexpected browser launch failure"):
+        launcher.start()
+
+    # The owned, healthy backend must be stopped and the host-sizing channel
+    # closed rather than orphaned when the browser phase raises unexpectedly.
+    assert len(process_manager.stopped) == 1
+    assert runtime.closed is True
+    assert ("backend-stop",) in calls
+    assert calls.index(("host-sizing-close",)) < calls.index(("backend-stop",))
+
+
+def test_start_stops_backend_when_managed_profile_creation_raises(
+    windows_host_sizing_eligibility, monkeypatch
+):
+    def _raise_profile(*args, **kwargs):
+        raise OSError("disk full while writing managed browser profile")
+
+    monkeypatch.setattr(
+        launcher_module, "create_managed_browser_profile", _raise_profile
+    )
+
+    calls = []
+    process_manager = FakeProcessManager()
+    runtime = FakePrivateHostSizingRuntime(calls)
+    launcher = StreamlitLauncher(
+        LauncherConfig(
+            app_path="app.py",
+            port=8600,
+            mode="webapp",
+            browser="edge",
+            host_sizing="initial",
+        ),
+        port_manager=FakePortManager(8600),
+        process_manager=process_manager,
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        clock=FakeClock(),
+        _host_sizing_activation=FakePrivateHostSizingActivation(runtime),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(OSError, match="disk full"):
+        launcher.start()
+
+    # A filesystem failure creating the managed profile must not orphan the
+    # already-running backend or leak the host-sizing channel.
+    assert len(process_manager.stopped) == 1
+    assert runtime.closed is True
+
+
+def test_start_backend_fails_closed_if_owned_process_died_when_health_passes():
+    launcher = StreamlitLauncher(
+        LauncherConfig(app_path="app.py"),
+        port_manager=FakePortManager(8600),
+        process_manager=FakeProcessManager(process_returncode=1),
+        health_checker=FakeHealthChecker(healthy=True),
+        browser_registry=FakeBrowserRegistry(fake_browser()),
+        browser_launcher=FakeBrowserLauncher(ok=True),
+        clock=FakeClock(),
+    )
+
+    session = launcher.start_backend()
+
+    # Health "passed" but the owned backend is not running, so a foreign listener
+    # that raced onto the same port must not be adopted; fail closed instead.
+    assert session.ok is False
+    assert "exited before becoming healthy" in session.result.message
+
+
 def test_private_host_sizing_exception_does_not_break_valid_base_launch(
     windows_host_sizing_eligibility,
 ):

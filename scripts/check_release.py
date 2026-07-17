@@ -370,6 +370,38 @@ def inspect_sdist_names(names: Sequence[str], version: str) -> None:
     notes_prefix = f"{prefix}notes/"
     if any(name.startswith(notes_prefix) for name in names):
         raise RuntimeError("Local notes must not be included in sdist.")
+    leaked_docs = find_non_public_sdist_docs(names, version)
+    if leaked_docs:
+        raise RuntimeError(
+            "Only public documentation may ship in the sdist; found non-public "
+            "docs entries: " + ", ".join(sorted(leaked_docs))
+        )
+
+
+def find_non_public_sdist_docs(
+    names: Sequence[str],
+    version: str,
+) -> tuple[str, ...]:
+    """Return sdist docs entries outside the public documentation allowlist.
+
+    Only ``docs/README.md`` and everything under ``docs/Public/`` and
+    ``docs/assets/`` may ship. Any other ``docs/`` entry (a new internal lane,
+    the workspace standard, an audit record) is a leak, so internal docs cannot
+    silently reach PyPI even if the sdist ``exclude`` list drifts.
+    """
+
+    prefix = f"litlaunch-{version}/"
+    docs_prefix = f"{prefix}docs/"
+    allowed_exact = f"{prefix}docs/README.md"
+    allowed_prefixes = (f"{prefix}docs/Public/", f"{prefix}docs/assets/")
+    leaked: list[str] = []
+    for name in names:
+        if not name.startswith(docs_prefix):
+            continue
+        if name == allowed_exact or name.startswith(allowed_prefixes):
+            continue
+        leaked.append(name)
+    return tuple(leaked)
 
 
 def find_suspicious_repo_root_artifacts(

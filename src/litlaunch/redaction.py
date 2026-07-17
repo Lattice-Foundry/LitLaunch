@@ -27,6 +27,10 @@ SENSITIVE_WORD_PATTERN = re.compile(
     r"(?i)\b((?:token|secret|password|passwd|api_key|apikey|key)\s+)"
     r"([A-Za-z0-9._~+/=-]{6,})"
 )
+# Redact userinfo credentials embedded in URLs (scheme://user:pass@host),
+# independent of the surrounding key name, so a credential-bearing value cannot
+# leak just because its key does not look sensitive.
+URL_CREDENTIAL_PATTERN = re.compile(r"(?i)\b([a-z][a-z0-9+.\-]*://)[^\s/:@]+:[^\s/@]+@")
 
 
 def format_command_preview(command: Sequence[str]) -> str:
@@ -75,6 +79,7 @@ def redact_sensitive_text(value: object) -> str:
     """Redact sensitive-looking values in display/report strings."""
 
     text = str(value)
+    text = URL_CREDENTIAL_PATTERN.sub(r"\1<redacted>@", text)
     text = SENSITIVE_ASSIGNMENT_PATTERN.sub(r"\1\2<redacted>", text)
     text = SENSITIVE_WORD_PATTERN.sub(r"\1<redacted>", text)
     return _redact_local_path_prefixes(text)

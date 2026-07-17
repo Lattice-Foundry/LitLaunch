@@ -73,6 +73,34 @@ def test_profile_writer_creates_loadable_litlaunch_toml(tmp_path: Path):
     assert loaded.window_monitor_config.stable_poll_count == 2
 
 
+def test_profile_writer_round_trips_special_env_keys_and_valueless_flags(
+    tmp_path: Path,
+):
+    app = tmp_path / "app.py"
+    app.write_text("print('hi')\n", encoding="utf-8")
+    profile = LaunchProfile(
+        name="web",
+        config=LauncherConfig(
+            app_path=app,
+            extra_env={"MY.KEY": "value", "PLAIN": "x"},
+            streamlit_flags={"server.headless": None, "server.enableCORS": False},
+        ),
+    )
+    config_path = tmp_path / "litlaunch.toml"
+
+    write_litlaunch_profile(profile, config_path)
+    loaded = load_profile("web", config_path)
+
+    # CFG-03: a dotted extra_env key survives the TOML round-trip (quoted key).
+    assert loaded.config.extra_env["MY.KEY"] == "value"
+    assert loaded.config.extra_env["PLAIN"] == "x"
+    # CFG-02: a value-less (None) flag round-trips as a bare --flag arg (TOML has
+    # no null), preserving the emitted command; valued flags stay in the table.
+    assert "--server.headless" in loaded.config.streamlit_args
+    assert "server.headless" not in loaded.config.streamlit_flags
+    assert loaded.config.streamlit_flags["server.enableCORS"] is False
+
+
 def test_profile_writer_refuses_overwrite_without_force(tmp_path: Path):
     config_path = tmp_path / "litlaunch.toml"
     write_litlaunch_profile(make_profile(tmp_path, "web"), config_path)

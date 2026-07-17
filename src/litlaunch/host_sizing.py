@@ -31,6 +31,9 @@ _SOURCE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 class HostSizingHandoff:
     """Short-lived capability metadata for deliberate app-to-frontend handoff.
 
+    Experimental: part of the Experimental host-sizing surface; this shape may
+    change in a future minor release.
+
     Treat instances as credentials: do not log, persist, or embed them into static
     frontend assets.
     """
@@ -59,8 +62,11 @@ class HostSizingHandoff:
 def get_host_sizing_handoff() -> HostSizingHandoff | None:
     """Return the active launch handoff, or ``None`` when unavailable.
 
-    Applications must deliberately forward the result to one trusted frontend
-    sizing surface. LitLaunch does not discover or inject frontend adapters.
+    Experimental: part of the Experimental host-sizing surface. It is exported at
+    the top level and from ``litlaunch.host_sizing``; the guide uses the submodule
+    import. Applications must deliberately forward the result to one trusted
+    frontend sizing surface. LitLaunch does not discover or inject frontend
+    adapters.
     """
 
     return _handoff_from_env(os.environ)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -80,9 +81,16 @@ _SENSITIVE_DETAIL_MARKERS = (
 
 
 def create_runtime_event_file_sink(path: str | Path) -> RuntimeEventSink:
-    """Create a tiny JSONL file sink for local runtime lifecycle events."""
+    """Create a tiny JSONL file sink for local runtime lifecycle events.
+
+    Writes through this sink instance are serialized with a lock so concurrent
+    in-process writers (e.g. a background runtime thread and the main thread)
+    cannot interleave a line. Cross-process appends to a shared path remain
+    best-effort and are not synchronized.
+    """
 
     event_path = Path(path)
+    lock = threading.Lock()
 
     def write_event(event: RuntimeEvent) -> None:
         resolved = event_path.expanduser()
@@ -95,8 +103,9 @@ def create_runtime_event_file_sink(path: str | Path) -> RuntimeEventSink:
             "message": redact_sensitive_text(event.message),
             "details": _safe_event_details(event.details),
         }
-        with resolved.open("a", encoding="utf-8", newline="\n") as file:
-            file.write(json.dumps(record, sort_keys=True) + "\n")
+        line = json.dumps(record, sort_keys=True) + "\n"
+        with lock, resolved.open("a", encoding="utf-8", newline="\n") as file:
+            file.write(line)
 
     return write_event
 

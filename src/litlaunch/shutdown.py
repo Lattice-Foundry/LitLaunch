@@ -143,6 +143,7 @@ class ShutdownRequestResult:
     status_code: int | None
     message: str
     hook_results: tuple[ShutdownHookResult, ...] = ()
+    timed_out: bool = False
 
 
 class ShutdownHookRegistry:
@@ -490,8 +491,18 @@ class ShutdownClient:
         self.opener = opener
         self.timeout_seconds = timeout_seconds
 
-    def request_shutdown(self) -> ShutdownRequestResult:
-        """POST to the app-side shutdown endpoint."""
+    def request_shutdown(
+        self,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> ShutdownRequestResult:
+        """POST to the app-side shutdown endpoint.
+
+        App cleanup hooks run synchronously before the endpoint replies, so the
+        request timeout must cover the caller's graceful cleanup budget. Callers
+        pass ``timeout_seconds`` derived from that budget; otherwise the client
+        default applies.
+        """
 
         request = urllib.request.Request(
             f"http://{_format_host_for_url(self.host)}:{self.port}"
@@ -499,8 +510,11 @@ class ShutdownClient:
             method="POST",
         )
         request.add_header(SHUTDOWN_TOKEN_HEADER, self.token)
+        effective_timeout = (
+            self.timeout_seconds if timeout_seconds is None else timeout_seconds
+        )
         try:
-            response = self.opener(request, timeout=self.timeout_seconds)
+            response = self.opener(request, timeout=effective_timeout)
             status_code = getattr(response, "status", getattr(response, "code", None))
             payload = _read_shutdown_response_payload(response)
             if hasattr(response, "close"):
@@ -519,10 +533,14 @@ class ShutdownClient:
                 hook_results=_hook_results_from_payload(payload),
             )
         except Exception as exc:
+            # A timeout means the endpoint is present but cleanup outran the
+            # budget; a refused connection means no endpoint. Distinguish them so
+            # a slow-but-present app is not misreported as never opting in.
             return ShutdownRequestResult(
                 ok=False,
                 status_code=None,
                 message=f"Shutdown request failed: {exc}",
+                timed_out=_is_timeout_error(exc),
             )
 
         ok = 200 <= int(status_code or 0) < 300
@@ -718,6 +736,19 @@ def _read_shutdown_response_payload(response: object) -> dict[str, object]:
     except json.JSONDecodeError:
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _is_timeout_error(exc: BaseException) -> bool:
+    """Return whether a failed shutdown request timed out rather than being refused.
+
+    ``socket.timeout`` is an alias of ``TimeoutError`` on supported Pythons, and
+    ``urllib`` wraps a connect timeout inside ``URLError.reason``.
+    """
+
+    if isinstance(exc, TimeoutError):
+        return True
+    reason = getattr(exc, "reason", None)
+    return isinstance(reason, TimeoutError)
 
 
 def _format_host_for_url(host: str) -> str:

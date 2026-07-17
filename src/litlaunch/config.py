@@ -41,7 +41,11 @@ class TrustMode(str, Enum):
 
 
 class HostSizingPolicy(str, Enum):
-    """Supported public host-window sizing policies."""
+    """Supported public host-window sizing policies.
+
+    Experimental: host sizing is off by default, Windows/webapp only, and this
+    surface may change in a future minor release. See the host-sizing guide.
+    """
 
     OFF = "off"
     INITIAL = "initial"

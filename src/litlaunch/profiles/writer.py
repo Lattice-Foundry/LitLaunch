@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from litlaunch.exceptions import ConfigurationError
 from litlaunch.windowing import WindowMonitorConfig
@@ -154,8 +154,25 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
             "runtime_event_log = "
             f"{_toml_string(_display_path(config.runtime_event_log, base_dir))}"
         )
-    if config.streamlit_args:
-        lines.append(f"streamlit_args = {_toml_array(config.streamlit_args)}")
+    mapping_flags = (
+        dict(config.streamlit_flags)
+        if isinstance(config.streamlit_flags, Mapping)
+        else {}
+    )
+    # TOML tables cannot store a null value, so a value-less (None) Streamlit flag
+    # is round-tripped as a bare "--flag" streamlit arg. That produces the exact
+    # same Streamlit command instead of a misleading empty-string value.
+    bare_flag_args = tuple(
+        _bare_flag_name(str(key))
+        for key, value in sorted(mapping_flags.items())
+        if value is None
+    )
+    valued_flags = {
+        key: value for key, value in mapping_flags.items() if value is not None
+    }
+    combined_streamlit_args = (*config.streamlit_args, *bare_flag_args)
+    if combined_streamlit_args:
+        lines.append(f"streamlit_args = {_toml_array(combined_streamlit_args)}")
     if config.app_args:
         lines.append(f"app_args = {_toml_array(config.app_args)}")
     if config.extra_browser_args:
@@ -165,20 +182,18 @@ def _render_profile(name: str, profile: LaunchProfile, *, base_dir: Path) -> str
     if config.extra_env:
         lines.extend(("", f"[{profile_header}.extra_env]"))
         lines.extend(
-            f"{key} = {_toml_string(value)}"
+            f"{_toml_key(str(key))} = {_toml_string(value)}"
             for key, value in sorted(config.extra_env.items())
         )
-    if isinstance(config.streamlit_flags, Mapping) and config.streamlit_flags:
-        lines.extend(("", f"[{profile_header}.streamlit_flags]"))
-        lines.extend(
-            f"{_toml_key(str(key))} = {_toml_value(value)}"
-            for key, value in sorted(config.streamlit_flags.items())
-        )
+    if isinstance(config.streamlit_flags, Mapping):
+        if valued_flags:
+            lines.extend(("", f"[{profile_header}.streamlit_flags]"))
+            lines.extend(
+                f"{_toml_key(str(key))} = {_toml_value(value)}"
+                for key, value in sorted(valued_flags.items())
+            )
     elif config.streamlit_flags:
-        lines.append(
-            f"streamlit_flags = "
-            f"{_toml_array(cast(tuple[str, ...], config.streamlit_flags))}"
-        )
+        lines.append(f"streamlit_flags = {_toml_array(config.streamlit_flags)}")
     if profile.monitor_window or profile.window_monitor_config != WindowMonitorConfig():
         monitor = profile.window_monitor_config
         lines.extend(("", f"[{profile_header}.window_monitor]"))
@@ -263,6 +278,11 @@ def _display_path(path: Path, base_dir: Path) -> str:
         return os.path.relpath(path, base_dir)
     except ValueError:
         return str(path)
+
+
+def _bare_flag_name(key: str) -> str:
+    stripped = key.strip()
+    return stripped if stripped.startswith("--") else f"--{stripped}"
 
 
 def _toml_key(value: str) -> str:

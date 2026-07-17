@@ -334,6 +334,51 @@ def test_release_script_rejects_engineering_research_in_sdist():
         )
 
 
+def test_release_script_rejects_internal_doc_lanes_in_sdist():
+    module = load_release_script()
+    version = module.read_project_version()
+    prefix = f"litlaunch-{version}"
+
+    for internal_entry in (
+        f"{prefix}/docs/audits/release_hardening_audit_1_1_1.md",
+        f"{prefix}/docs/docs_structure_standard.md",
+        f"{prefix}/docs/security/threat_notes.md",
+        f"{prefix}/docs/planning/roadmap.md",
+    ):
+        with pytest.raises(RuntimeError, match="non-public"):
+            module.inspect_sdist_names(
+                (
+                    f"{prefix}/README.md",
+                    f"{prefix}/LICENSE",
+                    f"{prefix}/pyproject.toml",
+                    f"{prefix}/docs/Public/Guides/overview.md",
+                    internal_entry,
+                    f"{prefix}/src/litlaunch/__init__.py",
+                    f"{prefix}/src/litlaunch/py.typed",
+                ),
+                version,
+            )
+
+
+def test_release_script_allows_public_docs_and_assets_in_sdist():
+    module = load_release_script()
+    version = module.read_project_version()
+    prefix = f"litlaunch-{version}"
+
+    leaked = module.find_non_public_sdist_docs(
+        (
+            f"{prefix}/docs/README.md",
+            f"{prefix}/docs/Public/Guides/overview.md",
+            f"{prefix}/docs/Public/FAQ/host-sizing.md",
+            f"{prefix}/docs/assets/screenshots/diagnostics-page-overview.png",
+            f"{prefix}/src/litlaunch/__init__.py",
+        ),
+        version,
+    )
+
+    assert leaked == ()
+
+
 def test_release_script_require_archive_entry_raises_for_missing_entry():
     module = load_release_script()
 

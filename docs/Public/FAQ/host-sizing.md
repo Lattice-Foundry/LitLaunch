@@ -54,11 +54,11 @@ Current evidence covers Edge and Chrome, direct and shortcut launches, and 100%
 and 150% mixed-DPI Windows 11 displays. Windows 10, 125% scaling, alternate
 taskbar layouts, and independent Windows hosts remain unproven.
 
-## Does it require LitBridge?
+## Does it require a specific frontend framework?
 
-No. LitBridge can supply host-relative content measurements, but any trusted
-frontend can use the documented report contract. LitLaunch does not import or
-detect LitBridge.
+No. Any trusted frontend that can report a complete host-relative content
+measurement can use the documented report contract. LitLaunch does not import,
+detect, or require any particular frontend library.
 
 ## How should the handoff be handled?
 

@@ -15,6 +15,7 @@ from litlaunch.artifacts import (
 from litlaunch.browser_profiles import (
     append_switch_once,
     create_managed_browser_profile,
+    has_browser_switch,
     with_managed_browser_profile_args,
 )
 from litlaunch.browsers import (
@@ -328,6 +329,11 @@ def _prepare_managed_browser_window_config(
     """Return browser config that encourages a monitorable top-level window."""
 
     if config.mode != LaunchMode.BROWSER:
+        return config
+
+    # Respect an explicit user-provided browser profile: never create or clean up
+    # a LitLaunch-managed profile when the user already chose --user-data-dir.
+    if has_browser_switch(config.extra_browser_args, "--user-data-dir"):
         return config
 
     browser = _managed_browser_choice(config.browser, platform_info)

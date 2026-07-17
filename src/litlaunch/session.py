@@ -33,6 +33,11 @@ from litlaunch.windowing import (
     WindowTarget,
 )
 
+# App cleanup hooks run synchronously before the shutdown endpoint replies, so
+# the request must be allowed the full graceful cleanup budget plus a small
+# transport margin before it is treated as a timeout.
+_SHUTDOWN_REQUEST_MARGIN_SECONDS = 2.0
+
 
 class _PrivateHostSizingRuntimeOwner(Protocol):
     def close(self) -> None:
@@ -201,7 +206,10 @@ class RuntimeSession:
                 "requesting app cleanup",
                 verbose_only=True,
             )
-            request_result = self._shutdown_client.request_shutdown()
+            request_result = self._shutdown_client.request_shutdown(
+                timeout_seconds=graceful_timeout_seconds
+                + _SHUTDOWN_REQUEST_MARGIN_SECONDS,
+            )
             if request_result.ok:
                 self.add_event(
                     LaunchState.TERMINATING,
@@ -262,7 +270,29 @@ class RuntimeSession:
                     render=False,
                 )
                 self._render_shutdown_hook_results(request_result.hook_results)
-                if (
+                if request_result.timed_out:
+                    if self._is_verbose_console():
+                        render_phase_warning(
+                            self.console_renderer,
+                            ConsolePhase.BACKEND,
+                            "graceful cleanup timed out; using termination fallback",
+                        )
+                    render_failure_guidance(
+                        self.console_renderer,
+                        "Shutdown: graceful cleanup timed out.",
+                        likely_cause=(
+                            "The app cleanup endpoint did not finish within the "
+                            "graceful timeout."
+                        ),
+                        next_steps=(
+                            (
+                                "Increase graceful_timeout_seconds if the app "
+                                "needs more cleanup time."
+                            ),
+                            "Use verbose mode for more runtime details.",
+                        ),
+                    )
+                elif (
                     request_result.status_code is None
                     and not request_result.hook_results
                 ):
@@ -426,7 +456,16 @@ class RuntimeSession:
             self._stopped = True
             self._state = LaunchState.TERMINATED
             self.add_event(LaunchState.TERMINATED, result.message, render=False)
+            # This branch does not call stop(), so emit the terminal backend and
+            # port events here to keep the structured event trail complete without
+            # duplicating them.
+            self.event_emitter.emit(
+                "backend_stopped",
+                category="backend",
+                message="Backend process exited during window monitoring.",
+            )
             render_window_monitor_result(self.console_renderer, result)
+            self._render_port_release_if_verified()
             self._run_cleanup_callbacks()
         else:
             self.add_event(

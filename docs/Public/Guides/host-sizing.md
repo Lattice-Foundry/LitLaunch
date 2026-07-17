@@ -185,43 +185,38 @@ The desired height must be the complete host-relative viewport target.
 Component height alone is insufficient because the app shell may include
 headers, spacing, or other product-owned layout.
 
-For LitBridge, forward one authoritative top-level content-size callback. Map
-its host-relative content-bottom measurement directly to the desired host
-viewport height rather than recreating iframe offsets or DOM geometry in
-LitLaunch:
+Wire the reporter to whatever authoritative top-level content-size signal your
+frontend already produces. Map that surface's host-relative content-bottom
+measurement directly to the desired host viewport height rather than recreating
+iframe offsets or DOM geometry in LitLaunch:
 
 ```ts
 const reportHostSize = createHostSizingReporter(hostSizingHandoff);
 
-const app = createLitBridgeApp({
-  resize: {
-    root: ".studio-app",
-    fit: "content",
-    onContentSize(size) {
-      if (
-        size.hostViewportHeight === undefined ||
-        size.hostContentBottom === undefined
-      ) {
-        return;
-      }
-      void reportHostSize({
-        sequence: size.sequence,
-        devicePixelRatio: window.devicePixelRatio,
-        content: { height: size.height, width: size.width },
-        hostViewport: {
-          height: size.hostViewportHeight,
-          width: size.hostViewportWidth,
-        },
-        desiredHostViewportHeight: size.hostContentBottom,
-      });
+// Called by your app's own top-level content-size observer.
+function onContentSize(size) {
+  if (
+    size.hostViewportHeight === undefined ||
+    size.hostContentBottom === undefined
+  ) {
+    return;
+  }
+  void reportHostSize({
+    sequence: size.sequence,
+    devicePixelRatio: window.devicePixelRatio,
+    content: { height: size.height, width: size.width },
+    hostViewport: {
+      height: size.hostViewportHeight,
+      width: size.hostViewportWidth,
     },
-  },
-});
+    desiredHostViewportHeight: size.hostContentBottom,
+  });
+}
 ```
 
-LitBridge is optional. Any trusted frontend can provide the same complete
-measurement. LitLaunch does not import LitBridge, inspect the DOM, inject page
-scripts, or infer browser geometry from constants.
+Any trusted frontend that can report a complete host-relative content-bottom
+measurement works. LitLaunch does not inspect the DOM, inject page scripts, or
+infer browser geometry from constants.
 
 ## Runtime Behavior
 

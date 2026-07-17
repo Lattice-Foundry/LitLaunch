@@ -61,6 +61,10 @@ docs/internal/
 # Host-sizing research and validation notebooks are retained locally; only
 # docs/research/.gitkeep belongs in the public repository.
 docs/research/*.md
+# Internal audit/remediation records reference internal findings and
+# pre-release integration work; they stay local-only like research notes.
+# Only docs/audits/.gitkeep is tracked.
+docs/audits/*.md
 docs/**/scratch/
 docs/**/tmp/
 docs/**/inbox/

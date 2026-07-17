@@ -232,9 +232,14 @@ class HostSizingReportStore:
         clock: Any = time,
         max_reports_per_window: int = 60,
         rate_window_seconds: float = 1.0,
-        max_accepted_reports: int = 1024,
+        max_accepted_reports: int | None = 1024,
     ) -> None:
-        if max_reports_per_window < 1 or max_accepted_reports < 1:
+        # max_accepted_reports is a one-shot lifetime ceiling. ``None`` disables it
+        # so a session-length policy (continuous) is bounded only by the sliding
+        # per-window rate limit and never permanently stops accepting reports.
+        if max_reports_per_window < 1:
+            raise ValueError("Host-sizing report limits must be positive.")
+        if max_accepted_reports is not None and max_accepted_reports < 1:
             raise ValueError("Host-sizing report limits must be positive.")
         if rate_window_seconds <= 0:
             raise ValueError("Host-sizing rate window must be positive.")
@@ -265,9 +270,9 @@ class HostSizingReportStore:
             cutoff = now - self._rate_window_seconds
             while self._request_times and self._request_times[0] <= cutoff:
                 self._request_times.popleft()
-            if (
-                len(self._request_times) >= self._max_reports_per_window
-                or self._accepted_count >= self._max_accepted_reports
+            if len(self._request_times) >= self._max_reports_per_window or (
+                self._max_accepted_reports is not None
+                and self._accepted_count >= self._max_accepted_reports
             ):
                 return self._reject(
                     HostSizingReportDecision.RATE_LIMITED,
@@ -599,6 +604,10 @@ def _build_host_sizing_handler(
             if self.path != HOST_SIZING_ENDPOINT_PATH:
                 self._write_json(404, {"ok": False, "message": "Not found."})
                 return
+            if not self._host_header_allowed():
+                context.store.record_rejection("host")
+                self._write_json(403, {"ok": False, "message": "Forbidden."})
+                return
             origin = self.headers.get("Origin", "")
             if not self._origin_allowed(origin):
                 context.store.record_rejection("origin")
@@ -641,6 +650,10 @@ def _build_host_sizing_handler(
         def do_POST(self) -> None:  # noqa: N802 - HTTP handler contract.
             if self.path != HOST_SIZING_ENDPOINT_PATH:
                 self._write_json(404, {"ok": False, "message": "Not found."})
+                return
+            if not self._host_header_allowed():
+                context.store.record_rejection("host")
+                self._write_json(403, {"ok": False, "message": "Forbidden."})
                 return
             origin = self.headers.get("Origin", "")
             if not self._origin_allowed(origin):
@@ -775,6 +788,20 @@ def _build_host_sizing_handler(
                 405,
                 {"ok": False, "message": "Method not allowed."},
             )
+
+        def _host_header_allowed(self) -> bool:
+            # Defense-in-depth against DNS rebinding: only accept the literal
+            # loopback host:port this endpoint is bound to, so a rebound name that
+            # resolves to 127.0.0.1 cannot reach the endpoint even if a page
+            # forges an allowed Origin.
+            host_header = self.headers.get("Host", "")
+            if not host_header:
+                return False
+            server_address = self.server.server_address
+            if not isinstance(server_address, tuple) or len(server_address) < 2:
+                return False
+            server_host, server_port = server_address[0], server_address[1]
+            return host_header in {f"{server_host}:{server_port}", str(server_host)}
 
         def _origin_allowed(self, origin: str) -> bool:
             return bool(origin) and hmac.compare_digest(

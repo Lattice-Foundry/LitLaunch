@@ -417,17 +417,12 @@ def _join_desktop_exec(parts: tuple[str, ...]) -> str:
 
 
 def _quote_windows(value: str) -> str:
-    escaped = value
-    for raw, replacement in (
-        ("^", "^^"),
-        ("%", "%%"),
-        ('"', '^"'),
-        ("&", "^&"),
-        ("<", "^<"),
-        (">", "^>"),
-        ("|", "^|"),
-    ):
-        escaped = escaped.replace(raw, replacement)
+    # The value is always wrapped in double quotes, and inside a quoted batch
+    # argument & < > | ^ are literal, so caret-escaping them would insert stray
+    # carets into the path. Only % still expands (batch variable syntax), so it
+    # is doubled. A literal double quote has no portable batch escape and cannot
+    # appear in a Windows path, so it is left untouched.
+    escaped = value.replace("%", "%%")
     return f'"{escaped}"'
 
 
@@ -436,11 +431,14 @@ def _quote_posix(value: str) -> str:
 
 
 def _quote_desktop_exec(value: str) -> str:
+    # Per the Desktop Entry spec a literal percent is a reserved field code and
+    # must be doubled ("%%"), independent of the reserved-character quoting below.
     escaped = (
         value.replace("\\", "\\\\")
         .replace('"', '\\"')
         .replace("$", "\\$")
         .replace("`", "\\`")
+        .replace("%", "%%")
     )
     if any(char.isspace() for char in escaped) or any(
         char in escaped for char in ('"', "'", "\\", "$", "`")

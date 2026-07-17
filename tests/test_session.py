@@ -70,15 +70,19 @@ class FakeShutdownClient:
         hook_results=(),
         status_code=_DEFAULT_STATUS_CODE,
         message=None,
+        timed_out=False,
     ):
         self.ok = ok
         self.hook_results = hook_results
         self.status_code = status_code
         self.message = message
+        self.timed_out = timed_out
         self.calls = 0
+        self.timeouts: list[float | None] = []
 
-    def request_shutdown(self):
+    def request_shutdown(self, *, timeout_seconds=None):
         self.calls += 1
+        self.timeouts.append(timeout_seconds)
         status_code = (
             (200 if self.ok else 500)
             if self.status_code is _DEFAULT_STATUS_CODE
@@ -89,6 +93,7 @@ class FakeShutdownClient:
             status_code=status_code,
             message=self.message or ("accepted" if self.ok else "failed"),
             hook_results=self.hook_results,
+            timed_out=self.timed_out,
         )
 
 
@@ -770,6 +775,60 @@ def test_runtime_session_stop_missing_cleanup_endpoint_is_expected_fallback():
     assert manager.stop_calls == [(process, 2.0)]
 
 
+def test_runtime_session_stop_passes_graceful_budget_to_shutdown_client():
+    from litlaunch.session import _SHUTDOWN_REQUEST_MARGIN_SECONDS
+
+    process = make_process()
+    manager = FakeProcessManager()
+    shutdown_client = FakeShutdownClient(ok=True)
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        clock=FakeClock(),
+    )
+
+    session.stop(graceful_timeout_seconds=7.0)
+
+    # The request timeout must cover the graceful cleanup budget (plus a small
+    # transport margin) so hooks slower than the old fixed 2s are not cut off.
+    assert shutdown_client.timeouts == [7.0 + _SHUTDOWN_REQUEST_MARGIN_SECONDS]
+
+
+def test_runtime_session_stop_timeout_is_not_reported_as_missing_endpoint():
+    stream = StringIO()
+    renderer = ConsoleRenderer(
+        theme=ConsoleTheme(use_color=False),
+        stream=stream,
+    )
+    process = make_process()
+    manager = FakeProcessManager()
+    shutdown_client = FakeShutdownClient(
+        ok=False,
+        status_code=None,
+        message="Shutdown request failed: timed out",
+        timed_out=True,
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        shutdown_client=shutdown_client,
+        console_renderer=renderer,
+        clock=FakeClock(),
+    )
+
+    session.stop(timeout_seconds=2.0, graceful_timeout_seconds=1.0)
+
+    output = stream.getvalue()
+    # A present-but-slow cleanup endpoint must not be reported as never opting in.
+    assert "Shutdown: Graceful cleanup timed out." in output
+    assert "did not opt into LitLaunch app-side cleanup hooks" not in output
+    assert "cleanup endpoint unavailable" not in output.lower()
+    assert manager.stop_calls == [(process, 2.0)]
+
+
 def test_runtime_session_stop_uses_fallback_when_graceful_wait_times_out():
     process = make_process()
     manager = FakeProcessManager(wait_timeout=True)
@@ -977,3 +1036,31 @@ def test_runtime_session_monitor_window_backend_exited_does_not_stop_backend():
     assert result.status == WindowMonitorStatus.BACKEND_EXITED
     assert manager.stop_calls == []
     assert session.state == LaunchState.TERMINATED
+
+
+def test_runtime_session_monitor_window_backend_exited_emits_terminal_event():
+    events: list[RuntimeEvent] = []
+    process = make_process()
+    manager = FakeProcessManager(running=False)
+    monitor = FakeWindowMonitor(
+        WindowMonitorResult(
+            supported=True,
+            observed=True,
+            closed=False,
+            status=WindowMonitorStatus.BACKEND_EXITED,
+            message="backend exited",
+        )
+    )
+    session = RuntimeSession(
+        result=make_result(),
+        process=process,
+        process_manager=manager,
+        event_emitter=RuntimeEventEmitter(events.append),
+        clock=FakeClock(),
+    )
+
+    session.monitor_window(monitor, WindowTarget("Streamlit"))
+
+    # A backend that dies during monitoring must still leave a terminal event in
+    # the structured trail even though this path never calls stop().
+    assert "backend_stopped" in [event.name for event in events]

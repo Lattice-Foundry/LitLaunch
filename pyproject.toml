@@ -62,9 +62,23 @@ packages = ["src/litlaunch"]
 "src/litlaunch/py.typed" = "litlaunch/py.typed"
 
 [tool.hatch.build.targets.sdist]
+# Ship only public documentation (docs/README.md, docs/Public/**, docs/assets/**).
+# Every internal documentation lane and the internal workspace standard are
+# excluded so internal records cannot reach the public sdist. scripts/check_release.py
+# enforces this with an allowlist guard so a new internal lane cannot leak silently.
 exclude = [
   "/.claude",
+  "/docs/architecture",
+  "/docs/archive",
+  "/docs/audits",
+  "/docs/docs_structure_standard.md",
+  "/docs/implementation",
+  "/docs/migrations",
+  "/docs/planning",
+  "/docs/release",
   "/docs/research",
+  "/docs/security",
+  "/docs/testing",
   "/notes",
 ]
 

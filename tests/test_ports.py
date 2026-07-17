@@ -111,6 +111,35 @@ def test_auto_port_obeys_configured_port_range():
     ]
 
 
+def test_auto_port_wraps_below_requested_port_within_range():
+    manager = FakePortManager({8505})
+    config = LauncherConfig(
+        app_path="app.py",
+        port=8510,
+        auto_port=True,
+        port_range=[8500, 8520],
+    )
+
+    # Only 8505 (below the requested 8510) is free; the whole declared range is
+    # usable, so auto-port wraps down after exhausting the higher ports.
+    assert manager.resolve_port(config) == 8505
+    assert manager.checked_ports[0] == ("127.0.0.1", 8510)
+    assert ("127.0.0.1", 8505) in manager.checked_ports
+
+
+def test_auto_port_exhausted_range_errors_with_range_message():
+    manager = FakePortManager(set())
+    config = LauncherConfig(
+        app_path="app.py",
+        port=8510,
+        auto_port=True,
+        port_range=[8500, 8520],
+    )
+
+    with pytest.raises(PortError, match="no free port remains"):
+        manager.resolve_port(config)
+
+
 def test_exhausted_port_range_errors_cleanly():
     manager = FakePortManager(set())
     config = LauncherConfig(app_path="app.py", port_range=[8501, 8502])

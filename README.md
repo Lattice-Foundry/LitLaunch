@@ -178,8 +178,8 @@ their product.
 - Provide tokened loopback graceful shutdown hooks for app cleanup.
 - Inspect local runtime readiness without launching the app.
 - Keep failure output calm, concise, and actionable.
-- Optionally apply one authenticated initial height fit for eligible Windows
-  Edge or Chrome webapp windows.
+- Optionally apply authenticated height fitting (`initial` one-shot or
+  `continuous` session-long) for eligible Windows Edge or Chrome webapp windows.
 
 ## Runtime Philosophy
 

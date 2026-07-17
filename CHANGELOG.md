@@ -58,6 +58,25 @@ the project history at the level most useful to release users and integrators.
   with sequence, dedupe, jitter, worker, body, and rate safeguards intact.
 - Added low-noise continuous lifecycle diagnostics and updated the public
   profile, CLI, Python, frontend-adapter, security, and troubleshooting guidance.
+- Hardened failure and long-running paths after a pre-release audit:
+  - Guaranteed the owned Streamlit backend and the Experimental host-sizing
+    endpoint are always cleaned up if the browser-launch phase fails
+    unexpectedly, so a filesystem error can no longer orphan the backend.
+  - Kept `continuous` host sizing tracking content for the whole session instead
+    of stopping after a fixed lifetime report count.
+  - Let app cleanup hooks use the full graceful-shutdown budget, and report a
+    slow-but-present cleanup endpoint as a timeout rather than as missing.
+  - Made auto-port use the whole configured port range and refuse to adopt a
+    foreign server that raced onto the requested port.
+  - Added a Host-header check to the loopback host-sizing endpoint, redacted
+    URL-embedded credentials in diagnostics, and corrected Linux `.desktop` and
+    Windows `.bat` shortcut quoting for paths with special characters.
+  - Round-tripped dotted `extra_env` keys and value-less Streamlit flags in
+    profiles, clarified that CLI launches stay adaptive unless `--no-auto-port`,
+    made the generated diagnostics page robust to unusual app names, and added a
+    generated-page execution smoke test.
+  - Excluded internal documentation lanes from the published sdist with an
+    allowlist release-hygiene guard.
 
 ## 1.1.0 - Stable
 

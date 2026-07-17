@@ -158,8 +158,16 @@ def preview_profile(
     write(stream, f"Host: {profile.config.host}")
     port = "auto" if profile.config.port is None else str(profile.config.port)
     write(stream, f"Port: {port}")
-    auto_port = "enabled" if profile.config.auto_port else "disabled"
-    write(stream, f"Auto-port: {auto_port}")
+    if profile.config.auto_port:
+        write(stream, "Auto-port: enabled")
+    else:
+        # CLI launches stay adaptive by default; a stored fixed-port preference is
+        # only enforced with an explicit --no-auto-port so it never silently traps.
+        write(
+            stream,
+            "Auto-port: fixed port preferred (pass --no-auto-port to enforce it "
+            "on the CLI)",
+        )
     fallback = "enabled" if profile.config.allow_browser_fallback else "disabled"
     write(stream, f"Browser fallback: {fallback}")
     if profile.config.allow_network_exposure:

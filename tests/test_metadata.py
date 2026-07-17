@@ -88,7 +88,7 @@ def test_pyproject_urls_use_canonical_repository_location():
     assert urls["Homepage"] == "https://github.com/Lattice-Foundry/LitLaunch"
     assert urls["Repository"] == "https://github.com/Lattice-Foundry/LitLaunch"
     assert urls["Issues"] == "https://github.com/Lattice-Foundry/LitLaunch/issues"
-    assert urls["PyPI"] == "https://pypi.org/project/litlaunch/1.1.1/"
+    assert urls["PyPI"] == "https://pypi.org/project/litlaunch/1.1.2/"
 
 
 def test_changelog_exists_and_mentions_current_version():

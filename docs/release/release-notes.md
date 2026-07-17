@@ -3,7 +3,7 @@
 Human-simplified notes for GitHub Releases. The full, detailed history lives in
 [`CHANGELOG.md`](../../CHANGELOG.md).
 
-## v1.1.1
+## v1.1.2
 
 The headline of the 1.1.x line is **Experimental host sizing** — LitLaunch can
 fit the height of an eligible local Windows webapp window to your app's content,

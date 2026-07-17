@@ -46,18 +46,8 @@ the project history at the level most useful to release users and integrators.
 - Cleaner public repository hygiene: internal working notes are excluded from
   public package artifacts and the public source tree.
 
-## 1.1.1 - Stable
+## 1.1.2 - Stable
 
-- Added the Experimental `host_sizing = "continuous"` policy for meaningful
-  later content growth and shrink in route-driven product apps.
-- Preserved the default `off` behavior and exact one-attempt semantics of
-  `host_sizing = "initial"`.
-- Revalidated the same exact browser process, HWND, window state, and last
-  verified geometry before every continuous height-only attempt.
-- Kept the authenticated loopback channel active only for the runtime session,
-  with sequence, dedupe, jitter, worker, body, and rate safeguards intact.
-- Added low-noise continuous lifecycle diagnostics and updated the public
-  profile, CLI, Python, frontend-adapter, security, and troubleshooting guidance.
 - Hardened failure and long-running paths after a pre-release audit:
   - Guaranteed the owned Streamlit backend and the Experimental host-sizing
     endpoint are always cleaned up if the browser-launch phase fails
@@ -77,6 +67,19 @@ the project history at the level most useful to release users and integrators.
     generated-page execution smoke test.
   - Excluded internal documentation lanes from the published sdist with an
     allowlist release-hygiene guard.
+
+## 1.1.1 - Stable
+
+- Added the Experimental `host_sizing = "continuous"` policy for meaningful
+  later content growth and shrink in route-driven product apps.
+- Preserved the default `off` behavior and exact one-attempt semantics of
+  `host_sizing = "initial"`.
+- Revalidated the same exact browser process, HWND, window state, and last
+  verified geometry before every continuous height-only attempt.
+- Kept the authenticated loopback channel active only for the runtime session,
+  with sequence, dedupe, jitter, worker, body, and rate safeguards intact.
+- Added low-noise continuous lifecycle diagnostics and updated the public
+  profile, CLI, Python, frontend-adapter, security, and troubleshooting guidance.
 
 ## 1.1.0 - Stable
 

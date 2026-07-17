@@ -3,7 +3,7 @@
 The full, detailed history lives in
 [`CHANGELOG.md`](../../CHANGELOG.md).
 
-## v1.1.3
+## v1.1.3 Hotfix
 
 LitLaunch now tolerates a bounded Chromium app-window replacement during
 startup. If Edge or Chrome destroys a matching candidate before it becomes
@@ -12,6 +12,8 @@ window-class identity, or from the same validated managed launch process family,
 instead of treating the transient close as the user's shutdown request. Closing
 the stable observed window remains authoritative and still stops the owned
 backend normally.
+
+LitLaunch 1.1.3 supersedes 1.1.2; users on 1.1.2 should upgrade.
 
 This patch builds on the 1.1.x Experimental host-sizing release described
 below.

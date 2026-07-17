@@ -1,6 +1,6 @@
 # Release notes
 
-Human-simplified notes for GitHub Releases. The full, detailed history lives in
+The full, detailed history lives in
 [`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## v1.1.2
